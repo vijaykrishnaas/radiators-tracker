@@ -1,0 +1,88 @@
+/* Dropzone */
+.dropzone {
+    text-align: center !important;
+    border: 2px dashed #2264E561 !important;
+    height: 110px !important;
+    background-color: #F2F6FF !important;
+}
+
+
+.dropdown-btn {
+    background-color: #F2F6FF !important;
+    font-size: 14px !important;
+    margin-top: 34px;
+}
+
+.dropdown-btn:hover {
+    border: 0px solid var(--primary) !important;
+}
+
+.select-color {
+    color: #4F4F4F;
+    font-family: 'inter-bold' !important;
+
+}
+
+.drag-text-color {
+    color: #828282;
+
+}
+
+.dropzone input {
+    display: none !important;
+}
+
+.dropzone.form-control>p {
+    font-size: 14px;
+    color: var(--lightGray) !important;
+    margin-top: 12px;
+}
+
+.container-dropzone .list-group-item-success,
+.container-dropzone .list-group-item-danger {
+    display: flex !important;
+    flex-wrap: wrap;
+    background: none !important;
+}
+
+.container-dropzone .list-group-item-success .success-container {
+    font-size: 12px;
+    border: 1px solid var(--success);
+    padding: 8px 10px;
+    margin: 10px 7px 0px 7px;
+    border-radius: 7px;
+    background-color: var(--alertAbOutlineSuccess);
+}
+
+.container-dropzone .list-group-item-success .success-container .remove-btn {
+    background: none !important;
+    border: none !important;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    margin-left: 10px;
+}
+
+.container-dropzone .list-group-item-success .success-container .remove-btn:focus-visible {
+    outline: none !important;
+}
+
+.container-dropzone .list-group-item-success .success-container .remove-icon {
+    border: 1px solid var(--formBorderColor) !important;
+    border-radius: 3px;
+}
+
+.container-dropzone .list-group-item-danger .failure-container {
+    font-size: 12px;
+    border: 1px solid var(--danger);
+    padding: 8px 10px;
+    margin-right: 10px;
+    border-radius: 7px;
+    background-color: var(--alertAbOutlineDanger);
+}
+
+.container-dropzone .dropzone:hover {
+    box-shadow: none !important;
+    border-color: var(--primary) !important;
+    cursor: pointer;
+}

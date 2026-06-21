@@ -1,0 +1,104 @@
+/** Input Tags **/
+.ReactTags__selected {
+    width: 100%;
+    border: 1px solid var(--formBorderColor) !important;
+    padding: 0.391rem 0.6rem;
+    border-radius: 10px;
+    box-shadow: 0px 1px 2px 0px #1018280D;
+}
+
+.ReactTags__tagInput {
+    display: block;
+    margin-left: 5px;
+    position: relative;
+}
+
+.ReactTags__tagInput input,
+.ReactTags__tagInput input:hover,
+.ReactTags__tagInput input:focus,
+.ReactTags__tagInput input:active,
+.ReactTags__tagInput input:focus-visible,
+.ReactTags__editTagInput input {
+    border: 0 !important;
+    border-color: var(--formBorderColor) !important;
+    outline: 0;
+    width: 100%;
+    font-size: 14px;
+}
+
+.ReactTags__editTagInput input {
+    border: 1px solid var(--formBorderColor) !important;
+    border-radius: 15px !important;
+    padding: 5px 10px;
+    font-size: 13px;
+}
+
+.ReactTags__tag {
+    padding: 3px 8px 2px;
+    background-color: var(--tagsBgColor) !important;
+    border: 1px solid var(--tagsColor) !important;
+    border-radius: 22px;
+    color: var(--tagsColor) !important;
+    margin: 3px;
+    font-size: 13px !important;
+    display: inline-block;
+}
+
+.ReactTags__remove {
+    background-color: var(--tagsColor) !important;
+    font-size: 12px !important;
+    border: 0 !important;
+    color: var(--white);
+    border-radius: 100%;
+    margin-left: 7px;
+    width: 17px;
+    height: 17px;
+    text-align: center;
+    padding: 0px 0px 1px;
+    line-height: 6px;
+    vertical-align: text-top;
+    opacity: 0.75;
+}
+
+.ReactTags__remove svg {
+    width: 7px !important;
+    height: 7px !important;
+}
+
+.ReactTags__remove:hover,
+.ReactTags__remove:active,
+.ReactTags__remove:focus {
+    opacity: 1;
+}
+
+.ReactTags__suggestions ul {
+    padding: 10px 5px 10px;
+    list-style: none !important;
+}
+
+.ReactTags__suggestions ul li {
+    padding: 4px;
+    color: var(--tagsColor);
+}
+
+.ReactTags__error {
+    width: auto !important;
+    padding: 5px 10px;
+    border-radius: 10px;
+    color: var(--danger);
+}
+
+.ReactTags__error svg {
+    margin: 0px 6px;
+    width: 18px;
+    height: 18px;
+}
+
+.custom-tags .ReactTags__tag {
+    border-radius: 6px !important;
+    border: 1px solid #4A8BE3 !important;
+    color: #4A8BE3 !important;
+    box-shadow: 0px 1px 2px 0px #1018280D !important;
+    background-color: var(--white) !important;
+    font-size: 12px !important;
+}

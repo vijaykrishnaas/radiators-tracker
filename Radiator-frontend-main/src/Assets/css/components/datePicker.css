@@ -1,0 +1,199 @@
+/* Date Pickers */
+.react-calendar {
+    font-family: 'inter' !important;
+}
+
+.form-group .react-datetime-picker__wrapper,
+.react-date-picker__wrapper,
+.react-time-picker__wrapper,
+.react-daterange-picker__wrapper {
+    border: none !important;
+    cursor: pointer;
+}
+
+.react-datetime-picker,
+.react-time-picker,
+.react-date-picker,
+.react-daterange-picker {
+    padding: 0.219rem 0.62rem !important;
+}
+
+.react-datetime-picker__inputGroup__input,
+.react-time-picker__inputGroup__input,
+.react-date-picker__inputGroup__input,
+.react-daterange-picker__inputGroup__input,
+.react-date-picker__inputGroup__leadingZero,
+.react-time-picker__inputGroup__leadingZero {
+    color: var(--textColor) !important;
+}
+
+.react-calendar__navigation__label__labelText {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.react-datetime-picker__calendar .react-calendar,
+.react-calendar--selectRange,
+.react-calendar {
+    margin-top: 14px;
+    border-radius: 10px;
+    border-color: var(--formBorderColor);
+    padding: 5px !important;
+    box-shadow: 0px 0px 2px 0px #00000014, 0px 1px 4px 0px #454B571F, 0px 0px 0px 1px #98A1B21A;
+}
+
+.react-calendar--selectRange,
+.react-calendar {
+    border: none !important;
+}
+
+button.react-calendar__navigation__arrow.react-calendar__navigation__prev2-button,
+button.react-calendar__navigation__arrow.react-calendar__navigation__prev-button,
+button.react-calendar__navigation__arrow.react-calendar__navigation__next-button,
+button.react-calendar__navigation__arrow.react-calendar__navigation__next2-button {
+    font-size: 30px !important;
+    border-radius: 50%;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+    background-color: #000E330D !important;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+    color: var(--textColor) !important;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr[title] {
+    text-decoration: none !important;
+    cursor: default;
+}
+
+.react-calendar__tile--now {
+    background-color: var(--white) !important;
+    border: 2px solid var(--datePickerColor) !important;
+    color: var(--textColor) !important;
+    border-radius: 6px
+}
+
+.react-calendar__tile--now abbr[aria-label],
+.react-calendar__tile abbr[aria-label] {
+    font-weight: 600 !important;
+}
+
+.react-calendar__tile--active {
+    background-color: var(--datePickerColor) !important;
+    color: var(--white) !important;
+    border-radius: 6px;
+    font-weight: 600 !important;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+    border-radius: 6px;
+}
+
+.react-datetime-picker__inputGroup__divider,
+.react-date-picker__inputGroup__divider,
+.react-datetime-picker__inputGroup__amPm,
+.react-time-picker__inputGroup__amPm {
+    color: #D0D5DD !important;
+}
+
+.react-time-picker__inputGroup__amPm option {
+    color: var(--textColor) !important;
+}
+
+.react-datetime-picker__inputGroup__divider,
+.react-datetime-picker__inputGroup__leadingZero,
+.react-date-picker__inputGroup__divider {
+    color: var(--textColor);
+}
+
+.react-datetime-picker__button:enabled:hover .react-datetime-picker__button__icon,
+.react-datetime-picker__button:enabled:focus .react-datetime-picker__button__icon,
+.react-date-picker__button__icon:hover,
+.react-time-picker__button__icon:hover,
+.react-daterange-picker__clear-button__icon:hover,
+.react-daterange-picker__calendar-button__icon:hover {
+    stroke: var(--headerBg) !important;
+}
+
+.react-datetime-picker__inputGroup__input:invalid,
+.react-time-picker__inputGroup__input:invalid,
+.react-date-picker__inputGroup__input:invalid,
+.react-daterange-picker__inputGroup__input:invalid {
+    background: var(--themeBg) !important;
+}
+
+.react-datetime-picker__button svg,
+.react-date-picker__button svg,
+.react-time-picker__button svg,
+.react-daterange-picker__button svg {
+    stroke: var(--gray) !important;
+}
+
+.react-daterange-picker__inputGroup {
+    min-width: auto !important;
+    width: auto !important;
+}
+
+.react-calendar__year-view .react-calendar__tile,
+.react-calendar__decade-view .react-calendar__tile,
+.react-calendar__century-view .react-calendar__tile {
+    padding: 1em 1.5em !important;
+}
+
+.react-datetime-picker__clock {
+    z-index: 111 !important;
+}
+
+.react-datetime-picker__calendar.react-datetime-picker__calendar--open {
+    z-index: 111 !important;
+}
+
+.react-datetime-picker__inputGroup__amPm,
+.react-time-picker__inputGroup__amPm {
+    color: var(--textColor) !important;
+}
+
+
+/* custom date picker */
+
+.custom-date-picker .form-control {
+    border: 1px solid #D2D5DA !important;
+    border-radius: 6px !important;
+    background-color: #FCFCFC !important;
+}
+
+.custom-date-picker .form-control:hover {
+    box-shadow: 0px 1px 2px 0px #dddddd !important;
+}
+
+.custom-date-picker .react-datetime-picker__inputGroup__input,
+.custom-date-picker .react-time-picker__inputGroup__input,
+.custom-date-picker .react-date-picker__inputGroup__input,
+.custom-date-picker .react-daterange-picker__inputGroup__input,
+.custom-date-picker .react-date-picker__inputGroup__leadingZero,
+.custom-date-picker .react-time-picker__inputGroup__leadingZero {
+    color: #6F6F6F !important;
+}
+
+.custom-date-picker .react-date-picker__clear-button,
+.custom-date-picker .react-time-picker__clear-button {
+    display: none !important;
+}
+
+.custom-date-picker .react-date-picker__calendar-button svg,
+.custom-date-picker .react-time-picker__button svg {
+    stroke: #3F78E8 !important;
+}
+
+/* Date range picker */
+.react-daterange-picker.form-control {
+    width: unset !important
+}
+
+.react-daterange-picker .react-daterange-picker__range-divider {
+    margin: 0 8px !important;
+}

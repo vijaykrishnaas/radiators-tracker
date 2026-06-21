@@ -1,0 +1,84 @@
+import { Router } from "express";
+import multer from "multer";
+import { authenticate, loadActiveTenant } from "../middleware/auth.js";
+import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl } from "../dao/settings.dao.js";
+import { saveLogo, saveQr } from "../dao/logo.dao.js";
+
+const router = Router();
+
+const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024 }, // 1 MB
+  fileFilter: (_req, file, cb) => {
+    cb(null, ALLOWED_LOGO_TYPES.includes(file.mimetype));
+  },
+});
+
+// Wraps multer so upload errors (too large, etc.) become clean 400s instead of
+// bubbling to the global handler as a 500.
+function uploadLogo(req, res, next) {
+  upload.single("logo")(req, res, (err) => {
+    if (err) {
+      const message = err.code === "LIMIT_FILE_SIZE" ? "Logo must be 1MB or smaller" : "Invalid logo upload";
+      return res.status(400).json({ success: false, message });
+    }
+    next();
+  });
+}
+
+router.use(authenticate, loadActiveTenant);
+
+router.get("/", async (req, res, next) => {
+  try {
+    const settings = await getSettings(req.user.clientId);
+    res.json({ success: true, settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/", async (req, res, next) => {
+  try {
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ success: false, message: "Settings body is required" });
+    }
+    const settings = await updateSettings(req.user.clientId, req.body);
+    res.json({ success: true, settings, message: "Settings updated ✅" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Upload/replace this client's logo (stored in GridFS, served publicly by code).
+router.post("/logo", uploadLogo, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "A logo image (png/jpeg/svg/webp, ≤1MB) is required" });
+    }
+    await saveLogo(req.user.clientId, req.file.buffer, req.file.mimetype);
+    // Cache-busted URL so the browser refetches after replacement.
+    const logoUrl = `/public/clients/${req.user.code}/logo?v=${Date.now()}`;
+    await setCompanyLogoUrl(req.user.clientId, logoUrl);
+    res.json({ success: true, message: "Logo updated ✅", logoUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Upload/replace this client's payment QR (printed on invoices).
+router.post("/qr", uploadLogo, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "A QR image (png/jpeg/svg/webp, ≤1MB) is required" });
+    }
+    await saveQr(req.user.clientId, req.file.buffer, req.file.mimetype);
+    const qrUrl = `/public/clients/${req.user.code}/qr?v=${Date.now()}`;
+    await setCompanyQrUrl(req.user.clientId, qrUrl);
+    res.json({ success: true, message: "Payment QR updated ✅", qrUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

@@ -1,0 +1,251 @@
+@font-face {
+    font-family: 'inter';
+    src: url('../fonts/Inter-Regular.woff2');
+}
+
+@font-face {
+    font-family: 'inter-medium';
+    src: url('../fonts/Inter-Medium.woff2');
+}
+
+@font-face {
+    font-family: 'inter-bold';
+    src: url('../fonts/Inter-SemiBold.woff2');
+}
+
+@font-face {
+    font-family: 'inter-semibold';
+    src: url('../fonts/Inter-SemiBold.woff2');
+}
+
+body {
+    width: 100% !important;
+    font-size: 15px !important;
+    color: #413C3C !important;
+    font-family: "inter" !important;
+    background-color: var(--white) !important;
+}
+
+/*** Font Size ***/
+.font-s10 {
+    font-size: 10px !important;
+}
+
+.font-s11 {
+    font-size: 11px !important;
+}
+
+.font-s12 {
+    font-size: 12px !important;
+}
+
+.font-s13 {
+    font-size: 13px !important;
+}
+
+.font-s14 {
+    font-size: 14px !important;
+}
+
+.font-s15 {
+    font-size: 15px !important;
+}
+
+.font-s16 {
+    font-size: 16px !important;
+}
+
+.font-s18 {
+    font-size: 18px !important;
+}
+
+.font-s20 {
+    font-size: 20px !important;
+}
+
+.font-s22 {
+    font-size: 22px !important;
+}
+
+.font-s24 {
+    font-size: 24px !important;
+}
+
+.font-s26 {
+    font-size: 26px !important;
+}
+
+/*** Width ***/
+.width-5 {
+    width: 5px !important;
+}
+
+.width-10 {
+    width: 10px !important;
+}
+
+.width-15 {
+    width: 15px !important;
+}
+
+.width-20 {
+    width: 20px !important;
+}
+
+.width-25 {
+    width: 25px !important;
+}
+
+.width-30 {
+    width: 30px !important;
+}
+
+.width-35 {
+    width: 35px !important;
+}
+
+.width-40 {
+    width: 40px !important;
+}
+
+.width-45 {
+    width: 45px !important;
+}
+
+.width-50 {
+    width: 50px !important;
+}
+
+.width-75 {
+    width: 75px !important;
+}
+
+.width-100 {
+    width: 100px !important;
+}
+
+.width-150 {
+    width: 150px !important;
+}
+
+.width-200 {
+    width: 200px !important;
+}
+
+.width-250 {
+    width: 250px !important;
+}
+
+.width-250 {
+    width: 300px !important;
+}
+
+/*** Font Weight ***/
+.font-w400 {
+    font-weight: 400 !important;
+}
+
+.font-w500 {
+    font-weight: 500 !important;
+}
+
+.font-w600 {
+    font-weight: 600 !important;
+}
+
+.font-w700 {
+    font-weight: 700 !important;
+}
+
+
+/*** Icon Width-Height ***/
+
+.icon-12{
+    width: 12px !important;
+    height: 12px !important
+}
+
+.icon-13 {
+    width: 13px !important;
+    height: 13px !important
+}
+
+.icon-14{
+    width: 14px !important;
+    height: 14px !important
+}
+
+.icon-15{
+    width: 15px !important;
+    height: 15px !important
+}
+
+.icon-16 {
+    width: 16px !important;
+    height: 16px !important
+}
+
+.icon-17 {
+    width: 17px !important;
+    height: 17px !important
+}
+
+.icon-18{
+    width: 18px !important;
+    height: 18px !important
+}
+
+.icon-20{
+    width: 20px !important;
+    height: 20px !important
+}
+
+.icon-22{
+    width: 22px !important;
+    height: 22px !important
+}
+
+.icon-25{
+    width: 25px !important;
+    height: 25px !important
+}
+
+.icon-30{
+    width: 30px !important;
+    height: 30px !important
+}
+
+.icon-32{
+    width: 32px !important;
+    height: 32px !important
+}
+
+.icon-35{
+    width: 35px !important;
+    height: 35px !important
+}
+
+.icon-40{
+    width: 40px !important;
+    height: 40px !important
+}
+
+.icon-45{
+    width: 45px !important;
+    height: 45px !important
+}
+
+.icon-50{
+    width: 50px !important;
+    height: 50px !important
+}
+
+.icon-55{
+    width: 55px !important;
+    height: 55px !important
+}
+
+.icon-60{
+    width: 60px !important;
+    height: 60px !important
+}

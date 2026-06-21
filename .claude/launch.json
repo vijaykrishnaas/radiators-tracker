@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "radiator-frontend",
+      "runtimeExecutable": "C:\\Users\\vijay\\AppData\\Roaming\\nvm\\v22.19.0\\node.exe",
+      "runtimeArgs": ["D:\\others\\code\\lorry\\codebase\\Radiator-frontend-main\\node_modules\\vite\\bin\\vite.js"],
+      "cwd": "D:\\others\\code\\lorry\\codebase\\Radiator-frontend-main",
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}

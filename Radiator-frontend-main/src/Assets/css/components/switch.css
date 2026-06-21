@@ -1,0 +1,124 @@
+/** Switch Button **/
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px !important;
+    height: 24px;
+}
+
+.switch-lg {
+    position: relative;
+    display: inline-block;
+    width: 36px !important;
+    height: 20px;
+}
+
+.switch input,
+.switch-lg input {
+    display: none;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    background-color: #fff;
+    -webkit-transition: .4s;
+    transition: .4s;
+    height: 12px;
+    width: 12px;
+    left: 5px;
+    bottom: 4px;
+}
+
+
+input:focus+.switch-slider {
+    box-shadow: 0 0 1px #342F51;
+}
+
+input:checked+.switch-slider:before {
+    -webkit-transform: translateX(33px);
+    -ms-transform: translateX(33px);
+    transform: translateX(15px) !important;
+}
+
+.switch-lg input:checked+.switch-slider:before {
+    -webkit-transform: translateX(57px);
+    -ms-transform: translateX(57px);
+    transform: translateX(57px);
+}
+
+input[type="checkbox"]:not(:checked)+.slider {
+    background-color: var(--gray);
+}
+
+.switch-slider.switch-green {
+    background-color: var(--danger) !important;
+}
+
+input:checked+.switch-slider.switch-green {
+    background-color: var(--success) !important;
+}
+
+.switch-slider.switch-blue {
+    background-color: var(--gray) !important;
+}
+
+input:checked+.switch-slider.switch-blue {
+    background-color: var(--primary) !important;
+}
+
+.on {
+    display: none;
+    color: #fff;
+    font-weight: 500;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    top: 46%;
+    left: 40%;
+    font-size: 14px;
+}
+
+.off {
+    color: #fff;
+    font-weight: 500;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    top: 46%;
+    left: 60%;
+    font-size: 14px;
+}
+
+.switch-lg .on {
+    left: 40%;
+}
+
+.switch-lg .off {
+    left: 59%;
+}
+
+input:checked+.switch-slider .on {
+    display: block;
+}
+
+input:checked+.switch-slider .off {
+    display: none;
+}
+
+.switch-slider {
+    border-radius: 16px;
+}
+
+.switch-slider:before {
+    border-radius: 50%;
+}

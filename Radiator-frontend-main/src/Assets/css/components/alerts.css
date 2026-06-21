@@ -1,0 +1,185 @@
+/*****Basic Alerts with background*****/
+
+.alert {
+    border: 1px solid !important;
+    padding: 16px;
+    border-radius: 8px !important;
+}
+
+.alert-description {
+    font-size: 14px;
+    color: var(--lightGray);
+    margin:0 !important;
+}
+
+.alert-header {
+    font-size: 16px !important;
+    font-weight: 600;
+    margin:0 !important;
+}
+
+.alert .btn-close:focus {
+    box-shadow: none !important;
+}
+
+.alert .btn-close {
+    background: url('../../images/black-closebtn.svg') no-repeat center;
+}
+
+/*****Popup Alerts*****/
+
+.alert-ab {
+    width: 400px;
+    font-weight: 600;
+    padding: .907rem 1rem !important;
+}
+
+/*****Alert with background*****/
+
+.alert img {
+    width: 24px !important;
+    height: 24px !important;
+}
+
+.alert-success {
+    border-color: var(--success) !important;
+    background-color: var(--alertAbOutlineSuccess) !important;
+}
+
+.alert-warning {
+    border-color: var(--warning) !important;
+    background-color: var(--alertAbOutlineWarning) !important;
+}
+
+.alert-danger {
+    border-color: var(--danger) !important;
+    background-color: var(--alertAbOutlineDanger) !important;
+
+}
+
+.alert-primary {
+    border-color: var(--info) !important;
+    background-color: var(--alertAbOutlineInfo) !important;
+
+}
+
+/*****Alert without background*****/
+.alert-success-light {
+    border-color: var(--success) !important;
+    background-color: var(--white) !important;
+}
+
+.alert-warning-light {
+    border-color: var(--warning) !important;
+    background-color: var(--white) !important;
+}
+
+.alert-danger-light {
+    border-color: var(--danger) !important;
+    background-color: var(--white) !important;
+}
+
+.alert-primary-light {
+    border-color: var(--info) !important;
+    background-color: var(--white) !important;
+}
+
+/*****Alert absolute with background*****/
+.alert-ab-success {
+    background-color: var(--success) !important;
+    color: var(--white) !important;
+}
+
+.alert-ab-warning {
+    background-color: var(--warning) !important;
+    border-color: var(--warning) !important;
+    color: #282828 !important;
+}
+
+.alert-ab-danger {
+    background-color: var(--danger) !important;
+    color: var(--white) !important;
+}
+
+.alert-ab-primary {
+    background-color: var(--info) !important;
+    color: var(--white) !important;
+}
+
+
+.alert .danger-button {
+    background-color: var(--danger) !important;
+    color: var(--white) !important;
+}
+
+/*****Alert without background and outline*****/
+.alert-ab-light-success {
+    background-color: var(--white) !important;
+    border-color: var(--success) !important;
+    color: var(--alertAbLightSuccess) !important;
+}
+
+.alert-ab-light-warning {
+    background-color: var(--white) !important;
+    border-color: var(--warning) !important;
+    color: var(--lightGray) !important;
+}
+
+.alert-ab-light-danger {
+    background-color: var(--white) !important;
+    border-color: var(--danger) !important;
+    color: var(--alertAbLightDanger) !important;
+}
+
+.alert-ab-light-primary {
+    background-color: var(--white) !important;
+    border-color: var(--info) !important;
+    color: var(--alertAbLightInfo) !important;
+}
+
+/*****Alert with light-background and outline*****/
+.alert-ab-outline-success {
+    background-color: var(--alertAbOutlineSuccess) !important;
+    border-color: var(--success) !important;
+    color: var(--alertAbOutlineColor) !important;
+}
+
+.alert-ab-outline-warning {
+    background-color: var(--alertAbOutlineWarning) !important;
+    border-color: var(--warning) !important;
+    color: var(--alertAbOutlineColor) !important;
+}
+
+.alert-ab-outline-danger {
+    background-color: var(--alertAbOutlineDanger) !important;
+    border-color: var(--danger) !important;
+    color: var(--alertAbOutlineColor) !important;
+}
+
+.alert-ab-outline-primary {
+    background-color: var(--alertAbOutlineInfo) !important;
+    border-color: var(--info) !important;
+    color: var(--alertAbOutlineColor) !important;
+}
+
+.alert .btn-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    padding: 1.25rem 1rem;
+}
+
+/* Alert icon color change */
+
+.alert-success-fill{
+    fill: var(--success) !important
+}
+
+.alert-white-fill{
+    fill: var(--white) !important
+}
+
+.alert-black-fill{
+    fill: var(--textColor) !important
+}
