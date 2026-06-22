@@ -1,0 +1,19 @@
+# Netlify config for the Radiator frontend (Vite + React Router SPA).
+# Set VITE_BACKEND_BASE_URL (your Render backend URL) in the Netlify UI →
+# Site settings → Environment variables, then redeploy.
+
+[build]
+  base = "Radiator-frontend-main"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 7 requires Node >= 20.19; Netlify's default is older.
+  NODE_VERSION = "20.19.0"
+
+# SPA fallback: serve index.html for client-side routes (/t/:code/login,
+# /admin/*, /issueCounter/*) so deep links and refreshes don't 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -21,7 +21,28 @@ import expenseRoutes from "./routes/expense.routes.js";
 
 const app = express();
 
-app.use(cors());
+// CORS: if ALLOWED_ORIGINS is set (comma-separated list), restrict to those
+// origins; otherwise allow all (local dev, or before the frontend origin is
+// known). Set ALLOWED_ORIGINS=https://your-site.netlify.app on the host to
+// lock it down. JWT travels in the Authorization header (not cookies), so the
+// open default is not a credential-leak risk.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors(
+    allowedOrigins.length
+      ? {
+          origin(origin, cb) {
+            // Allow non-browser clients (no Origin header) and listed origins.
+            if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+            cb(new Error("Not allowed by CORS"));
+          },
+        }
+      : undefined
+  )
+);
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/", (req, res) => {
