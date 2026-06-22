@@ -74,3 +74,11 @@ export async function setCompanyQrUrl(clientId, url) {
     .collection("settings")
     .updateOne({ _id: toClientId(clientId) }, { $set: { "company.qrUrl": url } });
 }
+
+// Sets only company.loginBgUrl (after a login-background upload).
+export async function setCompanyLoginBgUrl(clientId, url) {
+  const db = await connectDB();
+  await db
+    .collection("settings")
+    .updateOne({ _id: toClientId(clientId) }, { $set: { "company.loginBgUrl": url } });
+}

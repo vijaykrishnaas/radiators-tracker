@@ -503,19 +503,22 @@ input:checked+.switch-slider.switch-purple {
     color: #7B47E9 !important;
 }
 
+/* Batch 4: live data tables — uppercase tracked headers, airier rows, hairlines */
 table.table-bordered th {
     border: 1px solid;
-    border-color: var(--tableBorder);
-    background-color: var(--tableHeadBg);
-    padding: 8px 8px;
+    border-color: var(--line);
+    background-color: var(--canvas);
+    padding: 11px 12px;
     vertical-align: middle;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--tableText) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-400) !important;
 }
 
 table.table-bordered tbody tr:hover td {
-    background-color: var(--tableRowHover) !important;
+    background-color: var(--canvas) !important;
 }
 
 table.table-bordered thead tr th,
@@ -525,9 +528,9 @@ table.table-bordered tbody tr td {
 
 table.table-bordered td {
     border: 1px solid;
-    border-color: var(--tableBorder);
-    padding: 8px 8px;
-    color: var(--tableText);
+    border-color: var(--line);
+    padding: 11px 12px;
+    color: var(--ink-700);
 }
 
 .disabled-form-btn {

@@ -170,14 +170,16 @@ input[type=number] {
     margin-right: 35px !important;
 }
 
+/* Batch 6: clean diffuse header elevation + hairline (was a harsh 5-layer shadow) */
 .header .navbar {
     padding: 1.075rem 0;
-    border: 1px solid var(--tableBorder);
+    border: 1px solid var(--line);
+    border-top: 0;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-    border-bottom-right-radius: 12px;
-    border-bottom-left-radius: 12px;
-    box-shadow: 2px -2px 7px 0px #0000004A, 7px -10px 12px 0px #00000042, 16px -22px 16px 0px #00000026, 29px -38px 19px 0px #0000000A, 45px -60px 21px 0px #00000003;
+    border-bottom-right-radius: var(--r-lg);
+    border-bottom-left-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
 }
 
 .navbar-brand {
@@ -190,16 +192,17 @@ input[type=number] {
 .navbar-nav-header li a.nav-link.dropdown-toggle.show,
 .nav-item.dropdown.active a.nav-link.dropdown-toggle {
     color: var(--textColor) !important;
-    background-color: var(--navMenuActiveColor) !important;
+    background-color: var(--canvas) !important;
 }
 
 .nav-item.dropdown.active a.nav-link.dropdown-toggle {
     font-family: 'inter-medium';
 }
 
+/* Batch 6: active nav follows the client brand accent (white-label) */
 .navbar-nav-header li a.nav-link.active {
-    color: var(--textColor) !important;
-    background-color: var(--navMenuActiveColor) !important;
+    color: var(--primary) !important;
+    background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
     font-family: 'inter-medium';
 }
 
@@ -335,15 +338,16 @@ input[type=number] {
 }
 
 /*** Cards ***/
+/* Batch 4: flat surfaces, hairline + one diffuse shadow (never both heavy) */
 .card {
-    border-radius: 10px !important;
-    background-color: var(--white) !important;
-    border: 1px solid var(--cardBorder) !important;
+    border-radius: var(--r-lg) !important;
+    background-color: var(--surface) !important;
+    border: 1px solid var(--line) !important;
 }
 
 .card-shadow {
-    box-shadow: 0px 0px 2px 0px #00000014, 0px 1px 4px 0px #454B571F, 0px 0px 0px 1px #98A1B21A;
-    border: 0 !important;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--line) !important;
 }
 
 /*** Tables ***/
@@ -352,27 +356,30 @@ table {
     margin-bottom: 0 !important;
 }
 
+/* Batch 4: uppercase tracked column headers, airier rows, hairline rules */
 table.table-default th {
     border: 1px solid;
-    border-color: var(--tableBorder);
-    background-color: var(--tableHeadBg);
+    border-color: var(--line);
+    background-color: var(--canvas);
     border-left: 0 !important;
     border-right: 0 !important;
     border-top: 0 !important;
-    padding: 8px 8px;
+    padding: 11px 12px;
     vertical-align: middle;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--tableText) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-400) !important;
 }
 
 table.table-default td {
     border: 1px solid;
-    border-color: var(--tableBorder);
+    border-color: var(--line);
     border-left: 0 !important;
     border-right: 0 !important;
-    padding: 8px 8px;
-    color: var(--tableText);
+    padding: 11px 12px;
+    color: var(--ink-700);
 }
 
 table .form-check-input {
@@ -381,7 +388,7 @@ table .form-check-input {
 }
 
 table.table-default tbody tr:hover td {
-    background-color: var(--tableRowHover) !important;
+    background-color: var(--canvas) !important;
 }
 
 table.table-default thead tr th,
@@ -391,9 +398,9 @@ table.table-default tbody tr td {
 
 .table-header {
     width: 100%;
-    background-color: var(--tableHeadBg) !important;
-    border-top-right-radius: 10px !important;
-    border-top-left-radius: 10px !important;
+    background-color: var(--canvas) !important;
+    border-top-right-radius: var(--r-lg) !important;
+    border-top-left-radius: var(--r-lg) !important;
 }
 
 .table-header .search-input.form-control {
@@ -405,8 +412,11 @@ table.table-default tbody tr td {
 }
 
 .table-header-form label {
-    font-weight: 500;
-    font-size: 14px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-400);
 }
 
 .table-header-form .form-control {
@@ -608,38 +618,45 @@ table .form-check {
     border-bottom-right-radius: 6px !important;
 }
 
+/* Batch 2: flat accent fills + 1px same-tone border + ultra-diffuse depth
+   (replaces the ringed / inset "shiny" shadows). */
 .btn-primary {
     background-color: var(--primary) !important;
-    box-shadow: 0px 2px 5px 0px #2264E51F, 0px 0px 0px 1px #2264E5, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #4B85FA inset;
+    border: 1px solid var(--primary) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .btn-secondary {
-    background-color: var(--white) !important;
-    color: var(--secondary) !important;
-    box-shadow: 0px 2px 5px 0px #5960781A, 0px 0px 0px 1px #464F6029, 0px 1px 1px 0px #0000001A;
-    border: 0 !important;
+    background-color: var(--surface) !important;
+    color: var(--ink-500) !important;
+    box-shadow: var(--shadow-xs) !important;
+    border: 1px solid var(--line-strong) !important;
 }
 
 .btn-info {
     background-color: var(--info) !important;
     color: var(--white) !important;
-    box-shadow: 0px 2px 5px 0px #45A7F41F, 0px 0px 0px 1px #45A7F4, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #7DC6FF inset;
+    border: 1px solid var(--info) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .btn-success {
     background-color: var(--success) !important;
-    box-shadow: 0px 2px 5px 0px #429A3A1F, 0px 0px 0px 1px #429A3A, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #66B95E inset;
+    border: 1px solid var(--success) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .btn-danger {
     background-color: var(--danger) !important;
-    box-shadow: 0px 2px 5px 0px #E74A4A1F, 0px 0px 0px 1px #E74A4A, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #FF7C7C inset;
+    border: 1px solid var(--danger) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .btn-warning {
     background-color: var(--warning) !important;
     color: var(--textColor);
-    box-shadow: 0px 2px 5px 0px #F2C94C1F, 0px 0px 0px 1px #F2C94C, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #FDE6A1 inset;
+    border: 1px solid var(--warning) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .btn-light,
@@ -735,15 +752,13 @@ table .form-check {
 }
 
 .btn-gradient-outline {
-    background-color: var(--white);
-    box-shadow: 0px 2px 5px 0px #5960781A, 0px 0px 0px 1px #95A4FC, 0px 1px 1px 0px #0000001A !important;
-    border: none;
+    background-color: var(--surface);
+    box-shadow: var(--shadow-xs) !important;
+    border: 1px solid var(--line-strong);
 }
 
 .btn-gradient-outline span {
-    background-image: linear-gradient(90.36deg, rgba(73, 116, 230, 0.94) 64.91%, rgba(135, 87, 232, 0.94) 122.21%);
-    background-clip: text;
-    color: transparent;
+    color: var(--primary);
 }
 
 .btn-shadow {
@@ -765,7 +780,8 @@ table .form-check {
 
 .btn-export {
     background-color: var(--btnExport) !important;
-    box-shadow: 0px 2px 5px 0px #0EB4BE1F, 0px 0px 0px 1px #0EB4BE, 0px 1px 1px 0px #00000024, 0px 1px 0px 0px #64EFF89E inset;
+    border: 1px solid var(--btnExport) !important;
+    box-shadow: var(--shadow-xs) !important;
     color: var(--white) !important;
     font-family: 'inter-bold' !important;
     padding-right: 48px !important;
@@ -937,32 +953,38 @@ fieldset[disabled] a.btn {
     margin-bottom: 15px;
 }
 
+/* Batch 3: small uppercase tracked utility labels above inputs */
 .form-label {
-    margin-bottom: 0.25rem;
-    color: var(--formLabelColor) !important;
+    margin-bottom: 0.375rem;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-400) !important;
 }
 
 ::placeholder {
-    color: var(--formBorderColor) !important;
+    color: var(--ink-400) !important;
+    opacity: 0.7;
 }
 
+/* Batch 3: clean border-only inputs, breathable padding, accent focus ring */
 .form-control {
-    padding: 0.313rem 0.68rem !important;
+    padding: 0.5rem 0.75rem !important;
     border: 1px solid;
-    border-radius: 6px !important;
-    box-shadow: 0px 1px 2px 0px #1018280D !important;
-    border-color: var(--formBorderColor) !important;
-    background-color: var(--white) !important;
+    border-radius: var(--r-sm) !important;
+    box-shadow: none !important;
+    border-color: var(--line-strong) !important;
+    background-color: var(--surface) !important;
+    color: var(--ink-700) !important;
 }
 
-.form-control:hover,
 .form-control:focus,
 .form-control:active,
 .form-control.active {
     outline: none !important;
-    box-shadow: 0px 1px 2px 0px #10182826, 0px 0px 0px 1px #10182833 !important;
-
-    border-color: var(--primary) !important
+    box-shadow: var(--focus-ring) !important;
+    border-color: var(--primary) !important;
 }
 
 .form-control:disabled,
@@ -1119,8 +1141,10 @@ table input[type="radio"] {
     background: url('../images/btn-close.svg') no-repeat center !important;
 }
 
+/* Batch 5: diffuse modal elevation + hairline */
 .modal .modal-content {
-    box-shadow: 0px 8px 8px -4px #1018280A, 0px 20px 24px -4px #1018281A;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--line);
 }
 
 .modal .icon-bg {
@@ -1138,7 +1162,7 @@ table input[type="radio"] {
 }
 
 .modal .modal-content {
-    border-radius: 12px !important;
+    border-radius: var(--r-lg) !important;
 }
 
 .modal .modal-body {
@@ -1152,6 +1176,8 @@ table input[type="radio"] {
 .modal-title {
     font-size: 18px !important;
     font-family: 'inter-bold';
+    letter-spacing: -0.01em;
+    color: var(--ink-900);
 }
 
 .modal-footer {
@@ -1211,11 +1237,14 @@ table input[type="radio"] {
 
 /* Status-badge */
 
+/* Batch 5: status badges as small uppercase tracked utility labels */
 .status-badge {
-    border-radius: 10px !important;
-    padding: 2px 10px;
-    font-size: 12px !important;
-    font-weight: 500 !important;
+    border-radius: var(--r-sm) !important;
+    padding: 3px 9px;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .status-badge-success {
@@ -2634,4 +2663,51 @@ table.table-header-primary tbody tr td:last-child {
     min-height: 300px;
     overflow-y: auto;
     padding-right: 10px;
+}
+
+/* ==========================================================================
+   UI MODERNIZATION — Batch 2 (Buttons): flat accent, diffuse depth, accent focus
+   ========================================================================== */
+:root {
+    /* Flatten gradient surfaces to flat accent fills */
+    --btnGradientBg: var(--primary);
+    --cardHeaderBg: var(--primary);
+}
+
+.btn {
+    letter-spacing: 0.005em;
+    border-radius: var(--r-sm) !important;
+}
+
+/* Accent-driven focus ring (keyboard + click), no default outline */
+.btn:focus-visible {
+    outline: none !important;
+    box-shadow: var(--focus-ring) !important;
+}
+
+/* Subtle, intentional hover/active on solid buttons only (no flashy lift) */
+.btn-primary:hover,
+.btn-info:hover,
+.btn-success:hover,
+.btn-danger:hover,
+.btn-warning:hover,
+.btn-export:hover,
+.btn-gradient:hover {
+    filter: brightness(0.95);
+}
+
+.btn-primary:active,
+.btn-info:active,
+.btn-success:active,
+.btn-danger:active,
+.btn-warning:active,
+.btn-export:active,
+.btn-gradient:active {
+    filter: brightness(0.90);
+}
+
+.btn-secondary:hover,
+.btn-gradient-outline:hover {
+    background-color: var(--canvas) !important;
+    border-color: var(--line-strong) !important;
 }

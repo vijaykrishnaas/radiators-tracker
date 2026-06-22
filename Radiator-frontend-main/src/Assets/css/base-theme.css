@@ -90,3 +90,45 @@
     --tableHeaderLightBlue: #DEE9FF;
     --btnSubmitColor: #1DC9A0;
 }
+
+/* ==========================================================================
+   UI MODERNIZATION — Design System tokens (added 2026-06-21, Batch 1)
+   Additive only. Monochrome ink ramp + diffuse elevation + 4/8 grid.
+   Accent stays client-driven via --primary / --accentColor (white-label).
+   ========================================================================== */
+:root {
+    /* Monochrome ink ramp (high-contrast, replaces muted #413C3C text) */
+    --ink-900: #0A0B0D;   /* display headings */
+    --ink-700: #1A1D21;   /* primary body text */
+    --ink-500: #5A6069;   /* secondary text */
+    --ink-400: #8A9098;   /* muted / uppercase utility labels */
+
+    /* Surfaces & hairlines */
+    --surface: #FFFFFF;
+    --canvas: #F7F7F8;
+    --surface-sunken: #FAFAFB;
+    --line: #ECECEE;
+    --line-strong: #E0E1E4;
+
+    /* Diffuse, low-opacity elevation (no harsh/inset shadows) */
+    --shadow-xs: 0 1px 2px rgba(16, 24, 40, .04);
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+    --shadow-md: 0 4px 6px -2px rgba(16, 24, 40, .04), 0 12px 20px -4px rgba(16, 24, 40, .06);
+    --shadow-lg: 0 8px 16px -6px rgba(16, 24, 40, .08), 0 24px 48px -12px rgba(16, 24, 40, .12);
+
+    /* Radius + spacing (4/8 baseline) */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 14px;
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+    --s6: 24px;
+    --s8: 32px;
+    --s10: 40px;
+
+    /* Accent-driven focus ring (color-mix w/ rgba fallback for old engines) */
+    --focus-ring: 0 0 0 3px rgba(34, 100, 229, .18);
+    --focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}

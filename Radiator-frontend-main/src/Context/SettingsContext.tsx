@@ -18,6 +18,7 @@ export type AppSettings = {
         upiDisplay: string;
         logoUrl: string;
         qrUrl?: string;
+        loginBgUrl?: string;
     };
     branding: {
         primaryColor: string;
@@ -30,6 +31,7 @@ export type AppSettings = {
     };
     labour: string[];
     mechanics: string[];
+    loginHighlights: string[];
     labels: {
         vehicleNo: string;
         party: string;
@@ -63,6 +65,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },
     labour: [],
     mechanics: [],
+    loginHighlights: [],
     labels: {
         vehicleNo: "Vehicle Number",
         party: "Party Name",

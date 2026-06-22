@@ -1,8 +1,11 @@
-@font-face {
-    font-family: 'inter';
-    src: url('../fonts/Inter-Regular.woff2');
-}
+/* Inter — weight-tagged so font-weight 400/500/600/700 resolve to the real
+   cut instead of faux-bolding. Inter-Bold.woff2 now wired for true 700. */
+@font-face { font-family: 'inter'; src: url('../fonts/Inter-Regular.woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'inter'; src: url('../fonts/Inter-Medium.woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'inter'; src: url('../fonts/Inter-SemiBold.woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'inter'; src: url('../fonts/Inter-Bold.woff2'); font-weight: 700; font-display: swap; }
 
+/* Named families kept for back-compat (referenced across canteenManagement.css) */
 @font-face {
     font-family: 'inter-medium';
     src: url('../fonts/Inter-Medium.woff2');
@@ -10,7 +13,7 @@
 
 @font-face {
     font-family: 'inter-bold';
-    src: url('../fonts/Inter-SemiBold.woff2');
+    src: url('../fonts/Inter-Bold.woff2');
 }
 
 @font-face {
@@ -21,9 +24,38 @@
 body {
     width: 100% !important;
     font-size: 15px !important;
-    color: #413C3C !important;
+    color: var(--ink-700) !important;
     font-family: "inter" !important;
     background-color: var(--white) !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ===== Typography hierarchy (UI Modernization Batch 1) =====
+   Extreme contrast between layers: tight-tracked display titles vs
+   loose-tracked uppercase utility labels. Page titles use the consistent
+   <h4 className="fw-semibold"> pattern across all screens. */
+h4.fw-semibold,
+.base-title {
+    color: var(--ink-900) !important;
+    letter-spacing: -0.02em;
+}
+
+h4.fw-semibold {
+    font-size: 26px;
+    font-weight: 700 !important;
+    line-height: 1.2;
+}
+
+/* Reusable utility-label treatment (applied to field labels / table heads
+   / badges in later batches). */
+.u-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-400) !important;
 }
 
 /*** Font Size ***/

@@ -15,7 +15,15 @@ export const defaultSettings = {
     upiDisplay: "PhonePe 77080 93151",
     logoUrl: "",
     qrUrl: "",
+    loginBgUrl: "",
   },
+
+  // Short rotating lines shown over the login background (client-editable).
+  loginHighlights: [
+    "Billing, expenses & bonuses in one place",
+    "Every payment, tracked",
+    "Your workshop, organized",
+  ],
 
   // primaryColor drives the app theme (--primary) and PDF headers;
   // accentColor drives the login button and highlights (--accentColor).
