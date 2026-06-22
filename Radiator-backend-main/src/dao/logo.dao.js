@@ -42,6 +42,12 @@ export async function streamAsset(bucketName, clientId, res) {
   const b = await bucketOf(bucketName);
   res.set("Content-Type", file.metadata?.contentType || "image/png");
   res.set("Cache-Control", "public, max-age=300");
+  // Harden against scripted-SVG content-injection when an asset URL is opened
+  // directly as a document: never MIME-sniff, and sandbox + block all
+  // subresources so any embedded script cannot execute. Image rendering via
+  // <img>/CSS background is unaffected (these only apply to document loads).
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("Content-Security-Policy", "default-src 'none'; sandbox");
   b.openDownloadStream(file._id).pipe(res);
   return true;
 }

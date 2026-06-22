@@ -7,6 +7,9 @@ import { saveLogo, saveQr, saveLoginBg } from "../dao/logo.dao.js";
 const router = Router();
 
 const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+// Full-screen backgrounds: raster only (no SVG) — matches the Settings file
+// picker and the route's advertised types.
+const ALLOWED_BG_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1024 * 1024 }, // 1 MB
@@ -32,7 +35,7 @@ const uploadBgMulter = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
   fileFilter: (_req, file, cb) => {
-    cb(null, ALLOWED_LOGO_TYPES.includes(file.mimetype));
+    cb(null, ALLOWED_BG_TYPES.includes(file.mimetype));
   },
 });
 
