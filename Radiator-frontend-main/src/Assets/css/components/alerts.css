@@ -3,7 +3,7 @@
 .alert {
     border: 1px solid !important;
     padding: 16px;
-    border-radius: 8px !important;
+    border-radius: var(--r-md) !important;
 }
 
 .alert-description {

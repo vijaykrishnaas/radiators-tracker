@@ -1,8 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
-import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl } from "../dao/settings.dao.js";
-import { saveLogo, saveQr } from "../dao/logo.dao.js";
+import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl } from "../dao/settings.dao.js";
+import { saveLogo, saveQr, saveLoginBg } from "../dao/logo.dao.js";
 
 const router = Router();
 
@@ -21,6 +21,25 @@ function uploadLogo(req, res, next) {
   upload.single("logo")(req, res, (err) => {
     if (err) {
       const message = err.code === "LIMIT_FILE_SIZE" ? "Logo must be 1MB or smaller" : "Invalid logo upload";
+      return res.status(400).json({ success: false, message });
+    }
+    next();
+  });
+}
+
+// Login backgrounds are full-screen photos, so allow a larger file than logos/QRs.
+const uploadBgMulter = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
+  fileFilter: (_req, file, cb) => {
+    cb(null, ALLOWED_LOGO_TYPES.includes(file.mimetype));
+  },
+});
+
+function uploadBg(req, res, next) {
+  uploadBgMulter.single("logo")(req, res, (err) => {
+    if (err) {
+      const message = err.code === "LIMIT_FILE_SIZE" ? "Background must be 4MB or smaller" : "Invalid background upload";
       return res.status(400).json({ success: false, message });
     }
     next();
@@ -76,6 +95,21 @@ router.post("/qr", uploadLogo, async (req, res, next) => {
     const qrUrl = `/public/clients/${req.user.code}/qr?v=${Date.now()}`;
     await setCompanyQrUrl(req.user.clientId, qrUrl);
     res.json({ success: true, message: "Payment QR updated ✅", qrUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Upload/replace this client's login-page background (shown on /t/:code/login).
+router.post("/login-bg", uploadBg, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "A background image (png/jpeg/webp, ≤4MB) is required" });
+    }
+    await saveLoginBg(req.user.clientId, req.file.buffer, req.file.mimetype);
+    const loginBgUrl = `/public/clients/${req.user.code}/login-bg?v=${Date.now()}`;
+    await setCompanyLoginBgUrl(req.user.clientId, loginBgUrl);
+    res.json({ success: true, message: "Login background updated ✅", loginBgUrl });
   } catch (error) {
     next(error);
   }

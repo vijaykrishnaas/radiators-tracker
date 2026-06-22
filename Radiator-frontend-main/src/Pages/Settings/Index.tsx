@@ -32,6 +32,7 @@ const SettingsPage = () => {
     const [saving, setSaving] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [uploadingQr, setUploadingQr] = useState(false);
+    const [uploadingBg, setUploadingBg] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
 
@@ -66,6 +67,23 @@ const SettingsPage = () => {
             callAlertMsg(err?.message || "QR upload failed", "error");
         } finally {
             setUploadingQr(false);
+        }
+    };
+
+    const uploadLoginBg = async (file: File | undefined) => {
+        if (!file) return;
+        setUploadingBg(true);
+        try {
+            const fd = new FormData();
+            fd.append("logo", file); // the upload field is named "logo" on the backend
+            const res = await postData("settings/login-bg", fd);
+            set("company.loginBgUrl", res.loginBgUrl);
+            await refreshSettings();
+            callAlertMsg(res.message || "Login background updated", "success");
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Background upload failed", "error");
+        } finally {
+            setUploadingBg(false);
         }
     };
 
@@ -224,6 +242,27 @@ const SettingsPage = () => {
         set("mechanics", next);
     };
 
+    // ---- Login highlight lines (rotating text on the login page) ----
+    const loginHighlights = draft.loginHighlights ?? [];
+    const highlightTags: Tag[] = loginHighlights.map((line) => ({ id: line, text: line, className: "" }));
+
+    const handleHighlightDelete = (i: number) => {
+        set("loginHighlights", loginHighlights.filter((_, index) => index !== i));
+    };
+
+    const handleHighlightAddition = (tag: Tag) => {
+        const line = tag.text.trim();
+        if (!line || loginHighlights.includes(line)) return;
+        set("loginHighlights", [...loginHighlights, line]);
+    };
+
+    const handleHighlightDrag = (tag: Tag, currPos: number, newPos: number) => {
+        const next = [...loginHighlights];
+        next.splice(currPos, 1);
+        next.splice(newPos, 0, tag.text);
+        set("loginHighlights", next);
+    };
+
     const textField = (label: string, path: string, value: string, placeholder = "") => {
         const fieldId = `setting-${path.replace(/\./g, "-")}`;
         return (
@@ -306,6 +345,23 @@ const SettingsPage = () => {
                                         style={{ maxHeight: 90, maxWidth: 90, objectFit: "contain" }} />
                                 ) : (
                                     <span className="text-muted font-s13">{uploadingQr ? "Uploading..." : "No QR uploaded"}</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="row form-group g-3 align-items-center">
+                            <div className="col-md-6">
+                                <label className="form-label font-w500">Login Background (shown on your login page)</label>
+                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/webp"
+                                    disabled={uploadingBg}
+                                    onChange={(e) => uploadLoginBg(e.target.files?.[0])} />
+                                <small className="text-muted font-s12">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</small>
+                            </div>
+                            <div className="col-md-6">
+                                {draft.company.loginBgUrl ? (
+                                    <img src={resolveLogo(draft.company.loginBgUrl)} alt="Login background preview"
+                                        style={{ maxHeight: 90, maxWidth: 160, objectFit: "cover", borderRadius: 8 }} />
+                                ) : (
+                                    <span className="text-muted font-s13">{uploadingBg ? "Uploading..." : "Using default background"}</span>
                                 )}
                             </div>
                         </div>
@@ -455,6 +511,22 @@ const SettingsPage = () => {
                             placeholder="Type a name and press Enter"
                         />
                         <small className="text-muted font-s12">Used as the source for the {draft.labels.agent.toLowerCase()} dropdown in the bill form and filters.</small>
+                    </div>
+                </div>
+
+                {/* ---- Login highlight lines ---- */}
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Login Highlight Lines" />
+                        <InputTag
+                            tags={highlightTags}
+                            handleDelete={handleHighlightDelete}
+                            handleAddition={handleHighlightAddition}
+                            handleDrag={handleHighlightDrag}
+                            inputFieldPosition="bottom"
+                            placeholder="Type a short line and press Enter"
+                        />
+                        <small className="text-muted font-s12">Short lines that fade in and out over your login background. Leave empty to use the defaults.</small>
                     </div>
                 </div>
 

@@ -26,8 +26,10 @@ const ChartCard: React.FC<Props> = ({ title, subtitle, isEmpty, height = 260, ch
 
 export default ChartCard;
 
+// Brand-anchored chart palette: client primary + accent first (white-label),
+// then a restrained, harmonious set of muted tones (Batch 7).
 export const CHART_COLORS = [
-    "var(--primary)", "#f47f6b", "#36b37e", "#ffab00", "#6554c0", "#00b8d9",
+    "var(--primary)", "var(--accentColor)", "#3EA77B", "#E2A53C", "#6E63C4", "#3CA9C2",
 ];
 
 export const ChartTooltip = ({ active, payload, label }: any) => {

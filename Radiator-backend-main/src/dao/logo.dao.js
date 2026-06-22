@@ -2,9 +2,10 @@ import { GridFSBucket } from "mongodb";
 import { connectDB } from "../config/db.js";
 import { toClientId } from "../utils/tenant.js";
 
-// Generic per-client image asset store backed by GridFS. Two buckets are used:
+// Generic per-client image asset store backed by GridFS. Three buckets are used:
 //   "logos"   — the business logo
 //   "qrcodes" — the payment QR printed on invoices
+//   "loginbg" — the per-client login-page background image
 
 async function bucketOf(name) {
   const db = await connectDB();
@@ -67,3 +68,7 @@ export const deleteLogo = (clientId) => deleteAsset("logos", clientId);
 export const saveQr = (clientId, buffer, contentType) => saveAsset("qrcodes", clientId, buffer, contentType);
 export const streamQr = (clientId, res) => streamAsset("qrcodes", clientId, res);
 export const deleteQr = (clientId) => deleteAsset("qrcodes", clientId);
+
+export const saveLoginBg = (clientId, buffer, contentType) => saveAsset("loginbg", clientId, buffer, contentType);
+export const streamLoginBg = (clientId, res) => streamAsset("loginbg", clientId, res);
+export const deleteLoginBg = (clientId) => deleteAsset("loginbg", clientId);

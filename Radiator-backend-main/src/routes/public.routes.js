@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { findClientByCode } from "../dao/client.dao.js";
 import { peekSettings } from "../dao/settings.dao.js";
-import { streamLogo, streamQr } from "../dao/logo.dao.js";
+import { streamLogo, streamQr, streamLoginBg } from "../dao/logo.dao.js";
 
 const router = Router();
 
@@ -23,6 +23,8 @@ router.get("/clients/:code", async (req, res, next) => {
         status: client.status,
         companyName: settings?.company?.name || client.name,
         logoUrl: settings?.company?.logoUrl || "",
+        loginBgUrl: settings?.company?.loginBgUrl || "",
+        loginHighlights: Array.isArray(settings?.loginHighlights) ? settings.loginHighlights : [],
         branding: settings?.branding || { primaryColor: "#2264E5", accentColor: "#f47f6b" },
       },
     });
@@ -49,6 +51,18 @@ router.get("/clients/:code/qr", async (req, res, next) => {
     const client = await findClientByCode(req.params.code);
     if (!client) return res.status(404).end();
     const ok = await streamQr(client._id, res);
+    if (!ok) return res.status(404).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Streams a client's login-page background image (used by the branded login).
+router.get("/clients/:code/login-bg", async (req, res, next) => {
+  try {
+    const client = await findClientByCode(req.params.code);
+    if (!client) return res.status(404).end();
+    const ok = await streamLoginBg(client._id, res);
     if (!ok) return res.status(404).end();
   } catch (error) {
     next(error);
