@@ -1,0 +1,189 @@
+/* ============================================================
+   Super-Admin Console — scoped layout/styles (consumes the
+   design-system tokens in base-theme.css).
+   ============================================================ */
+
+/* ---- Login ---- */
+.admin-login-shell {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: hidden;
+    background:
+        radial-gradient(1100px 600px at 15% -10%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, color-mix(in srgb, var(--accentColor) 18%, transparent), transparent 55%),
+        var(--ink-900, #0a0b0d);
+}
+.admin-login-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--line, #ececee);
+    border-radius: var(--r-lg, 14px);
+    box-shadow: var(--shadow-lg);
+    padding: clamp(28px, 4vw, 44px);
+}
+.admin-emblem {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accentColor));
+    box-shadow: var(--shadow-sm);
+}
+.admin-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-400, #8a9098);
+}
+
+/* ---- Header brand ---- */
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.admin-brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accentColor));
+}
+.admin-brand-name {
+    font-family: 'inter-bold', 'inter', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    color: var(--ink-900, #0a0b0d);
+    line-height: 1;
+}
+.admin-brand-tag {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+}
+
+/* ---- Clients summary strip ---- */
+.admin-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.admin-stat {
+    background: var(--surface, #fff);
+    border: 1px solid var(--line, #ececee);
+    border-radius: var(--r-md, 10px);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-xs);
+}
+.admin-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-400, #8a9098);
+}
+.admin-stat-value {
+    font-family: 'inter-bold', 'inter', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    color: var(--ink-900, #0a0b0d);
+    margin-top: 4px;
+}
+.admin-stat--accent .admin-stat-value { color: var(--statusBadgeSuccess, #1f8b24); }
+.admin-stat--muted .admin-stat-value { color: var(--statusBadgePending, #c69e23); }
+
+/* ---- Settings viewer ---- */
+.settings-view-section { margin-bottom: 22px; }
+.settings-view-section:last-child { margin-bottom: 0; }
+.settings-view-heading {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-400, #8a9098);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--line, #ececee);
+}
+.kv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px 24px;
+}
+.kv-row { min-width: 0; }
+.kv-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-400, #8a9098);
+    margin-bottom: 2px;
+}
+.kv-value {
+    font-size: 14px;
+    color: var(--ink-700, #1a1d21);
+    word-break: break-word;
+}
+.kv-value--empty { color: var(--ink-400, #8a9098); }
+.kv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kv-chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 9px;
+    border-radius: var(--r-sm, 6px);
+    background: var(--canvas, #f7f7f8);
+    border: 1px solid var(--line, #ececee);
+    color: var(--ink-700, #1a1d21);
+}
+.kv-swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.kv-swatch-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    border: 1px solid var(--line-strong, #e0e1e4);
+}
+.settings-price-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+.settings-price-table th,
+.settings-price-table td {
+    border: 1px solid var(--line, #ececee);
+    padding: 6px 10px;
+    text-align: left;
+}
+.settings-price-table thead th {
+    background: var(--canvas, #f7f7f8);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-500, #5a6069);
+}

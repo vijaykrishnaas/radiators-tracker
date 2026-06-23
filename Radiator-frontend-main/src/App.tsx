@@ -13,6 +13,7 @@ import "./Assets/css/common.css";
 import "./Assets/css/style.css";
 import "./Assets/css/responsive.css";
 import "./Assets/css/canteenManagement.css";
+import "./Assets/css/admin.css";
 
 import Header from "./Common/Header";
 import AdminHeader from "./Common/AdminHeader";

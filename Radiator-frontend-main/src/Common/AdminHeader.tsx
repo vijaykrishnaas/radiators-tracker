@@ -15,9 +15,19 @@ const AdminHeader = () => {
         <header className="header">
             <nav className="navbar navbar-expand-lg bg-header fixed-top" id="header">
                 <div className="container-fluid">
-                    <span className="navbar-brand font-s16 font-w600" style={{ color: "var(--titleColor)" }}>
-                        Super Admin
-                    </span>
+                    <div className="navbar-brand admin-brand">
+                        <span className="admin-brand-mark">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
+                                <path d="M9 12l2 2 4-4" />
+                            </svg>
+                        </span>
+                        <span>
+                            <span className="admin-brand-name d-block">Super Admin</span>
+                            <span className="admin-brand-tag">Console</span>
+                        </span>
+                    </div>
                     <div className="d-flex align-items-center">
                         <ul className="navbar-nav navbar-nav-header flex-row mb-0">
                             <li className="nav-item">
