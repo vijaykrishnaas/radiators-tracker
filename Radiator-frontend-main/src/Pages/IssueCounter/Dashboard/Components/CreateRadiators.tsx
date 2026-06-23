@@ -3,8 +3,6 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { AnimatePresence, motion } from "framer-motion";
 
-import AddItemMasterBanner from "../../../../Assets/images/Cheif_component2.jpg";
-import AddMasterBanner from "../../../../Assets/images/Girl_staff.jpg";
 import AlertComponent from "../../../../Components/AlertComponent";
 import Loader from "../../../../Components/Loader";
 import Icons from "../../../../Components/Icons";
@@ -201,25 +199,7 @@ const CreateRadiators = () => {
                 </div>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="row bg-white py-4">
-                        <div className="col-12 col-md-3 d-none d-xl-flex position-relative overflow-hidden">
-                            <motion.img
-                                src={AddItemMasterBanner}
-                                className="img-fluid w-100 position-absolute"
-                                style={{ height: "100%", objectFit: "cover" }}
-                                initial={{ x: "-100%", opacity: 0 }}
-                                animate={{ x: "0%", opacity: 1 }}
-                            />
-                            <motion.img
-                                src={AddMasterBanner}
-                                className="img-fluid w-100 position-absolute"
-                                style={{ height: "100%", objectFit: "cover" }}
-                                initial={{ x: "-100%", opacity: 0 }}
-                                animate={{ x: "0%", opacity: 1 }}
-                                transition={{ duration: 4, delay: 3 }}
-                            />
-                        </div>
-
-                        <div className="col-12 col-xl-9 pt-4 px-3 px-md-5">
+                        <div className="col-12 pt-4 px-3 px-md-5">
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={pageTitle}

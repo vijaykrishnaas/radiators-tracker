@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import Logo from "../../../Assets/images/logo/svr.png";
 import InputText from "../../../Components/InputText";
 import Icons from "../../../Components/Icons";
-import LoginBannerImage from '../../../Assets/images/issueCounter/login_banner.png'
 import { useNavigate, useParams } from "react-router-dom";
 import { LoginFormValues } from "./Types/Index";
 import { getData, postData } from "../../../Services/ApiServices";
@@ -91,7 +89,11 @@ const Login: React.FC = () => {
 
     // --- Dynamic background + contextual presentation (no auth logic) ---
     const greeting = useMemo(() => greetingFor(new Date().getHours()), []);
-    const bgUrl = branding?.loginBgUrl || LoginBannerImage;
+    // White-label: use the client's uploaded background if present, otherwise a
+    // clean brand-colour gradient (no Sri Velavan default image).
+    const hasBg = !!branding?.loginBgUrl;
+    const initials = (branding?.companyName || "")
+        .split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
     const highlights = branding?.loginHighlights?.length ? branding.loginHighlights : DEFAULT_HIGHLIGHTS;
     const [hi, setHi] = useState(0);
     useEffect(() => {
@@ -102,7 +104,11 @@ const Login: React.FC = () => {
 
     return (
         <div className="login-shell">
-            <div className="login-bg" style={{ backgroundImage: `url(${bgUrl})` }} aria-hidden="true" />
+            <div
+                className={`login-bg${hasBg ? "" : " login-bg--gradient"}`}
+                style={hasBg ? { backgroundImage: `url("${branding!.loginBgUrl}")` } : undefined}
+                aria-hidden="true"
+            />
             <div className="login-bg-overlay" aria-hidden="true" />
 
             <div className="login-content">
@@ -119,7 +125,11 @@ const Login: React.FC = () => {
                 <div className="login-card-col">
                     <div className="login-glass-card">
                         <div className="login-card-head">
-                            <img src={branding?.logoUrl || Logo} className="login-logo" alt="Logo" />
+                            {branding?.logoUrl ? (
+                                <img src={branding.logoUrl} className="login-logo" alt="Logo" />
+                            ) : (
+                                <div className="login-logo-placeholder" aria-hidden="true">{initials || "•"}</div>
+                            )}
                             {branding?.companyName && (
                                 <h2 className="login-company">{branding.companyName}</h2>
                             )}
@@ -228,6 +238,13 @@ const Login: React.FC = () => {
                     animation: loginKenBurns 26s ease-in-out infinite alternate;
                     will-change: transform;
                 }
+                /* No uploaded image → clean brand-colour gradient (white-label default). */
+                .login-bg--gradient {
+                    background-image: linear-gradient(135deg, var(--primary) 0%, var(--accentColor) 100%);
+                    animation: none;
+                    transform: none;
+                    inset: 0;
+                }
                 .login-bg-overlay {
                     position: absolute;
                     inset: 0;
@@ -291,6 +308,23 @@ const Login: React.FC = () => {
                 }
                 .login-card-head { text-align: center; margin-bottom: 28px; }
                 .login-logo { height: 64px; max-height: 96px; object-fit: contain; }
+                /* Neutral logo placeholder (client initials) when no logo is uploaded. */
+                .login-logo-placeholder {
+                    width: 64px;
+                    height: 64px;
+                    margin: 0 auto;
+                    border-radius: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'inter-bold', 'inter', sans-serif;
+                    font-weight: 700;
+                    font-size: 24px;
+                    letter-spacing: 0.02em;
+                    color: var(--primary);
+                    background: color-mix(in srgb, var(--primary) 12%, #fff);
+                    border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+                }
                 .login-company {
                     font-family: 'inter-bold', 'inter', sans-serif;
                     font-weight: 700;

@@ -1,18 +1,20 @@
 // Default application settings — seeded into the `settings` collection on first boot.
-// These ship with Sri Velavan Radiators values; every deployment edits them via the
-// Settings page (PUT /settings). Nothing here should be referenced directly by
+// Company identity / contact / workers start blank so each new client is white-label;
+// the radiator-domain catalog, prices, and labels ship as an editable starting template.
+// Every client fills these in via the Settings page (PUT /settings). Nothing here should
+// be referenced directly by
 // business logic — always read through settings.dao.js.
 
 export const defaultSettings = {
   // `_id` is assigned per-client (the clientId) by settings.dao.js — not stored here.
 
   company: {
-    name: "SRI VELAVAN RADIATORS",
-    address: "MRL Complex, Vellivila Kattidam Opp, Salem Main Road, Sankagiri - 637 301",
-    phone1: "97906 63151",
-    phone2: "88700 43151",
+    name: "",
+    address: "",
+    phone1: "",
+    phone2: "",
     upiId: "",
-    upiDisplay: "PhonePe 77080 93151",
+    upiDisplay: "",
     logoUrl: "",
     qrUrl: "",
     loginBgUrl: "",
@@ -54,7 +56,7 @@ export const defaultSettings = {
     },
   },
 
-  labour: ["Dinesh", "Naveen", "Sasi"],
+  labour: [],
 
   // Mechanic names — configured here and used as the source for the mechanic
   // dropdown in the bill form and all mechanic filters.
