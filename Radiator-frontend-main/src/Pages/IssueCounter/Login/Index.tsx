@@ -52,6 +52,7 @@ const Login: React.FC = () => {
                 const root = document.documentElement;
                 root.style.setProperty("--primary", c.branding?.primaryColor || "#2264E5");
                 root.style.setProperty("--accentColor", c.branding?.accentColor || "#f47f6b");
+                document.title = (c.companyName || c.name || "Radiator Management");
             })
             .catch(() => { /* unknown code → generic page */ });
     }, [codeFromUrl]);

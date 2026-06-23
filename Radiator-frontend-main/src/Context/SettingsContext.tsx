@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { getData } from "../Services/ApiServices";
 import { isLoggedIn, isSuperAdmin } from "../Services/Auth";
 
+// Generic, white-label default for the browser tab title.
+const APP_TITLE = "Radiator Management";
+
 export type CatalogOption = {
     label: string;
     value: string;
@@ -112,6 +115,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Super-admins have no client tenant, so /settings 403s for them.
         // The admin portal doesn't use these settings — skip the fetch.
         if (!isLoggedIn() || isSuperAdmin()) {
+            // Keep the browser tab title sensible without a client context.
+            document.title = isSuperAdmin() ? "Super Admin Console" : APP_TITLE;
             setLoading(false);
             return;
         }
@@ -121,6 +126,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 const merged = { ...FALLBACK_SETTINGS, ...res.settings };
                 setSettings(merged);
                 applyBranding(merged);
+                // Browser tab title follows the client's company name (white-label).
+                document.title = merged.company?.name?.trim() || APP_TITLE;
             }
         } catch (err) {
             console.error("Failed to load settings:", err);

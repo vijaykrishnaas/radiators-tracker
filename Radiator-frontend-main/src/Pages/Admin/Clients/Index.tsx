@@ -417,13 +417,13 @@ const Clients: React.FC = () => {
                             <div className="modal-body">
                                 <div className="mb-3">
                                     <label className="form-label font-w500">Business Name *</label>
-                                    <input className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Sri Velavan Radiators" />
+                                    <input className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Acme Radiators" />
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label font-w500">Business Code * <span className="text-muted font-s12">(login code, locked after creation)</span></label>
                                     <input className="form-control" value={addCode}
                                         onChange={(e) => { setCodeEdited(true); setAddCode(slugify(e.target.value)); }}
-                                        placeholder="e.g. sri-velavan" />
+                                        placeholder="e.g. acme-radiators" />
                                 </div>
                                 <div className="row g-3">
                                     <div className="col-md-6">
