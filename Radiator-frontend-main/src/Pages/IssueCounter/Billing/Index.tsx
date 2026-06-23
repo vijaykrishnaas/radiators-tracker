@@ -48,6 +48,9 @@ const Billing = () => {
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [searchStatus, setSearchStatus] = useState("");
+    const [searchRadiatorType, setSearchRadiatorType] = useState("");
+    const [searchServiceType, setSearchServiceType] = useState("");
+    const [filtersKey, setFiltersKey] = useState(0); // bump to remount/clear the filter inputs
 
     const [paymentItem, setPaymentItem] = useState<RadiatorRecord | null>(null);
     const [paymentAmount, setPaymentAmount] = useState("");
@@ -78,7 +81,19 @@ const Billing = () => {
         fromDate,
         toDate,
         status: searchStatus,
+        radiatorType: searchRadiatorType,
+        serviceType: searchServiceType,
     });
+
+    const radiatorOptions = (settings.catalog.productTypes || []).map((p) => ({ label: p.label, value: p.label }));
+    const serviceOptions = (settings.catalog.serviceTypes || []).map((s) => ({ label: s.label, value: s.label }));
+
+    const clearFilters = () => {
+        setSearchText(""); setsearchMechanicName(""); setSearchStatus("");
+        setSearchRadiatorType(""); setSearchServiceType("");
+        setFromDate(""); setToDate(""); setCurrentPage(1);
+        setFiltersKey((k) => k + 1);
+    };
 
     const getTableData = async () => {
         try {
@@ -108,7 +123,7 @@ const Billing = () => {
     useEffect(() => {
         getTableData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus]);
+    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchRadiatorType, searchServiceType]);
 
     useEffect(() => {
         sessionStorage.removeItem("search");
@@ -303,19 +318,31 @@ const Billing = () => {
                     <div className="card-body p-0">
                         <div className="table-header">
                             <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-4 col-xl-3">
+                                <div className="col-12 col-md-4 col-xl-3" key={`search-${filtersKey}`}>
                                     <Search getData={handleSearchData}
                                         placeholder={`Search ${settings.labels.vehicleNo}...`} />
                                 </div>
                                 <div className="col-12 col-md-4 col-xl-2">
                                     <label className="form-label font-w500 mb-1">Mechanic</label>
-                                    <Selector isClearable options={mechanicOptions}
+                                    <Selector key={`mech-${filtersKey}`} isClearable options={mechanicOptions}
                                         placeholder="-- All --"
                                         onChange={(option: any) => { setsearchMechanicName(option ? option.value : ""); setCurrentPage(1); }} />
                                 </div>
                                 <div className="col-12 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">{settings.labels.product}</label>
+                                    <Selector key={`model-${filtersKey}`} isClearable options={radiatorOptions}
+                                        placeholder="-- All --"
+                                        onChange={(option: any) => { setSearchRadiatorType(option ? option.value : ""); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-12 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">Service Type</label>
+                                    <Selector key={`svc-${filtersKey}`} isClearable options={serviceOptions}
+                                        placeholder="-- All --"
+                                        onChange={(option: any) => { setSearchServiceType(option ? option.value : ""); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-12 col-md-4 col-xl-2">
                                     <label className="form-label font-w500 mb-1">Status</label>
-                                    <Selector isClearable options={STATUS_OPTIONS}
+                                    <Selector key={`status-${filtersKey}`} isClearable options={STATUS_OPTIONS}
                                         placeholder="-- All Status --"
                                         onChange={(option: any) => { setSearchStatus(option ? option.value : ""); setCurrentPage(1); }} />
                                 </div>
@@ -331,7 +358,10 @@ const Billing = () => {
                                         min={fromDate || undefined} value={toDate}
                                         onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-12 col-md-4 col-xl-1 d-flex justify-content-end">
+                                <div className="col-6 col-md-4 col-xl-1 d-flex align-items-end">
+                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearFilters}>Clear</button>
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-1 d-flex justify-content-end align-items-end">
                                     <div className="dropdown">
                                         <button className="btn btn-cancel btn-sm dropdown-toggle d-flex align-items-center"
                                             type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">

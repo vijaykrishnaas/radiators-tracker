@@ -75,7 +75,7 @@ export type AuditEntry = {
 };
 
 export const listAudit = (
-    params: { page?: number; limit?: number; clientCode?: string } = {}
+    params: { page?: number; limit?: number; clientCode?: string; action?: string; from?: string; to?: string } = {}
 ): Promise<{ entries: AuditEntry[]; total: number; totalPages: number; currentPage: number }> =>
     getData("admin/audit", { params });
 
