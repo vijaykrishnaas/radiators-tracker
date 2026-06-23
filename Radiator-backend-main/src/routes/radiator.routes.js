@@ -45,8 +45,8 @@ function validateRecordBody(req, res, next) {
 
 router.get("/analytics", async (req, res, next) => {
   try {
-    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = req.query;
-    const data = await getRadiatorAnalytics(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType });
+    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = req.query;
+    const data = await getRadiatorAnalytics(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType });
     res.json({ success: true, ...data });
   } catch (error) {
     next(error);
@@ -55,8 +55,8 @@ router.get("/analytics", async (req, res, next) => {
 
 router.get("/export", async (req, res, next) => {
   try {
-    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = req.query;
-    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType });
+    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = req.query;
+    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType });
     res.json({ success: true, radiatorData });
   } catch (error) {
     next(error);
@@ -66,9 +66,9 @@ router.get("/export", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query);
-    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = req.query;
+    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = req.query;
 
-    const data = await getAllRadiators(req.user.clientId, page, limit, truckNumber, mechanicName, fromDate, toDate, status, radiatorType);
+    const data = await getAllRadiators(req.user.clientId, page, limit, truckNumber, mechanicName, fromDate, toDate, status, radiatorType, serviceType);
 
     res.json({
       success: true,

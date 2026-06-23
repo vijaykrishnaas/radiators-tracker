@@ -6,7 +6,7 @@ import { escapeRegex, toMoney, toCount, toValidDate } from "../utils/sanitize.js
 
 const COLLECTION = "expenses";
 
-function buildExpenseQuery(clientId, { from = "", to = "", expenseType = "", search = "" } = {}) {
+function buildExpenseQuery(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}) {
   const query = { clientId: toClientId(clientId) };
   if (from || to) {
     query.date = {};
@@ -18,6 +18,10 @@ function buildExpenseQuery(clientId, { from = "", to = "", expenseType = "", sea
     const rx = { $regex: escapeRegex(search), $options: "i" };
     query.$or = [{ reason: rx }, { "products.name": rx }];
   }
+  // Every expense stores a top-level `amount` (materials sum their products).
+  const min = Number(minAmount), max = Number(maxAmount);
+  if (minAmount !== "" && !Number.isNaN(min)) (query.amount ??= {}).$gte = min;
+  if (maxAmount !== "" && !Number.isNaN(max)) (query.amount ??= {}).$lte = max;
   return query;
 }
 
@@ -43,9 +47,9 @@ function sanitizeExpense(data) {
   return clean;
 }
 
-export async function getExpenses(clientId, { from = "", to = "", expenseType = "", search = "" } = {}, page = 1, limit = 10) {
+export async function getExpenses(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}, page = 1, limit = 10) {
   const db = await connectDB();
-  const query = buildExpenseQuery(clientId, { from, to, expenseType, search });
+  const query = buildExpenseQuery(clientId, { from, to, expenseType, search, minAmount, maxAmount });
   const skip = (page - 1) * limit;
 
   const [expenses, totalRecords, [aggResult]] = await Promise.all([
@@ -66,9 +70,9 @@ export async function getExpenses(clientId, { from = "", to = "", expenseType = 
   };
 }
 
-export async function getExpensesForExport(clientId, { from = "", to = "", expenseType = "", search = "" } = {}) {
+export async function getExpensesForExport(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}) {
   const db = await connectDB();
-  const query = buildExpenseQuery(clientId, { from, to, expenseType, search });
+  const query = buildExpenseQuery(clientId, { from, to, expenseType, search, minAmount, maxAmount });
   return db.collection(COLLECTION).find(query).sort({ date: -1 }).toArray();
 }
 

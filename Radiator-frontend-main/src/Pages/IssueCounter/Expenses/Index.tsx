@@ -64,6 +64,9 @@ const Expenses = () => {
     const [fromDate, setFromDate] = useState(monthStart());
     const [toDate, setToDate] = useState(today());
     const [expenseType, setExpenseType] = useState("");
+    const [minAmount, setMinAmount] = useState("");
+    const [maxAmount, setMaxAmount] = useState("");
+    const [filtersKey, setFiltersKey] = useState(0);
 
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [showModal, setShowModal] = useState(false);
@@ -79,8 +82,14 @@ const Expenses = () => {
     const productsTotal = (watchProducts || []).reduce((s, p) => s + Number(p.amount || 0), 0);
 
     const buildParams = () => ({
-        from: fromDate, to: toDate, expenseType, search: searchText,
+        from: fromDate, to: toDate, expenseType, search: searchText, minAmount, maxAmount,
     });
+
+    const clearExpenseFilters = () => {
+        setSearchText(""); setExpenseType(""); setMinAmount(""); setMaxAmount("");
+        setFromDate(monthStart()); setToDate(today()); setCurrentPage(1);
+        setFiltersKey((k) => k + 1);
+    };
 
     const getTableData = async () => {
         setLoading(true);
@@ -100,7 +109,7 @@ const Expenses = () => {
     useEffect(() => {
         getTableData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, limit, searchText, fromDate, toDate, expenseType]);
+    }, [currentPage, limit, searchText, fromDate, toDate, expenseType, minAmount, maxAmount]);
 
     useEffect(() => {
         sessionStorage.removeItem("expense_search");
@@ -276,7 +285,7 @@ const Expenses = () => {
                     <div className="card-body p-0">
                         <div className="table-header">
                             <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-4 col-xl-3">
+                                <div className="col-12 col-md-4 col-xl-3" key={`exp-search-${filtersKey}`}>
                                     <Search getData={handleSearchData} placeholder="Search reason or product..."
                                         storageKey="expense_search" />
                                 </div>
@@ -292,8 +301,21 @@ const Expenses = () => {
                                 </div>
                                 <div className="col-12 col-md-4 col-xl-2">
                                     <label className="form-label font-w500 mb-1">Type</label>
-                                    <Selector isClearable options={TYPE_OPTIONS} placeholder="-- All Types --"
+                                    <Selector key={`exp-type-${filtersKey}`} isClearable options={TYPE_OPTIONS} placeholder="-- All Types --"
                                         onChange={(opt: any) => { setExpenseType(opt ? opt.value : ""); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">Min Amount</label>
+                                    <input type="number" min="0" className="form-control" placeholder="0" value={minAmount}
+                                        onChange={(e) => { setMinAmount(e.target.value); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">Max Amount</label>
+                                    <input type="number" min="0" className="form-control" placeholder="Any" value={maxAmount}
+                                        onChange={(e) => { setMaxAmount(e.target.value); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-2 d-flex align-items-end">
+                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearExpenseFilters}>Clear</button>
                                 </div>
                                 <div className="col-12 col-md-4 col-xl-3 d-flex gap-2 justify-content-end align-items-end">
                                     <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"

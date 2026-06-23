@@ -173,7 +173,7 @@ export async function recordPayment(clientId, id, amount) {
   return enrich({ ...existing, receivedAmount, status });
 }
 
-function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = {}) {
+function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {
   const query = { clientId: toClientId(clientId) };
   if (truckNumber) query.truckNumber = { $regex: escapeRegex(truckNumber), $options: "i" };
   if (mechName) query.mechanicName = mechName;
@@ -184,6 +184,8 @@ function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDat
   }
   if (status) query.status = status;
   if (radiatorType) query.radiatorType = radiatorType;
+  // Matches bills that include at least one service line of this type.
+  if (serviceType) query["serviceInfo.type"] = serviceType;
   return query;
 }
 
@@ -196,12 +198,13 @@ export async function getAllRadiators(
   fromDate = "",
   toDate = "",
   status = "",
-  radiatorType = ""
+  radiatorType = "",
+  serviceType = ""
 ) {
   const db = await connectDB();
   const collection = db.collection("radiators");
   const skip = (page - 1) * limit;
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType });
   const total = await collection.countDocuments(query);
   const radiators = await collection
     .find(query)
@@ -217,16 +220,16 @@ export async function getAllRadiators(
   };
 }
 
-export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = {}) {
+export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {
   const db = await connectDB();
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType });
   const radiators = await db.collection("radiators").find(query).sort({ billDate: -1 }).toArray();
   return radiators.map(enrich);
 }
 
-export async function getRadiatorAnalytics(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "" } = {}) {
+export async function getRadiatorAnalytics(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {
   const db = await connectDB();
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType });
 
   const computedFields = {
     totalAmount: { $sum: "$serviceInfo.price" },

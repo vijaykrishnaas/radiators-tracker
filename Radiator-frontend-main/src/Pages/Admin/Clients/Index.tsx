@@ -73,9 +73,10 @@ const Clients: React.FC = () => {
     const [deleteConfirmCode, setDeleteConfirmCode] = useState("");
     const [exported, setExported] = useState(false);
 
-    // View-settings modal + table search
+    // View-settings modal + table search/filter
     const [viewSettingsTarget, setViewSettingsTarget] = useState<ClientRow | null>(null);
     const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
 
     const load = async () => {
         setLoading(true);
@@ -285,12 +286,14 @@ const Clients: React.FC = () => {
     };
 
     const q = search.trim().toLowerCase();
-    const filtered = q
-        ? clients.filter((c) =>
+    const filtered = clients.filter((c) => {
+        const matchSearch = !q ||
             c.name.toLowerCase().includes(q) ||
             c.code.toLowerCase().includes(q) ||
-            c.adminUserId.toLowerCase().includes(q))
-        : clients;
+            c.adminUserId.toLowerCase().includes(q);
+        const matchStatus = !statusFilter || c.status === statusFilter;
+        return matchSearch && matchStatus;
+    });
     const activeCount = clients.filter((c) => c.status === "active").length;
     const suspendedCount = clients.length - activeCount;
 
@@ -335,7 +338,7 @@ const Clients: React.FC = () => {
 
                 <div className="card card-shadow mt-2">
                     <div className="card-body p-0">
-                        <div className="table-header p-3">
+                        <div className="table-header p-3 d-flex flex-wrap gap-2 align-items-center">
                             <input
                                 type="text"
                                 className="form-control"
@@ -344,6 +347,19 @@ const Clients: React.FC = () => {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
+                            <select
+                                className="form-select"
+                                style={{ maxWidth: 180 }}
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="">All statuses</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                            </select>
+                            {(search || statusFilter) && (
+                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => { setSearch(""); setStatusFilter(""); }}>Clear</button>
+                            )}
                         </div>
                         <div className="table-body">
                             <table className="table table-bordered font-s14">
@@ -417,13 +433,13 @@ const Clients: React.FC = () => {
                             <div className="modal-body">
                                 <div className="mb-3">
                                     <label className="form-label font-w500">Business Name *</label>
-                                    <input className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Sri Velavan Radiators" />
+                                    <input className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Acme Radiators" />
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label font-w500">Business Code * <span className="text-muted font-s12">(login code, locked after creation)</span></label>
                                     <input className="form-control" value={addCode}
                                         onChange={(e) => { setCodeEdited(true); setAddCode(slugify(e.target.value)); }}
-                                        placeholder="e.g. sri-velavan" />
+                                        placeholder="e.g. acme-radiators" />
                                 </div>
                                 <div className="row g-3">
                                     <div className="col-md-6">

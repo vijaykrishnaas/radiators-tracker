@@ -2,7 +2,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
-// import { PsgLogo } from '../Constants/ImageSourse';
 import { Bonus } from '../Constants/HeaderData';
 import Icons from '../Components/Icons';
 import AppDropdown from '../Components/AppDropdown';

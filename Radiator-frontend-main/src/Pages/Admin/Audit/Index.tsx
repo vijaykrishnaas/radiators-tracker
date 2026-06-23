@@ -25,6 +25,10 @@ const Audit: React.FC = () => {
     const [clients, setClients] = useState<ClientRow[]>([]);
 
     const [clientCode, setClientCode] = useState("");
+    const [action, setAction] = useState("");
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
+    const [filtersKey, setFiltersKey] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalPage, setTotalPage] = useState(1);
@@ -34,7 +38,7 @@ const Audit: React.FC = () => {
     const load = async () => {
         setLoading(true);
         try {
-            const res = await listAudit({ page: currentPage, limit, clientCode });
+            const res = await listAudit({ page: currentPage, limit, clientCode, action, from: fromDate, to: toDate });
             setEntries(res.entries || []);
             setTotalPage(res.totalPages || 1);
             setTotalRecords(res.total || 0);
@@ -48,7 +52,7 @@ const Audit: React.FC = () => {
     useEffect(() => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, limit, clientCode]);
+    }, [currentPage, limit, clientCode, action, fromDate, toDate]);
 
     useEffect(() => {
         listClients().then((r) => setClients(r.clients || [])).catch(() => {});
@@ -60,6 +64,11 @@ const Audit: React.FC = () => {
     };
 
     const clientOptions = clients.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` }));
+    const actionOptions = Object.entries(ACTION_LABEL).map(([value, label]) => ({ value, label }));
+    const clearAuditFilters = () => {
+        setClientCode(""); setAction(""); setFromDate(""); setToDate(""); setCurrentPage(1);
+        setFiltersKey((k) => k + 1);
+    };
 
     return (
         <div className="row">
@@ -74,10 +83,28 @@ const Audit: React.FC = () => {
                     <div className="card-body p-0">
                         <div className="table-header">
                             <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-5 col-xl-4">
+                                <div className="col-12 col-md-6 col-xl-3">
                                     <label className="form-label font-w500 mb-1">Filter by client</label>
-                                    <Selector isClearable options={clientOptions} placeholder="-- All Clients --"
+                                    <Selector key={`au-client-${filtersKey}`} isClearable options={clientOptions} placeholder="-- All Clients --"
                                         onChange={(opt: any) => { setClientCode(opt ? opt.value : ""); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-12 col-md-6 col-xl-3">
+                                    <label className="form-label font-w500 mb-1">Action</label>
+                                    <Selector key={`au-action-${filtersKey}`} isClearable options={actionOptions} placeholder="-- All Actions --"
+                                        onChange={(opt: any) => { setAction(opt ? opt.value : ""); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">From</label>
+                                    <input type="date" className="form-control" value={fromDate} max={toDate || undefined}
+                                        onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-6 col-md-4 col-xl-2">
+                                    <label className="form-label font-w500 mb-1">To</label>
+                                    <input type="date" className="form-control" value={toDate} min={fromDate || undefined}
+                                        onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
+                                </div>
+                                <div className="col-12 col-md-4 col-xl-2 d-flex align-items-end">
+                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearAuditFilters}>Clear</button>
                                 </div>
                             </div>
                         </div>

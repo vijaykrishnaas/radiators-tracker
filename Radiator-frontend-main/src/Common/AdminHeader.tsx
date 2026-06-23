@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Icons from "../Components/Icons";
 import { getUser, clearSession } from "../Services/Auth";
@@ -5,6 +6,9 @@ import { getUser, clearSession } from "../Services/Auth";
 const AdminHeader = () => {
     const navigate = useNavigate();
     const user = getUser();
+
+    // The admin portal has no client settings to drive the tab title.
+    useEffect(() => { document.title = "Super Admin Console"; }, []);
 
     const handleLogout = () => {
         clearSession();
