@@ -16,6 +16,7 @@ import {
     type HandoverInfo,
     type ImportResult,
 } from "../../../Services/AdminApi";
+import ClientSettingsModal from "./ClientSettingsModal";
 
 const slugify = (s: string) =>
     s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -71,6 +72,10 @@ const Clients: React.FC = () => {
     const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
     const [deleteConfirmCode, setDeleteConfirmCode] = useState("");
     const [exported, setExported] = useState(false);
+
+    // View-settings modal + table search
+    const [viewSettingsTarget, setViewSettingsTarget] = useState<ClientRow | null>(null);
+    const [search, setSearch] = useState("");
 
     const load = async () => {
         setLoading(true);
@@ -279,6 +284,16 @@ const Clients: React.FC = () => {
         callAlertMsg("Handover details copied", "success");
     };
 
+    const q = search.trim().toLowerCase();
+    const filtered = q
+        ? clients.filter((c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.code.toLowerCase().includes(q) ||
+            c.adminUserId.toLowerCase().includes(q))
+        : clients;
+    const activeCount = clients.filter((c) => c.status === "active").length;
+    const suspendedCount = clients.length - activeCount;
+
     return (
         <div className="row">
             <Loader loading={loading} />
@@ -303,8 +318,33 @@ const Clients: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="admin-summary">
+                    <div className="admin-stat">
+                        <div className="admin-stat-label">Total Clients</div>
+                        <div className="admin-stat-value">{clients.length}</div>
+                    </div>
+                    <div className="admin-stat admin-stat--accent">
+                        <div className="admin-stat-label">Active</div>
+                        <div className="admin-stat-value">{activeCount}</div>
+                    </div>
+                    <div className="admin-stat admin-stat--muted">
+                        <div className="admin-stat-label">Suspended</div>
+                        <div className="admin-stat-value">{suspendedCount}</div>
+                    </div>
+                </div>
+
                 <div className="card card-shadow mt-2">
                     <div className="card-body p-0">
+                        <div className="table-header p-3">
+                            <input
+                                type="text"
+                                className="form-control"
+                                style={{ maxWidth: 320 }}
+                                placeholder="Search name, code, or username…"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
                         <div className="table-body">
                             <table className="table table-bordered font-s14">
                                 <thead>
@@ -320,7 +360,7 @@ const Clients: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {clients.length ? clients.map((c, i) => (
+                                    {filtered.length ? filtered.map((c, i) => (
                                         <tr key={c._id}>
                                             <td>{i + 1}</td>
                                             <td className="font-w600">{c.name}</td>
@@ -339,6 +379,7 @@ const Clients: React.FC = () => {
                                                         <Icons iconName="Frame" className="icon-20" />
                                                     </button>
                                                     <ul className="dropdown-menu">
+                                                        <li><button className="dropdown-item text-primary" onClick={() => setViewSettingsTarget(c)}>View Settings</button></li>
                                                         <li><button className="dropdown-item text-primary"
                                                             onClick={() => window.open(`/t/${c.code}/login`, "_blank", "noopener")}>
                                                             Open Login Page
@@ -355,7 +396,7 @@ const Clients: React.FC = () => {
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={8} className="text-center py-3 text-muted">No clients yet</td></tr>
+                                        <tr><td colSpan={8} className="text-center py-3 text-muted">{clients.length ? "No clients match your search" : "No clients yet"}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -485,6 +526,15 @@ const Clients: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* View settings modal */}
+            {viewSettingsTarget && (
+                <ClientSettingsModal
+                    clientId={viewSettingsTarget._id}
+                    clientName={viewSettingsTarget.name}
+                    onClose={() => setViewSettingsTarget(null)}
+                />
             )}
 
             {/* Delete modal */}

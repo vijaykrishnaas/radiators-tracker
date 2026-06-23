@@ -50,6 +50,21 @@ export const resetClientPassword = (id: string, newPassword: string): Promise<{ 
 
 export const exportClient = (id: string) => getData(`admin/clients/${id}/export`);
 
+export type ClientMeta = {
+    id: string;
+    name: string;
+    code: string;
+    status: "active" | "suspended";
+    adminUserId: string;
+    lastLoginAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};
+
+export const getClientSettings = (
+    id: string
+): Promise<{ client: ClientMeta; settings: any }> => getData(`admin/clients/${id}/settings`);
+
 export type AuditEntry = {
     action: string;
     clientCode?: string;

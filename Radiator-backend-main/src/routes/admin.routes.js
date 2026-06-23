@@ -13,7 +13,7 @@ import {
   normalizeCode,
   CODE_REGEX,
 } from "../dao/client.dao.js";
-import { seedSettingsForClient } from "../dao/settings.dao.js";
+import { seedSettingsForClient, peekSettings } from "../dao/settings.dao.js";
 import { logAudit, listAudit } from "../dao/audit.dao.js";
 import { loginLimiter, accountLockout, recordFailure, recordSuccess } from "../middleware/rateLimit.js";
 import { parsePaging } from "../utils/sanitize.js";
@@ -215,6 +215,32 @@ router.get("/clients/:id/export", async (req, res, next) => {
     if (!client) return res.status(404).json({ success: false, message: "Client not found" });
     const data = await exportClientData(client._id);
     res.json({ success: true, ...data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Read-only view of a single client: provisioning meta + its full settings
+// (what the super-admin set up at creation plus what the client configured).
+router.get("/clients/:id/settings", async (req, res, next) => {
+  try {
+    const client = await getClientById(req.params.id);
+    if (!client) return res.status(404).json({ success: false, message: "Client not found" });
+    const settings = await peekSettings(client._id);
+    res.json({
+      success: true,
+      client: {
+        id: String(client._id),
+        name: client.name,
+        code: client.code,
+        status: client.status,
+        adminUserId: client.adminUserId,
+        lastLoginAt: client.lastLoginAt || null,
+        createdAt: client.createdAt || null,
+        updatedAt: client.updatedAt || null,
+      },
+      settings: settings || null,
+    });
   } catch (error) {
     next(error);
   }
