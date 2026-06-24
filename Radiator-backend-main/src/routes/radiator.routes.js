@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { parsePaging } from "../utils/sanitize.js";
+import { auditClient } from "../utils/clientAudit.js";
 import {
   createRadiator,
   getAllRadiators,
@@ -85,11 +86,11 @@ router.get("/", async (req, res, next) => {
 router.post("/add", validateRecordBody, async (req, res, next) => {
   try {
     const result = await createRadiator(req.user.clientId, req.body);
+    await auditClient(req, "radiator.create", { truckNumber: req.body?.truckNumber, mechanicName: req.body?.mechanicName });
     res.status(201).json({
       success: true,
       message: "Radiator entry saved ✅",
       id: result.insertedId,
-      billNo: result.billNo,
     });
   } catch (error) {
     next(error);
@@ -111,6 +112,7 @@ router.get("/:id", validId, async (req, res, next) => {
 router.put("/:id", validId, validateRecordBody, async (req, res, next) => {
   try {
     const updated = await updateRadiator(req.user.clientId, req.params.id, req.body);
+    await auditClient(req, "radiator.update", { truckNumber: updated?.truckNumber });
     res.json({ success: true, message: "Radiator updated ✅", radiator: updated });
   } catch (error) {
     next(error);
@@ -120,6 +122,7 @@ router.put("/:id", validId, validateRecordBody, async (req, res, next) => {
 router.delete("/:id", validId, async (req, res, next) => {
   try {
     await deleteRadiator(req.user.clientId, req.params.id);
+    await auditClient(req, "radiator.delete", { id: req.params.id });
     res.json({ success: true, message: "Radiator deleted ✅" });
   } catch (error) {
     next(error);
@@ -128,16 +131,18 @@ router.delete("/:id", validId, async (req, res, next) => {
 
 router.post("/:id/payment", validId, async (req, res, next) => {
   try {
-    const amount = Number(req.body?.amount);
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: "A positive payment amount is required" });
+    const amount = Number(req.body?.amount) || 0;
+    const discount = Math.max(Number(req.body?.discount) || 0, 0);
+    // Allow a pure discount/waiver (amount 0) as long as something is being applied.
+    if (amount < 0 || (amount <= 0 && discount <= 0)) {
+      return res.status(400).json({ success: false, message: "Enter a payment amount and/or a discount" });
     }
-    const updated = await recordPayment(req.user.clientId, req.params.id, amount);
-    res.json({
-      success: true,
-      message: `Payment of ₹${amount} recorded ✅`,
-      radiator: updated,
-    });
+    const updated = await recordPayment(req.user.clientId, req.params.id, amount, discount);
+    await auditClient(req, "radiator.payment", { truckNumber: updated?.truckNumber, amount, discount });
+    const msg = discount > 0
+      ? `Recorded ₹${amount} paid + ₹${discount} discount ✅`
+      : `Payment of ₹${amount} recorded ✅`;
+    res.json({ success: true, message: msg, radiator: updated });
   } catch (error) {
     next(error);
   }

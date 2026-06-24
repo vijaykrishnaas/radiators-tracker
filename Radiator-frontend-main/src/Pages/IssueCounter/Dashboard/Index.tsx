@@ -25,7 +25,6 @@ export type ServiceItem = {
 
 export type RadiatorRecord = {
     _id: string;
-    billNo?: number;
     billDate: string;
     truckNumber: string;
     transportName: string;
@@ -36,6 +35,7 @@ export type RadiatorRecord = {
     serviceInfo: ServiceItem[];
     status: "Not Received" | "Partial" | "Received";
     totalAmount: number;
+    discount?: number;
     receivedAmount: number;
     pendingAmount: number;
 };

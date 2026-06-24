@@ -45,7 +45,6 @@ export type AppSettings = {
     invoice: {
         billTitle: string;
         footerNote: string;
-        billNoPrefix: string;
         showQr: boolean;
     };
     bonus: {
@@ -76,7 +75,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         product: "Product Model",
         worker: "Worker Name",
     },
-    invoice: { billTitle: "BILL", footerNote: "", billNoPrefix: "", showQr: false },
+    invoice: { billTitle: "BILL", footerNote: "", showQr: false },
     bonus: {
         mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
         labour: { matrix: {}, defaultPercent: 0 },

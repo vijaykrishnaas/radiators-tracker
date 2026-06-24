@@ -641,7 +641,6 @@ const SettingsPage = () => {
                             {textField("Footer note", "invoice.footerNote", draft.invoice.footerNote)}
                         </div>
                         <div className="row form-group g-3">
-                            {textField("Bill number prefix", "invoice.billNoPrefix", draft.invoice.billNoPrefix, "e.g. INV-")}
                             <div className="col-xl-6 d-flex align-items-end">
                                 <div className="d-flex align-items-center gap-2">
                                     <Switch

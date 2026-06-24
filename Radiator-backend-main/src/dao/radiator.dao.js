@@ -29,16 +29,22 @@ function normalizeReceivedAmount(doc) {
 }
 
 // Adds computed money fields so every consumer gets a consistent shape.
+// A `discount` (set at collect time) reduces what the customer owes: status and
+// pending are derived against the NET (total − discount) amount.
 function enrich(doc) {
   if (!doc) return doc;
   const totalAmount = computeTotal(doc.serviceInfo);
-  const receivedAmount = normalizeReceivedAmount(doc);
+  const discount = Math.max(Number(doc.discount || 0), 0);
+  const netAmount = Math.max(totalAmount - discount, 0);
+  const receivedAmount = Math.min(normalizeReceivedAmount(doc), netAmount);
   return {
     ...doc,
     totalAmount,
+    discount,
+    netAmount,
     receivedAmount,
-    pendingAmount: Math.max(totalAmount - receivedAmount, 0),
-    status: deriveStatus(receivedAmount, totalAmount),
+    pendingAmount: Math.max(netAmount - receivedAmount, 0),
+    status: deriveStatus(receivedAmount, netAmount),
   };
 }
 
@@ -63,36 +69,6 @@ function buildRecordFields(data) {
   };
 }
 
-// Bill numbers are sequential PER CLIENT (each new client restarts at 1).
-// Uses an atomic per-client counter so concurrent creates can never collide on
-// the same billNo (the old read-max-then-insert approach raced). The counter is
-// lazily seeded from the current max bill the first time a client is used, so it
-// stays consistent for clients that already had bills before this change.
-async function getNextBillNo(db, clientId) {
-  const cid = toClientId(clientId);
-  const counters = db.collection("counters");
-
-  if (!(await counters.findOne({ _id: cid }))) {
-    const last = await db
-      .collection("radiators")
-      .find({ clientId: cid, billNo: { $type: "number" } })
-      .sort({ billNo: -1 })
-      .limit(1)
-      .toArray();
-    const start = last.length ? last[0].billNo : 0;
-    // $setOnInsert so a concurrent first-init can't double-seed.
-    await counters.updateOne({ _id: cid }, { $setOnInsert: { seq: start } }, { upsert: true });
-  }
-
-  const res = await counters.findOneAndUpdate(
-    { _id: cid },
-    { $inc: { seq: 1 } },
-    { returnDocument: "after" }
-  );
-  const doc = res?.value ?? res; // tolerate driver versions that wrap in { value }
-  return doc.seq;
-}
-
 export async function createRadiator(clientId, data) {
   const db = await connectDB();
   const collection = db.collection("radiators");
@@ -101,7 +77,7 @@ export async function createRadiator(clientId, data) {
   const payload = {
     clientId: cid,
     ...buildRecordFields(data),
-    billNo: await getNextBillNo(db, clientId),
+    discount: 0,
     receivedAmount: 0,
     status: STATUS.NOT_RECEIVED,
     createdAt: new Date(),
@@ -109,7 +85,7 @@ export async function createRadiator(clientId, data) {
 
   const result = await collection.insertOne(payload);
   await syncBonusesForRecord(clientId, { ...payload, _id: result.insertedId });
-  return { insertedId: result.insertedId, billNo: payload.billNo };
+  return { insertedId: result.insertedId };
 }
 
 export async function updateRadiator(clientId, id, data) {
@@ -126,7 +102,8 @@ export async function updateRadiator(clientId, id, data) {
   // Cap received at the new total so editing a bill *below* what was already
   // collected can't leave received > total (which would push collection rate
   // past 100% and show a negative/zero pending against an over-received bill).
-  const newTotal = computeTotal(fields.serviceInfo);
+  const discount = Math.max(Number(existing.discount || 0), 0);
+  const newTotal = Math.max(computeTotal(fields.serviceInfo) - discount, 0);
   const receivedAmount = Math.min(normalizeReceivedAmount(existing), newTotal);
   const status = deriveStatus(receivedAmount, newTotal);
 
@@ -150,7 +127,9 @@ export async function deleteRadiator(clientId, id) {
   return true;
 }
 
-export async function recordPayment(clientId, id, amount) {
+// `discount` (optional) is applied at collect time and reduces what's owed; it is
+// persisted on the bill. status/bonus are computed against the net (total − discount).
+export async function recordPayment(clientId, id, amount, discount = null) {
   const db = await connectDB();
   const collection = db.collection("radiators");
   const cid = toClientId(clientId);
@@ -158,19 +137,23 @@ export async function recordPayment(clientId, id, amount) {
   const existing = await collection.findOne({ _id: new ObjectId(id), clientId: cid });
   if (!existing) throw new Error("Radiator not found");
 
-  const totalAmount = computeTotal(existing.serviceInfo);
-  const current = normalizeReceivedAmount(existing);
-  const receivedAmount = Math.min(current + Number(amount), totalAmount);
-  const status = deriveStatus(receivedAmount, totalAmount);
+  const grossTotal = computeTotal(existing.serviceInfo);
+  const appliedDiscount = discount != null
+    ? Math.max(Number(discount) || 0, 0)
+    : Math.max(Number(existing.discount || 0), 0);
+  const netTotal = Math.max(grossTotal - appliedDiscount, 0);
+  const current = Math.min(normalizeReceivedAmount(existing), netTotal);
+  const receivedAmount = Math.min(current + Number(amount || 0), netTotal);
+  const status = deriveStatus(receivedAmount, netTotal);
 
   await collection.updateOne(
     { _id: new ObjectId(id), clientId: cid },
-    { $set: { receivedAmount, status } }
+    { $set: { receivedAmount, status, discount: appliedDiscount } }
   );
 
-  // Payable bonus follows collections
-  await syncBonusesForRecord(clientId, { ...existing, receivedAmount, status });
-  return enrich({ ...existing, receivedAmount, status });
+  // Payable bonus follows collections (and the net/discounted total).
+  await syncBonusesForRecord(clientId, { ...existing, receivedAmount, status, discount: appliedDiscount });
+  return enrich({ ...existing, receivedAmount, status, discount: appliedDiscount });
 }
 
 function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {

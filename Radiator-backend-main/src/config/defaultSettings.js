@@ -98,7 +98,6 @@ export const defaultSettings = {
   invoice: {
     billTitle: "CASH / CREDIT BILL",
     footerNote: "Thank you for your business",
-    billNoPrefix: "",
     showQr: false,
   },
 };

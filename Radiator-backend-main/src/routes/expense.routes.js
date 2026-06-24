@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { parsePaging } from "../utils/sanitize.js";
+import { auditClient } from "../utils/clientAudit.js";
 import {
   getExpenses,
   getExpensesForExport,
@@ -53,6 +54,7 @@ router.post("/", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "expenseType, date, and amount are required" });
     }
     const result = await createExpense(req.user.clientId, req.body);
+    await auditClient(req, "expense.create", { expenseType: req.body?.expenseType, amount: req.body?.amount });
     res.status(201).json({ success: true, message: "Expense saved ✅", id: result.insertedId });
   } catch (error) {
     next(error);
@@ -65,6 +67,7 @@ router.put("/:id", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Invalid expense id" });
     }
     await updateExpense(req.user.clientId, req.params.id, req.body);
+    await auditClient(req, "expense.update", { id: req.params.id, expenseType: req.body?.expenseType });
     res.json({ success: true, message: "Expense updated ✅" });
   } catch (error) {
     next(error);
@@ -77,6 +80,7 @@ router.delete("/:id", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Invalid expense id" });
     }
     await deleteExpense(req.user.clientId, req.params.id);
+    await auditClient(req, "expense.delete", { id: req.params.id });
     res.json({ success: true, message: "Expense deleted ✅" });
   } catch (error) {
     next(error);

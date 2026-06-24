@@ -3,12 +3,14 @@ import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import {
   getMechanicBonus,
   getLabourBonus,
+  getPendingByRange,
   markPaid,
   markPaidByRange,
   getReviewData,
   backfill,
 } from "../dao/bonus.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
+import { auditClient } from "../utils/clientAudit.js";
 
 const router = Router();
 
@@ -34,6 +36,24 @@ router.get("/labour", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "date is required (YYYY-MM-DD)" });
     }
     const rows = await getLabourBonus(req.user.clientId, date, name, status);
+    res.json({ success: true, rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Redesigned pages use this: pending (or paid) bonuses per beneficiary over a
+// billDate range, for both mechanic and labour.
+router.get("/pending", async (req, res, next) => {
+  try {
+    const { type, from, to, beneficiary = "", status = "" } = req.query;
+    if (!["mechanic", "labour"].includes(type)) {
+      return res.status(400).json({ success: false, message: "type must be mechanic or labour" });
+    }
+    if (!from || !to) {
+      return res.status(400).json({ success: false, message: "from and to are required" });
+    }
+    const rows = await getPendingByRange(req.user.clientId, type, from, to, beneficiary, status);
     res.json({ success: true, rows });
   } catch (error) {
     next(error);
@@ -71,6 +91,7 @@ router.post("/payout", async (req, res, next) => {
     } else {
       return res.status(400).json({ success: false, message: "period or from+to is required" });
     }
+    await auditClient(req, "bonus.payout", { type, beneficiary, count, amount: amount ?? null });
     res.json({ success: true, message: `${count} bonus entr${count === 1 ? "y" : "ies"} marked paid ✅`, count });
   } catch (error) {
     next(error);

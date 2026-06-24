@@ -18,6 +18,7 @@ import settingsRoutes from "./routes/settings.routes.js";
 import radiatorRoutes, { mechanicRouter } from "./routes/radiator.routes.js";
 import bonusRoutes from "./routes/bonus.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/radiators", radiatorRoutes);
 app.use("/mechanic", mechanicRouter);
 app.use("/bonus", bonusRoutes);
 app.use("/expenses", expenseRoutes);
+app.use("/audit", auditRoutes);
 
 // 404 for unknown routes
 app.use((req, res) => {

@@ -83,7 +83,7 @@ export async function exportClientData(clientId) {
   const [client, settings, radiators, bonuses, expenses] = await Promise.all([
     db.collection("clients").findOne({ _id: cid }),
     db.collection("settings").findOne({ _id: cid }),
-    db.collection("radiators").find({ clientId: cid }).sort({ billNo: 1 }).toArray(),
+    db.collection("radiators").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("bonuses").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("expenses").find({ clientId: cid }).sort({ date: 1 }).toArray(),
   ]);

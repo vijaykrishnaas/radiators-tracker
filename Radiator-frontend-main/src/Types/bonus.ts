@@ -14,7 +14,6 @@ export type ReviewData = {
     byProductType: Array<{ product: string; count: number; revenue: number }>;
     timeline: Array<{ date: string; count: number; revenue: number }>;
     bills: Array<{
-        billNo: number | null;
         billDate: string;
         truckNumber: string;
         services: Array<{ type: string; price: number; comments?: string }>;

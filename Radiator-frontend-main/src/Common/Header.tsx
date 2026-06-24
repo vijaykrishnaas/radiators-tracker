@@ -104,6 +104,11 @@ const Header = () => {
                                             </NavLink>
                                         </li>
                                         <li>
+                                            <NavLink className="dropdown-item menu-link" to={'/audit'}>
+                                                <Icons iconName="data_management" className="me-1 icon-18" />{'Activity Log'}
+                                            </NavLink>
+                                        </li>
+                                        <li>
                                             <NavLink className="dropdown-item menu-link" to={'/change-password'}>
                                                 <Icons iconName="data_management" className="me-1 icon-18" />{'Change Password'}
                                             </NavLink>
