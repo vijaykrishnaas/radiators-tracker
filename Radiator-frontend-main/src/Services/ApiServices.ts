@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
-import { getToken, clearSession } from "./Auth";
+import { getToken, clearSession, isSuperAdmin } from "./Auth";
 
 const baseURL = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
 
@@ -32,9 +32,13 @@ api.interceptors.response.use(
             (status === 401 && !error.config?.url?.includes("/auth/login")) ||
             (status === 403 && tenantInactive);
         if (shouldEject) {
+            // Pick the right login by context BEFORE clearing the session — a
+            // super-admin (or anyone already inside /admin) goes to /admin/login,
+            // everyone else to the client login.
+            const goAdmin = isSuperAdmin() || window.location.pathname.startsWith("/admin");
             clearSession();
             if (!window.location.pathname.includes("/login")) {
-                window.location.href = "/issueCounter/login";
+                window.location.href = goAdmin ? "/admin/login" : "/issueCounter/login";
             }
         }
 

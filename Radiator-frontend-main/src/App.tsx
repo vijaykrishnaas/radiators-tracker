@@ -30,6 +30,7 @@ import MechanicBonus from "./Pages/Bonus/Mechanic";
 import LabourBonus from "./Pages/Bonus/Labour";
 import MechanicReview from "./Pages/Bonus/MechanicReview";
 import LabourReview from "./Pages/Bonus/LabourReview";
+import ClientAudit from "./Pages/IssueCounter/Audit/Index";
 import AdminLogin from "./Pages/Admin/Login/Index";
 import AdminClients from "./Pages/Admin/Clients/Index";
 import AdminAudit from "./Pages/Admin/Audit/Index";
@@ -120,6 +121,7 @@ const AppLayout: React.FC = () => {
           <Route path="/issueCounter/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
           <Route path="/issueCounter/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/audit" element={<ProtectedRoute><ClientAudit /></ProtectedRoute>} />
           <Route path="/bonus/mechanics" element={<ProtectedRoute><MechanicBonus /></ProtectedRoute>} />
           <Route path="/bonus/labour" element={<ProtectedRoute><LabourBonus /></ProtectedRoute>} />
           <Route path="/bonus/mechanics/review" element={<ProtectedRoute><MechanicReview /></ProtectedRoute>} />

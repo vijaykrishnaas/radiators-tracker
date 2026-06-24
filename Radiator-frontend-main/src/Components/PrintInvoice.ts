@@ -80,12 +80,9 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.setTextColor(60);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    const billNo = `${settings.invoice.billNoPrefix}${o.billNo ?? "—"}`;
-    const billDate = o.billDate
-        ? new Date(o.billDate).toLocaleDateString("en-IN")
-        : new Date().toLocaleDateString("en-IN");
-    doc.text(`Bill No: ${billNo}`, 12, y + 11);
-    doc.text(`Date: ${billDate}`, pageWidth - 12, y + 11, { align: "right" });
+    const billDateObj = o.billDate ? new Date(o.billDate) : new Date();
+    const billDate = billDateObj.toLocaleDateString("en-IN");
+    doc.text(`Date: ${billDate}`, 12, y + 11);
     doc.text(`To: ${o.transportName}  ·  ${o.truckNumber}`, 12, y + 15.5);
 
     y += 23;
@@ -208,7 +205,8 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
         { align: "center" }
     );
 
-    doc.save(`Bill-${billNo}-${o.truckNumber || ""}.pdf`);
+    const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    doc.save(`Bill-${fileDate}-${o.truckNumber || ""}.pdf`);
 };
 
 /**

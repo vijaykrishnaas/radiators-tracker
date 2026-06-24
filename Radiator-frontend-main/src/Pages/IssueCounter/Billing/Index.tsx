@@ -54,10 +54,11 @@ const Billing = () => {
 
     const [paymentItem, setPaymentItem] = useState<RadiatorRecord | null>(null);
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [paymentDiscount, setPaymentDiscount] = useState("");
     const [deleteItem, setDeleteItem] = useState<RadiatorRecord | null>(null);
 
     const [visibleColumns, setVisibleColumns] = useState({
-        billNo: true,
+        date: true,
         truckNumber: true,
         transportName: true,
         radiatorType: true,
@@ -67,7 +68,6 @@ const Billing = () => {
         receivedAmount: true,
         pendingAmount: true,
         phoneNumber: true,
-        date: true,
         status: true,
     });
 
@@ -149,19 +149,25 @@ const Billing = () => {
     // ---- Payment ----
     const openPaymentModal = (item: RadiatorRecord) => {
         setPaymentAmount("");
+        setPaymentDiscount("");
         setPaymentItem(item);
     };
 
     const handleRecordPayment = async () => {
         if (!paymentItem) return;
-        const amount = Number(paymentAmount);
-        if (!amount || amount <= 0) {
-            callAlertMsg("Enter a valid payment amount", "error");
+        const amount = Number(paymentAmount) || 0;
+        const discount = Number(paymentDiscount) || 0;
+        if (amount <= 0 && discount <= 0) {
+            callAlertMsg("Enter a payment amount and/or a discount", "error");
+            return;
+        }
+        if (amount < 0 || discount < 0) {
+            callAlertMsg("Amount and discount must not be negative", "error");
             return;
         }
         try {
             setLoading(true);
-            const res = await postData(`radiators/${paymentItem._id}/payment`, { amount });
+            const res = await postData(`radiators/${paymentItem._id}/payment`, { amount, discount });
             callAlertMsg(res.message || "Payment recorded", "success");
             setPaymentItem(null);
             await getTableData();
@@ -194,18 +200,18 @@ const Billing = () => {
         try {
             const all = await fetchAllForExport();
             const exportData = all.map((x) => ({
-                "Bill No": x.billNo ?? "—",
+                "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
                 [settings.labels.vehicleNo]: x.truckNumber,
                 [settings.labels.party]: x.transportName,
                 [settings.labels.product]: x.radiatorType,
                 "Mechanic": x.mechanicName,
                 "Services": servicesText(x),
                 "Total (₹)": x.totalAmount,
+                "Discount (₹)": x.discount ?? 0,
                 "Received (₹)": x.receivedAmount,
                 "Pending (₹)": x.pendingAmount,
                 "Phone": x.phoneNumber,
                 "Status": x.status,
-                "Bill Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
             }));
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
@@ -230,13 +236,13 @@ const Billing = () => {
             autoTable(doc, {
                 startY: 26,
                 head: [[
-                    "Bill No", settings.labels.vehicleNo, settings.labels.party,
-                    "Mechanic", "Services", "Total", "Received", "Pending", "Status", "Date",
+                    "Date", settings.labels.vehicleNo, settings.labels.party,
+                    "Mechanic", "Services", "Total", "Discount", "Received", "Pending", "Status",
                 ]],
                 body: all.map((x) => [
-                    x.billNo ?? "—", x.truckNumber, x.transportName, x.mechanicName,
-                    servicesText(x), x.totalAmount, x.receivedAmount, x.pendingAmount, x.status,
                     x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
+                    x.truckNumber, x.transportName, x.mechanicName,
+                    servicesText(x), x.totalAmount, x.discount ?? 0, x.receivedAmount, x.pendingAmount, x.status,
                 ]),
                 headStyles: { fillColor: settings.branding.primaryColor },
                 styles: { fontSize: 8 },
@@ -267,7 +273,7 @@ const Billing = () => {
     const mechanicOptions = mechanicNameList.map((m) => ({ value: m, label: m }));
 
     const columnLabels: Record<keyof typeof visibleColumns, string> = {
-        billNo: "Bill No",
+        date: "Date",
         truckNumber: settings.labels.vehicleNo,
         transportName: settings.labels.party,
         radiatorType: settings.labels.product,
@@ -277,7 +283,6 @@ const Billing = () => {
         receivedAmount: "Received",
         pendingAmount: "Pending",
         phoneNumber: "Phone",
-        date: "Date",
         status: "Status",
     };
 
@@ -389,7 +394,7 @@ const Billing = () => {
                                 <thead>
                                     <tr>
                                         <th>SI No</th>
-                                        {visibleColumns.billNo && <th>Bill No</th>}
+                                        {visibleColumns.date && <th>Date</th>}
                                         {visibleColumns.truckNumber && <th>{settings.labels.vehicleNo}</th>}
                                         {visibleColumns.transportName && <th>{settings.labels.party}</th>}
                                         {visibleColumns.radiatorType && <th>{settings.labels.product}</th>}
@@ -399,7 +404,6 @@ const Billing = () => {
                                         {visibleColumns.receivedAmount && <th>Received</th>}
                                         {visibleColumns.pendingAmount && <th>Pending</th>}
                                         {visibleColumns.phoneNumber && <th>Phone</th>}
-                                        {visibleColumns.date && <th>Date</th>}
                                         {visibleColumns.status && <th>Status</th>}
                                         <th>Action</th>
                                     </tr>
@@ -409,7 +413,9 @@ const Billing = () => {
                                         recordData.map((o, i) => (
                                             <tr key={o._id}>
                                                 <td>{(currentPage - 1) * limit + i + 1}</td>
-                                                {visibleColumns.billNo && <td>{o.billNo ?? "—"}</td>}
+                                                {visibleColumns.date && (
+                                                    <td>{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
+                                                )}
                                                 {visibleColumns.truckNumber && <td>{o.truckNumber}</td>}
                                                 {visibleColumns.transportName && <td>{o.transportName}</td>}
                                                 {visibleColumns.radiatorType && <td>{o.radiatorType}</td>}
@@ -423,9 +429,6 @@ const Billing = () => {
                                                     </td>
                                                 )}
                                                 {visibleColumns.phoneNumber && <td>{o.phoneNumber}</td>}
-                                                {visibleColumns.date && (
-                                                    <td>{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
-                                                )}
                                                 {visibleColumns.status && (
                                                     <td><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
                                                 )}
@@ -472,7 +475,7 @@ const Billing = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={15} className="text-center py-3">No Records Found</td>
+                                            <td colSpan={13} className="text-center py-3">No Records Found</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -500,7 +503,7 @@ const Billing = () => {
                     <div className="modal-dialog modal-dialog-centered" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
-                                <span className="modal-title">Record Payment — Bill #{paymentItem.billNo ?? "—"}</span>
+                                <span className="modal-title">Record Payment — {paymentItem.truckNumber}</span>
                                 <button type="button" className="btn-close" aria-label="Close" onClick={() => setPaymentItem(null)} />
                             </div>
                             <div className="modal-body">
@@ -515,15 +518,32 @@ const Billing = () => {
                                     <span>Pending</span>
                                     <span className="font-w600 text-danger">{money(paymentItem.pendingAmount)}</span>
                                 </div>
+                                <div className="form-group mb-3">
+                                    <label className="form-label" htmlFor="payment-discount">
+                                        Discount (₹) <span className="text-muted font-s12">— optional, reduces the amount owed</span>
+                                    </label>
+                                    <input id="payment-discount" type="number" className="form-control"
+                                        min={0} max={paymentItem.pendingAmount} value={paymentDiscount}
+                                        onChange={(e) => setPaymentDiscount(e.target.value)}
+                                        placeholder="0" />
+                                </div>
                                 <div className="form-group">
-                                    <label className="form-label label-required" htmlFor="payment-amount">
+                                    <label className="form-label" htmlFor="payment-amount">
                                         Amount received now (₹)
                                     </label>
                                     <input id="payment-amount" type="number" className="form-control"
-                                        min={1} max={paymentItem.pendingAmount} value={paymentAmount}
+                                        min={0} max={Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)} value={paymentAmount}
                                         onChange={(e) => setPaymentAmount(e.target.value)}
-                                        placeholder={`Up to ${paymentItem.pendingAmount}`} autoFocus />
+                                        placeholder={`Up to ${Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)}`} autoFocus />
                                 </div>
+                                {(Number(paymentDiscount) || 0) > 0 && (
+                                    <div className="d-flex justify-content-between font-s14 mt-3 pt-2 border-top">
+                                        <span>Pending after discount</span>
+                                        <span className="font-w600">
+                                            {money(Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0) - (Number(paymentAmount) || 0), 0))}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-cancel btn-sm" onClick={() => setPaymentItem(null)}>Cancel</button>
@@ -549,8 +569,9 @@ const Billing = () => {
                             </div>
                             <div className="modal-body">
                                 <p className="font-s14 mb-0">
-                                    Delete bill <span className="font-w600">#{deleteItem.billNo ?? "—"}</span> for{" "}
-                                    <span className="font-w600">{deleteItem.truckNumber}</span>? This cannot be undone.
+                                    Delete bill for{" "}
+                                    <span className="font-w600">{deleteItem.truckNumber}</span>
+                                    {deleteItem.billDate ? ` dated ${new Date(deleteItem.billDate).toLocaleDateString("en-IN")}` : ""}? This cannot be undone.
                                 </p>
                             </div>
                             <div className="modal-footer">

@@ -186,9 +186,9 @@ const Clients: React.FC = () => {
             const data: any = await exportClient(c._id);
             const wb = XLSX.utils.book_new();
             const bills = (data.radiators || []).map((r: any) => ({
-                BillNo: r.billNo, Date: r.billDate ? new Date(r.billDate).toLocaleDateString("en-IN") : "",
+                Date: r.billDate ? new Date(r.billDate).toLocaleDateString("en-IN") : "",
                 Truck: r.truckNumber, Transport: r.transportName, Mechanic: r.mechanicName,
-                Model: r.radiatorType, Status: r.status, Received: r.receivedAmount ?? 0,
+                Model: r.radiatorType, Status: r.status, Discount: r.discount ?? 0, Received: r.receivedAmount ?? 0,
                 Services: (r.serviceInfo || []).map((s: any) => `${s.type}:${s.price}`).join("; "),
             }));
             const expenses = (data.expenses || []).map((e: any) => ({
@@ -196,7 +196,8 @@ const Clients: React.FC = () => {
                 Type: e.expenseType, Reason: e.reason || "", Amount: e.amount,
             }));
             const bonuses = (data.bonuses || []).map((b: any) => ({
-                Type: b.type, Beneficiary: b.beneficiary, Period: b.period, BillNo: b.billNo,
+                Type: b.type, Beneficiary: b.beneficiary, Period: b.period,
+                Date: b.billDate ? new Date(b.billDate).toLocaleDateString("en-IN") : "",
                 Accrued: b.accruedAmount, Payable: b.payableAmount, Status: b.status,
             }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bills.length ? bills : [{}]), "Bills");

@@ -92,7 +92,6 @@ const MechanicReview = () => {
     const exportExcel = () => {
         if (!data) return;
         const rows = data.bills.map((b) => ({
-            "Bill No": b.billNo ?? "—",
             "Date": new Date(b.billDate).toLocaleDateString("en-IN"),
             "Vehicle": b.truckNumber,
             "Total (₹)": b.totalAmount,
@@ -111,9 +110,8 @@ const MechanicReview = () => {
         doc.text(`${settings.company.name} — ${selectedMechanic.value} Review (${from} to ${to})`, 14, 14);
         autoTable(doc, {
             startY: 22,
-            head: [["Bill No", "Date", "Vehicle", "Total", "Collected"]],
+            head: [["Date", "Vehicle", "Total", "Collected"]],
             body: data.bills.map((b) => [
-                b.billNo ?? "—",
                 new Date(b.billDate).toLocaleDateString("en-IN"),
                 b.truckNumber,
                 b.totalAmount,
@@ -335,7 +333,6 @@ const MechanicReview = () => {
                                     <table className="table table-bordered font-s14">
                                         <thead>
                                             <tr>
-                                                <th>Bill No</th>
                                                 <th>Date</th>
                                                 <th>Vehicle</th>
                                                 <th>Services</th>
@@ -347,7 +344,6 @@ const MechanicReview = () => {
                                         <tbody>
                                             {data.bills.length ? data.bills.map((b, i) => (
                                                 <tr key={i}>
-                                                    <td>{b.billNo ?? "—"}</td>
                                                     <td>{new Date(b.billDate).toLocaleDateString("en-IN")}</td>
                                                     <td>{b.truckNumber}</td>
                                                     <td className="font-s12">
@@ -361,7 +357,7 @@ const MechanicReview = () => {
                                                 </tr>
                                             )) : (
                                                 <tr>
-                                                    <td colSpan={7} className="text-center py-3 text-muted">
+                                                    <td colSpan={6} className="text-center py-3 text-muted">
                                                         No bills found for this period
                                                     </td>
                                                 </tr>

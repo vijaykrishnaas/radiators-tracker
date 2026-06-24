@@ -178,7 +178,6 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
                                     <div className="kv-grid">
                                         <KV label="Bill Title" value={invoice.billTitle} />
                                         <KV label="Footer Note" value={invoice.footerNote} />
-                                        <KV label="Bill No. Prefix" value={invoice.billNoPrefix} />
                                         <KV label="Show QR on Invoice" value={invoice.showQr ? "Yes" : "No"} />
                                     </div>
                                 </Section>
