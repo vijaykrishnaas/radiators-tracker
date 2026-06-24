@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -12,29 +12,34 @@ import "./Assets/css/base-theme.css";
 import "./Assets/css/common.css";
 import "./Assets/css/style.css";
 import "./Assets/css/responsive.css";
-import "./Assets/css/canteenManagement.css";
 import "./Assets/css/admin.css";
 
+import { Navigate } from "react-router-dom";
 import Header from "./Common/Header";
 import AdminHeader from "./Common/AdminHeader";
 import Footer from "./Common/Footer";
+import Loader from "./Components/Loader";
 
+// Landing route — kept eager so the first paint isn't gated on a chunk fetch.
 import LoginPage from "./Pages/IssueCounter/Login/Index";
-import Dashboard from "./Pages/IssueCounter/Dashboard/Index";
-import BillingPage from "./Pages/IssueCounter/Billing/Index";
-import ExpensesPage from "./Pages/IssueCounter/Expenses/Index";
-import { Navigate } from "react-router-dom";
-import CreateRadiators from "./Pages/IssueCounter/Dashboard/Components/CreateRadiators";
-import SettingsPage from "./Pages/Settings/Index";
-import MechanicBonus from "./Pages/Bonus/Mechanic";
-import LabourBonus from "./Pages/Bonus/Labour";
-import MechanicReview from "./Pages/Bonus/MechanicReview";
-import LabourReview from "./Pages/Bonus/LabourReview";
-import ClientAudit from "./Pages/IssueCounter/Audit/Index";
-import AdminLogin from "./Pages/Admin/Login/Index";
-import AdminClients from "./Pages/Admin/Clients/Index";
-import AdminAudit from "./Pages/Admin/Audit/Index";
-import ChangePassword from "./Pages/ChangePassword/Index";
+
+// Everything else is code-split: each route loads its own chunk on demand,
+// keeping the initial bundle small (esp. for tablets on the shop floor).
+const Dashboard = lazy(() => import("./Pages/IssueCounter/Dashboard/Index"));
+const BillingPage = lazy(() => import("./Pages/IssueCounter/Billing/Index"));
+const ExpensesPage = lazy(() => import("./Pages/IssueCounter/Expenses/Index"));
+const CreateRadiators = lazy(() => import("./Pages/IssueCounter/Dashboard/Components/CreateRadiators"));
+const SettingsPage = lazy(() => import("./Pages/Settings/Index"));
+const MechanicBonus = lazy(() => import("./Pages/Bonus/Mechanic"));
+const LabourBonus = lazy(() => import("./Pages/Bonus/Labour"));
+const MechanicReview = lazy(() => import("./Pages/Bonus/MechanicReview"));
+const LabourReview = lazy(() => import("./Pages/Bonus/LabourReview"));
+const ClientAudit = lazy(() => import("./Pages/IssueCounter/Audit/Index"));
+const AdminLogin = lazy(() => import("./Pages/Admin/Login/Index"));
+const AdminClients = lazy(() => import("./Pages/Admin/Clients/Index"));
+const AdminAudit = lazy(() => import("./Pages/Admin/Audit/Index"));
+const ChangePassword = lazy(() => import("./Pages/ChangePassword/Index"));
+
 import { SettingsProvider } from "./Context/SettingsContext";
 import { isLoggedIn, isSuperAdmin } from "./Services/Auth";
 
@@ -106,6 +111,7 @@ const AppLayout: React.FC = () => {
           paddingBottom: isLoginPage ? 0 : 15,
         }}
       >
+        <Suspense fallback={<Loader loading={true} />}>
         <Routes>
           <Route path="/" element={<Navigate to="/issueCounter/login" replace />} />
           <Route path="/issueCounter/login" element={<LoginPage />} />
@@ -127,6 +133,7 @@ const AppLayout: React.FC = () => {
           <Route path="/bonus/mechanics/review" element={<ProtectedRoute><MechanicReview /></ProtectedRoute>} />
           <Route path="/bonus/labour/review" element={<ProtectedRoute><LabourReview /></ProtectedRoute>} />
         </Routes>
+        </Suspense>
       </div>
       {!isLoginPage && !isAdminArea && <Footer />}
     </>

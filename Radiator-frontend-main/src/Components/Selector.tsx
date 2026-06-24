@@ -111,7 +111,7 @@ const Selector = <SelectOption, IsMulti extends boolean = false>(
       options={props.options}
       className={props.className}
       classNamePrefix={props.prefixClassName}
-      styles={selectStyles}
+      styles={selectStyles as unknown as StylesConfig<SelectOption, IsMulti>}
       id={props.id}
       onChange={props.onChange}
       menuPortalTarget={document.body}
