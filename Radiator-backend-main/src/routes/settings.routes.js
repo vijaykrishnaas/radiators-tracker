@@ -3,6 +3,7 @@ import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl } from "../dao/settings.dao.js";
 import { saveLogo, saveQr, saveLoginBg } from "../dao/logo.dao.js";
+import { auditClient } from "../utils/clientAudit.js";
 
 const router = Router();
 
@@ -66,6 +67,7 @@ router.put("/", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Settings body is required" });
     }
     const settings = await updateSettings(req.user.clientId, req.body);
+    await auditClient(req, "settings.update", {});
     res.json({ success: true, settings, message: "Settings updated ✅" });
   } catch (error) {
     next(error);
@@ -82,6 +84,7 @@ router.post("/logo", uploadLogo, async (req, res, next) => {
     // Cache-busted URL so the browser refetches after replacement.
     const logoUrl = `/public/clients/${req.user.code}/logo?v=${Date.now()}`;
     await setCompanyLogoUrl(req.user.clientId, logoUrl);
+    await auditClient(req, "settings.upload", { asset: "logo" });
     res.json({ success: true, message: "Logo updated ✅", logoUrl });
   } catch (error) {
     next(error);
@@ -97,6 +100,7 @@ router.post("/qr", uploadLogo, async (req, res, next) => {
     await saveQr(req.user.clientId, req.file.buffer, req.file.mimetype);
     const qrUrl = `/public/clients/${req.user.code}/qr?v=${Date.now()}`;
     await setCompanyQrUrl(req.user.clientId, qrUrl);
+    await auditClient(req, "settings.upload", { asset: "qr" });
     res.json({ success: true, message: "Payment QR updated ✅", qrUrl });
   } catch (error) {
     next(error);
@@ -112,6 +116,7 @@ router.post("/login-bg", uploadBg, async (req, res, next) => {
     await saveLoginBg(req.user.clientId, req.file.buffer, req.file.mimetype);
     const loginBgUrl = `/public/clients/${req.user.code}/login-bg?v=${Date.now()}`;
     await setCompanyLoginBgUrl(req.user.clientId, loginBgUrl);
+    await auditClient(req, "settings.upload", { asset: "login-bg" });
     res.json({ success: true, message: "Login background updated ✅", loginBgUrl });
   } catch (error) {
     next(error);

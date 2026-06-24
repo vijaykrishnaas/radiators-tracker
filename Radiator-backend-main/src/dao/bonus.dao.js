@@ -44,15 +44,19 @@ const dayKey = (billDate) => moment(billDate).format("YYYY-MM-DD");
 
 function computeRoleBonus(record, role, settings) {
   const productValue = catalogValue(settings.catalog?.productTypes, record.radiatorType);
-  const totalAmount = computeTotal(record.serviceInfo);
-  const received = normalizeReceived(record, totalAmount);
+  const grossTotal = computeTotal(record.serviceInfo);
+  // Bonus is computed on the NET (post-discount) amount the customer actually owes.
+  const discount = Math.max(Number(record.discount || 0), 0);
+  const totalAmount = Math.max(grossTotal - discount, 0);
+  const received = Math.min(normalizeReceived(record, totalAmount), totalAmount);
   const ratio = totalAmount > 0 ? Math.min(received / totalAmount, 1) : 0;
 
-  const accrued = (record.serviceInfo || []).reduce(
+  const accruedGross = (record.serviceInfo || []).reduce(
     (sum, line) =>
       sum + Number(line.price || 0) * effectivePercent(line, role, settings, productValue) / 100,
     0
   );
+  const accrued = grossTotal > 0 ? accruedGross * (totalAmount / grossTotal) : 0;
 
   return {
     accrued: round2(accrued),
@@ -74,7 +78,6 @@ export async function syncBonusesForRecord(clientId, record) {
   const base = {
     clientId: cid,
     recordId,
-    billNo: record.billNo ?? null,
     billDate: new Date(record.billDate),
     updatedAt: new Date(),
   };
@@ -169,7 +172,6 @@ async function aggregateByBeneficiary(filter) {
           pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
           records: {
             $push: {
-              billNo: "$billNo",
               billDate: "$billDate",
               accruedAmount: "$accruedAmount",
               payableAmount: "$payableAmount",
@@ -212,6 +214,23 @@ export async function getMechanicBonus(clientId, year, mechanicName = "", status
 export async function getLabourBonus(clientId, date, name = "", status = "") {
   const filter = { clientId: toClientId(clientId), type: "labour", period: date };
   if (name) filter.beneficiary = name;
+  if (status) filter.status = status;
+  return aggregateByBeneficiary(filter);
+}
+
+// Lists bonuses per beneficiary over a billDate RANGE (not a single period) — used
+// by the redesigned bonus pages so they're never empty-by-default. Works for both
+// mechanic and labour. Defaults to all statuses; pages pass status="pending".
+export async function getPendingByRange(clientId, type, fromDate, toDate, beneficiary = "", status = "") {
+  const filter = {
+    clientId: toClientId(clientId),
+    type,
+    billDate: {
+      $gte: moment(fromDate).startOf("day").toDate(),
+      $lte: moment(toDate).endOf("day").toDate(),
+    },
+  };
+  if (beneficiary) filter.beneficiary = beneficiary;
   if (status) filter.status = status;
   return aggregateByBeneficiary(filter);
 }
@@ -267,7 +286,9 @@ export async function markPaid(clientId, type, period, beneficiary = "", amount 
   return settlePending(db, filter, amount, note);
 }
 
-// Marks pending labour bonus entries paid across a date range.
+// Marks pending bonus entries paid across a billDate range (mechanic OR labour).
+// Ranges on billDate (a real Date on every doc), not the `period` string — so it
+// works uniformly for mechanic (period = FY string) and labour (period = day).
 export async function markPaidByRange(clientId, type, name, fromDate, toDate, amount = null, note = "") {
   const db = await connectDB();
   const filter = {
@@ -275,7 +296,10 @@ export async function markPaidByRange(clientId, type, name, fromDate, toDate, am
     type,
     beneficiary: name,
     status: "pending",
-    period: { $gte: moment(fromDate).format("YYYY-MM-DD"), $lte: moment(toDate).format("YYYY-MM-DD") },
+    billDate: {
+      $gte: moment(fromDate).startOf("day").toDate(),
+      $lte: moment(toDate).endOf("day").toDate(),
+    },
   };
   return settlePending(db, filter, amount, note);
 }
@@ -364,7 +388,6 @@ export async function getReviewData(clientId, type, name, fromDate, toDate, sett
           {
             $project: {
               _id: 0,
-              billNo: 1,
               billDate: 1,
               truckNumber: 1,
               services: "$serviceInfo",

@@ -4,6 +4,7 @@ import { findUserByClient, verifyPassword, changeOwnPassword } from "../dao/user
 import { findClientByCode, touchLastLogin } from "../dao/client.dao.js";
 import { authenticate } from "../middleware/auth.js";
 import { loginLimiter, accountLockout, recordFailure, recordSuccess } from "../middleware/rateLimit.js";
+import { logAudit } from "../dao/audit.dao.js";
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.post("/login", loginLimiter, accountLockout, async (req, res, next) => {
 
     recordSuccess(req);
     await touchLastLogin(client._id);
+    await logAudit({ action: "auth.login", clientId: client._id, clientCode: client.code, actorUserId: user.userId, actorRole: user.role, details: {} });
 
     const token = jwt.sign(
       {
