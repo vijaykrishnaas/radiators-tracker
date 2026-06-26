@@ -397,31 +397,38 @@ const Expenses = () => {
                                             </tr>
                                             {e.expenseType === "materials" && expandedRows.has(e._id) && (
                                                 <tr>
-                                                    <td colSpan={6} className="p-0 ps-4 bg-light">
-                                                        <table className="table table-sm table-bordered mb-0 font-s13">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Product</th><th>Qty</th>
-                                                                    <th>Unit Price</th><th>Amount</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {(e.products || []).map((p, pi) => (
-                                                                    <tr key={pi}>
-                                                                        <td>{p.name}</td>
-                                                                        <td>{p.quantity}</td>
-                                                                        <td>{money(p.unitPrice)}</td>
-                                                                        <td>{money(p.amount)}</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                            <tfoot>
-                                                                <tr className="font-w600">
-                                                                    <td colSpan={3}>Total</td>
-                                                                    <td>{money(e.amount)}</td>
-                                                                </tr>
-                                                            </tfoot>
-                                                        </table>
+                                                    <td colSpan={6} style={{ padding: 0, background: "var(--surface-sunken)", borderBottom: "1px solid var(--line)" }}>
+                                                        <div style={{ padding: "14px 18px 16px" }}>
+                                                            <div className="font-s12 fw-semibold mb-2" style={{ color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: ".04em" }}>
+                                                                Products in this expense
+                                                            </div>
+                                                            <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
+                                                                <table className="table table-sm mb-0 font-s13">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Product</th><th>Qty</th>
+                                                                            <th>Unit Price</th><th>Amount</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {(e.products || []).map((p, pi) => (
+                                                                            <tr key={pi}>
+                                                                                <td>{p.name}</td>
+                                                                                <td>{p.quantity}</td>
+                                                                                <td>{money(p.unitPrice)}</td>
+                                                                                <td>{money(p.amount)}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                    <tfoot>
+                                                                        <tr className="font-w600">
+                                                                            <td colSpan={3}>Total</td>
+                                                                            <td>{money(e.amount)}</td>
+                                                                        </tr>
+                                                                    </tfoot>
+                                                                </table>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )}

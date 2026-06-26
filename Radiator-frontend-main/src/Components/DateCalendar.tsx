@@ -1,6 +1,7 @@
 import React from 'react';
 import DatePicker from 'react-date-picker';
-import { Value } from 'react-date-picker/dist/cjs/shared/types';
+// react-date-picker doesn't export its Value type from a stable path; mirror it locally.
+type Value = Date | null | [Date | null, Date | null];
 import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
 import 'react-clock/dist/Clock.css';

@@ -8,15 +8,53 @@ import { useAlertMsg } from "../../../Services/AllServices";
 import { listAudit, listClients, type AuditEntry, type ClientRow } from "../../../Services/AdminApi";
 
 const ACTION_LABEL: Record<string, string> = {
+    // Super-admin actions
     "client.create": "Created client",
     "client.rename": "Renamed client",
     "client.suspend": "Suspended client",
     "client.reactivate": "Reactivated client",
     "client.reset_password": "Reset password",
     "client.delete": "Deleted client",
+    // Client-side actions (so client logs read clearly here too)
+    "radiator.create": "Created bill",
+    "radiator.update": "Updated bill",
+    "radiator.delete": "Deleted bill",
+    "radiator.payment": "Recorded payment",
+    "expense.create": "Added expense",
+    "expense.update": "Updated expense",
+    "expense.delete": "Deleted expense",
+    "settings.update": "Updated settings",
+    "settings.upload": "Uploaded asset",
+    "bonus.payout": "Issued bonus",
+    "auth.login": "Logged in",
 };
 
 const fmt = (d: string) => new Date(d).toLocaleString("en-IN");
+
+// Condense any audit entry's details (super-admin OR client) into a short string.
+const detailText = (e: AuditEntry): string => {
+    const d = e.details || {};
+    switch (e.action) {
+        case "radiator.create":
+        case "radiator.update":
+        case "radiator.delete":
+            return d.truckNumber ? String(d.truckNumber) : "";
+        case "radiator.payment":
+            return [d.truckNumber, d.amount ? `paid ₹${d.amount}` : "", d.discount ? `discount ₹${d.discount}` : ""].filter(Boolean).join(" · ");
+        case "expense.create":
+        case "expense.update":
+            return [d.expenseType, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
+        case "bonus.payout":
+            return [d.type, d.beneficiary, d.count != null ? `${d.count} entr${d.count === 1 ? "y" : "ies"}` : "", d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
+        case "settings.upload":
+            return d.asset ? String(d.asset) : "";
+        default:
+            return [
+                d.name ? `name: ${d.name}` : "",
+                d.counts ? `(${Object.entries(d.counts).map(([k, v]) => `${k}:${v}`).join(", ")})` : "",
+            ].filter(Boolean).join(" ");
+    }
+};
 
 const Audit: React.FC = () => {
     const { alert, alertMessage, callAlertMsg } = useAlertMsg();
@@ -126,10 +164,7 @@ const Audit: React.FC = () => {
                                             <td>{ACTION_LABEL[e.action] || e.action}</td>
                                             <td>{e.clientCode ? <code>{e.clientCode}</code> : "—"}</td>
                                             <td>{e.actorUserId || "—"}</td>
-                                            <td className="font-s12 text-muted">
-                                                {e.details?.name ? `name: ${e.details.name}` : ""}
-                                                {e.details?.counts ? ` (${Object.entries(e.details.counts).map(([k, v]) => `${k}:${v}`).join(", ")})` : ""}
-                                            </td>
+                                            <td className="font-s12 text-muted">{detailText(e) || "—"}</td>
                                         </tr>
                                     )) : (
                                         <tr><td colSpan={5} className="text-center py-3 text-muted">No audit entries</td></tr>

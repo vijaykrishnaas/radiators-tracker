@@ -1,0 +1,149 @@
+/* ==========================================================================
+   MODERN APPLE REBRAND — surface rules (2026-06-24)
+   Imported LAST (after style.css / responsive.css / admin.css) so equal-
+   specificity rules win on source order. Colour/scale come from the token
+   layer in base-theme.css; this file carries the Apple surface treatment:
+   Liquid-Glass nav + modals, deferent tables, macOS-style controls, precise
+   typography. Tenant accent stays white-label via --primary.
+   ========================================================================== */
+
+/* ---- Typography: SF/Inter, tight tracking, semibold (not heavy) titles ---- */
+h1, h2, h3, h4, h5, h6,
+.fw-semibold, .fw-bold, .modal-title, .navbar-brand {
+    font-family: var(--font-sans);
+    letter-spacing: var(--tracking-tight);
+    font-weight: 600;
+    color: var(--titleColor);
+}
+.fw-semibold { font-weight: 600 !important; }
+
+/* ---- Buttons: macOS rounded-rect, restrained, subtle tactile press ---- */
+.btn {
+    border-radius: var(--r-md) !important;
+    font-weight: 500;
+    letter-spacing: var(--tracking-snug);
+    transition: transform var(--dur-fast) var(--ease), filter var(--dur) var(--ease),
+                background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.btn:active { transform: scale(.98); }
+.btn-primary {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    box-shadow: var(--shadow-xs);
+}
+.btn-primary:hover { filter: brightness(1.05); }
+
+/* ---- Status badges: Apple capsule pills, quiet ---- */
+.status-badge {
+    border-radius: var(--r-pill) !important;
+    font-weight: 590;
+    letter-spacing: 0;
+    padding: 4px 11px !important;
+}
+
+/* ---- Cards: hairline border, soft layered depth, 16px corners ---- */
+.card,
+.card-shadow {
+    border-radius: var(--r-lg) !important;
+    border: 1px solid var(--line) !important;
+    box-shadow: var(--shadow-sm) !important;
+    background-color: var(--surface);
+}
+
+/* ---- Tables: Apple list aesthetic. Kill Bootstrap's table-bordered gridlines
+        + doubled outer border (the "transparent vs border" mismatch); use clean
+        horizontal hairline row separators only, quiet grey uppercase header,
+        content forward. The wrapping card clips the corners (rule further down). */
+.table {
+    --bs-table-bg: transparent;
+    border-color: var(--line);
+    margin-bottom: 0;
+}
+/* Remove every cell gridline + the table-bordered frame */
+.table.table-bordered,
+.table > :not(caption) > * > * {
+    border-width: 0 !important;
+    box-shadow: none !important;
+}
+/* Horizontal hairline between rows only (Apple list) */
+.table > tbody > tr {
+    border-bottom: 1px solid var(--line);
+}
+.table > tbody > tr:last-child {
+    border-bottom: 0;
+}
+.table thead th,
+.table-body table thead th {
+    background-color: var(--surface-sunken) !important;
+    color: var(--ink-500) !important;
+    border-bottom: 1px solid var(--line) !important;
+    font-weight: 600;
+    font-size: .78em;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 11px 16px !important;
+}
+.table tbody td,
+.table-body table tbody td {
+    padding: 13px 16px !important;
+    vertical-align: middle;
+    color: var(--ink-700);
+}
+.table > tbody > tr:hover > td { background-color: var(--surface-sunken) !important; }
+/* Total / footer row — a single stronger separator above it, no gridlines */
+.table tfoot td,
+.table > tfoot > tr > td {
+    border-top: 1px solid var(--line-strong) !important;
+    background-color: var(--surface-sunken);
+    font-weight: 600;
+    color: var(--ink-900);
+}
+/* The card that wraps a table clips its square corners to the card radius */
+.card-body.p-0 { overflow: hidden; border-radius: inherit; }
+
+/* ---- Inputs & selects: hairline, 44px, accent focus ring ---- */
+.form-control,
+.form-select {
+    border-radius: var(--r-md) !important;
+    min-height: var(--control-h);
+    border: 1px solid var(--line-strong);
+    letter-spacing: var(--tracking-snug);
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: var(--focus-ring) !important;
+}
+
+/* ---- Liquid Glass: translucent frosted top nav ---- */
+.navbar.bg-header,
+#header {
+    background-color: var(--glass-bg) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--line);
+    box-shadow: none;
+}
+.navbar-nav-header li a.nav-link {
+    border-radius: var(--r-sm);
+    transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+/* ---- Liquid Glass: modal sheet — frosted, deep soft shadow, large radius ---- */
+.modal-content {
+    border-radius: var(--r-xl) !important;
+    border: 1px solid var(--glass-border) !important;
+    background-color: var(--glass-bg-strong) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* ---- Responsive: tablet-first; phone keeps tables usable via scroll ---- */
+@media (max-width: 768px) {
+    .table-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .btn { min-height: var(--control-h-sm); }
+    .form-control, .form-select { min-height: var(--control-h); }
+}

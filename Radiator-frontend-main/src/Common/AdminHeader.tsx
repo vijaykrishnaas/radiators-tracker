@@ -36,13 +36,11 @@ const AdminHeader = () => {
                         <ul className="navbar-nav navbar-nav-header flex-row mb-0">
                             <li className="nav-item">
                                 <NavLink className="nav-link px-3" to="/admin/clients">
-                                    <Icons iconName="data_management" className="icon-18 icon-gray me-1" />
                                     Clients
                                 </NavLink>
                             </li>
                             <li className="nav-item">
                                 <NavLink className="nav-link px-3" to="/admin/audit">
-                                    <Icons iconName="data_management" className="icon-18 icon-gray me-1" />
                                     Audit
                                 </NavLink>
                             </li>

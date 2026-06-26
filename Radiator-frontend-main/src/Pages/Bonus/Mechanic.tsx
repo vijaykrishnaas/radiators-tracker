@@ -248,6 +248,22 @@ export function BonusPage({
                     </div>
                 </div>
 
+                {/* Plain-language explainer — what this screen does + how to act on it */}
+                <p className="font-s13 text-muted mb-2" style={{ maxWidth: 820 }}>
+                    Every bill earns a bonus based on the rates you set in <span className="fw-semibold">Settings → Bonus</span>.
+                    This lists what's pending from bills dated <span className="fw-semibold">{from}</span> to <span className="fw-semibold">{to}</span>.
+                    Open a row to see the bills behind it, then <span className="fw-semibold">Issue</span> a person their bonus —
+                    or tick several and use <span className="fw-semibold">Issue selected</span>.
+                </p>
+                {rows.length > 0 && totals.accrued === 0 && (
+                    <div className="font-s13 mb-3" role="status"
+                        style={{ background: "var(--surface-sunken)", border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "10px 14px", color: "var(--ink-700)" }}>
+                        No bonus is accruing for these jobs yet — set a bonus&nbsp;% for these services in{" "}
+                        <span className="text-primary fw-semibold" style={{ cursor: "pointer" }} onClick={() => navigate("/settings")}>Settings → Bonus</span>,
+                        then click <span className="fw-semibold">Recalculate</span>.
+                    </div>
+                )}
+
                 <div className="card card-shadow mt-2">
                     <div className="card-body p-0">
                         <div className="table-header">
@@ -282,11 +298,11 @@ export function BonusPage({
                                                 onChange={toggleAll} aria-label="Select all pending" />
                                         </th>
                                         <th>{nameLabel}</th>
-                                        <th>Operations</th>
-                                        <th>Total Business</th>
+                                        <th>Jobs</th>
+                                        <th>Work value</th>
                                         <th>Collected</th>
-                                        <th>Accrued Bonus</th>
-                                        <th>Payable Bonus</th>
+                                        <th>Bonus earned</th>
+                                        <th>Ready to pay</th>
                                         <th>Paid</th>
                                         <th>Status</th>
                                         <th>Action</th>
@@ -311,41 +327,46 @@ export function BonusPage({
                                                 <td>
                                                     <span className={`status-badge ${r.status === "Paid" ? "status-badge-success" : "status-badge-warning"}`}>{r.status}</span>
                                                 </td>
-                                                <td className="action-dropdown">
-                                                    <div className="dropdown">
-                                                        <button className="btn" type="button" data-bs-toggle="dropdown"><Icons iconName="Frame" className="icon-20" /></button>
-                                                        <ul className="dropdown-menu">
-                                                            <li><button className="dropdown-item text-primary" onClick={() => setExpanded(expanded === r.beneficiary ? null : r.beneficiary)}>
-                                                                {expanded === r.beneficiary ? "Hide breakdown" : "View breakdown"}
-                                                            </button></li>
-                                                            {r.status === "Pending" && (
-                                                                <li><button className="dropdown-item text-primary" onClick={() => openIssue(r)}>Issue Bonus</button></li>
-                                                            )}
-                                                        </ul>
+                                                <td>
+                                                    <div className="d-flex gap-2">
+                                                        <button type="button" className="btn btn-cancel btn-sm"
+                                                            onClick={() => setExpanded(expanded === r.beneficiary ? null : r.beneficiary)}>
+                                                            {expanded === r.beneficiary ? "Hide" : "Details"}
+                                                        </button>
+                                                        {r.status === "Pending" && (
+                                                            <button type="button" className="btn btn-primary btn-sm" onClick={() => openIssue(r)}>Issue</button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
                                             {expanded === r.beneficiary && (
                                                 <tr>
-                                                    <td colSpan={10} className="p-0" style={{ background: "var(--canvas, #f7f7f8)" }}>
-                                                        <table className="table table-bordered font-s13 mb-0">
-                                                            <thead>
-                                                                <tr><th>Date</th><th>Bill Amount</th><th>Collected</th><th>Accrued</th><th>Payable</th><th>Paid</th><th>Status</th></tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {r.records.map((rec, i) => (
-                                                                    <tr key={i}>
-                                                                        <td>{new Date(rec.billDate).toLocaleDateString("en-IN")}</td>
-                                                                        <td>{money(rec.billAmount)}</td>
-                                                                        <td>{money(rec.receivedAmount)}</td>
-                                                                        <td>{money(rec.accruedAmount)}</td>
-                                                                        <td>{money(rec.payableAmount)}</td>
-                                                                        <td>{rec.status === "paid" ? money(rec.paidAmount || 0) : "—"}</td>
-                                                                        <td><span className={`status-badge ${rec.status === "paid" ? "status-badge-success" : "status-badge-warning"}`}>{rec.status === "paid" ? "Paid" : "Pending"}</span></td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
+                                                    <td colSpan={10} style={{ padding: 0, background: "var(--surface-sunken)", borderBottom: "1px solid var(--line)" }}>
+                                                        <div style={{ padding: "14px 18px 16px" }}>
+                                                            <div className="font-s12 fw-semibold mb-2" style={{ color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: ".04em" }}>
+                                                                Bills behind {r.beneficiary}'s bonus
+                                                            </div>
+                                                            <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
+                                                                <table className="table font-s13 mb-0">
+                                                                    <thead>
+                                                                        <tr><th>Date</th><th>Work value</th><th>Collected</th><th>Bonus earned</th><th>Ready to pay</th><th>Paid</th><th>Status</th></tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {r.records.map((rec, i) => (
+                                                                            <tr key={i}>
+                                                                                <td>{new Date(rec.billDate).toLocaleDateString("en-IN")}</td>
+                                                                                <td>{money(rec.billAmount)}</td>
+                                                                                <td>{money(rec.receivedAmount)}</td>
+                                                                                <td>{money(rec.accruedAmount)}</td>
+                                                                                <td>{money(rec.payableAmount)}</td>
+                                                                                <td>{rec.status === "paid" ? money(rec.paidAmount || 0) : "—"}</td>
+                                                                                <td><span className={`status-badge ${rec.status === "paid" ? "status-badge-success" : "status-badge-warning"}`}>{rec.status === "paid" ? "Paid" : "Pending"}</span></td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )}
