@@ -50,26 +50,57 @@ h1, h2, h3, h4, h5, h6,
     background-color: var(--surface);
 }
 
-/* ---- Tables: DEFERENT (Apple list aesthetic) — quiet grey header, secondary
-        labels, hairline separators, content forward. No accent band. ---- */
+/* ---- Tables: Apple list aesthetic. Kill Bootstrap's table-bordered gridlines
+        + doubled outer border (the "transparent vs border" mismatch); use clean
+        horizontal hairline row separators only, quiet grey uppercase header,
+        content forward. The wrapping card clips the corners (rule further down). */
+.table {
+    --bs-table-bg: transparent;
+    border-color: var(--line);
+    margin-bottom: 0;
+}
+/* Remove every cell gridline + the table-bordered frame */
+.table.table-bordered,
+.table > :not(caption) > * > * {
+    border-width: 0 !important;
+    box-shadow: none !important;
+}
+/* Horizontal hairline between rows only (Apple list) */
+.table > tbody > tr {
+    border-bottom: 1px solid var(--line);
+}
+.table > tbody > tr:last-child {
+    border-bottom: 0;
+}
 .table thead th,
 .table-body table thead th {
     background-color: var(--surface-sunken) !important;
     color: var(--ink-500) !important;
     border-bottom: 1px solid var(--line) !important;
     font-weight: 600;
-    font-size: .8em;
-    letter-spacing: .02em;
+    font-size: .78em;
+    letter-spacing: .03em;
     text-transform: uppercase;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
+    white-space: nowrap;
+    padding: 11px 16px !important;
 }
+.table tbody td,
 .table-body table tbody td {
-    padding-top: 13px !important;
-    padding-bottom: 13px !important;
-    border-color: var(--line) !important;
+    padding: 13px 16px !important;
+    vertical-align: middle;
+    color: var(--ink-700);
 }
-.table-body table tbody tr:hover td { background-color: var(--surface-sunken) !important; }
+.table > tbody > tr:hover > td { background-color: var(--surface-sunken) !important; }
+/* Total / footer row — a single stronger separator above it, no gridlines */
+.table tfoot td,
+.table > tfoot > tr > td {
+    border-top: 1px solid var(--line-strong) !important;
+    background-color: var(--surface-sunken);
+    font-weight: 600;
+    color: var(--ink-900);
+}
+/* The card that wraps a table clips its square corners to the card radius */
+.card-body.p-0 { overflow: hidden; border-radius: inherit; }
 
 /* ---- Inputs & selects: hairline, 44px, accent focus ring ---- */
 .form-control,

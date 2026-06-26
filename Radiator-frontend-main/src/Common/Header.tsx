@@ -70,22 +70,22 @@ const Header = () => {
                                 <li className="nav-item">
                                     <NavLink end to="/issueCounter/dashboard" onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive)}>
-                                        <Icons iconName="data_management" className="icon-20 icon-gray me-1" />Dashboard
+                                        Dashboard
                                     </NavLink>
                                 </li>
                                 <li className="nav-item">
                                     <NavLink to="/issueCounter/billing" onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive || onDashboardSub)}>
-                                        <Icons iconName="data_management" className="icon-20 icon-gray me-1" />Bills
+                                        Bills
                                     </NavLink>
                                 </li>
                                 <li className="nav-item">
                                     <NavLink to="/issueCounter/expenses" onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive)}>
-                                        <Icons iconName="data_management" className="icon-20 icon-gray me-1" />Expenses
+                                        Expenses
                                     </NavLink>
                                 </li>
-                                <AppDropdown icon={"data_management"} name="Bonus" data={Bonus} />
+                                <AppDropdown name="Bonus" data={Bonus} />
                             </ul>
                         </div>
                         <div className="header-user-sec ">
