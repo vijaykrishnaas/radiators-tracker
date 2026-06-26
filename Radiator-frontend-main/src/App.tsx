@@ -13,7 +13,7 @@ import "./Assets/css/common.css";
 import "./Assets/css/style.css";
 import "./Assets/css/responsive.css";
 import "./Assets/css/admin.css";
-import "./Assets/css/warm-rebrand.css";
+import "./Assets/css/apple-rebrand.css";
 
 import { Navigate } from "react-router-dom";
 import Header from "./Common/Header";
