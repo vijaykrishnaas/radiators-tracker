@@ -531,6 +531,15 @@ const CreateRadiators = () => {
                                             </div>
                                         );
                                     })}
+
+                                    {fields.length > 0 && (
+                                        <div className="d-flex justify-content-end align-items-baseline gap-3 mt-2 pe-1">
+                                            <span className="font-s14" style={{ color: "var(--ink-500)" }}>Bill total</span>
+                                            <span className="font-s20 fw-semibold" style={{ color: "var(--ink-900)" }}>
+                                                ₹{(groups || []).reduce((sum: number, g: any) => sum + Number(g?.price || 0), 0).toLocaleString("en-IN")}
+                                            </span>
+                                        </div>
+                                    )}
                                 </motion.div>
                             </AnimatePresence>
                         </div>
