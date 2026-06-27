@@ -78,6 +78,12 @@ export function BonusPage({
     const [issueNote, setIssueNote] = useState("");
     const [bulkOpen, setBulkOpen] = useState(false);
 
+    // Manual (discretionary) bonus — any beneficiary, any amount, anytime
+    const [manualOpen, setManualOpen] = useState(false);
+    const [manualName, setManualName] = useState("");
+    const [manualAmount, setManualAmount] = useState("");
+    const [manualNote, setManualNote] = useState("");
+
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -177,6 +183,25 @@ export function BonusPage({
         }
     };
 
+    // Manual bonus — record a discretionary, fully-paid bonus not tied to any bill.
+    const openManual = () => { setManualName(name || ""); setManualAmount(""); setManualNote(""); setManualOpen(true); };
+    const confirmManual = async () => {
+        const amt = Number(manualAmount);
+        if (!manualName) { callAlertMsg(`Choose a ${nameLabel.toLowerCase()}`, "error"); return; }
+        if (!amt || amt <= 0) { callAlertMsg("Enter a positive amount", "error"); return; }
+        try {
+            setLoading(true);
+            const res = await postData("bonus/manual", { type, beneficiary: manualName, amount: amt, note: manualNote });
+            callAlertMsg(res.message || "Manual bonus recorded", "success");
+            setManualOpen(false);
+            await fetchData();
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Manual bonus failed", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const totals = rows.reduce(
         (a, r) => ({
             operations: a.operations + r.operations,
@@ -233,6 +258,9 @@ export function BonusPage({
                                 <Icons iconName="add" className="icon-12 icon-white me-2" />Issue selected ({selected.size})
                             </button>
                         )}
+                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center" onClick={openManual} title="Give a discretionary bonus to anyone, any amount">
+                            <Icons iconName="add" className="icon-12 icon-white me-2" />Manual bonus
+                        </button>
                         <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={handleRecalculate} title="Recompute bonuses (e.g. after changing bonus % in Settings)">
                             <Icons iconName="refresh" className="icon-15 me-2" />Recalculate
                         </button>
@@ -444,6 +472,41 @@ export function BonusPage({
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-cancel btn-sm" onClick={() => setBulkOpen(false)}>Cancel</button>
                                 <button type="button" className="btn btn-primary btn-sm" onClick={confirmBulk} disabled={loading}>{loading ? "Saving..." : `Issue ${selected.size}`}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Manual (discretionary) bonus */}
+            {manualOpen && (
+                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+                    <div className="modal-dialog modal-dialog-centered" role="document">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <span className="modal-title">Manual bonus</span>
+                                <button type="button" className="btn-close" onClick={() => setManualOpen(false)} />
+                            </div>
+                            <div className="modal-body">
+                                <p className="font-s13 text-muted mb-3">
+                                    Give any {nameLabel.toLowerCase()} a one-off bonus of any amount — separate from the
+                                    bill-based calculation. It's recorded as paid for today.
+                                </p>
+                                <label className="form-label font-w500">{nameLabel}</label>
+                                <Selector className="mb-3" isClearable options={nameOptions}
+                                    value={nameOptions.find((o) => o.value === manualName) || null}
+                                    placeholder={`Select ${nameLabel}`}
+                                    onChange={(o: any) => setManualName(o ? o.value : "")} />
+                                <label className="form-label font-w500">Amount (₹)</label>
+                                <input type="number" min="1" className="form-control mb-3" value={manualAmount}
+                                    onChange={(e) => setManualAmount(e.target.value)} placeholder="e.g. 500" autoFocus />
+                                <label className="form-label font-w500">Note (optional)</label>
+                                <input type="text" className="form-control" value={manualNote}
+                                    onChange={(e) => setManualNote(e.target.value)} placeholder="e.g. festival bonus" />
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setManualOpen(false)}>Cancel</button>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmManual} disabled={loading}>{loading ? "Saving..." : "Give bonus"}</button>
                             </div>
                         </div>
                     </div>

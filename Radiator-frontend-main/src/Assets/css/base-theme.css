@@ -158,12 +158,13 @@
     --ink-500: #6E6E73;   /* secondaryLabel — secondary text */
     --ink-400: #8E8E93;   /* systemGray — muted / utility labels */
 
-    /* Cool system surfaces — Athens Gray canvas, white cards, hairline separators */
+    /* Cool system surfaces — canvas a touch deeper than Apple.com so white cards
+       and components separate clearly from the page background. */
     --surface: #FFFFFF;
-    --canvas: #F5F5F7;            /* Apple.com light background */
-    --surface-sunken: #FAFAFC;
-    --line: #E5E5EA;             /* systemGray5 — cool hairline */
-    --line-strong: #D2D2D7;     /* systemGray4 */
+    --canvas: #E9E9EE;            /* deeper than #F5F5F7 for clear card contrast */
+    --surface-sunken: #F2F2F5;    /* subtle fill on white (table header, hover) */
+    --line: #E1E1E6;             /* hairline */
+    --line-strong: #CFCFD6;     /* stronger hairline */
 
     /* Subtle, neutral, layered elevation (Depth without heaviness) */
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, .04);
@@ -232,8 +233,8 @@
     --formDisableColor: var(--surface-sunken);
     --modalBackGroundColor: rgba(0, 0, 0, .32);
     --headerBg: var(--surface);
-    --footerBg: var(--surface);
-    --footerBorder: var(--line);
+    --footerBg: var(--canvas);
+    --footerBorder: transparent;
     --plainBtnHoverBg: var(--surface-sunken);
     --navMenuActiveColor: var(--primary-soft);
     --navMenuHoverColor: var(--surface-sunken);

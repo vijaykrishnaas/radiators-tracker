@@ -42,171 +42,168 @@ const particularText = (s: { type: string; comments?: string }) =>
  * from settings — nothing company-specific is hardcoded here.
  */
 export const printInvoice = async (o: any, settings: AppSettings) => {
-    const navy = hexToRgb(settings.branding.primaryColor);
+    const accent = hexToRgb(settings.branding.primaryColor);
+    const ink: RGB = [29, 29, 31];      // Apple-ish near-black
+    const sub: RGB = [110, 110, 115];   // secondary grey
+    const hair: RGB = [224, 224, 229];  // hairline
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 12;
 
-    /* ---- Header band ---- */
-    doc.setFillColor(...navy);
-    doc.rect(0, 0, pageWidth, 26, "F");
+    const setRGB = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
+    const drawRGB = (c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
+    const rs = (n: number) => `Rs ${money(n)}`;
 
-    doc.setTextColor(255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text(settings.company.name, pageWidth / 2, 10, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.text(settings.company.address, pageWidth / 2, 16, { align: "center" });
-    doc.text(
-        `Ph: ${settings.company.phone1}${settings.company.phone2 ? "  /  " + settings.company.phone2 : ""}`,
-        pageWidth / 2,
-        21,
-        { align: "center" }
-    );
-
-    /* ---- Bill title pill ---- */
-    let y = 31;
-    doc.setFillColor(245, 247, 250);
-    doc.roundedRect(8, y, pageWidth - 16, 18, 2, 2, "F");
-
-    doc.setTextColor(...navy);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text(settings.invoice.billTitle, pageWidth / 2, y + 5, { align: "center" });
-
-    doc.setTextColor(60);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    /* ---- amounts (gross → discount → net → paid → balance) ---- */
+    const gross = o.totalAmount ?? (o.serviceInfo || []).reduce((sum: number, s: any) => sum + Number(s.price || 0), 0);
+    const discount = Math.max(Number(o.discount || 0), 0);
+    const net = o.netAmount ?? Math.max(gross - discount, 0);
+    const received = Number(o.receivedAmount || 0);
+    const pending = o.pendingAmount ?? Math.max(net - received, 0);
     const billDateObj = o.billDate ? new Date(o.billDate) : new Date();
     const billDate = billDateObj.toLocaleDateString("en-IN");
-    doc.text(`Date: ${billDate}`, 12, y + 11);
-    doc.text(`To: ${o.transportName}  ·  ${o.truckNumber}`, 12, y + 15.5);
 
-    y += 23;
+    /* ---- Header: company (left) · INVOICE + date + status (right) ---- */
+    setRGB(ink);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(settings.company.name, M, 16);
 
-    /* ---- Mechanic / labour line ---- */
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    setRGB(sub);
+    let cy = 21;
+    if (settings.company.address) { doc.text(settings.company.address, M, cy, { maxWidth: 78 }); cy += doc.getTextDimensions(settings.company.address, { maxWidth: 78, fontSize: 7 }).h + 1; }
+    const phone = `${settings.company.phone1 || ""}${settings.company.phone2 ? "  ·  " + settings.company.phone2 : ""}`;
+    if (phone.trim()) doc.text(phone, M, cy);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    setRGB(accent);
+    doc.text((settings.invoice.billTitle || "Invoice").toUpperCase(), W - M, 15, { align: "right" });
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.setTextColor(110);
-    const crew = [
-        o.mechanicName ? `Mechanic: ${o.mechanicName}` : "",
-        o.labourName?.length ? `Labour: ${o.labourName.join(", ")}` : "",
-        o.radiatorType ? `Model: ${o.radiatorType}` : "",
-    ]
-        .filter(Boolean)
-        .join("   |   ");
-    if (crew) doc.text(crew, 8, y);
-    y += 4;
+    setRGB(sub);
+    doc.text(billDate, W - M, 20.5, { align: "right" });
 
-    /* ---- Services table ---- */
-    const total = o.totalAmount ?? (o.serviceInfo || []).reduce(
-        (sum: number, s: any) => sum + Number(s.price || 0), 0);
-    const received = o.receivedAmount ?? 0;
-    const pending = o.pendingAmount ?? Math.max(total - received, 0);
+    const status = received >= net && net > 0 ? "PAID" : received > 0 ? "PARTIALLY PAID" : "PAYMENT DUE";
+    const statusColor: RGB = received >= net && net > 0 ? [31, 139, 36] : received > 0 ? [154, 106, 18] : [179, 50, 47];
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    setRGB(statusColor);
+    doc.text(status, W - M, 25.5, { align: "right" });
 
-    const foot: any[] = [["", "Grand Total", "", money(total)]];
-    if (received > 0) {
-        foot.push(["", "Received", "", money(received)]);
-        foot.push(["", "Pending", "", money(pending)]);
-    }
+    /* ---- Billed to / Details ---- */
+    let y = 35;
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, y - 4, W - M, y - 4);
 
+    const colR = W / 2 + 6;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub);
+    doc.text("BILLED TO", M, y);
+    doc.text("DETAILS", colR, y);
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
+    doc.text(o.transportName || "—", M, y + 5);
+    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
+
+    const details: [string, string][] = [[settings.labels.vehicleNo || "Vehicle", o.truckNumber || "—"]];
+    if (o.mechanicName) details.push(["Mechanic", o.mechanicName]);
+    if (o.labourName?.length) details.push(["Labour", o.labourName.join(", ")]);
+    if (o.radiatorType) details.push([settings.labels.product || "Model", o.radiatorType]);
+    doc.setFontSize(7.5);
+    let dy = y + 5;
+    details.forEach(([k, v]) => {
+        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
+        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v), W - M, dy, { align: "right", maxWidth: 50 });
+        dy += 4.6;
+    });
+    y = Math.max(y + 13, dy + 3);
+
+    /* ---- Line items — clean hairline rows (no fills) ---- */
     autoTable(doc, {
         startY: y,
-        margin: { left: 8, right: 8 },
-        head: [["#", "Description", "Qty", "Amount (Rs)"]],
-        body: (o.serviceInfo || []).map((s: any, i: number) => [
-            i + 1,
-            particularText(s),
-            1,
-            money(Number(s.price || 0)),
-        ]),
-        foot,
-        theme: "striped",
-        headStyles: { fillColor: navy, textColor: 255, fontSize: 8, halign: "center" },
-        bodyStyles: { fontSize: 8 },
-        footStyles: {
-            fillColor: [245, 247, 250],
-            textColor: 30,
-            fontStyle: "bold",
-            fontSize: 8.5,
-            halign: "right",
-        },
-        alternateRowStyles: { fillColor: [248, 250, 253] },
+        margin: { left: M, right: M },
+        head: [["Description", "Qty", "Amount"]],
+        body: (o.serviceInfo || []).map((s: any) => [particularText(s), "1", rs(Number(s.price || 0))]),
+        theme: "plain",
+        headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
+        bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
         columnStyles: {
-            0: { halign: "center", cellWidth: 10 },
-            1: { halign: "left" },
-            2: { halign: "center", cellWidth: 12 },
-            3: { halign: "right", cellWidth: 26 },
+            0: { halign: "left" },
+            1: { halign: "center", cellWidth: 14 },
+            2: { halign: "right", cellWidth: 30 },
+        },
+        didDrawCell: (data: any) => {
+            if (data.section === "head" || data.section === "body") {
+                drawRGB(hair);
+                doc.setLineWidth(data.section === "head" ? 0.35 : 0.2);
+                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+            }
         },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 8;
+    /* ---- Totals (right aligned) ---- */
+    let ty = (doc as any).lastAutoTable.finalY + 7;
+    const valX = W - M;
+    const labX = W - 58;
+    const row = (label: string, val: string, opt: { bold?: boolean; size?: number; lc?: RGB; vc?: RGB; gap?: number } = {}) => {
+        doc.setFont("helvetica", opt.bold ? "bold" : "normal");
+        doc.setFontSize(opt.size || 8);
+        setRGB(opt.lc || sub); doc.text(label, labX, ty);
+        setRGB(opt.vc || ink); doc.text(val, valX, ty, { align: "right" });
+        ty += opt.gap || 5;
+    };
+    row("Subtotal", rs(gross));
+    if (discount > 0) row("Discount", `- ${rs(discount)}`);
+    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 1.8, valX, ty - 1.8); ty += 1.5;
+    row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
+    if (received > 0) row("Amount paid", rs(received));
+    row("Balance due", rs(pending), { bold: true, size: 9, lc: pending > 0 ? accent : ink, vc: pending > 0 ? accent : ink });
 
-    /* ---- Payment + signature section ---- */
-    const sectionY = Math.max(y, pageHeight - 44);
-
-    // QR slot. Priority: an uploaded payment-QR image; otherwise a UPI QR
-    // auto-generated from the UPI ID (when showQr is on).
+    /* ---- Payment QR + signature (anchored near the bottom) ---- */
+    const sectionY = Math.max(ty + 4, H - 40);
     let qrShown = false;
+    const drawQrCaption = () => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(ink);
+        doc.text("Scan to pay", M, sectionY + 28);
+        if (settings.company.upiDisplay) { doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(settings.company.upiDisplay, M, sectionY + 31.5); }
+    };
     if (settings.company.qrUrl) {
         try {
             const { dataUrl, format } = await fetchImageDataUrl(settings.company.qrUrl);
-            doc.addImage(dataUrl, format, 8, sectionY, 24, 24);
-            doc.setFontSize(7);
-            doc.setTextColor(60);
-            doc.text("Scan & Pay", 10, sectionY + 27);
-            if (settings.company.upiDisplay) doc.text(settings.company.upiDisplay, 8, sectionY + 31);
-            qrShown = true;
-        } catch {
-            /* fall through to the generated QR / text */
-        }
+            doc.addImage(dataUrl, format, M, sectionY, 24, 24);
+            drawQrCaption(); qrShown = true;
+        } catch { /* fall through */ }
     }
     if (!qrShown && settings.invoice.showQr && settings.company.upiId) {
-        const upi = `upi://pay?pa=${encodeURIComponent(settings.company.upiId)}&pn=${encodeURIComponent(settings.company.name)}&am=${pending > 0 ? pending : total}&cu=INR`;
-        const qr = await QRCode.toDataURL(upi);
-        doc.addImage(qr, "PNG", 8, sectionY, 24, 24);
-        doc.setFontSize(7);
-        doc.setTextColor(60);
-        doc.text("Scan & Pay", 10, sectionY + 27);
-        if (settings.company.upiDisplay) {
-            doc.text(settings.company.upiDisplay, 8, sectionY + 31);
-        }
+        const upi = `upi://pay?pa=${encodeURIComponent(settings.company.upiId)}&pn=${encodeURIComponent(settings.company.name)}&am=${pending > 0 ? pending : net}&cu=INR`;
+        const qr = await QRCode.toDataURL(upi, { margin: 0 });
+        doc.addImage(qr, "PNG", M, sectionY, 24, 24);
+        drawQrCaption();
     } else if (!qrShown && settings.company.upiDisplay) {
-        doc.setFontSize(8);
-        doc.setTextColor(60);
-        doc.text("Payment:", 8, sectionY + 10);
-        doc.setFont("helvetica", "bold");
-        doc.text(settings.company.upiDisplay, 8, sectionY + 15);
-        doc.setFont("helvetica", "normal");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub); doc.text("PAY VIA", M, sectionY + 6);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink); doc.text(settings.company.upiDisplay, M, sectionY + 11);
     }
 
-    doc.setFontSize(8);
-    doc.setTextColor(30);
-    doc.setFont("helvetica", "bold");
-    doc.text(`For ${settings.company.name}`, pageWidth - 8, sectionY + 8, { align: "right" });
-    doc.setDrawColor(150);
-    doc.line(pageWidth - 52, sectionY + 22, pageWidth - 8, sectionY + 22);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(110);
-    doc.text("Authorised Signatory", pageWidth - 8, sectionY + 26, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    doc.text(`For ${settings.company.name}`, W - M, sectionY + 6, { align: "right" });
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(W - 48, sectionY + 20, W - M, sectionY + 20);
+    doc.setFontSize(6.5);
+    doc.text("Authorised signatory", W - M, sectionY + 24, { align: "right" });
 
-    /* ---- Footer stripe ---- */
-    doc.setFillColor(...navy);
-    doc.rect(0, pageHeight - 7, pageWidth, 7, "F");
-    doc.setTextColor(255);
-    doc.setFontSize(7);
-    doc.text(
-        `${settings.invoice.footerNote} · ${settings.company.name}`,
-        pageWidth / 2,
-        pageHeight - 2.8,
-        { align: "center" }
-    );
+    /* ---- Footer ---- */
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, H - 9, W - M, H - 9);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
+    const footer = [settings.invoice.footerNote, settings.company.name].filter(Boolean).join("  ·  ");
+    doc.text(footer, W / 2, H - 5, { align: "center" });
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
-    doc.save(`Bill-${fileDate}-${o.truckNumber || ""}.pdf`);
+    doc.save(`Invoice-${fileDate}-${o.truckNumber || ""}.pdf`);
 };
 
 /**

@@ -81,12 +81,11 @@ h1, h2, h3, h4, h5, h6,
     font-size: .78em;
     letter-spacing: .03em;
     text-transform: uppercase;
-    white-space: nowrap;
-    padding: 11px 16px !important;
+    padding: 11px 12px !important;
 }
 .table tbody td,
 .table-body table tbody td {
-    padding: 13px 16px !important;
+    padding: 12px 12px !important;
     vertical-align: middle;
     color: var(--ink-700);
 }
@@ -99,8 +98,17 @@ h1, h2, h3, h4, h5, h6,
     font-weight: 600;
     color: var(--ink-900);
 }
-/* The card that wraps a table clips its square corners to the card radius */
+/* The card that wraps a table clips its square corners to the card radius.
+   The inner .table-body scrolls horizontally on its own when the table is wider
+   than the card, so wide tables never spill or get cut off. Action dropdowns
+   escape this clipping via Popper's fixed strategy (set in App.tsx). */
 .card-body.p-0 { overflow: hidden; border-radius: inherit; }
+.table-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+/* Tables size to their content; the wrapper scrolls if it exceeds the card. */
+.table-body > table { min-width: 100%; }
 
 /* ---- Inputs & selects: hairline, 44px, accent focus ring ---- */
 .form-control,
@@ -131,19 +139,45 @@ h1, h2, h3, h4, h5, h6,
     transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
-/* ---- Liquid Glass: modal sheet — frosted, deep soft shadow, large radius ---- */
+/* ---- Modal sheet — SOLID white for readable, high-contrast content (glass is
+        reserved for the nav; translucency washes out dense text like the
+        super-admin "View Settings" modal). Rounded + soft layered shadow. ---- */
 .modal-content {
     border-radius: var(--r-xl) !important;
-    border: 1px solid var(--glass-border) !important;
-    background-color: var(--glass-bg-strong) !important;
-    -webkit-backdrop-filter: var(--glass-blur);
-    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--line) !important;
+    background-color: var(--surface) !important;
     box-shadow: var(--shadow-lg) !important;
 }
 
-/* ---- Responsive: tablet-first; phone keeps tables usable via scroll ---- */
+/* ---- Loader: a centered, dimmed full-screen overlay (had no styles at all, so
+        it used to sit in the document flow at the top-left). ---- */
+.loader-container {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--canvas) 55%, transparent);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+.loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+}
+/* When a modal is open, scope the loader inside the modal body, not full-screen */
+.modal-body { position: relative; }
+.modal-body > .loader-container { position: absolute; background: color-mix(in srgb, var(--surface) 60%, transparent); }
+
+/* ---- Responsive ---- */
 @media (max-width: 768px) {
-    .table-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .btn { min-height: var(--control-h-sm); }
     .form-control, .form-select { min-height: var(--control-h); }
 }

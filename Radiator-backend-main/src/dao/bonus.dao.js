@@ -304,6 +304,42 @@ export async function markPaidByRange(clientId, type, name, fromDate, toDate, am
   return settlePending(db, filter, amount, note);
 }
 
+// A discretionary bonus the owner hands out directly — not tied to any bill.
+// Inserted as a fully-paid bonus doc (manual:true) so it shows up in the
+// beneficiary's bonus list/totals for the date it was given. billAmount/received
+// are 0 so it never inflates the "work value"/"collected" columns.
+export async function addManualBonus(clientId, type, beneficiary, amount, note = "", date = null) {
+  const db = await connectDB();
+  const cid = toClientId(clientId);
+  const when = date ? new Date(date) : new Date();
+  const amt = round2(Math.max(Number(amount) || 0, 0));
+  const settings = await getSettings(clientId);
+  const period =
+    type === "mechanic"
+      ? yearKey(when, settings.bonus?.mechanic?.yearStartMonth)
+      : dayKey(when);
+  const doc = {
+    clientId: cid,
+    recordId: null,
+    manual: true,
+    type,
+    beneficiary,
+    period,
+    billDate: when,
+    billAmount: 0,
+    receivedAmount: 0,
+    accruedAmount: amt,
+    payableAmount: amt,
+    paidAmount: amt,
+    status: "paid",
+    note: note || "Manual bonus",
+    paidAt: new Date(),
+    createdAt: new Date(),
+  };
+  const res = await db.collection(COLLECTION).insertOne(doc);
+  return { insertedId: res.insertedId, amount: amt };
+}
+
 export async function getReviewData(clientId, type, name, fromDate, toDate, settings) {
   const db = await connectDB();
 

@@ -26,6 +26,7 @@ const ACTION_LABEL: Record<string, string> = {
     "settings.update": "Updated settings",
     "settings.upload": "Uploaded asset",
     "bonus.payout": "Issued bonus",
+    "bonus.manual": "Manual bonus",
     "auth.login": "Logged in",
 };
 
@@ -46,6 +47,8 @@ const detailText = (e: AuditEntry): string => {
             return [d.expenseType, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
         case "bonus.payout":
             return [d.type, d.beneficiary, d.count != null ? `${d.count} entr${d.count === 1 ? "y" : "ies"}` : "", d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
+        case "bonus.manual":
+            return [d.type, d.beneficiary, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
         case "settings.upload":
             return d.asset ? String(d.asset) : "";
         default:
