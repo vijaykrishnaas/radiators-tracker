@@ -6,6 +6,7 @@ import {
   getPendingByRange,
   markPaid,
   markPaidByRange,
+  addManualBonus,
   getReviewData,
   backfill,
 } from "../dao/bonus.dao.js";
@@ -93,6 +94,29 @@ router.post("/payout", async (req, res, next) => {
     }
     await auditClient(req, "bonus.payout", { type, beneficiary, count, amount: amount ?? null });
     res.json({ success: true, message: `${count} bonus entr${count === 1 ? "y" : "ies"} marked paid ✅`, count });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Discretionary manual bonus — owner gives any employee any amount, anytime,
+// independent of the bill-based calculation.
+router.post("/manual", async (req, res, next) => {
+  try {
+    const { type, beneficiary, amount, note = "", date = null } = req.body || {};
+    if (!["mechanic", "labour"].includes(type)) {
+      return res.status(400).json({ success: false, message: "type ('mechanic' | 'labour') is required" });
+    }
+    if (!beneficiary || !String(beneficiary).trim()) {
+      return res.status(400).json({ success: false, message: "beneficiary is required" });
+    }
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      return res.status(400).json({ success: false, message: "a positive amount is required" });
+    }
+    const result = await addManualBonus(req.user.clientId, type, String(beneficiary).trim(), amt, note, date);
+    await auditClient(req, "bonus.manual", { type, beneficiary, amount: result.amount });
+    res.status(201).json({ success: true, message: `Manual bonus of ₹${result.amount} recorded for ${beneficiary} ✅`, ...result });
   } catch (error) {
     next(error);
   }
