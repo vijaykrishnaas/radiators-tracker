@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { findClientByCode } from "../dao/client.dao.js";
 import { peekSettings } from "../dao/settings.dao.js";
-import { streamLogo, streamQr, streamLoginBg } from "../dao/logo.dao.js";
+import { streamLogo, streamQr, streamLoginBg, streamSignature } from "../dao/logo.dao.js";
 
 const router = Router();
 
@@ -51,6 +51,18 @@ router.get("/clients/:code/qr", async (req, res, next) => {
     const client = await findClientByCode(req.params.code);
     if (!client) return res.status(404).end();
     const ok = await streamQr(client._id, res);
+    if (!ok) return res.status(404).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Streams a client's authorised-signatory image (used by the invoice/bill print).
+router.get("/clients/:code/signature", async (req, res, next) => {
+  try {
+    const client = await findClientByCode(req.params.code);
+    if (!client) return res.status(404).end();
+    const ok = await streamSignature(client._id, res);
     if (!ok) return res.status(404).end();
   } catch (error) {
     next(error);

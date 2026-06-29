@@ -12,9 +12,13 @@ body {
 }
 
 .icons {
-    width: 25px;
-    height: 25px;
-    fill: var(--textColor);
+    width: 20px;
+    height: 20px;
+    color: var(--textColor);
+    fill: none;
+    stroke: currentColor;
+    vertical-align: middle;
+    flex: none;
 }
 
 /* Chrome, Safari, Edge, Opera */
@@ -1357,31 +1361,31 @@ table input[type="radio"] {
 }
 
 .icon-white {
-    fill: var(--white) !important;
+    color: var(--white) !important;
 }
 
 .icon-danger {
-    fill: var(--danger) !important;
+    color: var(--danger) !important;
 }
 
 .icon-success {
-    fill: var(--success) !important;
+    color: var(--success) !important;
 }
 
 .icon-gray {
-    fill: #667085F5 !important;
+    color: var(--ink-400) !important;
 }
 
 .icon-filter {
-    fill: #575657 !important;
+    color: #575657 !important;
 }
 
 .icon-info {
-    fill: var(--editIconColor) !important;
+    color: var(--editIconColor) !important;
 }
 
 .icon-info-light {
-    fill: #159DF6 !important;
+    color: #159DF6 !important;
 }
 
 
@@ -2579,7 +2583,7 @@ table.table-header-primary tbody tr td:last-child {
 .icon-white-20 {
     width: 20px !important;
     height: 20px !important;
-    fill: var(--white) !important;
+    color: var(--white) !important;
 }
 
 /* Custom modal */

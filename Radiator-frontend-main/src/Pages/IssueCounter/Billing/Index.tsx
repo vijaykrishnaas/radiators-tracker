@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../../Components/Icons";
+import RowActions from "../../../Components/RowActions";
 import Loader from "../../../Components/Loader";
 import Pagination from "../../../Components/Pagination";
 import Search from "../../../Components/Search";
@@ -393,83 +394,53 @@ const Billing = () => {
                             <table className="table table-bordered font-s14">
                                 <thead>
                                     <tr>
-                                        <th>SI No</th>
-                                        {visibleColumns.date && <th>Date</th>}
-                                        {visibleColumns.truckNumber && <th>{settings.labels.vehicleNo}</th>}
+                                        <th className="cell-nowrap">SI No</th>
+                                        {visibleColumns.date && <th className="cell-nowrap">Date</th>}
+                                        {visibleColumns.truckNumber && <th className="cell-nowrap">{settings.labels.vehicleNo}</th>}
                                         {visibleColumns.transportName && <th>{settings.labels.party}</th>}
                                         {visibleColumns.radiatorType && <th>{settings.labels.product}</th>}
                                         {visibleColumns.mechanicName && <th>Mechanic</th>}
                                         {visibleColumns.services && <th>Services</th>}
-                                        {visibleColumns.totalAmount && <th>Total</th>}
-                                        {visibleColumns.receivedAmount && <th>Received</th>}
-                                        {visibleColumns.pendingAmount && <th>Pending</th>}
-                                        {visibleColumns.phoneNumber && <th>Phone</th>}
-                                        {visibleColumns.status && <th>Status</th>}
-                                        <th>Action</th>
+                                        {visibleColumns.totalAmount && <th className="cell-nowrap">Total</th>}
+                                        {visibleColumns.receivedAmount && <th className="cell-nowrap">Received</th>}
+                                        {visibleColumns.pendingAmount && <th className="cell-nowrap">Pending</th>}
+                                        {visibleColumns.phoneNumber && <th className="cell-nowrap">Phone</th>}
+                                        {visibleColumns.status && <th className="cell-nowrap">Status</th>}
+                                        <th className="cell-nowrap">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {recordData.length ? (
                                         recordData.map((o, i) => (
                                             <tr key={o._id}>
-                                                <td>{(currentPage - 1) * limit + i + 1}</td>
+                                                <td className="cell-nowrap">{(currentPage - 1) * limit + i + 1}</td>
                                                 {visibleColumns.date && (
-                                                    <td>{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
+                                                    <td className="cell-nowrap">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
                                                 )}
-                                                {visibleColumns.truckNumber && <td>{o.truckNumber}</td>}
+                                                {visibleColumns.truckNumber && <td className="cell-nowrap">{o.truckNumber}</td>}
                                                 {visibleColumns.transportName && <td>{o.transportName}</td>}
                                                 {visibleColumns.radiatorType && <td>{o.radiatorType}</td>}
                                                 {visibleColumns.mechanicName && <td>{o.mechanicName}</td>}
                                                 {visibleColumns.services && <td>{servicesText(o)}</td>}
-                                                {visibleColumns.totalAmount && <td>{money(o.totalAmount)}</td>}
-                                                {visibleColumns.receivedAmount && <td>{money(o.receivedAmount)}</td>}
+                                                {visibleColumns.totalAmount && <td className="cell-nowrap">{money(o.totalAmount)}</td>}
+                                                {visibleColumns.receivedAmount && <td className="cell-nowrap">{money(o.receivedAmount)}</td>}
                                                 {visibleColumns.pendingAmount && (
-                                                    <td className={o.pendingAmount > 0 ? "text-danger font-w600" : ""}>
+                                                    <td className={`cell-nowrap ${o.pendingAmount > 0 ? "text-danger font-w600" : ""}`}>
                                                         {money(o.pendingAmount)}
                                                     </td>
                                                 )}
-                                                {visibleColumns.phoneNumber && <td>{o.phoneNumber}</td>}
+                                                {visibleColumns.phoneNumber && <td className="cell-nowrap">{o.phoneNumber}</td>}
                                                 {visibleColumns.status && (
-                                                    <td><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
+                                                    <td className="cell-nowrap"><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
                                                 )}
-                                                <td className="action-dropdown">
-                                                    <div className="dropdown">
-                                                        <button className="btn" type="button" data-bs-toggle="dropdown">
-                                                            <Icons iconName="Frame" className="icon-20" />
-                                                        </button>
-                                                        <ul className="dropdown-menu">
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => navigate(`/issueCounter/dashboard/view/${o._id}`)}>
-                                                                    View
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => navigate(`/issueCounter/dashboard/edit/${o._id}`)}>
-                                                                    Edit
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => printInvoice(o, settings)}>
-                                                                    Print
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => openPaymentModal(o)}>
-                                                                    Record Payment
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-danger"
-                                                                    onClick={() => setDeleteItem(o)}>
-                                                                    Delete
-                                                                </button>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
+                                                <td className="cell-nowrap">
+                                                    <RowActions ariaLabel={`Actions for ${o.truckNumber}`} items={[
+                                                        { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/issueCounter/dashboard/view/${o._id}`) },
+                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/issueCounter/dashboard/edit/${o._id}`) },
+                                                        { label: "Print", icon: <Icons iconName="print" />, onClick: () => printInvoice(o, settings) },
+                                                        { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => openPaymentModal(o) },
+                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
+                                                    ]} />
                                                 </td>
                                             </tr>
                                         ))

@@ -28,6 +28,7 @@ const ACTION_LABEL: Record<string, string> = {
     "settings.upload": "Uploaded asset",
     "bonus.payout": "Issued bonus",
     "bonus.manual": "Manual bonus",
+    "bonus.adjust": "Corrected bonus",
     "auth.login": "Logged in",
 };
 
@@ -58,6 +59,7 @@ const detailText = (e: AuditEntry): string => {
                 d.amount ? `₹${d.amount}` : "",
             ].filter(Boolean).join(" · ");
         case "bonus.manual":
+        case "bonus.adjust":
             return [d.type, d.beneficiary, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
         case "settings.upload":
             return d.asset ? `${d.asset}` : "";

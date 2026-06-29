@@ -1,7 +1,7 @@
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
 import { toClientId, assertClientId } from "../utils/tenant.js";
-import { deleteLogo, deleteQr, deleteLoginBg } from "./logo.dao.js";
+import { deleteLogo, deleteQr, deleteLoginBg, deleteSignature } from "./logo.dao.js";
 
 const COLLECTION = "clients";
 
@@ -108,6 +108,7 @@ export async function offboardClient(clientId) {
   await deleteLogo(cid);
   await deleteQr(cid);
   await deleteLoginBg(cid);
+  await deleteSignature(cid);
   counts.clients = (await db.collection("clients").deleteOne({ _id: cid })).deletedCount;
   return counts;
 }

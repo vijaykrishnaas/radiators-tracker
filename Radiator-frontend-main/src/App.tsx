@@ -141,15 +141,6 @@ const AppLayout: React.FC = () => {
   );
 };
 const App: React.FC = () => {
-  // Row "⋯" action menus live inside scrollable / overflow-hidden table cards.
-  // Make Bootstrap render their Popper with a FIXED strategy so the menu is
-  // positioned against the viewport and escapes the clipping box (set once,
-  // before any dropdown is opened).
-  useEffect(() => {
-    const bs = (window as unknown as { bootstrap?: { Dropdown?: { Default: { popperConfig: unknown } } } }).bootstrap;
-    if (bs?.Dropdown?.Default) bs.Dropdown.Default.popperConfig = { strategy: "fixed" };
-  }, []);
-
   return (
     <SettingsProvider>
       <Router>

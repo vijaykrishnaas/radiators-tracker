@@ -2,6 +2,7 @@ import React, { useEffect, useState, type ChangeEvent } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 
 import Icons from "../../../Components/Icons";
+import RowActions from "../../../Components/RowActions";
 import Loader from "../../../Components/Loader";
 import Pagination from "../../../Components/Pagination";
 import Search from "../../../Components/Search";
@@ -377,22 +378,11 @@ const Expenses = () => {
                                                         : `${e.products?.length || 0} product(s)`}
                                                 </td>
                                                 <td className="font-w600">{money(e.amount)}</td>
-                                                <td className="action-dropdown">
-                                                    <div className="dropdown">
-                                                        <button className="btn" type="button" data-bs-toggle="dropdown">
-                                                            <Icons iconName="Frame" className="icon-20" />
-                                                        </button>
-                                                        <ul className="dropdown-menu">
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => openEdit(e)}>Edit</button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-danger"
-                                                                    onClick={() => setDeleteTarget(e)}>Delete</button>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
+                                                <td>
+                                                    <RowActions ariaLabel="Expense actions" items={[
+                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(e) },
+                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteTarget(e) },
+                                                    ]} />
                                                 </td>
                                             </tr>
                                             {e.expenseType === "materials" && expandedRows.has(e._id) && (

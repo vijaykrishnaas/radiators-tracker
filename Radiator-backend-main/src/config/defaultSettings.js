@@ -18,6 +18,7 @@ export const defaultSettings = {
     logoUrl: "",
     qrUrl: "",
     loginBgUrl: "",
+    signatureUrl: "",
   },
 
   // Short rotating lines shown over the login background (client-editable).
@@ -99,5 +100,6 @@ export const defaultSettings = {
     billTitle: "CASH / CREDIT BILL",
     footerNote: "Thank you for your business",
     showQr: false,
+    showSignature: false,
   },
 };
