@@ -57,7 +57,7 @@ const AdminHeader = () => {
                                     <ul className="dropdown-menu dropdown-menu-end">
                                         <li>
                                             <NavLink className="dropdown-item menu-link" to="/change-password">
-                                                <Icons iconName="data_management" className="me-1 icon-18" />Change Password
+                                                <Icons iconName="key" className="me-1 icon-18" />Change Password
                                             </NavLink>
                                         </li>
                                         <li className="logout">

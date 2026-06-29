@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Icons from "../../../Components/Icons";
+import RowActions from "../../../Components/RowActions";
 import Loader from "../../../Components/Loader";
 import AlertComponent from "../../../Components/AlertComponent";
 import { useAlertMsg } from "../../../Services/AllServices";
@@ -390,26 +391,16 @@ const Clients: React.FC = () => {
                                             </td>
                                             <td>{fmtDate(c.lastLoginAt)}</td>
                                             <td>{fmtDate(c.createdAt)}</td>
-                                            <td className="action-dropdown">
-                                                <div className="dropdown">
-                                                    <button className="btn" type="button" data-bs-toggle="dropdown">
-                                                        <Icons iconName="Frame" className="icon-20" />
-                                                    </button>
-                                                    <ul className="dropdown-menu">
-                                                        <li><button className="dropdown-item text-primary" onClick={() => setViewSettingsTarget(c)}>View Settings</button></li>
-                                                        <li><button className="dropdown-item text-primary"
-                                                            onClick={() => window.open(`/t/${c.code}/login`, "_blank", "noopener")}>
-                                                            Open Login Page
-                                                        </button></li>
-                                                        <li><button className="dropdown-item text-primary" onClick={() => openEdit(c)}>Edit</button></li>
-                                                        <li><button className="dropdown-item" onClick={() => toggleStatus(c)}>
-                                                            {c.status === "active" ? "Suspend" : "Reactivate"}
-                                                        </button></li>
-                                                        <li><button className="dropdown-item" onClick={() => { setResetTarget(c); setResetPwd(""); }}>Reset Password</button></li>
-                                                        <li><button className="dropdown-item" onClick={() => downloadExport(c)}>Export Data</button></li>
-                                                        <li><button className="dropdown-item text-danger" onClick={() => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); }}>Delete</button></li>
-                                                    </ul>
-                                                </div>
+                                            <td>
+                                                <RowActions ariaLabel={`Actions for ${c.name}`} items={[
+                                                    { label: "View Settings", icon: <Icons iconName="settings" />, onClick: () => setViewSettingsTarget(c) },
+                                                    { label: "Open Login Page", icon: <Icons iconName="external-link" />, onClick: () => window.open(`/t/${c.code}/login`, "_blank", "noopener") },
+                                                    { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(c) },
+                                                    { label: c.status === "active" ? "Suspend" : "Reactivate", icon: <Icons iconName={c.status === "active" ? "pause" : "play"} />, onClick: () => toggleStatus(c) },
+                                                    { label: "Reset Password", icon: <Icons iconName="key" />, onClick: () => { setResetTarget(c); setResetPwd(""); } },
+                                                    { label: "Export Data", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
+                                                    { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); } },
+                                                ]} />
                                             </td>
                                         </tr>
                                     )) : (

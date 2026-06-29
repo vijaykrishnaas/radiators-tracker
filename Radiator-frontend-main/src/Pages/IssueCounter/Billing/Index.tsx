@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../../Components/Icons";
+import RowActions from "../../../Components/RowActions";
 import Loader from "../../../Components/Loader";
 import Pagination from "../../../Components/Pagination";
 import Search from "../../../Components/Search";
@@ -432,44 +433,14 @@ const Billing = () => {
                                                 {visibleColumns.status && (
                                                     <td><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
                                                 )}
-                                                <td className="action-dropdown">
-                                                    <div className="dropdown">
-                                                        <button className="btn" type="button" data-bs-toggle="dropdown">
-                                                            <Icons iconName="Frame" className="icon-20" />
-                                                        </button>
-                                                        <ul className="dropdown-menu">
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => navigate(`/issueCounter/dashboard/view/${o._id}`)}>
-                                                                    View
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => navigate(`/issueCounter/dashboard/edit/${o._id}`)}>
-                                                                    Edit
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => printInvoice(o, settings)}>
-                                                                    Print
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-primary"
-                                                                    onClick={() => openPaymentModal(o)}>
-                                                                    Record Payment
-                                                                </button>
-                                                            </li>
-                                                            <li>
-                                                                <button className="dropdown-item text-danger"
-                                                                    onClick={() => setDeleteItem(o)}>
-                                                                    Delete
-                                                                </button>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
+                                                <td>
+                                                    <RowActions ariaLabel={`Actions for ${o.truckNumber}`} items={[
+                                                        { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/issueCounter/dashboard/view/${o._id}`) },
+                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/issueCounter/dashboard/edit/${o._id}`) },
+                                                        { label: "Print", icon: <Icons iconName="print" />, onClick: () => printInvoice(o, settings) },
+                                                        { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => openPaymentModal(o) },
+                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
+                                                    ]} />
                                                 </td>
                                             </tr>
                                         ))

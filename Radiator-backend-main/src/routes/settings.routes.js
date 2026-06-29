@@ -1,8 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
-import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl } from "../dao/settings.dao.js";
-import { saveLogo, saveQr, saveLoginBg } from "../dao/logo.dao.js";
+import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl, setCompanySignatureUrl } from "../dao/settings.dao.js";
+import { saveLogo, saveQr, saveLoginBg, saveSignature } from "../dao/logo.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
 
 const router = Router();
@@ -102,6 +102,22 @@ router.post("/qr", uploadLogo, async (req, res, next) => {
     await setCompanyQrUrl(req.user.clientId, qrUrl);
     await auditClient(req, "settings.upload", { asset: "qr" });
     res.json({ success: true, message: "Payment QR updated ✅", qrUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Upload/replace this client's authorised-signatory image (printed on invoices).
+router.post("/signature", uploadLogo, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "A signature image (png/jpeg/svg/webp, ≤1MB) is required" });
+    }
+    await saveSignature(req.user.clientId, req.file.buffer, req.file.mimetype);
+    const signatureUrl = `/public/clients/${req.user.code}/signature?v=${Date.now()}`;
+    await setCompanySignatureUrl(req.user.clientId, signatureUrl);
+    await auditClient(req, "settings.upload", { asset: "signature" });
+    res.json({ success: true, message: "Signature updated ✅", signatureUrl });
   } catch (error) {
     next(error);
   }

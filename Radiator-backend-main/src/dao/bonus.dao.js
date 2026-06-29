@@ -304,6 +304,53 @@ export async function markPaidByRange(clientId, type, name, fromDate, toDate, am
   return settlePending(db, filter, amount, note);
 }
 
+// Corrects the "ready to pay" (payable) total for a beneficiary's PENDING bonus
+// entries over a billDate range, WITHOUT paying them and WITHOUT touching any
+// already-paid entry. The corrected total is distributed across the pending
+// entries in proportion to their current payable (split equally if every payable
+// is 0), so the per-bill breakdown still sums to the corrected figure. Entries
+// are tagged `adjusted` for audit. A later Recalculate re-derives from the rules.
+export async function adjustPendingPayable(clientId, type, beneficiary, fromDate, toDate, targetPayable, note = "") {
+  const db = await connectDB();
+  const coll = db.collection(COLLECTION);
+  const filter = {
+    clientId: toClientId(clientId),
+    type,
+    beneficiary,
+    status: "pending",
+    billDate: {
+      $gte: moment(fromDate).startOf("day").toDate(),
+      $lte: moment(toDate).endOf("day").toDate(),
+    },
+  };
+  const target = round2(Math.max(Number(targetPayable) || 0, 0));
+  const entries = await coll.find(filter).project({ payableAmount: 1 }).toArray();
+  if (entries.length === 0) return { modified: 0, newPayable: 0 };
+
+  const totalPayable = entries.reduce((s, e) => s + Number(e.payableAmount || 0), 0);
+  const ops = entries.map((e) => {
+    const share = totalPayable > 0
+      ? target * (Number(e.payableAmount || 0) / totalPayable)
+      : target / entries.length;
+    return { _id: e._id, payableAmount: round2(share) };
+  });
+  // Correct rounding drift so the split sums to exactly the corrected total.
+  const drift = round2(target - ops.reduce((s, o) => s + o.payableAmount, 0));
+  if (drift !== 0) ops[ops.length - 1].payableAmount = round2(ops[ops.length - 1].payableAmount + drift);
+
+  const adjustedAt = new Date();
+  const noteSet = note ? { adjustNote: String(note) } : {};
+  await coll.bulkWrite(
+    ops.map((o) => ({
+      updateOne: {
+        filter: { _id: o._id },
+        update: { $set: { payableAmount: o.payableAmount, adjusted: true, adjustedAt, ...noteSet } },
+      },
+    }))
+  );
+  return { modified: ops.length, newPayable: target };
+}
+
 // A discretionary bonus the owner hands out directly — not tied to any bill.
 // Inserted as a fully-paid bonus doc (manual:true) so it shows up in the
 // beneficiary's bonus list/totals for the date it was given. billAmount/received

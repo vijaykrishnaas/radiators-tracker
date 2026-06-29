@@ -33,6 +33,7 @@ const SettingsPage = () => {
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [uploadingQr, setUploadingQr] = useState(false);
     const [uploadingBg, setUploadingBg] = useState(false);
+    const [uploadingSignature, setUploadingSignature] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
 
@@ -67,6 +68,23 @@ const SettingsPage = () => {
             callAlertMsg(err?.message || "QR upload failed", "error");
         } finally {
             setUploadingQr(false);
+        }
+    };
+
+    const uploadSignature = async (file: File | undefined) => {
+        if (!file) return;
+        setUploadingSignature(true);
+        try {
+            const fd = new FormData();
+            fd.append("logo", file); // the upload field is named "logo" on the backend
+            const res = await postData("settings/signature", fd);
+            set("company.signatureUrl", res.signatureUrl);
+            await refreshSettings();
+            callAlertMsg(res.message || "Signature updated", "success");
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Signature upload failed", "error");
+        } finally {
+            setUploadingSignature(false);
         }
     };
 
@@ -345,6 +363,23 @@ const SettingsPage = () => {
                                         style={{ maxHeight: 90, maxWidth: 90, objectFit: "contain" }} />
                                 ) : (
                                     <span className="text-muted font-s13">{uploadingQr ? "Uploading..." : "No QR uploaded"}</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="row form-group g-3 align-items-center">
+                            <div className="col-md-6">
+                                <label className="form-label font-w500">Authorised signature (printed on the bill)</label>
+                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                    disabled={uploadingSignature}
+                                    onChange={(e) => uploadSignature(e.target.files?.[0])} />
+                                <small className="text-muted font-s12">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</small>
+                            </div>
+                            <div className="col-md-6">
+                                {draft.company.signatureUrl ? (
+                                    <img src={resolveLogo(draft.company.signatureUrl)} alt="Signature preview"
+                                        style={{ maxHeight: 60, maxWidth: 160, objectFit: "contain", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: 6, background: "#fff" }} />
+                                ) : (
+                                    <span className="text-muted font-s13">{uploadingSignature ? "Uploading..." : "No signature uploaded"}</span>
                                 )}
                             </div>
                         </div>
@@ -653,6 +688,21 @@ const SettingsPage = () => {
                                     />
                                     <label className="form-label mb-0" htmlFor="show-qr">
                                         Show payment QR on invoice (requires UPI ID)
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="col-xl-6 d-flex align-items-end">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Switch
+                                        key={`sig-${settings.invoice.showSignature}`}
+                                        id="show-signature"
+                                        className="switch"
+                                        switchClassName="blue"
+                                        defaultChecked={draft.invoice.showSignature}
+                                        onChange={(e) => set("invoice.showSignature", e.target.checked)}
+                                    />
+                                    <label className="form-label mb-0" htmlFor="show-signature">
+                                        Show signature on invoice (requires a signature image)
                                     </label>
                                 </div>
                             </div>

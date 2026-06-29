@@ -22,6 +22,7 @@ export type AppSettings = {
         logoUrl: string;
         qrUrl?: string;
         loginBgUrl?: string;
+        signatureUrl?: string;
     };
     branding: {
         primaryColor: string;
@@ -46,6 +47,7 @@ export type AppSettings = {
         billTitle: string;
         footerNote: string;
         showQr: boolean;
+        showSignature: boolean;
     };
     bonus: {
         mechanic: {
@@ -75,7 +77,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         product: "Product Model",
         worker: "Worker Name",
     },
-    invoice: { billTitle: "BILL", footerNote: "", showQr: false },
+    invoice: { billTitle: "BILL", footerNote: "", showQr: false, showSignature: false },
     bonus: {
         mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
         labour: { matrix: {}, defaultPercent: 0 },

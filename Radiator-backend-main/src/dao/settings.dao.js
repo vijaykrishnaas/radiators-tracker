@@ -82,3 +82,11 @@ export async function setCompanyLoginBgUrl(clientId, url) {
     .collection("settings")
     .updateOne({ _id: toClientId(clientId) }, { $set: { "company.loginBgUrl": url } });
 }
+
+// Sets only company.signatureUrl (after an authorised-signatory upload).
+export async function setCompanySignatureUrl(clientId, url) {
+  const db = await connectDB();
+  await db
+    .collection("settings")
+    .updateOne({ _id: toClientId(clientId) }, { $set: { "company.signatureUrl": url } });
+}

@@ -7,6 +7,7 @@ import {
   markPaid,
   markPaidByRange,
   addManualBonus,
+  adjustPendingPayable,
   getReviewData,
   backfill,
 } from "../dao/bonus.dao.js";
@@ -117,6 +118,35 @@ router.post("/manual", async (req, res, next) => {
     const result = await addManualBonus(req.user.clientId, type, String(beneficiary).trim(), amt, note, date);
     await auditClient(req, "bonus.manual", { type, beneficiary, amount: result.amount });
     res.status(201).json({ success: true, message: `Manual bonus of ₹${result.amount} recorded for ${beneficiary} ✅`, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Correct a person's "ready to pay" bonus for a date range — adjusts only the
+// pending entries, leaving anything already paid untouched.
+router.post("/adjust", async (req, res, next) => {
+  try {
+    const { type, beneficiary, from, to, amount, note = "" } = req.body || {};
+    if (!["mechanic", "labour"].includes(type)) {
+      return res.status(400).json({ success: false, message: "type ('mechanic' | 'labour') is required" });
+    }
+    if (!beneficiary || !String(beneficiary).trim()) {
+      return res.status(400).json({ success: false, message: "beneficiary is required" });
+    }
+    if (!from || !to) {
+      return res.status(400).json({ success: false, message: "from and to are required" });
+    }
+    const amt = Number(amount);
+    if (isNaN(amt) || amt < 0) {
+      return res.status(400).json({ success: false, message: "a valid amount (0 or more) is required" });
+    }
+    const result = await adjustPendingPayable(req.user.clientId, type, String(beneficiary).trim(), from, to, amt, note);
+    if (result.modified === 0) {
+      return res.status(404).json({ success: false, message: "No pending bonus to correct for this person in this range" });
+    }
+    await auditClient(req, "bonus.adjust", { type, beneficiary, amount: result.newPayable, count: result.modified });
+    res.json({ success: true, message: `Bonus for ${beneficiary} corrected to ₹${result.newPayable} ✅`, ...result });
   } catch (error) {
     next(error);
   }

@@ -78,6 +78,11 @@ export function BonusPage({
     const [issueNote, setIssueNote] = useState("");
     const [bulkOpen, setBulkOpen] = useState(false);
 
+    // Correct a person's pending ("ready to pay") bonus for the current range.
+    const [editRow, setEditRow] = useState<BonusRow | null>(null);
+    const [editAmount, setEditAmount] = useState("");
+    const [editNote, setEditNote] = useState("");
+
     // Manual (discretionary) bonus — any beneficiary, any amount, anytime
     const [manualOpen, setManualOpen] = useState(false);
     const [manualName, setManualName] = useState("");
@@ -154,6 +159,31 @@ export function BonusPage({
             await fetchData();
         } catch (err: any) {
             callAlertMsg(err?.message || "Issue failed", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Correct a person's "ready to pay" bonus — adjusts only pending entries.
+    const openEdit = (r: BonusRow) => {
+        setEditRow(r);
+        setEditAmount(String(r.payableBonus));
+        setEditNote("");
+    };
+    const confirmEdit = async () => {
+        if (!editRow) return;
+        const amt = Number(editAmount);
+        if (isNaN(amt) || amt < 0) { callAlertMsg("Enter a valid amount (0 or more)", "error"); return; }
+        try {
+            setLoading(true);
+            const res = await postData("bonus/adjust", {
+                type, beneficiary: editRow.beneficiary, from, to, amount: amt, note: editNote,
+            });
+            callAlertMsg(res.message || "Bonus corrected", "success");
+            setEditRow(null);
+            await fetchData();
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Correction failed", "error");
         } finally {
             setLoading(false);
         }
@@ -362,7 +392,12 @@ export function BonusPage({
                                                             {expanded === r.beneficiary ? "Hide" : "Details"}
                                                         </button>
                                                         {r.status === "Pending" && (
-                                                            <button type="button" className="btn btn-primary btn-sm" onClick={() => openIssue(r)}>Issue</button>
+                                                            <>
+                                                                <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" title="Correct this person's ready-to-pay bonus" onClick={() => openEdit(r)}>
+                                                                    <Icons iconName="edit" className="icon-13 me-1" />Edit
+                                                                </button>
+                                                                <button type="button" className="btn btn-primary btn-sm" onClick={() => openIssue(r)}>Issue</button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
@@ -445,6 +480,35 @@ export function BonusPage({
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-cancel btn-sm" onClick={() => setIssueRow(null)}>Cancel</button>
                                 <button type="button" className="btn btn-primary btn-sm" onClick={confirmIssue} disabled={loading}>{loading ? "Saving..." : "Issue Bonus"}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Correct ready-to-pay bonus */}
+            {editRow && (
+                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+                    <div className="modal-dialog modal-dialog-centered" role="document">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <span className="modal-title">Correct bonus — {editRow.beneficiary}</span>
+                                <button type="button" className="btn-close" onClick={() => setEditRow(null)} />
+                            </div>
+                            <div className="modal-body">
+                                <p className="font-s13 text-muted mb-3">
+                                    Set the corrected <span className="font-w600">ready-to-pay</span> bonus for {editRow.beneficiary} over {from} to {to}.
+                                    This only changes what's still pending — anything already paid stays as it is.
+                                    The new total is spread across the pending bills behind it.
+                                </p>
+                                <label className="form-label font-w500">Ready-to-pay amount (₹)</label>
+                                <input type="number" min="0" className="form-control mb-3" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} autoFocus />
+                                <label className="form-label font-w500">Reason (optional)</label>
+                                <input type="text" className="form-control" value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="e.g. corrected after rate review" />
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setEditRow(null)}>Cancel</button>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmEdit} disabled={loading}>{loading ? "Saving..." : "Save correction"}</button>
                             </div>
                         </div>
                     </div>

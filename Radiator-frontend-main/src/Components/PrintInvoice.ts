@@ -65,17 +65,17 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     const billDateObj = o.billDate ? new Date(o.billDate) : new Date();
     const billDate = billDateObj.toLocaleDateString("en-IN");
 
-    /* ---- Header: company (left) · INVOICE + date + status (right) ---- */
+    /* ---- Header: company (left) · INVOICE + date (right) ---- */
     setRGB(ink);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(settings.company.name, M, 16);
+    doc.setFont("times", "bold");
+    doc.setFontSize(18);
+    doc.text(settings.company.name, M, 16.5, { maxWidth: 88 });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     setRGB(sub);
-    let cy = 21;
-    if (settings.company.address) { doc.text(settings.company.address, M, cy, { maxWidth: 78 }); cy += doc.getTextDimensions(settings.company.address, { maxWidth: 78, fontSize: 7 }).h + 1; }
+    let cy = 22;
+    if (settings.company.address) { doc.text(settings.company.address, M, cy, { maxWidth: 82 }); cy += doc.getTextDimensions(settings.company.address, { maxWidth: 82, fontSize: 7 }).h + 1; }
     const phone = `${settings.company.phone1 || ""}${settings.company.phone2 ? "  ·  " + settings.company.phone2 : ""}`;
     if (phone.trim()) doc.text(phone, M, cy);
 
@@ -87,13 +87,6 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.setFontSize(7.5);
     setRGB(sub);
     doc.text(billDate, W - M, 20.5, { align: "right" });
-
-    const status = received >= net && net > 0 ? "PAID" : received > 0 ? "PARTIALLY PAID" : "PAYMENT DUE";
-    const statusColor: RGB = received >= net && net > 0 ? [31, 139, 36] : received > 0 ? [154, 106, 18] : [179, 50, 47];
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    setRGB(statusColor);
-    doc.text(status, W - M, 25.5, { align: "right" });
 
     /* ---- Billed to / Details ---- */
     let y = 35;
@@ -111,7 +104,6 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
 
     const details: [string, string][] = [[settings.labels.vehicleNo || "Vehicle", o.truckNumber || "—"]];
     if (o.mechanicName) details.push(["Mechanic", o.mechanicName]);
-    if (o.labourName?.length) details.push(["Labour", o.labourName.join(", ")]);
     if (o.radiatorType) details.push([settings.labels.product || "Model", o.radiatorType]);
     doc.setFontSize(7.5);
     let dy = y + 5;
@@ -131,10 +123,12 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
         theme: "plain",
         headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
         bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
+        // halign in columnStyles applies to BOTH head and body, so the header
+        // labels line up with their column data (Qty centred, Amount right).
         columnStyles: {
             0: { halign: "left" },
-            1: { halign: "center", cellWidth: 14 },
-            2: { halign: "right", cellWidth: 30 },
+            1: { halign: "center", cellWidth: 16 },
+            2: { halign: "right", cellWidth: 32 },
         },
         didDrawCell: (data: any) => {
             if (data.section === "head" || data.section === "body") {
@@ -161,39 +155,46 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 1.8, valX, ty - 1.8); ty += 1.5;
     row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
     if (received > 0) row("Amount paid", rs(received));
-    row("Balance due", rs(pending), { bold: true, size: 9, lc: pending > 0 ? accent : ink, vc: pending > 0 ? accent : ink });
 
-    /* ---- Payment QR + signature (anchored near the bottom) ---- */
-    const sectionY = Math.max(ty + 4, H - 40);
+    /* ---- Payment QR (enlarged) + signature (anchored near the bottom) ---- */
+    const QR = 32;
+    const sectionY = Math.max(ty + 5, H - 50);
     let qrShown = false;
     const drawQrCaption = () => {
-        doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(ink);
-        doc.text("Scan to pay", M, sectionY + 28);
-        if (settings.company.upiDisplay) { doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(settings.company.upiDisplay, M, sectionY + 31.5); }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7); setRGB(ink);
+        doc.text("Scan to pay", M, sectionY + QR + 5);
+        if (settings.company.upiDisplay) { doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); setRGB(sub); doc.text(settings.company.upiDisplay, M, sectionY + QR + 9); }
     };
     if (settings.company.qrUrl) {
         try {
             const { dataUrl, format } = await fetchImageDataUrl(settings.company.qrUrl);
-            doc.addImage(dataUrl, format, M, sectionY, 24, 24);
+            doc.addImage(dataUrl, format, M, sectionY, QR, QR);
             drawQrCaption(); qrShown = true;
         } catch { /* fall through */ }
     }
     if (!qrShown && settings.invoice.showQr && settings.company.upiId) {
         const upi = `upi://pay?pa=${encodeURIComponent(settings.company.upiId)}&pn=${encodeURIComponent(settings.company.name)}&am=${pending > 0 ? pending : net}&cu=INR`;
         const qr = await QRCode.toDataURL(upi, { margin: 0 });
-        doc.addImage(qr, "PNG", M, sectionY, 24, 24);
+        doc.addImage(qr, "PNG", M, sectionY, QR, QR);
         drawQrCaption();
     } else if (!qrShown && settings.company.upiDisplay) {
         doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub); doc.text("PAY VIA", M, sectionY + 6);
         doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink); doc.text(settings.company.upiDisplay, M, sectionY + 11);
     }
 
+    /* ---- Signature block (right) — optional uploaded signature image ---- */
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
-    doc.text(`For ${settings.company.name}`, W - M, sectionY + 6, { align: "right" });
+    doc.text(`For ${settings.company.name}`, W - M, sectionY + 5, { align: "right" });
+    if (settings.invoice.showSignature && settings.company.signatureUrl) {
+        try {
+            const { dataUrl, format } = await fetchImageDataUrl(settings.company.signatureUrl);
+            doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
+        } catch { /* fall through to a blank signing space */ }
+    }
     drawRGB(hair); doc.setLineWidth(0.3);
-    doc.line(W - 48, sectionY + 20, W - M, sectionY + 20);
-    doc.setFontSize(6.5);
-    doc.text("Authorised signatory", W - M, sectionY + 24, { align: "right" });
+    doc.line(W - 48, sectionY + 24, W - M, sectionY + 24);
+    doc.setFontSize(6.5); setRGB(sub);
+    doc.text("Authorised signatory", W - M, sectionY + 28, { align: "right" });
 
     /* ---- Footer ---- */
     drawRGB(hair); doc.setLineWidth(0.3);
