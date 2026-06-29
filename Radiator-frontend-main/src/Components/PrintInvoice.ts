@@ -66,30 +66,42 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     const billDate = billDateObj.toLocaleDateString("en-IN");
 
     /* ---- Header: company (left) · INVOICE + date (right) ---- */
-    setRGB(ink);
-    doc.setFont("times", "bold");
-    doc.setFontSize(18);
-    doc.text(settings.company.name, M, 16.5, { maxWidth: 88 });
+    // Reserve the right-hand meta column first, so the company name on the left
+    // can be width-constrained to never collide with it (horizontal overlap fix).
+    const titleText = (settings.invoice.billTitle || "Invoice").toUpperCase();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    const titleW = doc.getTextWidth(titleText);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    const metaW = Math.max(titleW, doc.getTextWidth(billDate));
+    const nameMaxW = Math.max(46, W - 2 * M - metaW - 8); // 8mm gutter between blocks
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    setRGB(sub);
-    let cy = 22;
-    if (settings.company.address) { doc.text(settings.company.address, M, cy, { maxWidth: 82 }); cy += doc.getTextDimensions(settings.company.address, { maxWidth: 82, fontSize: 7 }).h + 1; }
+    // Company name (left): serif, larger. Its rendered height is measured so the
+    // address/phone always sit BELOW it, even when the name wraps (vertical fix).
+    const nameY = 15.5;
+    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
+    doc.text(settings.company.name || "", M, nameY, { maxWidth: nameMaxW });
+    const nameH = settings.company.name
+        ? doc.getTextDimensions(settings.company.name, { maxWidth: nameMaxW, fontSize: 17 }).h
+        : 6;
+
+    // Invoice meta (right), top-aligned with the company name.
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
+    doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    doc.text(billDate, W - M, nameY + 5, { align: "right" });
+
+    // Address + phone, stacked below the (possibly wrapped) company name.
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
+    let cy = nameY + Math.max(nameH, 6) + 2.5;
+    if (settings.company.address) {
+        doc.text(settings.company.address, M, cy, { maxWidth: 84 });
+        cy += doc.getTextDimensions(settings.company.address, { maxWidth: 84, fontSize: 7 }).h + 1;
+    }
     const phone = `${settings.company.phone1 || ""}${settings.company.phone2 ? "  ·  " + settings.company.phone2 : ""}`;
     if (phone.trim()) doc.text(phone, M, cy);
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    setRGB(accent);
-    doc.text((settings.invoice.billTitle || "Invoice").toUpperCase(), W - M, 15, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    setRGB(sub);
-    doc.text(billDate, W - M, 20.5, { align: "right" });
-
     /* ---- Billed to / Details ---- */
-    let y = 35;
+    let y = Math.max(36, cy + 7);
     drawRGB(hair); doc.setLineWidth(0.3);
     doc.line(M, y - 4, W - M, y - 4);
 
@@ -123,12 +135,16 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
         theme: "plain",
         headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
         bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
-        // halign in columnStyles applies to BOTH head and body, so the header
-        // labels line up with their column data (Qty centred, Amount right).
         columnStyles: {
             0: { halign: "left" },
             1: { halign: "center", cellWidth: 16 },
             2: { halign: "right", cellWidth: 32 },
+        },
+        // Force per-column alignment on EVERY section. columnStyles.halign did not
+        // reliably reach the HEAD cells (they stayed left-aligned while the body
+        // was centred/right) — this guarantees each header lines up with its data.
+        didParseCell: (data: any) => {
+            data.cell.styles.halign = data.column.index === 1 ? "center" : data.column.index === 2 ? "right" : "left";
         },
         didDrawCell: (data: any) => {
             if (data.section === "head" || data.section === "body") {
@@ -156,9 +172,14 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
     if (received > 0) row("Amount paid", rs(received));
 
-    /* ---- Payment QR (enlarged) + signature (anchored near the bottom) ---- */
-    const QR = 32;
-    const sectionY = Math.max(ty + 5, H - 50);
+    /* ---- Payment QR (enlarged) + signature — anchored just above the footer ---- */
+    const QR = 30;
+    const footerLineY = H - 9;
+    // Tallest of the two bottom blocks: QR + its 2 caption lines, or the signature.
+    const blockH = Math.max(QR + 9, 28);
+    // Sit the block a hair above the footer; pushed down only if the totals
+    // genuinely reach that low (keeps the caption clear of the footer line).
+    const sectionY = Math.max(ty + 4, footerLineY - 3 - blockH);
     let qrShown = false;
     const drawQrCaption = () => {
         doc.setFont("helvetica", "bold"); doc.setFontSize(7); setRGB(ink);
@@ -183,8 +204,17 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     }
 
     /* ---- Signature block (right) — optional uploaded signature image ---- */
+    // Keep "For <company>" to ONE line so it can never overrun the signature
+    // image directly below it; long names are truncated with an ellipsis.
+    const fitOneLine = (text: string, maxW: number, size: number) => {
+        doc.setFontSize(size);
+        if (doc.getTextWidth(text) <= maxW) return text;
+        let t = text;
+        while (t.length > 1 && doc.getTextWidth(t + "…") > maxW) t = t.slice(0, -1);
+        return t.trimEnd() + "…";
+    };
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
-    doc.text(`For ${settings.company.name}`, W - M, sectionY + 5, { align: "right" });
+    doc.text(fitOneLine(`For ${settings.company.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
     if (settings.invoice.showSignature && settings.company.signatureUrl) {
         try {
             const { dataUrl, format } = await fetchImageDataUrl(settings.company.signatureUrl);
