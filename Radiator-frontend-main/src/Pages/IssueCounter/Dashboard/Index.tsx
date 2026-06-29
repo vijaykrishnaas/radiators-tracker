@@ -162,7 +162,7 @@ const Analytics = () => {
                     <KpiCard label="Total Bills" value={String(k?.totalBills || 0)} icon="receipt-text" />
                     <KpiCard label="Total Revenue" value={money(k?.totalRevenue || 0)} icon="currencyrupee" />
                     <KpiCard label="Collected" value={money(k?.totalCollected || 0)} icon="trendingup" />
-                    <KpiCard label="Pending" value={money(k?.totalPending || 0)} icon="currencyrupee" accent />
+                    <KpiCard label="Pending" value={money(k?.totalPending || 0)} icon="clock" accent />
                     <KpiCard label="Collection Rate" value={`${k?.collectionRate || 0}%`} icon="bar_chart" />
                     <KpiCard label="Avg Bill Value" value={money(k?.avgBillValue || 0)} icon="currencyrupee" />
                 </div>
@@ -270,8 +270,8 @@ const Analytics = () => {
                 <div className="row mb-2">
                     {[
                         { label: "Total Expenses", value: money(expenseData?.totalExpenses || 0), icon: "currencyrupee" },
-                        { label: "Materials", value: money(expMaterialsTotal), icon: "currencyrupee" },
-                        { label: "Others", value: money(expOthersTotal), icon: "currencyrupee" },
+                        { label: "Materials", value: money(expMaterialsTotal), icon: "package" },
+                        { label: "Others", value: money(expOthersTotal), icon: "tag" },
                     ].map((kpi) => (
                         <div key={kpi.label} className="col-12 col-md-4 mb-3">
                             <div className="card card-shadow text-center py-3 px-2 h-100">

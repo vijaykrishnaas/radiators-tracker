@@ -46,6 +46,10 @@ const P: Record<string, React.ReactNode> = {
     logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>,
     lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
     qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3M21 14v7M14 21h3" /></>,
+    "receipt-text": <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M8 7.5h8M8 11.5h8M8 15.5h5" /></>,
+    "trending-up": <><path d="M22 7l-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3.2 1.9" /></>,
+    package: <><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5M12 22V12" /><path d="m7.5 4.3 9 5.15" /></>,
     dot: <circle cx="12" cy="12" r="2.2" />,
 };
 
@@ -56,7 +60,7 @@ const ALIAS: Record<string, string> = {
     Frame: "more", data_management: "grid", logout_user: "logout", arrow: "arrow-right",
     arrow_right: "arrow-right", table_view: "table", info_mail: "info",
     currencyrupee: "rupee", coursetype: "tag", category: "tag", semester: "calendar",
-    DTM_reports: "file", CheckCircle: "check",
+    DTM_reports: "file", CheckCircle: "check", trendingup: "trending-up", receipt: "receipt-text",
 };
 
 const Icons: React.FC<IconsProps> = ({ iconName, className }) => {
