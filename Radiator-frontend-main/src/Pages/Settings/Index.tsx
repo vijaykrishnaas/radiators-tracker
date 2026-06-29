@@ -36,6 +36,7 @@ const SettingsPage = () => {
     const [uploadingSignature, setUploadingSignature] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
+    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice">("company");
 
     const uploadLogo = async (file: File | undefined) => {
         if (!file) return;
@@ -316,7 +317,25 @@ const SettingsPage = () => {
                     </button>
                 </div>
 
+                {/* Tabbed sections — Save All Settings (above) persists every tab at once. */}
+                <div className="settings-tabs mb-4" role="tablist">
+                    {([
+                        ["company", "Company"],
+                        ["catalog", "Catalog & Pricing"],
+                        ["people", `${draft.labels.agent} & ${draft.labels.worker}`],
+                        ["bonus", "Bonus"],
+                        ["invoice", "Invoice"],
+                    ] as const).map(([id, label]) => (
+                        <button key={id} type="button" role="tab" aria-selected={activeTab === id}
+                            className={`settings-tab${activeTab === id ? " is-active" : ""}`}
+                            onClick={() => setActiveTab(id)}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
                 {/* ---- Company ---- */}
+                {activeTab === "company" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Company Profile" />
@@ -403,7 +422,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Branding ---- */}
+                {activeTab === "company" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Branding" />
@@ -435,7 +457,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Catalog & Prices ---- */}
+                {activeTab === "catalog" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Catalog & Price Matrix" />
@@ -533,7 +558,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Mechanic ---- */}
+                {activeTab === "people" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title={`${draft.labels.agent} List`} />
@@ -549,7 +577,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Login highlight lines ---- */}
+                {activeTab === "company" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Login Highlight Lines" />
@@ -565,7 +596,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Labour ---- */}
+                {activeTab === "people" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title={`${draft.labels.worker} List`} />
@@ -580,7 +614,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Bonus ---- */}
+                {activeTab === "bonus" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Bonus Configuration" />
@@ -649,7 +686,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Labels ---- */}
+                {activeTab === "invoice" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Field Labels" />
@@ -667,7 +707,10 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
+                )}
+
                 {/* ---- Invoice ---- */}
+                {activeTab === "invoice" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Invoice Options" />
@@ -709,6 +752,7 @@ const SettingsPage = () => {
                         </div>
                     </div>
                 </div>
+                )}
 
                 <div className="d-flex justify-content-end mb-5 gap-2">
                     <button
