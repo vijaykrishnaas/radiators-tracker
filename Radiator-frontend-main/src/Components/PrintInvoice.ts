@@ -75,13 +75,15 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     const metaW = Math.max(titleW, doc.getTextWidth(billDate));
     const nameMaxW = Math.max(46, W - 2 * M - metaW - 8); // 8mm gutter between blocks
 
-    // Company name (left): serif, larger. Its rendered height is measured so the
-    // address/phone always sit BELOW it, even when the name wraps (vertical fix).
+    // Company name (left): serif, larger, always uppercased so the masthead is
+    // consistent no matter how the tenant typed it in Settings. Its rendered
+    // height is measured so the address/phone always sit BELOW it when it wraps.
+    const coName = (settings.company.name || "").trim().toUpperCase();
     const nameY = 15.5;
     setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
-    doc.text(settings.company.name || "", M, nameY, { maxWidth: nameMaxW });
-    const nameH = settings.company.name
-        ? doc.getTextDimensions(settings.company.name, { maxWidth: nameMaxW, fontSize: 17 }).h
+    doc.text(coName, M, nameY, { maxWidth: nameMaxW });
+    const nameH = coName
+        ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: 17 }).h
         : 6;
 
     // Invoice meta (right), top-aligned with the company name.
@@ -111,7 +113,7 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
-    doc.text(o.transportName || "—", M, y + 5);
+    doc.text(String(o.transportName || "—").trim(), M, y + 5);
     if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
 
     const details: [string, string][] = [[settings.labels.vehicleNo || "Vehicle", o.truckNumber || "—"]];
@@ -120,8 +122,11 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.setFontSize(7.5);
     let dy = y + 5;
     details.forEach(([k, v]) => {
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v), W - M, dy, { align: "right", maxWidth: 50 });
+        // Trim both sides: labels/values come from Settings and bill data, where
+        // stray leading/trailing spaces are invisible in the app (HTML collapses
+        // them) but would shift text in the PDF.
+        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
+        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v).trim(), W - M, dy, { align: "right", maxWidth: 50 });
         dy += 4.6;
     });
     y = Math.max(y + 13, dy + 3);
