@@ -168,7 +168,10 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     };
     row("Subtotal", rs(gross));
     if (discount > 0) row("Discount", `- ${rs(discount)}`);
-    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 1.8, valX, ty - 1.8); ty += 1.5;
+    // Separator rule, vertically centred between the row above and "Total":
+    // rows advance the baseline by 5mm, so ty-2.6 leaves ~1.8mm clear below the
+    // previous text and ~1.7mm above Total's cap height (baseline at ty+1.5).
+    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 2.6, valX, ty - 2.6); ty += 1.5;
     row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
     if (received > 0) row("Amount paid", rs(received));
 
