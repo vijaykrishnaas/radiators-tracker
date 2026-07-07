@@ -1,0 +1,6 @@
+# Caddy obtains and renews a free Let's Encrypt certificate for API_DOMAIN
+# automatically, provided the domain's DNS A-record points at this instance
+# and ports 80+443 are open in the EC2 security group.
+{$API_DOMAIN} {
+	reverse_proxy api:5000
+}

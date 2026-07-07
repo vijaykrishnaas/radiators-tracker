@@ -22,6 +22,13 @@ import auditRoutes from "./routes/audit.routes.js";
 
 const app = express();
 
+// Behind a reverse proxy (Caddy/nginx terminating TLS), trust the first hop so
+// express-rate-limit and logs see the real client IP instead of the proxy's.
+// Set TRUST_PROXY=1 in that environment; leave unset when exposed directly.
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+}
+
 // CORS: if ALLOWED_ORIGINS is set (comma-separated list), restrict to those
 // origins; otherwise allow all (local dev, or before the frontend origin is
 // known). Set ALLOWED_ORIGINS=https://your-site.netlify.app on the host to
