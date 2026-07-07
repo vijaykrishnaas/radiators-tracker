@@ -1,0 +1,15 @@
+# Netlify build config. In the Netlify UI set:
+#   Base directory:  Radiator-frontend-main
+# (this file is then picked up automatically)
+# and add the environment variable:
+#   VITE_BACKEND_BASE_URL = https://<your-api-domain>
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback — client-side routes (e.g. /issueCounter/billing, /t/velavan/login)
+# must serve index.html instead of 404 on refresh/deep-link.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

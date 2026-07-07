@@ -1,0 +1,32 @@
+# Radiator API on EC2: Node API + Caddy reverse proxy (automatic HTTPS).
+# Usage on the instance:
+#   cp .env.example .env   (fill in real values)
+#   docker compose up -d --build
+services:
+  api:
+    build: ../Radiator-backend-main
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Caddy terminates TLS in front of us — trust that single hop so the
+      # login rate-limiter sees real client IPs.
+      TRUST_PROXY: 1
+    expose:
+      - "5000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # Let's Encrypt certificates — must persist
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
