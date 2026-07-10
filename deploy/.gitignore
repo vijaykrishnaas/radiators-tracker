@@ -1,0 +1,2 @@
+# Real secrets live here on the EC2 instance only — never commit.
+.env
