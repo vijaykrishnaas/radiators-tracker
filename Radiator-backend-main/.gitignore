@@ -4,7 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
-/package-lock.json
+# package-lock.json IS committed — the Dockerfile uses `npm ci`, which requires
+# a locked, reproducible dependency tree to be present in the build context.
 
 # testing
 /coverage
