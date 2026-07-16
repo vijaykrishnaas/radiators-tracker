@@ -17,6 +17,7 @@ type LoginBranding = {
     loginHighlights: string[];
     primaryColor: string;
     accentColor: string;
+    loginTextColor: string;
 };
 
 const DEFAULT_HIGHLIGHTS = [
@@ -48,10 +49,12 @@ const Login: React.FC = () => {
                     loginHighlights: Array.isArray(c.loginHighlights) ? c.loginHighlights.filter(Boolean) : [],
                     primaryColor: c.branding?.primaryColor || "#2264E5",
                     accentColor: c.branding?.accentColor || "#f47f6b",
+                    loginTextColor: c.branding?.loginTextColor || "#1D1D1F",
                 });
                 const root = document.documentElement;
                 root.style.setProperty("--primary", c.branding?.primaryColor || "#2264E5");
                 root.style.setProperty("--accentColor", c.branding?.accentColor || "#f47f6b");
+                root.style.setProperty("--login-text-color", c.branding?.loginTextColor || "#1D1D1F");
                 document.title = (c.companyName || c.name || "Radiator Management");
             })
             .catch(() => { /* unknown code → generic page */ });
@@ -338,7 +341,7 @@ const Login: React.FC = () => {
                     font-weight: 700;
                     font-size: 19px;
                     letter-spacing: -0.01em;
-                    color: var(--ink-900, #0a0b0d);
+                    color: var(--login-text-color, #1D1D1F);
                     margin: 14px 0 2px;
                 }
                 .login-subtitle {

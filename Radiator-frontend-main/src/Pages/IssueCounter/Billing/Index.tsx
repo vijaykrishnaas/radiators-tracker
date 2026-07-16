@@ -429,7 +429,7 @@ const Billing = () => {
                                                         {money(o.pendingAmount)}
                                                     </td>
                                                 )}
-                                                {visibleColumns.phoneNumber && <td className="cell-nowrap">{o.phoneNumber}</td>}
+                                                {visibleColumns.phoneNumber && <td className="cell-nowrap">{o.phoneNumber || "—"}</td>}
                                                 {visibleColumns.status && (
                                                     <td className="cell-nowrap"><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
                                                 )}

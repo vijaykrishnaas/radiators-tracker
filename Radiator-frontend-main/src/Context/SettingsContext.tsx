@@ -27,6 +27,7 @@ export type AppSettings = {
     branding: {
         primaryColor: string;
         accentColor: string;
+        loginTextColor: string;
     };
     catalog: {
         productTypes: CatalogOption[];
@@ -65,7 +66,7 @@ export type AppSettings = {
 // Safe fallbacks so components render before the fetch resolves.
 export const FALLBACK_SETTINGS: AppSettings = {
     company: { name: "", address: "", phone1: "", phone2: "", upiId: "", upiDisplay: "", logoUrl: "" },
-    branding: { primaryColor: "#12467A", accentColor: "#f47f6b" },
+    branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#1D1D1F" },
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },
     labour: [],
     mechanics: [],

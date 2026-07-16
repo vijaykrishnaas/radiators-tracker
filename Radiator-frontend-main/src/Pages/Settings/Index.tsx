@@ -450,9 +450,19 @@ const SettingsPage = () => {
                                     onChange={(e) => set("branding.accentColor", e.target.value)}
                                 />
                             </div>
+                            <div className="col-xl-3 col-md-6">
+                                <label className="form-label" htmlFor="login-text-color">Login Text Color</label>
+                                <input
+                                    id="login-text-color"
+                                    type="color"
+                                    className="form-control form-control-color w-100"
+                                    value={draft.branding.loginTextColor || "#1D1D1F"}
+                                    onChange={(e) => set("branding.loginTextColor", e.target.value)}
+                                />
+                            </div>
                         </div>
                         <small className="font-s12" style={{ color: "var(--purple)" }}>
-                            Primary drives the app theme and printed documents; accent drives the login screen highlights.
+                            Primary drives the app theme and printed documents; accent drives the login screen highlights; login text color sets your company name's color on the sign-in screen.
                         </small>
                     </div>
                 </div>
