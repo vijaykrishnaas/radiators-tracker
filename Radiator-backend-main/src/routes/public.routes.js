@@ -25,7 +25,7 @@ router.get("/clients/:code", async (req, res, next) => {
         logoUrl: settings?.company?.logoUrl || "",
         loginBgUrl: settings?.company?.loginBgUrl || "",
         loginHighlights: Array.isArray(settings?.loginHighlights) ? settings.loginHighlights : [],
-        branding: settings?.branding || { primaryColor: "#2264E5", accentColor: "#f47f6b", loginTextColor: "#1D1D1F" },
+        branding: settings?.branding || { primaryColor: "#2264E5", accentColor: "#f47f6b", loginTextColor: "#FFFFFF" },
       },
     });
   } catch (error) {

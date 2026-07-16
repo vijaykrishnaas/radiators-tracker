@@ -456,7 +456,7 @@ const SettingsPage = () => {
                                     id="login-text-color"
                                     type="color"
                                     className="form-control form-control-color w-100"
-                                    value={draft.branding.loginTextColor || "#1D1D1F"}
+                                    value={draft.branding.loginTextColor || "#FFFFFF"}
                                     onChange={(e) => set("branding.loginTextColor", e.target.value)}
                                 />
                             </div>

@@ -66,7 +66,7 @@ export type AppSettings = {
 // Safe fallbacks so components render before the fetch resolves.
 export const FALLBACK_SETTINGS: AppSettings = {
     company: { name: "", address: "", phone1: "", phone2: "", upiId: "", upiDisplay: "", logoUrl: "" },
-    branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#1D1D1F" },
+    branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#FFFFFF" },
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },
     labour: [],
     mechanics: [],
