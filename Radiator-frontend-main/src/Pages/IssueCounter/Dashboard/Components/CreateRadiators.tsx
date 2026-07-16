@@ -25,7 +25,7 @@ type FormValues = {
         truckNumber: string;
         transportName: string;
         mechanicName: string;
-        phoneNumber: string;
+        phoneNumber?: string;
         labourName: CatalogOption[];
         radiatorType: CatalogOption | null;
         radiatorGroups: ServiceGroup[];
@@ -358,12 +358,11 @@ const CreateRadiators = () => {
 
                                     <div className="row form-group g-3">
                                         <div className="col-xl-6">
-                                            <label className="form-label label-required">Phone Number</label>
+                                            <label className="form-label">Phone Number</label>
                                             <Controller
                                                 name="radiatorsManagement.phoneNumber"
                                                 control={control}
                                                 rules={{
-                                                    required: "Phone Number is required",
                                                     pattern: {
                                                         value: /^[0-9]{10}$/,
                                                         message: "Enter valid 10 digit Mobile Number",

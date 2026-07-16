@@ -29,7 +29,7 @@ export type RadiatorRecord = {
     truckNumber: string;
     transportName: string;
     mechanicName: string;
-    phoneNumber: string;
+    phoneNumber?: string;
     radiatorType: string;
     labourName?: string[];
     serviceInfo: ServiceItem[];

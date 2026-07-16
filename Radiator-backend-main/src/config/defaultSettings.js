@@ -33,6 +33,7 @@ export const defaultSettings = {
   branding: {
     primaryColor: "#2264E5",
     accentColor: "#f47f6b",
+    loginTextColor: "#FFFFFF",
   },
 
   catalog: {
