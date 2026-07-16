@@ -1,0 +1,6 @@
+# Secrets and local-only files — never commit
+*.pem
+env data.txt
+
+# Stray local log files
+be-*.log
