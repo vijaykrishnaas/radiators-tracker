@@ -21,13 +21,14 @@
 - [x] Open PR 1 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/16)
 - [ ] Radiator-regression review + merge (awaiting reviewer pass)
 
-### Phase 2 — Billing screens (branch `claude/automobile-billing-phase-2`, PR: _not opened yet_)
-- [ ] `Context/SettingsContext.tsx`: `AppSettings` + `FALLBACK_SETTINGS` gain `businessType` + `automobile` block (lockstep with backend defaults)
-- [ ] Admin console `Pages/Admin/Clients/Index.tsx`: Business Type select in create form, Excel-import mapping, type badge in list
-- [ ] `Pages/Automobile/Dashboard/Components/CreateAutoBill.tsx`: bill form — billDate, billNo (readonly, server-assigned), vehicleNumber, optional customerName/phoneNumber, mechanic selector, labour tags; item rows: particulars datalist over `settings.automobile.parts` (auto-fills unit+rate) or free text, numeric qty + unit select, rate, amount = qty×rate with per-row manual-override (touched) flag; running total; create/view/edit modes
-- [ ] `Pages/Automobile/Billing/Index.tsx`: list, filters (vehicle/mechanic/date/status), pagination, payment+discount modal, Excel export — pointed at `/autobills`
-- [ ] `Components/PrintInvoice.ts`: additive `printAutoInvoice(bill, settings)` — radiator invoice style with S.No | Particulars | Qty | Unit | Rate | Amount, driven by `settings.automobile.invoice`
-- [ ] Open PR 2
+### Phase 2 — Billing screens (branch `claude/automobile-billing-phase-2`, PR: **#17, open**)
+- [x] `Context/SettingsContext.tsx`: `AppSettings` + `FALLBACK_SETTINGS` gain `businessType` + `automobile` block (lockstep with backend defaults)
+- [x] Admin console `Pages/Admin/Clients/Index.tsx`: Business Type select in create form, Excel-import mapping, type badge in list
+- [x] `Pages/Automobile/Dashboard/Components/CreateAutoBill.tsx`: bill form — billDate, billNo (readonly, server-assigned), vehicleNumber, optional customerName/phoneNumber, mechanic selector, labour tags; item rows: particulars datalist over `settings.automobile.parts` (auto-fills unit+rate) or free text, numeric qty + unit select, rate, amount = qty×rate with per-row manual-override (touched) flag; running total; create/view/edit modes
+- [x] `Pages/Automobile/Billing/Index.tsx`: list, filters (vehicle/mechanic/date/status), pagination, payment+discount modal, Excel export — pointed at `/autobills`
+- [x] `Components/PrintInvoice.ts`: additive `printAutoInvoice(bill, settings)` — radiator invoice style with S.No | Particulars | Qty | Unit | Rate | Amount, driven by `settings.automobile.invoice`
+- [x] Open PR 2 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/17); `npx tsc --noEmit` clean
+- [ ] Radiator-regression review + merge (awaiting reviewer pass)
 
 ### Phase 3 — Dashboard, gating & settings (branch `claude/automobile-billing-phase-3`, PR: _not opened yet_)
 - [ ] `Pages/Automobile/Dashboard/Index.tsx`: KPIs, monthly trend, status breakdown from `GET /autobills/analytics`
