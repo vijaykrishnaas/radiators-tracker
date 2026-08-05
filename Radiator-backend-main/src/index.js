@@ -16,6 +16,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import publicRoutes from "./routes/public.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import radiatorRoutes, { mechanicRouter } from "./routes/radiator.routes.js";
+import autobillRoutes, { autoMechanicRouter } from "./routes/autobill.routes.js";
 import bonusRoutes from "./routes/bonus.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
@@ -63,6 +64,8 @@ app.use("/public", publicRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/radiators", radiatorRoutes);
 app.use("/mechanic", mechanicRouter);
+app.use("/autobills", autobillRoutes);
+app.use("/auto-mechanic", autoMechanicRouter);
 app.use("/bonus", bonusRoutes);
 app.use("/expenses", expenseRoutes);
 app.use("/audit", auditRoutes);
@@ -76,7 +79,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("API Error:", err.message);
   // Honor explicit statuses from boundary validation (err.statusCode = 400, etc.).
-  const status = err.statusCode || (err.message === "Radiator not found" ? 404 : 500);
+  const status = err.statusCode || (["Radiator not found", "Automobile bill not found"].includes(err.message) ? 404 : 500);
   // Don't leak internal error text on 5xx.
   const message = status >= 500 ? "Internal server error" : (err.message || "Request failed");
   res.status(status).json({ success: false, message });

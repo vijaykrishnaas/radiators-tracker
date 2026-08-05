@@ -11,6 +11,8 @@ import {
   offboardClient,
   exportClientData,
   normalizeCode,
+  normalizeBusinessType,
+  BUSINESS_TYPES,
   CODE_REGEX,
 } from "../dao/client.dao.js";
 import { seedSettingsForClient, peekSettings } from "../dao/settings.dao.js";
@@ -70,11 +72,17 @@ function vErr(message) {
 // Validates + provisions one client (client doc → settings → admin), with
 // rollback so a partial failure never leaves a ghost. Throws (with .statusCode)
 // on validation/duplicate. Shared by the single create and the Excel import.
-async function provisionClient(actor, { name, code, adminUserId, adminPassword }) {
+async function provisionClient(actor, { name, code, adminUserId, adminPassword, businessType }) {
   const nm = String(name || "").trim();
   const normCode = normalizeCode(code);
   const uid = String(adminUserId || "").trim();
   const pwd = String(adminPassword || "");
+  // Absent/unknown values fall back to "radiator", but an explicit wrong value
+  // is rejected so a typo in an import sheet can't silently mis-type a tenant.
+  if (businessType != null && businessType !== "" && !BUSINESS_TYPES.includes(businessType)) {
+    throw vErr(`businessType must be one of: ${BUSINESS_TYPES.join(", ")}`);
+  }
+  const btype = normalizeBusinessType(businessType);
 
   if (!nm) throw vErr("Business name is required");
   if (!CODE_REGEX.test(normCode)) throw vErr("Code must be 2-40 chars: lowercase letters, numbers, hyphens");
@@ -82,9 +90,9 @@ async function provisionClient(actor, { name, code, adminUserId, adminPassword }
   if (pwd.length < 6) throw vErr("Admin password must be at least 6 characters");
   if (await findClientByCode(normCode)) { const e = new Error("That business code is already taken"); e.statusCode = 409; throw e; }
 
-  const client = await createClient({ name: nm, code: normCode, adminUserId: uid });
+  const client = await createClient({ name: nm, code: normCode, adminUserId: uid, businessType: btype });
   try {
-    await seedSettingsForClient(client._id, client.name);
+    await seedSettingsForClient(client._id, client.name, client.businessType);
     await createClientAdmin({ clientId: client._id, userId: uid, password: pwd, name: nm });
   } catch (provisionErr) {
     try { await offboardClient(client._id); } catch (e) { console.error("Provisioning rollback failed for", client.code, e.message); }
@@ -94,7 +102,7 @@ async function provisionClient(actor, { name, code, adminUserId, adminPassword }
     action: "client.create",
     clientId: client._id, clientCode: client.code,
     actorUserId: actor.userId, actorRole: actor.role,
-    details: { name: nm, adminUserId: uid },
+    details: { name: nm, adminUserId: uid, businessType: client.businessType },
   });
   return { client, adminUserId: uid, tempPassword: pwd };
 }
@@ -105,7 +113,7 @@ router.post("/clients", async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Client created ✅",
-      client: { _id: client._id, name: client.name, code: client.code, status: client.status },
+      client: { _id: client._id, name: client.name, code: client.code, businessType: client.businessType, status: client.status },
       handover: {
         loginUrl: `/t/${client.code}/login`,
         code: client.code,
@@ -233,6 +241,7 @@ router.get("/clients/:id/settings", async (req, res, next) => {
         id: String(client._id),
         name: client.name,
         code: client.code,
+        businessType: client.businessType || "radiator",
         status: client.status,
         adminUserId: client.adminUserId,
         lastLoginAt: client.lastLoginAt || null,

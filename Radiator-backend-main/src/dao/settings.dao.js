@@ -4,23 +4,24 @@ import { toClientId } from "../utils/tenant.js";
 
 // Settings are per-client, keyed by `_id: <clientId ObjectId>`.
 
-function freshDefaults(clientId, companyName) {
+function freshDefaults(clientId, companyName, businessType) {
   // Deep clone so the shared defaultSettings object is never mutated.
   const doc = JSON.parse(JSON.stringify(defaultSettings));
   delete doc._id;
   doc._id = toClientId(clientId);
   if (companyName) doc.company.name = companyName;
+  if (businessType === "automobile") doc.businessType = "automobile";
   return doc;
 }
 
 // Seeds a brand-new client's settings (called at provisioning). Idempotent.
-export async function seedSettingsForClient(clientId, companyName) {
+export async function seedSettingsForClient(clientId, companyName, businessType) {
   const db = await connectDB();
   const collection = db.collection("settings");
   const _id = toClientId(clientId);
   const existing = await collection.findOne({ _id });
   if (existing) return existing;
-  const doc = freshDefaults(clientId, companyName);
+  const doc = freshDefaults(clientId, companyName, businessType);
   await collection.insertOne(doc);
   return doc;
 }
@@ -52,8 +53,10 @@ export async function updateSettings(clientId, data) {
   const collection = db.collection("settings");
   const _id = toClientId(clientId);
 
-  // _id and clientId are immutable / managed here — never accept them from input.
-  const { _id: _ignore, clientId: _ignore2, ...update } = data;
+  // _id and clientId are immutable / managed here — never accept them from
+  // input. businessType is super-admin-owned (set once at provisioning), so a
+  // client can't flip its own vertical through the Settings page.
+  const { _id: _ignore, clientId: _ignore2, businessType: _ignore3, ...update } = data;
 
   await collection.updateOne({ _id }, { $set: update }, { upsert: true });
   return getSettings(clientId);

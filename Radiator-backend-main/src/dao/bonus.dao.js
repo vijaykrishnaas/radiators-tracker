@@ -142,6 +142,266 @@ export async function syncBonusesForRecord(clientId, record) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Automobile-vertical bonuses. Bills there are free-form parts lists (no
+// product/service matrix), so bonus is a flat % of the bill's net total
+// instead of the per-line matrix used above. Everything downstream — the
+// `bonuses` collection, aggregateByBeneficiary, markPaid*, adjustPendingPayable,
+// addManualBonus — is reused unchanged because the entries this writes are
+// shape-identical to syncBonusesForRecord's.
+// ---------------------------------------------------------------------------
+
+function computeAutoTotal(items) {
+  return (items || []).reduce((sum, i) => sum + Number(i.amount || 0), 0);
+}
+
+function computeFlatRoleBonus(record, role, settings) {
+  const percent = Number(settings.automobile?.bonus?.[role === "mechanic" ? "mechanicPercent" : "labourPercent"] || 0);
+  const grossTotal = computeAutoTotal(record.items);
+  const discount = Math.max(Number(record.discount || 0), 0);
+  const totalAmount = Math.max(grossTotal - discount, 0);
+  const received = Math.min(
+    typeof record.receivedAmount === "number" ? record.receivedAmount : 0,
+    totalAmount
+  );
+  const ratio = totalAmount > 0 ? Math.min(received / totalAmount, 1) : 0;
+  const accrued = totalAmount * percent / 100;
+
+  return {
+    accrued: round2(accrued),
+    payable: round2(accrued * ratio),
+    totalAmount,
+    received,
+  };
+}
+
+// Upserts an automobile bill's bonus entries. Same upsert shape/paid-lock
+// behavior as syncBonusesForRecord, sourced from settings.automobile.bonus.
+export async function syncAutoBonusesForRecord(clientId, record) {
+  const db = await connectDB();
+  const collection = db.collection(COLLECTION);
+  const settings = await getSettings(clientId);
+  const cid = toClientId(clientId);
+  const recordId = new ObjectId(record._id);
+
+  const base = {
+    clientId: cid,
+    recordId,
+    billDate: new Date(record.billDate),
+    updatedAt: new Date(),
+  };
+
+  // ---- Mechanic entry ----
+  const mech = computeFlatRoleBonus(record, "mechanic", settings);
+  const mechPeriod = yearKey(record.billDate, settings.automobile?.bonus?.yearStartMonth);
+
+  const paidMech = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: "paid" });
+  if (!paidMech) {
+    await collection.updateOne(
+      { clientId: cid, recordId, type: "mechanic", status: "pending" },
+      {
+        $set: {
+          ...base,
+          beneficiary: record.mechanicName,
+          period: mechPeriod,
+          accruedAmount: mech.accrued,
+          payableAmount: mech.payable,
+          billAmount: mech.totalAmount,
+          receivedAmount: mech.received,
+        },
+        $setOnInsert: { type: "mechanic", status: "pending", createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+  }
+
+  // ---- Labour entries (equal split) ----
+  const labourNames = Array.isArray(record.labourName) ? record.labourName.filter(Boolean) : [];
+  const lab = computeFlatRoleBonus(record, "labour", settings);
+  const share = labourNames.length || 1;
+
+  await collection.deleteMany({
+    clientId: cid,
+    recordId,
+    type: "labour",
+    status: "pending",
+    beneficiary: { $nin: labourNames },
+  });
+
+  for (const name of labourNames) {
+    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: "paid" });
+    if (paid) continue;
+
+    await collection.updateOne(
+      { clientId: cid, recordId, type: "labour", beneficiary: name, status: "pending" },
+      {
+        $set: {
+          ...base,
+          period: dayKey(record.billDate),
+          accruedAmount: round2(lab.accrued / share),
+          payableAmount: round2(lab.payable / share),
+          billAmount: lab.totalAmount,
+          receivedAmount: lab.received,
+        },
+        $setOnInsert: { type: "labour", beneficiary: name, status: "pending", createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+  }
+}
+
+// Parallel of getReviewData, sourced from `autobills` with the flat-%
+// suggestedBonus calculation instead of the product/service matrix.
+export async function getAutoReviewData(clientId, type, name, fromDate, toDate, settings) {
+  const db = await connectDB();
+
+  const query = type === "mechanic"
+    ? { clientId: toClientId(clientId), mechanicName: name }
+    : { clientId: toClientId(clientId), labourName: name };
+  query.billDate = {
+    $gte: moment(fromDate).startOf("day").toDate(),
+    $lte: moment(toDate).endOf("day").toDate(),
+  };
+
+  const diffDays = moment(toDate).diff(moment(fromDate), "days");
+  const granularity = diffDays > 90 ? "monthly" : diffDays > 31 ? "weekly" : "daily";
+
+  let timelineGroupId;
+  if (granularity === "monthly") {
+    timelineGroupId = { $dateToString: { format: "%Y-%m", date: "$billDate" } };
+  } else if (granularity === "weekly") {
+    timelineGroupId = {
+      $dateToString: {
+        format: "%Y-%m-%d",
+        date: {
+          $subtract: [
+            "$billDate",
+            { $multiply: [{ $mod: [{ $add: [{ $dayOfWeek: "$billDate" }, 5] }, 7] }, 86400000] },
+          ],
+        },
+      },
+    };
+  } else {
+    timelineGroupId = { $dateToString: { format: "%Y-%m-%d", date: "$billDate" } };
+  }
+
+  const computedFields = {
+    totalAmount: { $sum: "$items.amount" },
+    receivedAmt: { $cond: [{ $isNumber: "$receivedAmount" }, "$receivedAmount", 0] },
+  };
+
+  const pipeline = [
+    { $match: query },
+    { $addFields: computedFields },
+    {
+      $facet: {
+        summary: [
+          {
+            $group: {
+              _id: null,
+              totalBills: { $sum: 1 },
+              totalRevenue: { $sum: "$totalAmount" },
+              totalCollected: { $sum: "$receivedAmt" },
+              totalOperations: { $sum: { $size: "$items" } },
+            },
+          },
+        ],
+        timeline: [
+          { $group: { _id: timelineGroupId, count: { $sum: 1 }, revenue: { $sum: "$totalAmount" } } },
+          { $project: { _id: 0, date: "$_id", count: 1, revenue: 1 } },
+          { $sort: { date: 1 } },
+        ],
+        bills: [
+          {
+            $project: {
+              _id: 0,
+              billDate: 1,
+              vehicleNumber: 1,
+              items: 1,
+              totalAmount: 1,
+              receivedAmount: "$receivedAmt",
+            },
+          },
+          { $sort: { billDate: -1 } },
+        ],
+      },
+    },
+  ];
+
+  const [result] = await db.collection("autobills").aggregate(pipeline).toArray();
+
+  const rawSummary = result.summary[0] || { totalBills: 0, totalRevenue: 0, totalCollected: 0, totalOperations: 0 };
+  rawSummary.collectionRate = rawSummary.totalRevenue > 0
+    ? Math.round((rawSummary.totalCollected / rawSummary.totalRevenue) * 1000) / 10
+    : 0;
+
+  const rawDocs = await db.collection("autobills").find(query).toArray();
+  const role = type === "mechanic" ? "mechanic" : "labour";
+  let suggestedBonus = 0;
+  for (const doc of rawDocs) {
+    const bonus = computeFlatRoleBonus(doc, role, settings);
+    if (type === "labour") {
+      const share = (Array.isArray(doc.labourName) ? doc.labourName.filter(Boolean) : []).length || 1;
+      suggestedBonus += bonus.payable / share;
+    } else {
+      suggestedBonus += bonus.payable;
+    }
+  }
+  rawSummary.suggestedBonus = round2(suggestedBonus);
+
+  const timelineMap = new Map((result.timeline || []).map((t) => [t.date, t]));
+  const filled = [];
+  if (granularity === "monthly") {
+    let cur = moment(fromDate).startOf("month");
+    const end = moment(toDate).startOf("month");
+    while (cur.isSameOrBefore(end)) {
+      const key = cur.format("YYYY-MM");
+      filled.push(timelineMap.get(key) || { date: key, count: 0, revenue: 0 });
+      cur.add(1, "month");
+    }
+  } else if (granularity === "weekly") {
+    let cur = moment(fromDate).startOf("isoWeek");
+    const end = moment(toDate).startOf("isoWeek");
+    while (cur.isSameOrBefore(end)) {
+      const key = cur.format("YYYY-MM-DD");
+      filled.push(timelineMap.get(key) || { date: key, count: 0, revenue: 0 });
+      cur.add(1, "week");
+    }
+  } else {
+    let cur = moment(fromDate).startOf("day");
+    const end = moment(toDate).startOf("day");
+    while (cur.isSameOrBefore(end)) {
+      const key = cur.format("YYYY-MM-DD");
+      filled.push(timelineMap.get(key) || { date: key, count: 0, revenue: 0 });
+      cur.add(1, "day");
+    }
+  }
+
+  return {
+    granularity,
+    summary: rawSummary,
+    timeline: filled,
+    bills: result.bills || [],
+  };
+}
+
+// Backfills bonus entries from existing automobile bills (parallel of backfill()).
+export async function backfillAuto(clientId, fromDate = "", toDate = "") {
+  const db = await connectDB();
+  const query = { clientId: toClientId(clientId) };
+  if (fromDate || toDate) {
+    query.billDate = {};
+    if (fromDate) query.billDate.$gte = moment(fromDate).startOf("day").toDate();
+    if (toDate) query.billDate.$lte = moment(toDate).endOf("day").toDate();
+  }
+
+  const records = await db.collection("autobills").find(query).toArray();
+  for (const record of records) {
+    await syncAutoBonusesForRecord(clientId, record);
+  }
+  return records.length;
+}
+
 // Deleting a bill removes its pending entries; paid ones stay as settlement history.
 export async function removeBonusesForRecord(clientId, id) {
   const db = await connectDB();

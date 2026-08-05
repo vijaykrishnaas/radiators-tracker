@@ -11,6 +11,11 @@ export async function ensureIndexes() {
   await db.collection("bonuses").createIndex({ clientId: 1 }, { name: "clientId_1" });
   await db.collection("expenses").createIndex({ clientId: 1 }, { name: "clientId_1" });
 
+  // Automobile bills — same tenant-scoping index, plus a billDate sort index
+  // since the billing list/export default to newest-bill-first.
+  await db.collection("autobills").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("autobills").createIndex({ clientId: 1, billDate: -1 }, { name: "clientId_1_billDate_-1" });
+
   // Audit log (Stage 2) — harmless to ensure early.
   await db.collection("audit_log").createIndex({ at: -1 }, { name: "at_-1" });
 }

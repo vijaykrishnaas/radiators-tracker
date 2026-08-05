@@ -8,6 +8,11 @@
 export const defaultSettings = {
   // `_id` is assigned per-client (the clientId) by settings.dao.js — not stored here.
 
+  // Mirrors clients.businessType so the frontend learns the tenant's vertical
+  // from GET /settings. Set at provisioning; super-admin-owned (updateSettings
+  // strips it from client submissions). Missing ⇒ "radiator".
+  businessType: "radiator",
+
   company: {
     name: "",
     address: "",
@@ -86,6 +91,29 @@ export const defaultSettings = {
         bs6: { service: 0, new: 0, tank: 0, cover: 0 },
       },
       defaultPercent: 0,
+    },
+  },
+
+  // Automobile-vertical configuration. Only read when businessType is
+  // "automobile"; radiator tenants never touch this block.
+  automobile: {
+    units: ["pcs", "set", "L", "kg", "hrs"],
+    // Parts catalog: picking a part in the bill form auto-fills unit + rate.
+    // [{ label: "Engine Oil 15W40", value: "engine-oil-15w40", unit: "L", rate: 450 }]
+    parts: [],
+    // Flat percentage of each bill's net (post-discount) total.
+    bonus: { mechanicPercent: 0, labourPercent: 0, yearStartMonth: 4 },
+    labels: {
+      vehicleNo: "Vehicle Number",
+      customer: "Customer Name",
+      agent: "Mechanic",
+      worker: "Labour",
+    },
+    invoice: {
+      billTitle: "CASH / CREDIT BILL",
+      footerNote: "Thank you for your business",
+      showQr: false,
+      showSignature: false,
     },
   },
 
