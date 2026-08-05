@@ -5,7 +5,8 @@
       "PowerShell(Get-ChildItem -Path \"D:\\\\others\\\\code\\\\lorry\\\\codebase\\\\Radiator-backend-main\" -Directory | Where-Object { $_.Name -ne 'node_modules' } | Select-Object Name)",
       "PowerShell(Get-ChildItem -Path \"D:\\\\others\\\\code\\\\lorry\\\\codebase\\\\Radiator-frontend-main\" -Directory | Where-Object { $_.Name -ne 'node_modules' } | Select-Object Name)",
       "PowerShell(Head -30)",
-      "Bash(grep -r \"app\\\\\\\\.put\\\\|app\\\\\\\\.delete\\\\|app\\\\\\\\.patch\\\\|router\\\\\\\\.put\\\\|router\\\\\\\\.delete\" \"D:\\\\others\\\\code\\\\lorry\\\\codebase\\\\Radiator-backend-main\\\\src\")"
+      "Bash(grep -r \"app\\\\\\\\.put\\\\|app\\\\\\\\.delete\\\\|app\\\\\\\\.patch\\\\|router\\\\\\\\.put\\\\|router\\\\\\\\.delete\" \"D:\\\\others\\\\code\\\\lorry\\\\codebase\\\\Radiator-backend-main\\\\src\")",
+      "mcp__Claude_Code_Remote__delete_trigger"
     ]
   }
 }
