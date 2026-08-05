@@ -8,17 +8,18 @@
 
 ## Progress checklist
 
-### Phase 1 — Backend foundation (branch `claude/automobile-billing-phase-1`, PR: _not opened yet_)
-- [ ] `config/defaultSettings.js`: add `businessType: "radiator"` + `automobile` block (units, parts, flat bonus %, labels, invoice)
-- [ ] `dao/settings.dao.js`: `seedSettingsForClient(clientId, companyName, businessType)`; strip `businessType` from client `updateSettings`
-- [ ] `dao/client.dao.js`: `createClient` stores validated `businessType` (default radiator); `listClients` projection; `exportClientData` + `offboardClient` include `autobills`
-- [ ] `routes/admin.routes.js`: `provisionClient` accepts/validates `businessType`, passes to client + settings seed, includes in audit + response
-- [ ] `config/ensureIndexes.js`: `autobills` indexes `{clientId:1}`, `{clientId:1, billDate:-1}`
-- [ ] `dao/autobill.dao.js` (new): enrich/totals (sum of `items[].amount`), auto-increment `billNo` via `counters` (`findOneAndUpdate` `$inc` upsert on `{_id: clientId}` field `autobill`), create/update/delete/recordPayment (radiator semantics), buildQuery (vehicleNumber/customerName regex, mechName, dates, status), paged list, export, getById, mechanics list (settings ∪ autobills), analytics `$facet` (kpis/byMonth/byStatus only)
-- [ ] `dao/bonus.dao.js` (additive only): `computeFlatRoleBonus`, `syncAutoBonusesForRecord` (same doc shape as `syncBonusesForRecord`, percents from `settings.automobile.bonus`), `getAutoReviewData`, `backfillAuto`
-- [ ] `routes/autobill.routes.js` (new) + mount `/autobills` in `index.js`; guard: only automobile-type tenants may use it; audit actions `autobill.*`
-- [ ] `routes/bonus.routes.js`: `/review` and `/sync` branch by tenant businessType (radiator path unchanged)
-- [ ] Open PR 1 to `master`, verify no radiator-file behavior change (diff review)
+### Phase 1 — Backend foundation (branch `claude/automobile-billing-phase-1`, PR: **#16, open**)
+- [x] `config/defaultSettings.js`: add `businessType: "radiator"` + `automobile` block (units, parts, flat bonus %, labels, invoice)
+- [x] `dao/settings.dao.js`: `seedSettingsForClient(clientId, companyName, businessType)`; strip `businessType` from client `updateSettings`
+- [x] `dao/client.dao.js`: `createClient` stores validated `businessType` (default radiator); `listClients` projection; `exportClientData` + `offboardClient` include `autobills`
+- [x] `routes/admin.routes.js`: `provisionClient` accepts/validates `businessType`, passes to client + settings seed, includes in audit + response
+- [x] `config/ensureIndexes.js`: `autobills` indexes `{clientId:1}`, `{clientId:1, billDate:-1}`
+- [x] `dao/autobill.dao.js` (new): enrich/totals (sum of `items[].amount`), auto-increment `billNo` via `counters` (`findOneAndUpdate` `$inc` upsert on `{_id: clientId}` field `autobill`), create/update/delete/recordPayment (radiator semantics), buildQuery (vehicleNumber/customerName regex, mechName, dates, status), paged list, export, getById, mechanics list (settings ∪ autobills), analytics `$facet` (kpis/byMonth/byStatus only)
+- [x] `dao/bonus.dao.js` (additive only): `computeFlatRoleBonus`, `syncAutoBonusesForRecord` (same doc shape as `syncBonusesForRecord`, percents from `settings.automobile.bonus`), `getAutoReviewData`, `backfillAuto`
+- [x] `routes/autobill.routes.js` (new) + mount `/autobills` in `index.js`; guard: only automobile-type tenants may use it; audit actions `autobill.*`
+- [x] `routes/bonus.routes.js`: `/review` and `/sync` branch by tenant businessType (radiator path unchanged)
+- [x] Open PR 1 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/16)
+- [ ] Radiator-regression review + merge (awaiting reviewer pass)
 
 ### Phase 2 — Billing screens (branch `claude/automobile-billing-phase-2`, PR: _not opened yet_)
 - [ ] `Context/SettingsContext.tsx`: `AppSettings` + `FALLBACK_SETTINGS` gain `businessType` + `automobile` block (lockstep with backend defaults)
