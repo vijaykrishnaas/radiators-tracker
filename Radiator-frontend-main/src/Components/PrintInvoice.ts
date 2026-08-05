@@ -246,6 +246,197 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
 };
 
 /**
+ * Automobile-vertical invoice. Same A5 layout/branding as printInvoice, with
+ * a Qty/Unit/Rate/Amount line-item table instead of the radiator Description/
+ * Qty(fixed "1")/Amount table. Kept as a separate function (not a branch
+ * inside printInvoice) so the radiator invoice path is untouched.
+ */
+export const printAutoInvoice = async (o: any, settings: AppSettings) => {
+    const accent = hexToRgb(settings.branding.primaryColor);
+    const ink: RGB = [29, 29, 31];
+    const sub: RGB = [110, 110, 115];
+    const hair: RGB = [224, 224, 229];
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
+
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 12;
+
+    const setRGB = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
+    const drawRGB = (c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
+    const rs = (n: number) => `Rs ${money(n)}`;
+
+    const invoiceSettings = settings.automobile.invoice;
+    const labels = settings.automobile.labels;
+
+    const gross = o.totalAmount ?? (o.items || []).reduce((sum: number, i: any) => sum + Number(i.amount || 0), 0);
+    const discount = Math.max(Number(o.discount || 0), 0);
+    const net = o.netAmount ?? Math.max(gross - discount, 0);
+    const received = Number(o.receivedAmount || 0);
+    const billDateObj = o.billDate ? new Date(o.billDate) : new Date();
+    const billDate = billDateObj.toLocaleDateString("en-IN");
+
+    const titleText = (invoiceSettings.billTitle || "Invoice").toUpperCase();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    const titleW = doc.getTextWidth(titleText);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    const metaW = Math.max(titleW, doc.getTextWidth(billDate));
+    const nameMaxW = Math.max(46, W - 2 * M - metaW - 8);
+
+    const coName = (settings.company.name || "").trim().toUpperCase();
+    const nameY = 15.5;
+    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
+    doc.text(coName, M, nameY, { maxWidth: nameMaxW });
+    const nameH = coName
+        ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: 17 }).h
+        : 6;
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
+    doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    doc.text(billDate, W - M, nameY + 5, { align: "right" });
+    if (o.billNo != null) {
+        doc.text(`Bill No: ${o.billNo}`, W - M, nameY + 9.5, { align: "right" });
+    }
+
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
+    let cy = nameY + Math.max(nameH, 6) + 2.5;
+    if (settings.company.address) {
+        doc.text(settings.company.address, M, cy, { maxWidth: 84 });
+        cy += doc.getTextDimensions(settings.company.address, { maxWidth: 84, fontSize: 7 }).h + 1;
+    }
+    const phone = `${settings.company.phone1 || ""}${settings.company.phone2 ? "  ·  " + settings.company.phone2 : ""}`;
+    if (phone.trim()) doc.text(phone, M, cy);
+
+    let y = Math.max(36, cy + 7);
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, y - 4, W - M, y - 4);
+
+    const colR = W / 2 + 6;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub);
+    doc.text("BILLED TO", M, y);
+    doc.text("DETAILS", colR, y);
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
+    doc.text(String(o.customerName || "—").trim(), M, y + 5);
+    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
+
+    const details: [string, string][] = [[labels.vehicleNo || "Vehicle", o.vehicleNumber || "—"]];
+    if (o.mechanicName) details.push([labels.agent || "Mechanic", o.mechanicName]);
+    doc.setFontSize(7.5);
+    let dy = y + 5;
+    details.forEach(([k, v]) => {
+        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
+        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v).trim(), W - M, dy, { align: "right", maxWidth: 50 });
+        dy += 4.6;
+    });
+    y = Math.max(y + 13, dy + 3);
+
+    autoTable(doc, {
+        startY: y,
+        margin: { left: M, right: M },
+        head: [["Particulars", "Qty", "Rate", "Amount"]],
+        body: (o.items || []).map((i: any) => [
+            i.particulars,
+            `${i.qty}${i.unit ? " " + i.unit : ""}`,
+            rs(Number(i.rate || 0)),
+            rs(Number(i.amount || 0)),
+        ]),
+        theme: "plain",
+        headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
+        bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
+        columnStyles: {
+            0: { halign: "left" },
+            1: { halign: "center", cellWidth: 20 },
+            2: { halign: "right", cellWidth: 24 },
+            3: { halign: "right", cellWidth: 28 },
+        },
+        didParseCell: (data: any) => {
+            data.cell.styles.halign = data.column.index === 0 ? "left" : data.column.index === 1 ? "center" : "right";
+        },
+        didDrawCell: (data: any) => {
+            if (data.section === "head" || data.section === "body") {
+                drawRGB(hair);
+                doc.setLineWidth(data.section === "head" ? 0.35 : 0.2);
+                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+            }
+        },
+    });
+
+    let ty = (doc as any).lastAutoTable.finalY + 7;
+    const valX = W - M;
+    const labX = W - 58;
+    const row = (label: string, val: string, opt: { bold?: boolean; size?: number; lc?: RGB; vc?: RGB; gap?: number } = {}) => {
+        doc.setFont("helvetica", opt.bold ? "bold" : "normal");
+        doc.setFontSize(opt.size || 8);
+        setRGB(opt.lc || sub); doc.text(label, labX, ty);
+        setRGB(opt.vc || ink); doc.text(val, valX, ty, { align: "right" });
+        ty += opt.gap || 5;
+    };
+    row("Subtotal", rs(gross));
+    if (discount > 0) row("Discount", `- ${rs(discount)}`);
+    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 2.6, valX, ty - 2.6); ty += 1.5;
+    row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
+    if (received > 0) row("Amount paid", rs(received));
+
+    const QR = 30;
+    const footerLineY = H - 9;
+    const blockH = Math.max(QR + 9, 28);
+    const sectionY = Math.max(ty + 4, footerLineY - 3 - blockH);
+    let qrShown = false;
+    const drawQrCaption = () => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7); setRGB(ink);
+        doc.text("Scan to pay", M, sectionY + QR + 5);
+        if (settings.company.upiDisplay) { doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); setRGB(sub); doc.text(settings.company.upiDisplay, M, sectionY + QR + 9); }
+    };
+    if (settings.company.qrUrl) {
+        try {
+            const { dataUrl, format } = await fetchImageDataUrl(settings.company.qrUrl);
+            doc.addImage(dataUrl, format, M, sectionY, QR, QR);
+            drawQrCaption(); qrShown = true;
+        } catch { /* fall through */ }
+    }
+    if (!qrShown && invoiceSettings.showQr && settings.company.upiId) {
+        const upi = `upi://pay?pa=${encodeURIComponent(settings.company.upiId)}&pn=${encodeURIComponent(settings.company.name)}&am=${net}&cu=INR`;
+        const qr = await QRCode.toDataURL(upi, { margin: 0 });
+        doc.addImage(qr, "PNG", M, sectionY, QR, QR);
+        drawQrCaption();
+    } else if (!qrShown && settings.company.upiDisplay) {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub); doc.text("PAY VIA", M, sectionY + 6);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink); doc.text(settings.company.upiDisplay, M, sectionY + 11);
+    }
+
+    const fitOneLine = (text: string, maxW: number, size: number) => {
+        doc.setFontSize(size);
+        if (doc.getTextWidth(text) <= maxW) return text;
+        let t = text;
+        while (t.length > 1 && doc.getTextWidth(t + "…") > maxW) t = t.slice(0, -1);
+        return t.trimEnd() + "…";
+    };
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    doc.text(fitOneLine(`For ${settings.company.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
+    if (invoiceSettings.showSignature && settings.company.signatureUrl) {
+        try {
+            const { dataUrl, format } = await fetchImageDataUrl(settings.company.signatureUrl);
+            doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
+        } catch { /* fall through to a blank signing space */ }
+    }
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(W - 48, sectionY + 24, W - M, sectionY + 24);
+    doc.setFontSize(6.5); setRGB(sub);
+    doc.text("Authorised signatory", W - M, sectionY + 28, { align: "right" });
+
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, H - 9, W - M, H - 9);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
+    const footer = [invoiceSettings.footerNote, settings.company.name].filter(Boolean).join("  ·  ");
+    doc.text(footer, W / 2, H - 5, { align: "center" });
+
+    const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    doc.save(`Invoice-${fileDate}-${o.vehicleNumber || ""}.pdf`);
+};
+
+/**
  * A4 summary report over the currently filtered records: totals, payment
  * position, and breakdowns by product model, service type, and mechanic.
  */

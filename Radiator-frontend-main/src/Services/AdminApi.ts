@@ -2,10 +2,13 @@
 // JWT (a super-admin token) is attached automatically by the request interceptor.
 import { getData, postData, patchData, deleteData } from "./ApiServices";
 
+export type BusinessType = "radiator" | "automobile";
+
 export type ClientRow = {
     _id: string;
     name: string;
     code: string;
+    businessType?: BusinessType;
     status: "active" | "suspended";
     adminUserId: string;
     lastLoginAt: string | null;
@@ -30,13 +33,14 @@ export const createClient = (payload: {
     code: string;
     adminUserId: string;
     adminPassword: string;
+    businessType?: BusinessType;
 }): Promise<{ client: ClientRow; handover: HandoverInfo }> =>
     postData("admin/clients", payload);
 
 export type ImportResult = { name: string; code: string; status: "created" | "skipped" | "error"; message?: string };
 
 export const importClients = (
-    clients: { name: string; code: string; adminUserId: string; adminPassword: string }[]
+    clients: { name: string; code: string; adminUserId: string; adminPassword: string; businessType?: BusinessType }[]
 ): Promise<{ created: number; total: number; results: ImportResult[] }> =>
     postData("admin/clients/import", { clients });
 
