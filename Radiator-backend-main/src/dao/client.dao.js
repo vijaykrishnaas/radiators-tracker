@@ -31,12 +31,21 @@ export async function getClientStatus(clientId) {
     .findOne({ _id: toClientId(clientId) }, { projection: { status: 1 } });
 }
 
-export async function createClient({ name, code, adminUserId }) {
+// Tenant verticals. Fixed at provisioning; a missing field means "radiator"
+// so every pre-existing client keeps its exact current behavior.
+export const BUSINESS_TYPES = ["radiator", "automobile"];
+
+export function normalizeBusinessType(businessType) {
+  return BUSINESS_TYPES.includes(businessType) ? businessType : "radiator";
+}
+
+export async function createClient({ name, code, adminUserId, businessType }) {
   const db = await connectDB();
   const now = new Date();
   const doc = {
     name: String(name).trim(),
     code: normalizeCode(code),
+    businessType: normalizeBusinessType(businessType),
     status: "active",
     adminUserId: String(adminUserId).trim(),
     lastLoginAt: null,
@@ -51,7 +60,7 @@ export async function listClients() {
   const db = await connectDB();
   return db
     .collection(COLLECTION)
-    .find({}, { projection: { name: 1, code: 1, status: 1, adminUserId: 1, lastLoginAt: 1, createdAt: 1 } })
+    .find({}, { projection: { name: 1, code: 1, businessType: 1, status: 1, adminUserId: 1, lastLoginAt: 1, createdAt: 1 } })
     .sort({ createdAt: -1 })
     .toArray();
 }
@@ -80,14 +89,15 @@ export async function touchLastLogin(clientId) {
 export async function exportClientData(clientId) {
   const cid = toClientId(clientId);
   const db = await connectDB();
-  const [client, settings, radiators, bonuses, expenses] = await Promise.all([
+  const [client, settings, radiators, autobills, bonuses, expenses] = await Promise.all([
     db.collection("clients").findOne({ _id: cid }),
     db.collection("settings").findOne({ _id: cid }),
     db.collection("radiators").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
+    db.collection("autobills").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("bonuses").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("expenses").find({ clientId: cid }).sort({ date: 1 }).toArray(),
   ]);
-  return { client, settings, radiators, bonuses, expenses };
+  return { client, settings, radiators, autobills, bonuses, expenses };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -100,6 +110,7 @@ export async function offboardClient(clientId) {
 
   const counts = {};
   counts.radiators = (await db.collection("radiators").deleteMany({ clientId: cid })).deletedCount;
+  counts.autobills = (await db.collection("autobills").deleteMany({ clientId: cid })).deletedCount;
   counts.bonuses = (await db.collection("bonuses").deleteMany({ clientId: cid })).deletedCount;
   counts.expenses = (await db.collection("expenses").deleteMany({ clientId: cid })).deletedCount;
   counts.settings = (await db.collection("settings").deleteOne({ _id: cid })).deletedCount;

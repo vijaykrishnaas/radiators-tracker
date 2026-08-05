@@ -9,9 +9,12 @@ import {
   addManualBonus,
   adjustPendingPayable,
   getReviewData,
+  getAutoReviewData,
   backfill,
+  backfillAuto,
 } from "../dao/bonus.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
+import { getClientById } from "../dao/client.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
 
 const router = Router();
@@ -72,7 +75,13 @@ router.get("/review", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "name, from, to are required" });
     }
     const settings = await getSettings(req.user.clientId);
-    const data = await getReviewData(req.user.clientId, type, name, from, to, settings);
+    // Automobile tenants have no serviceInfo/radiatorType matrix — their bills
+    // live in `autobills` and bonus is a flat %, so review data is sourced
+    // from a parallel aggregation. Radiator tenants take the existing path.
+    const client = await getClientById(req.user.clientId);
+    const data = client?.businessType === "automobile"
+      ? await getAutoReviewData(req.user.clientId, type, name, from, to, settings)
+      : await getReviewData(req.user.clientId, type, name, from, to, settings);
     res.json({ success: true, ...data });
   } catch (error) {
     next(error);
@@ -155,7 +164,10 @@ router.post("/adjust", async (req, res, next) => {
 router.post("/sync", async (req, res, next) => {
   try {
     const { fromDate = "", toDate = "" } = req.body || {};
-    const count = await backfill(req.user.clientId, fromDate, toDate);
+    const client = await getClientById(req.user.clientId);
+    const count = client?.businessType === "automobile"
+      ? await backfillAuto(req.user.clientId, fromDate, toDate)
+      : await backfill(req.user.clientId, fromDate, toDate);
     res.json({ success: true, message: `Synced bonuses for ${count} bill(s) ✅`, count });
   } catch (error) {
     next(error);
