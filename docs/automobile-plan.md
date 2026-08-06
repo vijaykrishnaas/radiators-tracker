@@ -30,12 +30,13 @@
 - [x] Open PR 2 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/17); `npx tsc --noEmit` clean
 - [ ] Radiator-regression review + merge (awaiting reviewer pass)
 
-### Phase 3 — Dashboard, gating & settings (branch `claude/automobile-billing-phase-3`, PR: _not opened yet_)
-- [ ] `Pages/Automobile/Dashboard/Index.tsx`: KPIs, monthly trend, status breakdown from `GET /autobills/analytics`
-- [ ] `App.tsx`: lazy routes `/automobile/dashboard`, `/automobile/dashboard/create|view/:id|edit/:id`, `/automobile/billing`; `BusinessRoute` wrapper redirecting each tenant type off the other's screens (Loader while settings load)
-- [ ] `Common/Header.tsx`: automobile tenants' Dashboard/Bills links point to `/automobile/...`; radiator branch renders existing JSX
-- [ ] `Pages/Settings/Index.tsx`: automobile tenants get Parts Catalog / Units / flat Bonus % / automobile Labels & Invoice tabs; radiator tab list untouched
-- [ ] Open PR 3
+### Phase 3 — Dashboard, gating & settings (branch `claude/automobile-billing-phase-3`, PR: **#18, open**)
+- [x] `Pages/Automobile/Dashboard/Index.tsx`: KPIs, monthly trend, status breakdown from `GET /autobills/analytics`
+- [x] `App.tsx`: lazy routes `/automobile/dashboard`, `/automobile/dashboard/create|view/:id|edit/:id`, `/automobile/billing`; `BusinessRoute` wrapper redirecting each tenant type off the other's screens (Loader while settings load)
+- [x] `Common/Header.tsx`: automobile tenants' Dashboard/Bills links point to `/automobile/...`; radiator branch renders existing JSX
+- [x] `Pages/Settings/Index.tsx`: automobile tenants get Parts Catalog / Units / flat Bonus % / automobile Labels & Invoice tabs; radiator tab list untouched
+- [x] Open PR 3 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/18); `npx tsc --noEmit` clean
+- [ ] Radiator-regression review + merge (awaiting reviewer pass)
 - [ ] Final end-to-end verification (see plan §6) and disable the build Routines
 
 ## Approved plan
