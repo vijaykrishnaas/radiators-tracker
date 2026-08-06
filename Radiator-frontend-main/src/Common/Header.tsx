@@ -14,10 +14,14 @@ const Header = () => {
     const location = useLocation();
     const { settings } = useSettings();
     const user = getUser();
+    const isAutomobile = settings.businessType === 'automobile';
 
-    // Bill create/edit/view live under /issueCounter/dashboard/* — keep "Bills" lit there.
+    // Bill create/edit/view live under /issueCounter/dashboard/* (or /automobile/dashboard/*
+    // for automobile tenants) — keep "Bills" lit there.
     const navClass = (active: boolean) => `nav-link${active ? ' active' : ''}`;
-    const onDashboardSub = location.pathname.startsWith('/issueCounter/dashboard/');
+    const dashboardPath = isAutomobile ? '/automobile/dashboard' : '/issueCounter/dashboard';
+    const billingPath = isAutomobile ? '/automobile/billing' : '/issueCounter/billing';
+    const onDashboardSub = location.pathname.startsWith(`${dashboardPath}/`);
 
     const handleLogout = () => {
         clearSession();
@@ -48,7 +52,7 @@ const Header = () => {
         <header className="header">
             <nav className="navbar navbar-expand-lg bg-header fixed-top" id="header">
                 <div className="container-fluid">
-                    <a className="navbar-brand font-s16 font-w600 d-flex align-items-center gap-2" href="/issueCounter/dashboard" style={{ color: 'var(--titleColor)' }}>
+                    <a className="navbar-brand font-s16 font-w600 d-flex align-items-center gap-2" href={dashboardPath} style={{ color: 'var(--titleColor)' }}>
                         {settings.company.logoUrl && (
                             <img
                                 src={settings.company.logoUrl.startsWith('/') ? `${import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5000'}${settings.company.logoUrl}` : settings.company.logoUrl}
@@ -68,13 +72,13 @@ const Header = () => {
                             </a>
                             <ul className="navbar-nav navbar-nav-header mb-2 mb-lg-0">
                                 <li className="nav-item">
-                                    <NavLink end to="/issueCounter/dashboard" onClick={handleNavLinkClick}
+                                    <NavLink end to={dashboardPath} onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive)}>
                                         Dashboard
                                     </NavLink>
                                 </li>
                                 <li className="nav-item">
-                                    <NavLink to="/issueCounter/billing" onClick={handleNavLinkClick}
+                                    <NavLink to={billingPath} onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive || onDashboardSub)}>
                                         Bills
                                     </NavLink>

@@ -31,6 +31,9 @@ const BillingPage = lazy(() => import("./Pages/IssueCounter/Billing/Index"));
 const ExpensesPage = lazy(() => import("./Pages/IssueCounter/Expenses/Index"));
 const CreateRadiators = lazy(() => import("./Pages/IssueCounter/Dashboard/Components/CreateRadiators"));
 const SettingsPage = lazy(() => import("./Pages/Settings/Index"));
+const AutoDashboard = lazy(() => import("./Pages/Automobile/Dashboard/Index"));
+const AutoBillingPage = lazy(() => import("./Pages/Automobile/Billing/Index"));
+const CreateAutoBill = lazy(() => import("./Pages/Automobile/Dashboard/Components/CreateAutoBill"));
 const MechanicBonus = lazy(() => import("./Pages/Bonus/Mechanic"));
 const LabourBonus = lazy(() => import("./Pages/Bonus/Labour"));
 const MechanicReview = lazy(() => import("./Pages/Bonus/MechanicReview"));
@@ -41,7 +44,7 @@ const AdminClients = lazy(() => import("./Pages/Admin/Clients/Index"));
 const AdminAudit = lazy(() => import("./Pages/Admin/Audit/Index"));
 const ChangePassword = lazy(() => import("./Pages/ChangePassword/Index"));
 
-import { SettingsProvider } from "./Context/SettingsContext";
+import { SettingsProvider, useSettings } from "./Context/SettingsContext";
 import { isLoggedIn, isSuperAdmin } from "./Services/Auth";
 
 // Client-app routes: must be logged in and NOT a super-admin.
@@ -51,6 +54,23 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
   if (isSuperAdmin()) {
     return <Navigate to="/admin/clients" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Gates radiator-only and automobile-only screens by the tenant's businessType
+// (learned from GET /settings). Waits for settings to load before deciding, so
+// a radiator tenant never sees a flash-redirect off their own dashboard.
+const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" }> = ({ children, type }) => {
+  const { settings, loading } = useSettings();
+  if (loading) return <Loader loading={true} />;
+  if (settings.businessType !== type) {
+    return (
+      <Navigate
+        to={settings.businessType === "automobile" ? "/automobile/billing" : "/issueCounter/billing"}
+        replace
+      />
+    );
   }
   return <>{children}</>;
 };
@@ -121,11 +141,16 @@ const AppLayout: React.FC = () => {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/clients" element={<RequireSuperAdmin><AdminClients /></RequireSuperAdmin>} />
           <Route path="/admin/audit" element={<RequireSuperAdmin><AdminAudit /></RequireSuperAdmin>} />
-          <Route path="/issueCounter/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/issueCounter/dashboard/create" element={<ProtectedRoute><CreateRadiators /></ProtectedRoute>} />
-          <Route path="/issueCounter/dashboard/view/:id" element={<ProtectedRoute><CreateRadiators /></ProtectedRoute>} />
-          <Route path="/issueCounter/dashboard/edit/:id" element={<ProtectedRoute><CreateRadiators /></ProtectedRoute>} />
-          <Route path="/issueCounter/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+          <Route path="/issueCounter/dashboard" element={<ProtectedRoute><BusinessRoute type="radiator"><Dashboard /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/issueCounter/dashboard/create" element={<ProtectedRoute><BusinessRoute type="radiator"><CreateRadiators /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/issueCounter/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="radiator"><CreateRadiators /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/issueCounter/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="radiator"><CreateRadiators /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/issueCounter/billing" element={<ProtectedRoute><BusinessRoute type="radiator"><BillingPage /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/dashboard" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoDashboard /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/dashboard/create" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/billing" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoBillingPage /></BusinessRoute></ProtectedRoute>} />
           <Route path="/issueCounter/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/audit" element={<ProtectedRoute><ClientAudit /></ProtectedRoute>} />
