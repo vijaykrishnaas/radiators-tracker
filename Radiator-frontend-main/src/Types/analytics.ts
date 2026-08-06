@@ -16,6 +16,15 @@ export type BillingAnalytics = {
     topMechanics: Array<{ mechanic: string; count: number; revenue: number }>;
 };
 
+// Automobile bills have no product/service matrix, so their analytics facet
+// is a subset of BillingAnalytics (kpis/byMonth/byStatus/topMechanics only).
+export type AutoBillingAnalytics = {
+    kpis: AnalyticsKpis;
+    byMonth: Array<{ month: string; revenue: number; collected: number; count: number }>;
+    byStatus: Array<{ status: string; count: number; revenue: number }>;
+    topMechanics: Array<{ mechanic: string; count: number; revenue: number }>;
+};
+
 export type ExpenseAnalytics = {
     totalExpenses: number;
     byType: Array<{ type: string; count: number; amount: number }>;

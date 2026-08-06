@@ -37,6 +37,17 @@ const SettingsPage = () => {
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
     const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice">("company");
+    const [newPartLabel, setNewPartLabel] = useState("");
+    const [newPartUnit, setNewPartUnit] = useState("");
+    const [newPartRate, setNewPartRate] = useState("");
+    const [newUnit, setNewUnit] = useState("");
+
+    // Automobile tenants get a parallel set of settings tabs (parts catalog,
+    // flat bonus %, automobile-specific labels/invoice) instead of the
+    // radiator catalog/price-matrix/bonus-matrix tabs. Radiator behavior below
+    // is untouched — every automobile branch is additive.
+    const isAutomobile = draft.businessType === "automobile";
+    const auto = draft.automobile;
 
     const uploadLogo = async (file: File | undefined) => {
         if (!file) return;
@@ -220,6 +231,43 @@ const SettingsPage = () => {
         </div>
     );
 
+    // ---- Automobile: parts catalog ----
+    const addPart = () => {
+        if (!newPartLabel.trim()) return;
+        const value = slugify(newPartLabel);
+        if (auto.parts.some((p) => p.value === value)) return;
+        set("automobile.parts", [
+            ...auto.parts,
+            { label: newPartLabel.trim(), value, unit: newPartUnit.trim(), rate: Number(newPartRate || 0) },
+        ]);
+        setNewPartLabel(""); setNewPartUnit(""); setNewPartRate("");
+    };
+
+    const removePart = (value: string) => {
+        set("automobile.parts", auto.parts.filter((p) => p.value !== value));
+    };
+
+    const updatePartField = (value: string, field: "label" | "unit" | "rate", fieldValue: string) => {
+        set(
+            "automobile.parts",
+            auto.parts.map((p) =>
+                p.value === value ? { ...p, [field]: field === "rate" ? Number(fieldValue || 0) : fieldValue } : p
+            )
+        );
+    };
+
+    // ---- Automobile: units ----
+    const addUnit = () => {
+        const u = newUnit.trim();
+        if (!u || auto.units.includes(u)) return;
+        set("automobile.units", [...auto.units, u]);
+        setNewUnit("");
+    };
+
+    const removeUnit = (u: string) => {
+        set("automobile.units", auto.units.filter((x) => x !== u));
+    };
+
     // ---- Labour tags ----
     const labourTags: Tag[] = draft.labour.map((name) => ({ id: name, text: name, className: "" }));
 
@@ -319,7 +367,13 @@ const SettingsPage = () => {
 
                 {/* Tabbed sections — Save All Settings (above) persists every tab at once. */}
                 <div className="settings-tabs mb-4" role="tablist">
-                    {([
+                    {(isAutomobile ? [
+                        ["company", "Company"],
+                        ["catalog", "Parts Catalog"],
+                        ["people", `${auto.labels.agent} & ${auto.labels.worker}`],
+                        ["bonus", "Bonus"],
+                        ["invoice", "Labels & Invoice"],
+                    ] as const : [
                         ["company", "Company"],
                         ["catalog", "Catalog & Pricing"],
                         ["people", `${draft.labels.agent} & ${draft.labels.worker}`],
@@ -469,8 +523,114 @@ const SettingsPage = () => {
 
                 )}
 
+                {/* ---- Automobile: Parts Catalog & Units ---- */}
+                {activeTab === "catalog" && isAutomobile && (
+                <>
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Parts Catalog" />
+                        <div className="row form-group g-3">
+                            <div className="col-xl-4">
+                                <label className="form-label" htmlFor="new-part-label">Part Name</label>
+                                <InputText id="new-part-label" value={newPartLabel} placeholder="e.g. Engine Oil 15W40"
+                                    onChange={(e) => setNewPartLabel(e.target.value)} />
+                            </div>
+                            <div className="col-xl-3">
+                                <label className="form-label" htmlFor="new-part-unit">Unit</label>
+                                <InputText id="new-part-unit" value={newPartUnit} placeholder="e.g. L"
+                                    onChange={(e) => setNewPartUnit(e.target.value)} />
+                            </div>
+                            <div className="col-xl-3">
+                                <label className="form-label" htmlFor="new-part-rate">Default Rate (₹)</label>
+                                <InputText id="new-part-rate" type="number" value={newPartRate} placeholder="e.g. 450"
+                                    onChange={(e) => setNewPartRate(e.target.value)} />
+                            </div>
+                            <div className="col-xl-2 d-flex align-items-end">
+                                <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center w-100" onClick={addPart}>
+                                    <Icons iconName="addcircle" className="icon-15 icon-white me-1" />Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="table-body mt-3">
+                            <table className="table table-bordered font-s14 align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Part Name</th>
+                                        <th style={{ width: "140px" }}>Unit</th>
+                                        <th style={{ width: "160px" }}>Rate (₹)</th>
+                                        <th style={{ width: "60px" }} aria-label="Actions"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {auto.parts.map((p) => (
+                                        <tr key={p.value}>
+                                            <td>
+                                                <input type="text" className="form-control form-control-sm"
+                                                    aria-label={`${p.label} name`}
+                                                    value={p.label}
+                                                    onChange={(e) => updatePartField(p.value, "label", e.target.value)} />
+                                            </td>
+                                            <td>
+                                                <input type="text" className="form-control form-control-sm"
+                                                    aria-label={`${p.label} unit`}
+                                                    value={p.unit}
+                                                    onChange={(e) => updatePartField(p.value, "unit", e.target.value)} />
+                                            </td>
+                                            <td>
+                                                <input type="number" className="form-control form-control-sm"
+                                                    aria-label={`${p.label} rate`}
+                                                    value={p.rate}
+                                                    onChange={(e) => updatePartField(p.value, "rate", e.target.value)} />
+                                            </td>
+                                            <td className="text-center">
+                                                <span role="button" aria-label={`Remove ${p.label}`} title={`Remove ${p.label}`}
+                                                    onClick={() => removePart(p.value)}>
+                                                    <Icons iconName="delete" className="icon-15" />
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {!auto.parts.length && (
+                                        <tr><td colSpan={4} className="text-center text-muted py-3">No parts yet</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                            Picking a part on the bill form auto-fills its unit and rate; one-off items can still be typed freely.
+                        </small>
+                    </div>
+                </div>
+
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Units" />
+                        <div className="d-flex gap-2 mb-3">
+                            <InputText value={newUnit} placeholder="e.g. pcs, set, L, kg, hrs"
+                                onChange={(e) => setNewUnit(e.target.value)} />
+                            <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center" onClick={addUnit}>
+                                <Icons iconName="addcircle" className="icon-15 icon-white me-1" />Add
+                            </button>
+                        </div>
+                        <div className="d-flex flex-wrap gap-2">
+                            {auto.units.map((u) => (
+                                <span key={u} className="status-badge d-flex align-items-center gap-2">
+                                    {u}
+                                    <span role="button" aria-label={`Remove ${u}`} onClick={() => removeUnit(u)}>
+                                        <Icons iconName="modelclose" className="icon-12" />
+                                    </span>
+                                </span>
+                            ))}
+                            {!auto.units.length && <span className="text-muted font-s13">No units yet</span>}
+                        </div>
+                    </div>
+                </div>
+                </>
+                )}
+
                 {/* ---- Catalog & Prices ---- */}
-                {activeTab === "catalog" && (
+                {activeTab === "catalog" && !isAutomobile && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Catalog & Price Matrix" />
@@ -574,7 +734,7 @@ const SettingsPage = () => {
                 {activeTab === "people" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
-                        <SectionTitle title={`${draft.labels.agent} List`} />
+                        <SectionTitle title={`${isAutomobile ? auto.labels.agent : draft.labels.agent} List`} />
                         <InputTag
                             tags={mechanicTags}
                             handleDelete={handleMechanicDelete}
@@ -583,7 +743,7 @@ const SettingsPage = () => {
                             inputFieldPosition="bottom"
                             placeholder="Type a name and press Enter"
                         />
-                        <small className="text-muted font-s12">Used as the source for the {draft.labels.agent.toLowerCase()} dropdown in the bill form and filters.</small>
+                        <small className="text-muted font-s12">Used as the source for the {(isAutomobile ? auto.labels.agent : draft.labels.agent).toLowerCase()} dropdown in the bill form and filters.</small>
                     </div>
                 </div>
 
@@ -612,7 +772,7 @@ const SettingsPage = () => {
                 {activeTab === "people" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
-                        <SectionTitle title={`${draft.labels.worker} List`} />
+                        <SectionTitle title={`${isAutomobile ? auto.labels.worker : draft.labels.worker} List`} />
                         <InputTag
                             tags={labourTags}
                             handleDelete={handleLabourDelete}
@@ -626,8 +786,46 @@ const SettingsPage = () => {
 
                 )}
 
+                {/* ---- Automobile: flat-% Bonus ---- */}
+                {activeTab === "bonus" && isAutomobile && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Bonus Configuration" />
+                        <div className="row form-group g-3 mb-3">
+                            <div className="col-xl-3 col-md-6">
+                                <label className="form-label" htmlFor="auto-mech-pct">{auto.labels.agent} Bonus % (of net bill total)</label>
+                                <input id="auto-mech-pct" type="number" className="form-control" min={0} max={100} step={0.5}
+                                    value={auto.bonus.mechanicPercent}
+                                    onChange={(e) => set("automobile.bonus.mechanicPercent", Number(e.target.value || 0))} />
+                            </div>
+                            <div className="col-xl-3 col-md-6">
+                                <label className="form-label" htmlFor="auto-labour-pct">{auto.labels.worker} Bonus % (of net bill total)</label>
+                                <input id="auto-labour-pct" type="number" className="form-control" min={0} max={100} step={0.5}
+                                    value={auto.bonus.labourPercent}
+                                    onChange={(e) => set("automobile.bonus.labourPercent", Number(e.target.value || 0))} />
+                            </div>
+                            <div className="col-xl-3 col-md-6">
+                                <label className="form-label" htmlFor="auto-year-start-month">Bonus year starts in</label>
+                                <select id="auto-year-start-month" className="form-select"
+                                    value={auto.bonus.yearStartMonth}
+                                    onChange={(e) => set("automobile.bonus.yearStartMonth", Number(e.target.value))}>
+                                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
+                                        <option key={m} value={i + 1}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                            {auto.labels.agent} bonus settles yearly; {auto.labels.worker.toLowerCase()} bonus settles daily and is split equally
+                            among the workers listed on each bill. Both are a flat percentage of the bill's net (post-discount) total,
+                            paid in proportion to the amount collected.
+                        </small>
+                    </div>
+                </div>
+                )}
+
                 {/* ---- Bonus ---- */}
-                {activeTab === "bonus" && (
+                {activeTab === "bonus" && !isAutomobile && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Bonus Configuration" />
@@ -698,8 +896,69 @@ const SettingsPage = () => {
 
                 )}
 
+                {/* ---- Automobile: Labels & Invoice ---- */}
+                {activeTab === "invoice" && isAutomobile && (
+                <>
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Field Labels" />
+                        <div className="row form-group g-3">
+                            {textField("Vehicle number label", "automobile.labels.vehicleNo", auto.labels.vehicleNo, "Vehicle Number")}
+                            {textField("Customer label", "automobile.labels.customer", auto.labels.customer, "Customer Name")}
+                        </div>
+                        <div className="row form-group g-3">
+                            {textField("Agent label", "automobile.labels.agent", auto.labels.agent, "Mechanic")}
+                            {textField("Worker label", "automobile.labels.worker", auto.labels.worker, "Labour")}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Invoice Options" />
+                        <div className="row form-group g-3">
+                            {textField("Bill title", "automobile.invoice.billTitle", auto.invoice.billTitle, "CASH / CREDIT BILL")}
+                            {textField("Footer note", "automobile.invoice.footerNote", auto.invoice.footerNote)}
+                        </div>
+                        <div className="row form-group g-3">
+                            <div className="col-xl-6 d-flex align-items-end">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Switch
+                                        key={`auto-qr-${settings.automobile.invoice.showQr}`}
+                                        id="auto-show-qr"
+                                        className="switch"
+                                        switchClassName="blue"
+                                        defaultChecked={auto.invoice.showQr}
+                                        onChange={(e) => set("automobile.invoice.showQr", e.target.checked)}
+                                    />
+                                    <label className="form-label mb-0" htmlFor="auto-show-qr">
+                                        Show payment QR on invoice (requires UPI ID)
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="col-xl-6 d-flex align-items-end">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Switch
+                                        key={`auto-sig-${settings.automobile.invoice.showSignature}`}
+                                        id="auto-show-signature"
+                                        className="switch"
+                                        switchClassName="blue"
+                                        defaultChecked={auto.invoice.showSignature}
+                                        onChange={(e) => set("automobile.invoice.showSignature", e.target.checked)}
+                                    />
+                                    <label className="form-label mb-0" htmlFor="auto-show-signature">
+                                        Show signature on invoice (requires a signature image)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </>
+                )}
+
                 {/* ---- Labels ---- */}
-                {activeTab === "invoice" && (
+                {activeTab === "invoice" && !isAutomobile && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Field Labels" />
@@ -720,7 +979,7 @@ const SettingsPage = () => {
                 )}
 
                 {/* ---- Invoice ---- */}
-                {activeTab === "invoice" && (
+                {activeTab === "invoice" && !isAutomobile && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Invoice Options" />
