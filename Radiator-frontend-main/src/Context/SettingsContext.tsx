@@ -11,7 +11,38 @@ export type CatalogOption = {
     requiresComment?: boolean;
 };
 
+export type BusinessType = "radiator" | "automobile";
+
+export type AutoPart = {
+    label: string;
+    value: string;
+    unit: string;
+    rate: number;
+};
+
 export type AppSettings = {
+    businessType: BusinessType;
+    automobile: {
+        units: string[];
+        parts: AutoPart[];
+        bonus: {
+            mechanicPercent: number;
+            labourPercent: number;
+            yearStartMonth: number;
+        };
+        labels: {
+            vehicleNo: string;
+            customer: string;
+            agent: string;
+            worker: string;
+        };
+        invoice: {
+            billTitle: string;
+            footerNote: string;
+            showQr: boolean;
+            showSignature: boolean;
+        };
+    };
     company: {
         name: string;
         address: string;
@@ -65,6 +96,19 @@ export type AppSettings = {
 
 // Safe fallbacks so components render before the fetch resolves.
 export const FALLBACK_SETTINGS: AppSettings = {
+    businessType: "radiator",
+    automobile: {
+        units: ["pcs", "set", "L", "kg", "hrs"],
+        parts: [],
+        bonus: { mechanicPercent: 0, labourPercent: 0, yearStartMonth: 4 },
+        labels: {
+            vehicleNo: "Vehicle Number",
+            customer: "Customer Name",
+            agent: "Mechanic",
+            worker: "Labour",
+        },
+        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
+    },
     company: { name: "", address: "", phone1: "", phone2: "", upiId: "", upiDisplay: "", logoUrl: "" },
     branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#FFFFFF" },
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },

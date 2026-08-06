@@ -16,6 +16,7 @@ import {
     type ClientRow,
     type HandoverInfo,
     type ImportResult,
+    type BusinessType,
 } from "../../../Services/AdminApi";
 import ClientSettingsModal from "./ClientSettingsModal";
 
@@ -53,6 +54,7 @@ const Clients: React.FC = () => {
     const [codeEdited, setCodeEdited] = useState(false);
     const [addUserId, setAddUserId] = useState("");
     const [addPassword, setAddPassword] = useState("");
+    const [addBusinessType, setAddBusinessType] = useState<BusinessType>("radiator");
 
     // Handover (shown after create)
     const [handover, setHandover] = useState<HandoverInfo | null>(null);
@@ -97,7 +99,7 @@ const Clients: React.FC = () => {
     }, []);
 
     const resetAdd = () => {
-        setAddName(""); setAddCode(""); setCodeEdited(false); setAddUserId(""); setAddPassword("");
+        setAddName(""); setAddCode(""); setCodeEdited(false); setAddUserId(""); setAddPassword(""); setAddBusinessType("radiator");
     };
 
     const onAddNameChange = (v: string) => {
@@ -117,6 +119,7 @@ const Clients: React.FC = () => {
                 code: addCode.trim(),
                 adminUserId: addUserId.trim(),
                 adminPassword: addPassword,
+                businessType: addBusinessType,
             });
             setShowAdd(false);
             resetAdd();
@@ -218,7 +221,7 @@ const Clients: React.FC = () => {
 
     const downloadTemplate = () => {
         const ws = XLSX.utils.json_to_sheet([
-            { "Business Name": "Example Garage", "Business Code": "example-garage", "Admin Username": "admin", "Admin Password": "changeme123" },
+            { "Business Name": "Example Garage", "Business Code": "example-garage", "Admin Username": "admin", "Admin Password": "changeme123", "Business Type": "radiator" },
         ]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Clients");
@@ -235,12 +238,16 @@ const Clients: React.FC = () => {
             const ws = wb.Sheets[wb.SheetNames[0]];
             const rows: any[] = XLSX.utils.sheet_to_json(ws);
             const payload = rows
-                .map((r) => ({
-                    name: String(r["Business Name"] ?? r["name"] ?? "").trim(),
-                    code: String(r["Business Code"] ?? r["code"] ?? "").trim(),
-                    adminUserId: String(r["Admin Username"] ?? r["adminUserId"] ?? "").trim(),
-                    adminPassword: String(r["Admin Password"] ?? r["adminPassword"] ?? ""),
-                }))
+                .map((r) => {
+                    const rawType = String(r["Business Type"] ?? r["businessType"] ?? "").trim().toLowerCase();
+                    return {
+                        name: String(r["Business Name"] ?? r["name"] ?? "").trim(),
+                        code: String(r["Business Code"] ?? r["code"] ?? "").trim(),
+                        adminUserId: String(r["Admin Username"] ?? r["adminUserId"] ?? "").trim(),
+                        adminPassword: String(r["Admin Password"] ?? r["adminPassword"] ?? ""),
+                        businessType: (rawType === "automobile" ? "automobile" : "radiator") as BusinessType,
+                    };
+                })
                 .filter((c) => c.name || c.code);
             if (!payload.length) {
                 callAlertMsg("No client rows found. Use the template columns.", "error");
@@ -370,6 +377,7 @@ const Clients: React.FC = () => {
                                         <th>SI No</th>
                                         <th>Business Name</th>
                                         <th>Code</th>
+                                        <th>Type</th>
                                         <th>Admin Login</th>
                                         <th>Status</th>
                                         <th>Last Login</th>
@@ -383,6 +391,11 @@ const Clients: React.FC = () => {
                                             <td>{i + 1}</td>
                                             <td className="font-w600">{c.name}</td>
                                             <td><code>{c.code}</code></td>
+                                            <td>
+                                                <span className={`status-badge ${c.businessType === "automobile" ? "status-badge-primary" : ""}`}>
+                                                    {c.businessType === "automobile" ? "Automobile" : "Radiator"}
+                                                </span>
+                                            </td>
                                             <td>{c.adminUserId}</td>
                                             <td>
                                                 <span className={`status-badge ${c.status === "active" ? "status-badge-success" : "status-badge-warning"}`}>
@@ -404,7 +417,7 @@ const Clients: React.FC = () => {
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={8} className="text-center py-3 text-muted">{clients.length ? "No clients match your search" : "No clients yet"}</td></tr>
+                                        <tr><td colSpan={9} className="text-center py-3 text-muted">{clients.length ? "No clients match your search" : "No clients yet"}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -442,6 +455,13 @@ const Clients: React.FC = () => {
                                         <label className="form-label font-w500">Admin Password *</label>
                                         <input className="form-control" type="text" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="min 6 characters" />
                                     </div>
+                                </div>
+                                <div className="mt-3">
+                                    <label className="form-label font-w500">Business Type <span className="text-muted font-s12">(fixed after creation)</span></label>
+                                    <select className="form-select" value={addBusinessType} onChange={(e) => setAddBusinessType(e.target.value as BusinessType)}>
+                                        <option value="radiator">Radiator</option>
+                                        <option value="automobile">Automobile</option>
+                                    </select>
                                 </div>
                             </div>
                             <div className="modal-footer">
