@@ -30,14 +30,17 @@
 - [x] Open PR 2 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/17); `npx tsc --noEmit` clean
 - [ ] Radiator-regression review + merge (awaiting reviewer pass)
 
-### Phase 3 — Dashboard, gating & settings (branch `claude/automobile-billing-phase-3`, PR: **#18, open**)
+### Phase 3 — Dashboard, gating & settings (branch `claude/automobile-billing-phase-3`, PR: **#18, merged**)
 - [x] `Pages/Automobile/Dashboard/Index.tsx`: KPIs, monthly trend, status breakdown from `GET /autobills/analytics`
 - [x] `App.tsx`: lazy routes `/automobile/dashboard`, `/automobile/dashboard/create|view/:id|edit/:id`, `/automobile/billing`; `BusinessRoute` wrapper redirecting each tenant type off the other's screens (Loader while settings load)
 - [x] `Common/Header.tsx`: automobile tenants' Dashboard/Bills links point to `/automobile/...`; radiator branch renders existing JSX
 - [x] `Pages/Settings/Index.tsx`: automobile tenants get Parts Catalog / Units / flat Bonus % / automobile Labels & Invoice tabs; radiator tab list untouched
 - [x] Open PR 3 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/18); `npx tsc --noEmit` clean
-- [ ] Radiator-regression review + merge (awaiting reviewer pass)
-- [ ] Final end-to-end verification (see plan §6) and disable the build Routines
+- [x] Radiator-regression review (independent subagent review, no blocking findings) + merged into `master`
+- [x] Static verification on final merged `master`: backend `node --check` clean on every file, frontend `npx tsc --noEmit` clean, `/autobills` mounted in `index.js`, `autobills` indexes/export/offboard cascade present in `ensureIndexes.js`/`client.dao.js`, `/automobile/*` routes + nav present in `App.tsx`/`Header.tsx`
+- [ ] **Live manual QA — not run.** This build environment has no MongoDB/Docker daemon available, so the actual runtime flows (provision an automobile client, add parts/bonus % in Settings, create a bill with catalog auto-fill, partial payment, invoice print, cross-type route redirects, offboard cleanup) were never exercised against a running app + database. All 3 PRs merged on code review + static checks only. **Before relying on this in production, a human (or a session with DB access) should run the plan's verification checklist below against a real deployment.**
+
+## Status: code-complete, unverified live. All three phases merged into `master` (#16, #17, #18). The automated build/review Routines are being disabled now — remaining work is manual QA, not further coding.
 
 ## Approved plan
 
