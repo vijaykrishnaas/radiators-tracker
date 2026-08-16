@@ -10,6 +10,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "node src/scripts/migrate-to-multitenant.js",
+    "migrate:backfill": "node src/scripts/backfill-settings.js",
     "test:isolation": "node src/scripts/test-isolation.js"
   },
   "dependencies": {

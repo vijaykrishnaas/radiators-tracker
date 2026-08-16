@@ -18,6 +18,25 @@ export async function ensureIndexes() {
 
   // Audit log (Stage 2) — harmless to ensure early.
   await db.collection("audit_log").createIndex({ at: -1 }, { name: "at_-1" });
+
+  // Salary Management — employees, daily attendance, one-time advances, and
+  // per-employee-per-period settlement records.
+  await db.collection("employees").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("attendance").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("attendance").createIndex(
+    { clientId: 1, employeeId: 1, date: 1 },
+    { unique: true, name: "uniq_client_emp_date" }
+  );
+  await db.collection("advances").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("advances").createIndex(
+    { clientId: 1, employeeId: 1, status: 1 },
+    { name: "client_emp_status" }
+  );
+  await db.collection("salaryPeriods").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("salaryPeriods").createIndex(
+    { clientId: 1, employeeId: 1, periodKey: 1 },
+    { unique: true, name: "uniq_client_emp_period" }
+  );
 }
 
 // Built separately because it must only be created AFTER the migration tags

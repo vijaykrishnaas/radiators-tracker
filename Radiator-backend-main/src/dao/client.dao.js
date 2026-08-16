@@ -89,15 +89,19 @@ export async function touchLastLogin(clientId) {
 export async function exportClientData(clientId) {
   const cid = toClientId(clientId);
   const db = await connectDB();
-  const [client, settings, radiators, autobills, bonuses, expenses] = await Promise.all([
+  const [client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods] = await Promise.all([
     db.collection("clients").findOne({ _id: cid }),
     db.collection("settings").findOne({ _id: cid }),
     db.collection("radiators").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("autobills").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("bonuses").find({ clientId: cid }).sort({ billDate: 1 }).toArray(),
     db.collection("expenses").find({ clientId: cid }).sort({ date: 1 }).toArray(),
+    db.collection("employees").find({ clientId: cid }).sort({ name: 1 }).toArray(),
+    db.collection("attendance").find({ clientId: cid }).sort({ date: 1 }).toArray(),
+    db.collection("advances").find({ clientId: cid }).sort({ date: 1 }).toArray(),
+    db.collection("salaryPeriods").find({ clientId: cid }).sort({ periodKey: 1 }).toArray(),
   ]);
-  return { client, settings, radiators, autobills, bonuses, expenses };
+  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -113,6 +117,10 @@ export async function offboardClient(clientId) {
   counts.autobills = (await db.collection("autobills").deleteMany({ clientId: cid })).deletedCount;
   counts.bonuses = (await db.collection("bonuses").deleteMany({ clientId: cid })).deletedCount;
   counts.expenses = (await db.collection("expenses").deleteMany({ clientId: cid })).deletedCount;
+  counts.employees = (await db.collection("employees").deleteMany({ clientId: cid })).deletedCount;
+  counts.attendance = (await db.collection("attendance").deleteMany({ clientId: cid })).deletedCount;
+  counts.advances = (await db.collection("advances").deleteMany({ clientId: cid })).deletedCount;
+  counts.salaryPeriods = (await db.collection("salaryPeriods").deleteMany({ clientId: cid })).deletedCount;
   counts.settings = (await db.collection("settings").deleteOne({ _id: cid })).deletedCount;
   counts.users = (await db.collection("users").deleteMany({ clientId: cid })).deletedCount;
   await db.collection("counters").deleteOne({ _id: cid });

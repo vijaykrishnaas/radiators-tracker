@@ -117,6 +117,20 @@ export const defaultSettings = {
     },
   },
 
+  // Salary Management configuration. Applies to every tenant regardless of
+  // businessType — employee base salary/attendance are unrelated to billing.
+  salary: {
+    payCycle: "monthly",
+    // "allDays": workingDays = every calendar day in the period.
+    // "excludeWeeklyOff": workingDays excludes weeklyOffDay (0=Sun..6=Sat).
+    workingDayRule: "allDays",
+    weeklyOffDay: 0,
+    payslip: {
+      title: "SALARY SLIP",
+      footerNote: "",
+    },
+  },
+
   labels: {
     vehicleNo: "Truck Number",
     party: "Lorry Address",

@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toCount, toValidDate } from "../utils/sanitize.js";
+import { getPayrollTotal } from "./salary.dao.js";
 
 const COLLECTION = "expenses";
 
@@ -110,10 +111,15 @@ export async function getExpenseAnalytics(clientId, { from = "", to = "" } = {})
     },
   ]).toArray();
 
+  // Read-only payroll figure from Salary Management, sourced from the
+  // `salaryPeriods` collection — never written into `expenses` itself.
+  const payrollTotal = await getPayrollTotal(clientId, { from, to });
+
   return {
     totalExpenses: result?.totals?.[0]?.totalExpenses || 0,
     byType: result?.byType || [],
     byMonth: result?.byMonth || [],
+    payrollTotal,
   };
 }
 
