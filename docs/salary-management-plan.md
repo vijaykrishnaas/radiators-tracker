@@ -36,14 +36,14 @@
 - [x] Manual QA against Phase 1 API via direct URL navigation (no nav wiring yet) — not runnable in this sandboxed environment (no MongoDB/Docker daemon); `npx tsc --noEmit` and a `node --check`-equivalent static pass substituted, same approach used for automobile billing
 - [x] Open PR 2 (https://github.com/vijaykrishnaas/radiators-tracker/pull/20); radiator/automobile/bonus-regression review posted and merged into `master`
 
-### Phase 3 — Nav/routing + expense-analytics integration + regression (branch `claude/salary-management-phase-3`, PR: _not opened yet_)
-- [ ] `App.tsx`: lazy routes `/salary/employees`, `/salary/settle`, plain `ProtectedRoute` (no `BusinessRoute` — applies to both verticals identically)
-- [ ] `Constants/HeaderData.ts`: new `export const Salary: DropdownItem[]` next to `Bonus`
-- [ ] `Common/Header.tsx`: new `<AppDropdown name="Salary" data={Salary} />` line next to the existing Bonus dropdown — purely additive
-- [ ] Frontend expense-analytics view gets an additive display of the new `payrollTotal` field
-- [ ] `npx tsc --noEmit` clean
-- [ ] Open PR 3
-- [ ] Full regression pass (see verification checklist below) and disable the build/review Routines
+### Phase 3 — Nav/routing + expense-analytics integration + regression (branch `claude/salary-management-phase-3`, PR: **#21, merged**)
+- [x] `App.tsx`: lazy routes `/salary/employees`, `/salary/settle`, plain `ProtectedRoute` (no `BusinessRoute` — applies to both verticals identically)
+- [x] `Constants/HeaderData.ts`: new `export const Salary: DropdownItem[]` next to `Bonus`
+- [x] `Common/Header.tsx`: new `<AppDropdown name="Salary" data={Salary} />` line next to the existing Bonus dropdown — purely additive
+- [x] Frontend expense-analytics view gets an additive display of the new `payrollTotal` field (dashboard KPI tile; existing 3 tiles' width class adjusted from `col-md-4` to `col-md-3` to fit 4 — width-only, no logic touched)
+- [x] `npx tsc --noEmit` clean
+- [x] Open PR 3 (https://github.com/vijaykrishnaas/radiators-tracker/pull/21); automated reviewer verdict posted (self-approve blocked by GitHub, recorded as a PR comment), merged into `master`
+- [x] Full regression pass — **static only**, see "Phase 3 verification outcome" below for exactly what ran and what didn't. The build/review Routines were disabled after this pass (see that section).
 
 ## Approved plan
 
@@ -117,3 +117,16 @@ Settings addition (`config/defaultSettings.js`, additive top-level key): `salary
 - Boot against pre-existing client/settings docs: `businessType`/`automobile`/`salary` backfilled where missing; re-boot is a no-op; `npm run migrate:backfill -- --dry-run` matches the real run.
 - New Settings "Salary" tab: change and persist pay-cycle/working-day-rule/payslip text.
 - Full regression: radiator + automobile bill create/edit, bonus sync/settle, Settings mechanics/labour tag editors all byte-identical.
+
+### Phase 3 verification outcome (honest status — read before trusting anything above as "done")
+
+This sandboxed build environment has **no MongoDB/Docker daemon**, so **none of the live-data bullets above were actually exercised** — no employee was created, no attendance was marked, no settlement was run, no payslip PDF was rendered, no backfill migration ran against real data. Anything above involving an actual API call, database write, or rendered PDF is **unverified**, not merely "assumed low-risk." Same posture as was used for the automobile-billing module's Phase 3.
+
+What **did** run, across the final merged `master` (post `#21`, commit `c65c188`):
+- **Backend**: `node --check` on all 12 changed/new backend files (`config/defaultSettings.js`, `config/ensureIndexes.js`, `dao/attendance.dao.js`, `dao/client.dao.js`, `dao/employee.dao.js`, `dao/expense.dao.js`, `dao/salary.dao.js`, `index.js`, `migrations/backfillSettingsShape.js`, `routes/employee.routes.js`, `routes/salary.routes.js`, `scripts/backfill-settings.js`) — all clean (syntax only, no execution against a DB).
+- **Backend boot smoke test**: `node src/index.js` with no `MONGO_URI` set — the process starts, Express mounts every route (including `/employees` and `/salary`), and fails only at the expected `connectDB()` step with "MONGO_URI is not set", the same failure mode `master` already has with no DB configured. This confirms the module doesn't crash the process at import/mount time; it says nothing about the DAOs' actual query correctness.
+- **Frontend**: `npx tsc --noEmit` across the whole frontend — zero errors, confirming the new `AppSettings.salary` type, the three Phase 2 page/component files, and the three Phase 3 nav/routing files all type-check against each other and against existing types (no execution, no rendered output).
+- **Wiring greps** (not a substitute for clicking through the app, but confirms the pieces are actually connected, not just present as dead files): `employeeRoutes`/`salaryRoutes`/`backfillSettingsShape` imported and mounted/called in `index.js`; `/salary/employees` and `/salary/settle` registered in `App.tsx`; the `Salary` header dropdown imported and rendered in `Header.tsx`; the Settings page's `activeTab` union and tab arrays include `"salary"`; `SettingsContext.tsx` declares the `salary` field on both `AppSettings` and `FALLBACK_SETTINGS`.
+- **Regression guard**: `git diff --stat 3e3e00a..HEAD` (the automobile-billing baseline, i.e. before this module's first commit) against `dao/radiator.dao.js`, `dao/autobill.dao.js`, `dao/bonus.dao.js`, `routes/radiator.routes.js`, `routes/autobill.routes.js`, `routes/bonus.routes.js` — **zero lines changed in any of them** across all three phases combined. A grep for `settings.mechanics`/`settings.labour` inside every new salary file finds only one hit, a comment explaining `employees.name` is a parallel identity — no code path reads or writes those settings keys.
+
+**Not run, at all, by any session in this build:** anything requiring a live MongoDB connection — creating a real employee, marking real attendance, recording a real advance, running a real `previewSettlement`/`settlePeriod`, generating an actual payslip PDF in a browser, running `backfillSettingsShape()` against real pre-existing documents, or clicking through the Settings "Salary" tab / Salary nav dropdown in a running app. Before this module is trusted in production, someone needs to run it against a real database and actually click through the flows above.
