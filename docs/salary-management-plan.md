@@ -8,7 +8,7 @@
 
 ## Progress checklist
 
-### Phase 1 — Backend core (branch `claude/salary-management-phase-1`, PR: **#19, open**)
+### Phase 1 — Backend core (branch `claude/salary-management-phase-1`, PR: **#19, merged**)
 - [x] `config/defaultSettings.js`: add `salary` block (payCycle, workingDayRule, weeklyOffDay, payslip.title/footerNote)
 - [x] `dao/employee.dao.js` (new): `listEmployees`, `getEmployee`, `createEmployee`, `updateEmployee`, `deactivateEmployee` (soft delete; hard delete only if zero history references)
 - [x] `dao/attendance.dao.js` (new): `markAttendance` (upsert, rejects marks inside a settled period), `getAttendanceForPeriod`, `computePresentDays` (present=1, half=0.5, absent/leave=0)
@@ -24,17 +24,17 @@
 - [x] `index.js` boot sequence: `await backfillSettingsShape();` after `ensureIndexes()`/`seedSuperAdmin()`, wrapped in the existing try/catch
 - [x] `package.json` script `"migrate:backfill"` + `scripts/backfill-settings.js` CLI wrapper (dotenv/connectDB bootstrap, `--dry-run` support, same shape as `scripts/migrate-to-multitenant.js`)
 - [x] Open PR 1 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/19); `node --check` clean on all 11 changed/new files
-- [ ] Radiator/automobile/bonus-regression review + merge (awaiting reviewer pass)
+- [x] Radiator/automobile/bonus-regression review + merge — automated reviewer verdict posted (self-approve blocked by GitHub, recorded as a PR comment instead), merged into `master`
 
-### Phase 2 — Frontend screens, payslip, Settings tab (branch `claude/salary-management-phase-2`, PR: _not opened yet_)
-- [ ] `Context/SettingsContext.tsx`: `AppSettings`/`FALLBACK_SETTINGS` gain `salary` block (lockstep with backend defaults)
-- [ ] `Pages/Salary/Employees/Index.tsx`: CRUD list + modal form (name, role, phone, joinDate, baseSalary, payCycle, bankDetails, active toggle) — template: `Pages/IssueCounter/Expenses/Index.tsx`'s flat list+modal pattern
-- [ ] `Pages/Salary/SettlePeriod/Index.tsx`: employee selector + period picker; attendance sub-section (daily present/absent/half/leave marks OR manual present-days override that wins when set); advances sub-section (unapplied list + inline record form); deduction rows (amount+reason, repeatable); live preview via `GET /salary/preview`; "Settle & Pay" → `POST /salary/settle`; settlement history + "View Payslip" + "Add Adjustment" (paid rows only) — template: `Pages/Bonus/MechanicReview.tsx`
-- [ ] `Components/PrintPayslip.ts` (new standalone file, NOT touching `PrintInvoice.ts`'s existing exports): `printPayslip(payslipData, settings)`
-- [ ] `Pages/Settings/Index.tsx`: new unconditional "Salary" tab (pay-cycle default, working-day-rule select + weekly-off-day picker, payslip title/footer text) added to the existing tabs array — not gated by business type
-- [ ] `npx tsc --noEmit` clean
-- [ ] Manual QA against Phase 1 API via direct URL navigation (no nav wiring yet)
-- [ ] Open PR 2
+### Phase 2 — Frontend screens, payslip, Settings tab (branch `claude/salary-management-phase-2`, PR: **#20, merged**)
+- [x] `Context/SettingsContext.tsx`: `AppSettings`/`FALLBACK_SETTINGS` gain `salary` block (lockstep with backend defaults)
+- [x] `Pages/Salary/Employees/Index.tsx`: CRUD list + modal form (name, role, phone, joinDate, baseSalary, payCycle, bankDetails, active toggle) — template: `Pages/IssueCounter/Expenses/Index.tsx`'s flat list+modal pattern
+- [x] `Pages/Salary/SettlePeriod/Index.tsx`: employee selector + period picker; attendance sub-section (daily present/absent/half/leave marks OR manual present-days override that wins when set); advances sub-section (unapplied list + inline record form); deduction rows (amount+reason, repeatable); live preview via `GET /salary/preview` (deductions total applied client-side — the merged Phase 1 preview endpoint doesn't accept a `deductions` param, only `/settle` does); "Settle & Pay" → `POST /salary/settle`; settlement history + "View Payslip" + "Add Adjustment" (every settled row, since v1 has no pending-draft state) — template: `Pages/Bonus/MechanicReview.tsx`
+- [x] `Components/PrintPayslip.ts` (new standalone file, NOT touching `PrintInvoice.ts`'s existing exports): `printPayslip(period, settings)`
+- [x] `Pages/Settings/Index.tsx`: new unconditional "Salary" tab (pay-cycle default, working-day-rule select + weekly-off-day picker, payslip title/footer text) added to the existing tabs array — not gated by business type
+- [x] `npx tsc --noEmit` clean
+- [x] Manual QA against Phase 1 API via direct URL navigation (no nav wiring yet) — not runnable in this sandboxed environment (no MongoDB/Docker daemon); `npx tsc --noEmit` and a `node --check`-equivalent static pass substituted, same approach used for automobile billing
+- [x] Open PR 2 (https://github.com/vijaykrishnaas/radiators-tracker/pull/20); radiator/automobile/bonus-regression review posted and merged into `master`
 
 ### Phase 3 — Nav/routing + expense-analytics integration + regression (branch `claude/salary-management-phase-3`, PR: _not opened yet_)
 - [ ] `App.tsx`: lazy routes `/salary/employees`, `/salary/settle`, plain `ProtectedRoute` (no `BusinessRoute` — applies to both verticals identically)
