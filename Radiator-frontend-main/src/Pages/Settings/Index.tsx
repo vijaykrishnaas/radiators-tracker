@@ -36,7 +36,7 @@ const SettingsPage = () => {
     const [uploadingSignature, setUploadingSignature] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
-    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice">("company");
+    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary">("company");
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
@@ -373,12 +373,14 @@ const SettingsPage = () => {
                         ["people", `${auto.labels.agent} & ${auto.labels.worker}`],
                         ["bonus", "Bonus"],
                         ["invoice", "Labels & Invoice"],
+                        ["salary", "Salary"],
                     ] as const : [
                         ["company", "Company"],
                         ["catalog", "Catalog & Pricing"],
                         ["people", `${draft.labels.agent} & ${draft.labels.worker}`],
                         ["bonus", "Bonus"],
                         ["invoice", "Invoice"],
+                        ["salary", "Salary"],
                     ] as const).map(([id, label]) => (
                         <button key={id} type="button" role="tab" aria-selected={activeTab === id}
                             className={`settings-tab${activeTab === id ? " is-active" : ""}`}
@@ -1018,6 +1020,59 @@ const SettingsPage = () => {
                                     </label>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                )}
+
+                {/* ---- Salary Management (unconditional — applies to every tenant) ---- */}
+                {activeTab === "salary" && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Salary Defaults" />
+                        <div className="row form-group g-3">
+                            <div className="col-xl-4 col-md-6">
+                                <label className="form-label" htmlFor="salary-pay-cycle">Pay Cycle</label>
+                                <select id="salary-pay-cycle" className="form-select" value={draft.salary.payCycle}
+                                    onChange={(e) => set("salary.payCycle", e.target.value)}>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <div className="col-xl-4 col-md-6">
+                                <label className="form-label" htmlFor="salary-working-day-rule">Working Day Rule</label>
+                                <select id="salary-working-day-rule" className="form-select" value={draft.salary.workingDayRule}
+                                    onChange={(e) => set("salary.workingDayRule", e.target.value)}>
+                                    <option value="allDays">Every calendar day</option>
+                                    <option value="excludeWeeklyOff">Exclude a weekly off day</option>
+                                </select>
+                            </div>
+                            {draft.salary.workingDayRule === "excludeWeeklyOff" && (
+                                <div className="col-xl-4 col-md-6">
+                                    <label className="form-label" htmlFor="salary-weekly-off-day">Weekly Off Day</label>
+                                    <select id="salary-weekly-off-day" className="form-select" value={draft.salary.weeklyOffDay}
+                                        onChange={(e) => set("salary.weeklyOffDay", Number(e.target.value))}>
+                                        {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
+                                            <option key={d} value={i}>{d}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                            Working days control the salary formula: net = base salary × present days / working days
+                            in the settlement period. Applies identically to radiator and automobile tenants.
+                        </small>
+                    </div>
+                </div>
+                )}
+
+                {activeTab === "salary" && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Payslip" />
+                        <div className="row form-group g-3">
+                            {textField("Payslip title", "salary.payslip.title", draft.salary.payslip.title, "SALARY SLIP")}
+                            {textField("Payslip footer note", "salary.payslip.footerNote", draft.salary.payslip.footerNote)}
                         </div>
                     </div>
                 </div>

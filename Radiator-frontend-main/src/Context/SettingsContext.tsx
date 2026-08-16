@@ -92,6 +92,16 @@ export type AppSettings = {
             defaultPercent: number;
         };
     };
+    // Salary Management — applies to every tenant regardless of businessType.
+    salary: {
+        payCycle: string;
+        workingDayRule: "allDays" | "excludeWeeklyOff";
+        weeklyOffDay: number;
+        payslip: {
+            title: string;
+            footerNote: string;
+        };
+    };
 };
 
 // Safe fallbacks so components render before the fetch resolves.
@@ -126,6 +136,12 @@ export const FALLBACK_SETTINGS: AppSettings = {
     bonus: {
         mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
         labour: { matrix: {}, defaultPercent: 0 },
+    },
+    salary: {
+        payCycle: "monthly",
+        workingDayRule: "allDays",
+        weeklyOffDay: 0,
+        payslip: { title: "SALARY SLIP", footerNote: "" },
     },
 };
 
