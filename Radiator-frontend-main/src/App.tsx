@@ -43,6 +43,8 @@ const AdminLogin = lazy(() => import("./Pages/Admin/Login/Index"));
 const AdminClients = lazy(() => import("./Pages/Admin/Clients/Index"));
 const AdminAudit = lazy(() => import("./Pages/Admin/Audit/Index"));
 const ChangePassword = lazy(() => import("./Pages/ChangePassword/Index"));
+const SalaryEmployees = lazy(() => import("./Pages/Salary/Employees/Index"));
+const SalarySettlePeriod = lazy(() => import("./Pages/Salary/SettlePeriod/Index"));
 
 import { SettingsProvider, useSettings } from "./Context/SettingsContext";
 import { isLoggedIn, isSuperAdmin } from "./Services/Auth";
@@ -158,6 +160,9 @@ const AppLayout: React.FC = () => {
           <Route path="/bonus/labour" element={<ProtectedRoute><LabourBonus /></ProtectedRoute>} />
           <Route path="/bonus/mechanics/review" element={<ProtectedRoute><MechanicReview /></ProtectedRoute>} />
           <Route path="/bonus/labour/review" element={<ProtectedRoute><LabourReview /></ProtectedRoute>} />
+          {/* Salary Management — no BusinessRoute; applies identically to radiator and automobile tenants. */}
+          <Route path="/salary/employees" element={<ProtectedRoute><SalaryEmployees /></ProtectedRoute>} />
+          <Route path="/salary/settle" element={<ProtectedRoute><SalarySettlePeriod /></ProtectedRoute>} />
         </Routes>
         </Suspense>
       </div>

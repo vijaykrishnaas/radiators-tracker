@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
-import { Bonus } from '../Constants/HeaderData';
+import { Bonus, Salary } from '../Constants/HeaderData';
 import Icons from '../Components/Icons';
 import AppDropdown from '../Components/AppDropdown';
 import { getUser, clearSession } from '../Services/Auth';
@@ -90,6 +90,7 @@ const Header = () => {
                                     </NavLink>
                                 </li>
                                 <AppDropdown name="Bonus" data={Bonus} />
+                                <AppDropdown name="Salary" data={Salary} />
                             </ul>
                         </div>
                         <div className="header-user-sec ">
