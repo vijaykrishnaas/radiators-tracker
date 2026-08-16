@@ -8,22 +8,23 @@
 
 ## Progress checklist
 
-### Phase 1 — Backend core (branch `claude/salary-management-phase-1`, PR: _not opened yet_)
-- [ ] `config/defaultSettings.js`: add `salary` block (payCycle, workingDayRule, weeklyOffDay, payslip.title/footerNote)
-- [ ] `dao/employee.dao.js` (new): `listEmployees`, `getEmployee`, `createEmployee`, `updateEmployee`, `deactivateEmployee` (soft delete; hard delete only if zero history references)
-- [ ] `dao/attendance.dao.js` (new): `markAttendance` (upsert, rejects marks inside a settled period), `getAttendanceForPeriod`, `computePresentDays` (present=1, half=0.5, absent/leave=0)
-- [ ] `advances` collection: insert/list helpers (own small module or inside `salary.dao.js` — builder's call, document the choice)
-- [ ] `dao/salary.dao.js` (new): `getWorkingDays`, `previewSettlement`, `settlePeriod` (sweeps unapplied advances, computes net, locks), `addAdjustment` (appends to `adjustments[]`, never mutates original net/gross), `getSettlementHistory`, `getPayslipData`, `getPayrollTotal(clientId, {from,to})`
-- [ ] `routes/employee.routes.js` (new): `GET/POST /`, `GET/PUT/DELETE /:id`, `authenticate, loadActiveTenant`, `auditClient()` on writes
-- [ ] `routes/salary.routes.js` (new): `GET/POST /attendance`, `GET/POST /advances`, `GET /preview`, `POST /settle`, `POST /:id/adjust`, `GET /history`, `GET /:id/payslip`
-- [ ] Mount both route files in `index.js`
-- [ ] `config/ensureIndexes.js`: `{clientId:1}` on `employees`/`attendance`/`advances`/`salaryPeriods`; unique `{clientId,employeeId,date}` on `attendance`; unique `{clientId,employeeId,periodKey}` on `salaryPeriods`
-- [ ] `dao/client.dao.js`: `exportClientData()` + `offboardClient()` extended for all four new collections
-- [ ] `dao/expense.dao.js`: `getExpenseAnalytics()` gains additive `payrollTotal` field via `salary.dao.js`'s `getPayrollTotal()`
-- [ ] New `migrations/backfillSettingsShape.js`: idempotent `backfillSettingsShape({dryRun})` — sets `clients.businessType` where missing, `$set`-if-missing any top-level `defaultSettings.js` key (businessType/automobile/salary/future) into existing `settings` docs
-- [ ] `index.js` boot sequence: `await backfillSettingsShape();` after `ensureIndexes()`/`seedSuperAdmin()`, wrapped in the existing try/catch
-- [ ] `package.json` script `"migrate:backfill"` + `scripts/backfill-settings.js` CLI wrapper (dotenv/connectDB bootstrap, `--dry-run` support, same shape as `scripts/migrate-to-multitenant.js`)
-- [ ] Open PR 1 to `master`, verify no radiator/automobile/bonus behavior change (diff review)
+### Phase 1 — Backend core (branch `claude/salary-management-phase-1`, PR: **#19, open**)
+- [x] `config/defaultSettings.js`: add `salary` block (payCycle, workingDayRule, weeklyOffDay, payslip.title/footerNote)
+- [x] `dao/employee.dao.js` (new): `listEmployees`, `getEmployee`, `createEmployee`, `updateEmployee`, `deactivateEmployee` (soft delete; hard delete only if zero history references)
+- [x] `dao/attendance.dao.js` (new): `markAttendance` (upsert, rejects marks inside a settled period), `getAttendanceForPeriod`, `computePresentDays` (present=1, half=0.5, absent/leave=0)
+- [x] `advances` collection: insert/list helpers — kept inside `dao/salary.dao.js` (documented choice: small enough not to warrant its own module)
+- [x] `dao/salary.dao.js` (new): `getWorkingDays`, `previewSettlement`, `settlePeriod` (sweeps unapplied advances, computes net, locks), `addAdjustment` (appends to `adjustments[]`, never mutates original net/gross), `getSettlementHistory`, `getPayslipData`, `getPayrollTotal(clientId, {from,to})`
+- [x] `routes/employee.routes.js` (new): `GET/POST /`, `GET/PUT/DELETE /:id`, `authenticate, loadActiveTenant`, `auditClient()` on writes
+- [x] `routes/salary.routes.js` (new): `GET/POST /attendance`, `GET/POST /advances`, `GET /preview`, `POST /settle`, `POST /:id/adjust`, `GET /history`, `GET /:id/payslip`
+- [x] Mount both route files in `index.js`
+- [x] `config/ensureIndexes.js`: `{clientId:1}` on `employees`/`attendance`/`advances`/`salaryPeriods`; unique `{clientId,employeeId,date}` on `attendance`; unique `{clientId,employeeId,periodKey}` on `salaryPeriods`
+- [x] `dao/client.dao.js`: `exportClientData()` + `offboardClient()` extended for all four new collections
+- [x] `dao/expense.dao.js`: `getExpenseAnalytics()` gains additive `payrollTotal` field via `salary.dao.js`'s `getPayrollTotal()`
+- [x] New `migrations/backfillSettingsShape.js`: idempotent `backfillSettingsShape({dryRun})` — sets `clients.businessType` where missing, `$set`-if-missing any top-level `defaultSettings.js` key (businessType/automobile/salary/future) into existing `settings` docs
+- [x] `index.js` boot sequence: `await backfillSettingsShape();` after `ensureIndexes()`/`seedSuperAdmin()`, wrapped in the existing try/catch
+- [x] `package.json` script `"migrate:backfill"` + `scripts/backfill-settings.js` CLI wrapper (dotenv/connectDB bootstrap, `--dry-run` support, same shape as `scripts/migrate-to-multitenant.js`)
+- [x] Open PR 1 to `master` (https://github.com/vijaykrishnaas/radiators-tracker/pull/19); `node --check` clean on all 11 changed/new files
+- [ ] Radiator/automobile/bonus-regression review + merge (awaiting reviewer pass)
 
 ### Phase 2 — Frontend screens, payslip, Settings tab (branch `claude/salary-management-phase-2`, PR: _not opened yet_)
 - [ ] `Context/SettingsContext.tsx`: `AppSettings`/`FALLBACK_SETTINGS` gain `salary` block (lockstep with backend defaults)
