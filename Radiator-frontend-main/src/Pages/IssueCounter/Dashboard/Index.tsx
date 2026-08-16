@@ -272,8 +272,10 @@ const Analytics = () => {
                         { label: "Total Expenses", value: money(expenseData?.totalExpenses || 0), icon: "currencyrupee" },
                         { label: "Materials", value: money(expMaterialsTotal), icon: "package" },
                         { label: "Others", value: money(expOthersTotal), icon: "tag" },
+                        // Read-only figure from Salary Management — expenses itself is untouched.
+                        { label: "Payroll", value: money(expenseData?.payrollTotal || 0), icon: "receipt-text" },
                     ].map((kpi) => (
-                        <div key={kpi.label} className="col-12 col-md-4 mb-3">
+                        <div key={kpi.label} className="col-6 col-md-3 mb-3">
                             <div className="card card-shadow text-center py-3 px-2 h-100">
                                 <Icons iconName={kpi.icon} className="icon-24 mx-auto mb-2" />
                                 <p className="h6 font-w600 mb-1">{kpi.value}</p>

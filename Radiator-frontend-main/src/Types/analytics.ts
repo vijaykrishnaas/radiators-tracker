@@ -29,4 +29,7 @@ export type ExpenseAnalytics = {
     totalExpenses: number;
     byType: Array<{ type: string; count: number; amount: number }>;
     byMonth: Array<{ month: string; count: number; amount: number }>;
+    // Read-only figure from Salary Management (dao/salary.dao.js's getPayrollTotal),
+    // sourced from the salaryPeriods collection — never written into expenses itself.
+    payrollTotal?: number;
 };
