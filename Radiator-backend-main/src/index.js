@@ -20,6 +20,9 @@ import autobillRoutes, { autoMechanicRouter } from "./routes/autobill.routes.js"
 import bonusRoutes from "./routes/bonus.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
+import employeeRoutes from "./routes/employee.routes.js";
+import salaryRoutes from "./routes/salary.routes.js";
+import { backfillSettingsShape } from "./migrations/backfillSettingsShape.js";
 
 const app = express();
 
@@ -69,6 +72,8 @@ app.use("/auto-mechanic", autoMechanicRouter);
 app.use("/bonus", bonusRoutes);
 app.use("/expenses", expenseRoutes);
 app.use("/audit", auditRoutes);
+app.use("/employees", employeeRoutes);
+app.use("/salary", salaryRoutes);
 
 // 404 for unknown routes
 app.use((req, res) => {
@@ -99,6 +104,14 @@ app.listen(PORT, async () => {
       await ensureUsersUniqueIndex();
     } catch (e) {
       console.warn("Deferred users unique index (run migration):", e.message);
+    }
+    // Idempotent — only ever sets a field that's provably absent. Safe to run
+    // on every boot so new additive settings keys reach existing tenants
+    // without a separate manual deploy step.
+    try {
+      await backfillSettingsShape();
+    } catch (e) {
+      console.warn("Settings-shape backfill failed (will retry next boot):", e.message);
     }
   } catch (err) {
     console.error("Startup error (DB/seed):", err.message);
