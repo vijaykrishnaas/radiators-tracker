@@ -131,6 +131,68 @@ export const defaultSettings = {
     },
   },
 
+  // Engineering-works vertical (turbo / air-compressor service). Only read when
+  // businessType is "engineering". Item prices are per BS model: a number
+  // (0 allowed) means offered for that model; null means not offered, so the
+  // item is hidden for that model in the service form.
+  engineering: {
+    bsModels: [
+      { label: "BS-3", value: "bs3" },
+      { label: "BS-4", value: "bs4" },
+      { label: "BS-6", value: "bs6" },
+    ],
+    serviceTypes: [
+      {
+        label: "Turbo",
+        value: "turbo",
+        items: [
+          { label: "Hold set", value: "hold-set", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Tel", value: "tel", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "O-ring kit change", value: "o-ring-kit-change", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Lathe work", value: "lathe-work", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Shaft polish", value: "shaft-polish", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "O-rings / rings alteration", value: "rings-alteration", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Packing set", value: "packing-set", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Labour bill", value: "labour-bill", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Other", value: "other", prices: { bs3: 0, bs4: 0, bs6: 0 }, requiresComment: true },
+        ],
+      },
+      {
+        label: "Air Compressor",
+        value: "compressor",
+        items: [
+          { label: "Kit", value: "kit", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Labour", value: "labour", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Piston", value: "piston", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Rings", value: "rings", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Lathe work", value: "lathe-work", prices: { bs3: 0, bs4: 0, bs6: 0 } },
+          { label: "Block bush change", value: "block-bush-change", prices: { bs3: 0, bs4: 0, bs6: null } },
+          { label: "Sleeve fixing", value: "sleeve-fixing", prices: { bs3: null, bs4: null, bs6: 0 } },
+          { label: "Water type", value: "water-type", prices: { bs3: null, bs4: null, bs6: 0 } },
+          { label: "Bold type", value: "bold-type", prices: { bs3: null, bs4: null, bs6: 0 } },
+          { label: "Other", value: "other", prices: { bs3: 0, bs4: 0, bs6: 0 }, requiresComment: true },
+        ],
+      },
+      {
+        label: "Other",
+        value: "other",
+        items: [
+          { label: "Other", value: "other", prices: { bs3: 0, bs4: 0, bs6: 0 }, requiresComment: true },
+        ],
+      },
+    ],
+    // Quick-add chips on the service form: [{ type: "turbo", item: "o-ring-kit-change" }]
+    quickAdd: [],
+    // First bill number for a tenant continuing from a paper bill book.
+    billStartNumber: 1,
+    invoice: {
+      billTitle: "CASH / CREDIT BILL",
+      footerNote: "Thank you for your business",
+      showQr: false,
+      showSignature: false,
+    },
+  },
+
   labels: {
     vehicleNo: "Truck Number",
     party: "Lorry Address",

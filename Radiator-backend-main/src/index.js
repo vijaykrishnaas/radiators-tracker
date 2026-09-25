@@ -22,6 +22,7 @@ import expenseRoutes from "./routes/expense.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import salaryRoutes from "./routes/salary.routes.js";
+import engbillRoutes from "./routes/engbill.routes.js";
 import { backfillSettingsShape } from "./migrations/backfillSettingsShape.js";
 
 const app = express();
@@ -74,6 +75,7 @@ app.use("/expenses", expenseRoutes);
 app.use("/audit", auditRoutes);
 app.use("/employees", employeeRoutes);
 app.use("/salary", salaryRoutes);
+app.use("/engbills", engbillRoutes);
 
 // 404 for unknown routes
 app.use((req, res) => {
