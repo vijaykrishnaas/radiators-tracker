@@ -23,13 +23,13 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 - [x] `npx tsc --noEmit` clean + regression-guard diff clean; open PR → `staging`
 - [x] Reviewer NO-BLOCKERS → builder merges into `staging`
 
-### Phase 3 — Nav/routing/gating + regression (branch `claude/engineering-works-phase-3`, PR: **#24, open → staging**)
+### Phase 3 — Nav/routing/gating + regression (branch `claude/engineering-works-phase-3`, PR: **#24, merged into staging (e540c29)**)
 - [x] `App.tsx`: BusinessRoute union + `/engineering/*` routes; login redirect for engineering tenants
 - [x] `Common/Header.tsx`: `isEngineering` → Dashboard, Billing, Settings, Audit only
 - [x] `Pages/Admin/Clients`: "Engineering" business type option
 - [x] Full static verification + regression guard; open PR → `staging`
-- [ ] Reviewer NO-BLOCKERS → builder merges into `staging`
-- [ ] Final: document verification honestly below, disable both "Engineering works" Routines, push-notify user
+- [x] Reviewer NO-BLOCKERS → builder merges into `staging`
+- [x] Final: document verification honestly below, disable both "Engineering works" Routines, push-notify user
 
 ## Hard rules (blocking)
 - **Protected, must be byte-identical vs `staging` base:** `dao/radiator.dao.js`, `dao/autobill.dao.js`, `dao/bonus.dao.js`, `dao/salary.dao.js`, `dao/employee.dao.js`, `dao/attendance.dao.js`, `dao/expense.dao.js`, their routes, `Components/PrintInvoice.ts`, `Components/PrintPayslip.ts`, everything under `Pages/IssueCounter`, `Pages/Automobile`, `Pages/Bonus`, `Pages/Salary`.
@@ -37,7 +37,20 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 - Regression guard each PR: `git diff origin/staging --stat -- <protected paths>` empty; `git diff origin/staging -- <allowed shared files> | grep '^-[^-]'` empty (or each removed line justified as an unavoidable pure-refactor-free extension, which is blocking unless trivially additive like widening a TS union); `node --check` / `npx tsc --noEmit` clean.
 
 ## Verification outcome
-_(filled in by the builder after Phase 3 merges — static only unless a live DB was actually used; say so honestly)_
+Run on `staging` at `e540c29` (all three phases merged: #22 backend, #23 frontend screens, #24 routing/gating), 2026-09-25.
+
+**What was actually verified**
+- Backend syntax: `node --check` clean on all 8 new/changed backend files (engbill DAO + routes, defaultSettings, ensureIndexes, client.dao, settings.dao, index.js, backfillSettingsShape).
+- Frontend types: `npx tsc --noEmit` clean across the whole frontend.
+- Zero-impact guard: `git diff --stat c65c188 origin/staging` (staging before any engineering work) over the radiator/autobill/bonus/salary/employee/attendance/expense DAOs + routes, `PrintInvoice.ts`, `PrintPayslip.ts`, and `Pages/IssueCounter|Automobile|Bonus|Salary` → **empty**. Every modified line in shared files is a union widening or a ternary with the engineering case prepended; three independent reviews traced them and found no radiator/automobile behavior change.
+- Wiring: `/engbills` mounted in `index.js`; `"engineering"` in `BUSINESS_TYPES` and `BACKFILLABLE_SETTINGS_KEYS`; `/engineering/*` routes in `App.tsx`; `isEngineering` gating in `Header.tsx` and `Settings/Index.tsx`.
+- **Browser check (real app on Vite dev server, API mocked with Playwright)** — 31 of 32 checks pass; the 1 "fail" is a wrong test expectation (switching a card's BS model re-applies that model's catalog rate by design). Covered: engineering redirect + header (Dashboard/Bills only), dashboard KPIs, truck uppercase, lorry-address autofill, mechanic/service/"Other"-description validation, BS-3 rate auto-fill, qty × rate subtotals, quick-add chip, BS-6 hides "Block bush change", POST payload shape, billing list, Settings catalog tabs + type dropdown; radiator tenant unchanged (header, dashboard, settings tabs, engineering routes redirect away), no page errors.
+
+**What was NOT verified — must be done in your staging review sessions**
+- Nothing ran against a live backend or MongoDB: bill creation/edit/delete, the per-tenant bill-number counter (incl. `billStartNumber`, needs MongoDB ≥ 4.2 pipeline updates), payment recording, analytics aggregations, Excel export content, and the PDF output were never executed for real.
+- The boot-time settings backfill adding `engineering` to existing tenants' settings was not run against real data.
+- Provisioning an Engineering client from the super-admin screen end-to-end was not exercised.
+- No real browser session against a deployed staging environment.
 
 ---
 
