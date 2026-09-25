@@ -45,6 +45,9 @@ const AdminAudit = lazy(() => import("./Pages/Admin/Audit/Index"));
 const ChangePassword = lazy(() => import("./Pages/ChangePassword/Index"));
 const SalaryEmployees = lazy(() => import("./Pages/Salary/Employees/Index"));
 const SalarySettlePeriod = lazy(() => import("./Pages/Salary/SettlePeriod/Index"));
+const EngDashboard = lazy(() => import("./Pages/Engineering/Dashboard/Index"));
+const EngCreate = lazy(() => import("./Pages/Engineering/Dashboard/Create"));
+const EngBilling = lazy(() => import("./Pages/Engineering/Billing/Index"));
 
 import { SettingsProvider, useSettings } from "./Context/SettingsContext";
 import { isLoggedIn, isSuperAdmin } from "./Services/Auth";
@@ -63,13 +66,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // Gates radiator-only and automobile-only screens by the tenant's businessType
 // (learned from GET /settings). Waits for settings to load before deciding, so
 // a radiator tenant never sees a flash-redirect off their own dashboard.
-const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" }> = ({ children, type }) => {
+const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" | "engineering" }> = ({ children, type }) => {
   const { settings, loading } = useSettings();
   if (loading) return <Loader loading={true} />;
   if (settings.businessType !== type) {
     return (
       <Navigate
-        to={settings.businessType === "automobile" ? "/automobile/billing" : "/issueCounter/billing"}
+        to={settings.businessType === "automobile" ? "/automobile/billing" : settings.businessType === "engineering" ? "/engineering/dashboard" : "/issueCounter/billing"}
         replace
       />
     );
@@ -153,6 +156,11 @@ const AppLayout: React.FC = () => {
           <Route path="/automobile/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/billing" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoBillingPage /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/engineering/dashboard" element={<ProtectedRoute><BusinessRoute type="engineering"><EngDashboard /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/engineering/dashboard/create" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/engineering/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/engineering/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/engineering/billing" element={<ProtectedRoute><BusinessRoute type="engineering"><EngBilling /></BusinessRoute></ProtectedRoute>} />
           <Route path="/issueCounter/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/audit" element={<ProtectedRoute><ClientAudit /></ProtectedRoute>} />

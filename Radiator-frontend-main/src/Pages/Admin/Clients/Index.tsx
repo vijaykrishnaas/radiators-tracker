@@ -245,7 +245,7 @@ const Clients: React.FC = () => {
                         code: String(r["Business Code"] ?? r["code"] ?? "").trim(),
                         adminUserId: String(r["Admin Username"] ?? r["adminUserId"] ?? "").trim(),
                         adminPassword: String(r["Admin Password"] ?? r["adminPassword"] ?? ""),
-                        businessType: (rawType === "automobile" ? "automobile" : "radiator") as BusinessType,
+                        businessType: (rawType === "automobile" ? "automobile" : rawType === "engineering" ? "engineering" : "radiator") as BusinessType,
                     };
                 })
                 .filter((c) => c.name || c.code);
@@ -392,8 +392,8 @@ const Clients: React.FC = () => {
                                             <td className="font-w600">{c.name}</td>
                                             <td><code>{c.code}</code></td>
                                             <td>
-                                                <span className={`status-badge ${c.businessType === "automobile" ? "status-badge-primary" : ""}`}>
-                                                    {c.businessType === "automobile" ? "Automobile" : "Radiator"}
+                                                <span className={`status-badge ${c.businessType === "automobile" || c.businessType === "engineering" ? "status-badge-primary" : ""}`}>
+                                                    {c.businessType === "automobile" ? "Automobile" : c.businessType === "engineering" ? "Engineering" : "Radiator"}
                                                 </span>
                                             </td>
                                             <td>{c.adminUserId}</td>
@@ -461,6 +461,7 @@ const Clients: React.FC = () => {
                                     <select className="form-select" value={addBusinessType} onChange={(e) => setAddBusinessType(e.target.value as BusinessType)}>
                                         <option value="radiator">Radiator</option>
                                         <option value="automobile">Automobile</option>
+                                        <option value="engineering">Engineering Works</option>
                                     </select>
                                 </div>
                             </div>

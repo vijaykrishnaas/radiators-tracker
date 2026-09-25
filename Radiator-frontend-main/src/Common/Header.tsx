@@ -15,12 +15,14 @@ const Header = () => {
     const { settings } = useSettings();
     const user = getUser();
     const isAutomobile = settings.businessType === 'automobile';
+    // Engineering tenants: Dashboard, Bills, Settings and Activity Log only.
+    const isEngineering = settings.businessType === 'engineering';
 
     // Bill create/edit/view live under /issueCounter/dashboard/* (or /automobile/dashboard/*
     // for automobile tenants) — keep "Bills" lit there.
     const navClass = (active: boolean) => `nav-link${active ? ' active' : ''}`;
-    const dashboardPath = isAutomobile ? '/automobile/dashboard' : '/issueCounter/dashboard';
-    const billingPath = isAutomobile ? '/automobile/billing' : '/issueCounter/billing';
+    const dashboardPath = isEngineering ? '/engineering/dashboard' : isAutomobile ? '/automobile/dashboard' : '/issueCounter/dashboard';
+    const billingPath = isEngineering ? '/engineering/billing' : isAutomobile ? '/automobile/billing' : '/issueCounter/billing';
     const onDashboardSub = location.pathname.startsWith(`${dashboardPath}/`);
 
     const handleLogout = () => {
@@ -83,6 +85,8 @@ const Header = () => {
                                         Bills
                                     </NavLink>
                                 </li>
+                                {!isEngineering && (
+                                <>
                                 <li className="nav-item">
                                     <NavLink to="/issueCounter/expenses" onClick={handleNavLinkClick}
                                         className={({ isActive }) => navClass(isActive)}>
@@ -91,6 +95,8 @@ const Header = () => {
                                 </li>
                                 <AppDropdown name="Bonus" data={Bonus} />
                                 <AppDropdown name="Salary" data={Salary} />
+                                </>
+                                )}
                             </ul>
                         </div>
                         <div className="header-user-sec ">
