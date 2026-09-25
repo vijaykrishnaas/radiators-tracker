@@ -11,6 +11,7 @@ function freshDefaults(clientId, companyName, businessType) {
   doc._id = toClientId(clientId);
   if (companyName) doc.company.name = companyName;
   if (businessType === "automobile") doc.businessType = "automobile";
+  if (businessType === "engineering") doc.businessType = "engineering";
   return doc;
 }
 

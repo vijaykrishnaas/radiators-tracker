@@ -33,7 +33,7 @@ export async function getClientStatus(clientId) {
 
 // Tenant verticals. Fixed at provisioning; a missing field means "radiator"
 // so every pre-existing client keeps its exact current behavior.
-export const BUSINESS_TYPES = ["radiator", "automobile"];
+export const BUSINESS_TYPES = ["radiator", "automobile", "engineering"];
 
 export function normalizeBusinessType(businessType) {
   return BUSINESS_TYPES.includes(businessType) ? businessType : "radiator";
@@ -101,7 +101,8 @@ export async function exportClientData(clientId) {
     db.collection("advances").find({ clientId: cid }).sort({ date: 1 }).toArray(),
     db.collection("salaryPeriods").find({ clientId: cid }).sort({ periodKey: 1 }).toArray(),
   ]);
-  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods };
+  const engbills = await db.collection("engbills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
+  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -115,6 +116,7 @@ export async function offboardClient(clientId) {
   const counts = {};
   counts.radiators = (await db.collection("radiators").deleteMany({ clientId: cid })).deletedCount;
   counts.autobills = (await db.collection("autobills").deleteMany({ clientId: cid })).deletedCount;
+  counts.engbills = (await db.collection("engbills").deleteMany({ clientId: cid })).deletedCount;
   counts.bonuses = (await db.collection("bonuses").deleteMany({ clientId: cid })).deletedCount;
   counts.expenses = (await db.collection("expenses").deleteMany({ clientId: cid })).deletedCount;
   counts.employees = (await db.collection("employees").deleteMany({ clientId: cid })).deletedCount;

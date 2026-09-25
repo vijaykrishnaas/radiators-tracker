@@ -10,7 +10,7 @@ import { defaultSettings } from "../config/defaultSettings.js";
 // Top-level settings keys that were introduced after go-live and may be
 // missing from a client's stored settings doc. Add new keys here as future
 // features grow defaultSettings.js — no other code path needs to change.
-const BACKFILLABLE_SETTINGS_KEYS = ["businessType", "automobile", "salary"];
+const BACKFILLABLE_SETTINGS_KEYS = ["businessType", "automobile", "salary", "engineering"];
 
 export async function backfillSettingsShape({ dryRun = false } = {}) {
   const db = await connectDB();
