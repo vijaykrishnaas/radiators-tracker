@@ -11,7 +11,22 @@ export type CatalogOption = {
     requiresComment?: boolean;
 };
 
-export type BusinessType = "radiator" | "automobile";
+export type BusinessType = "radiator" | "automobile" | "engineering";
+
+// Engineering vertical: a null/undefined price means the item is not offered
+// for that BS model; 0 is offered.
+export type EngItem = {
+    label: string;
+    value: string;
+    prices: Record<string, number | null>;
+    requiresComment?: boolean;
+};
+
+export type EngServiceType = {
+    label: string;
+    value: string;
+    items: EngItem[];
+};
 
 export type AutoPart = {
     label: string;
@@ -92,6 +107,18 @@ export type AppSettings = {
             defaultPercent: number;
         };
     };
+    engineering: {
+        bsModels: { label: string; value: string }[];
+        serviceTypes: EngServiceType[];
+        quickAdd: { type: string; item: string }[];
+        billStartNumber: number;
+        invoice: {
+            billTitle: string;
+            footerNote: string;
+            showQr: boolean;
+            showSignature: boolean;
+        };
+    };
     // Salary Management — applies to every tenant regardless of businessType.
     salary: {
         payCycle: string;
@@ -136,6 +163,13 @@ export const FALLBACK_SETTINGS: AppSettings = {
     bonus: {
         mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
         labour: { matrix: {}, defaultPercent: 0 },
+    },
+    engineering: {
+        bsModels: [],
+        serviceTypes: [],
+        quickAdd: [],
+        billStartNumber: 1,
+        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     salary: {
         payCycle: "monthly",
