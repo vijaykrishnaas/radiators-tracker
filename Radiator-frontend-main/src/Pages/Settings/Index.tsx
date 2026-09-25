@@ -1087,7 +1087,7 @@ const SettingsPage = () => {
                 )}
 
                 {/* ---- Engineering tenants only ---- */}
-                {isEngineering && activeTab === "engCatalog" && (
+                {isEngineering && draft.engineering && activeTab === "engCatalog" && (
                     <EngCatalogTab eng={draft.engineering} set={set} />
                 )}
 
@@ -1108,7 +1108,7 @@ const SettingsPage = () => {
                 </div>
                 )}
 
-                {isEngineering && activeTab === "engInvoice" && (
+                {isEngineering && draft.engineering?.invoice && activeTab === "engInvoice" && (
                 <div className="card card-shadow mb-4">
                     <div className="card-body">
                         <SectionTitle title="Invoice Options" />
@@ -1120,7 +1120,7 @@ const SettingsPage = () => {
                             <div className="col-xl-6 d-flex align-items-end">
                                 <div className="d-flex align-items-center gap-2">
                                     <Switch
-                                        key={`eng-qr-${settings.engineering.invoice.showQr}`}
+                                        key={`eng-qr-${settings.engineering?.invoice?.showQr}`}
                                         id="eng-show-qr"
                                         className="switch"
                                         switchClassName="blue"
@@ -1135,7 +1135,7 @@ const SettingsPage = () => {
                             <div className="col-xl-6 d-flex align-items-end">
                                 <div className="d-flex align-items-center gap-2">
                                     <Switch
-                                        key={`eng-sig-${settings.engineering.invoice.showSignature}`}
+                                        key={`eng-sig-${settings.engineering?.invoice?.showSignature}`}
                                         id="eng-show-signature"
                                         className="switch"
                                         switchClassName="blue"

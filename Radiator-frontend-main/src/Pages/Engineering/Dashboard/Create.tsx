@@ -121,8 +121,15 @@ const EngCreate = () => {
             return { ...c, rows: [...kept, ...added] };
         });
 
-    const setRow = (key: number, item: string, patch: Partial<Row>) =>
+    const setRow = (key: number, item: string, patch: Partial<Row>) => {
         updateCard(key, (c) => ({ ...c, rows: c.rows.map((r) => (r.item === item ? { ...r, ...patch } : r)) }));
+        setErrors((e) => {
+            const k = patch.comment !== undefined ? `c${key}-${item}` : patch.qty !== undefined ? `q${key}-${item}` : "";
+            if (!k || !e[k]) return e;
+            const { [k]: _drop, ...rest } = e;
+            return rest;
+        });
+    };
 
     const quickAdd = (type: string, item: string) => {
         const it = findType(type)?.items.find((i) => i.value === item);
@@ -168,6 +175,7 @@ const EngCreate = () => {
         if (!filled.length) e.services = "Add at least one service with an item";
         cards.forEach((c) => c.rows.forEach((r) => {
             if (r.requiresComment && !r.comment.trim()) e[`c${c.key}-${r.item}`] = "Describe the work";
+            if (!(Number(r.qty) > 0)) e[`q${c.key}-${r.item}`] = "Qty must be more than 0";
         }));
         setErrors(e);
         return Object.keys(e).length === 0;
@@ -205,7 +213,7 @@ const EngCreate = () => {
                     bsModel: c.bsModel,
                     items: c.rows.map((r) => ({
                         item: r.item, label: r.label, comment: r.comment, requiresComment: r.requiresComment,
-                        qty: Number(r.qty) || 1, rate: Number(r.rate) || 0,
+                        qty: Number(r.qty), rate: Number(r.rate) || 0,
                     })),
                 })),
                 discount: disc,
@@ -349,6 +357,7 @@ const EngCreate = () => {
                                     <div style={{ width: 90 }}>
                                         <InputText type="number" value={r.qty} placeholder="Qty" disabled={isView}
                                             onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
+                                        {errors[`q${c.key}-${r.item}`] && <span className="text-danger font-s12">{errors[`q${c.key}-${r.item}`]}</span>}
                                     </div>
                                     <span className="text-muted">×</span>
                                     <div style={{ width: 140 }}>

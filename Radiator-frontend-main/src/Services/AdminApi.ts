@@ -2,7 +2,7 @@
 // JWT (a super-admin token) is attached automatically by the request interceptor.
 import { getData, postData, patchData, deleteData } from "./ApiServices";
 
-export type BusinessType = "radiator" | "automobile";
+export type BusinessType = "radiator" | "automobile" | "engineering";
 
 export type ClientRow = {
     _id: string;
