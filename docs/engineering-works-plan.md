@@ -13,7 +13,7 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 - [x] `node --check` clean + regression-guard diff clean; open PR → `staging`
 - [x] Reviewer NO-BLOCKERS → builder merges into `staging`
 
-### Phase 2 — Frontend screens (branch `claude/engineering-works-phase-2`, PR: **#23, open → staging**)
+### Phase 2 — Frontend screens (branch `claude/engineering-works-phase-2`, PR: **#23, merged into staging (9a0df95)**)
 - [x] `Context/SettingsContext.tsx`: `engineering` type + fallback
 - [x] `Pages/Engineering/Dashboard/Create.tsx`: service form exactly per mockups
 - [x] `Pages/Engineering/Dashboard/Index.tsx`: KPIs + charts (month / service type / mechanic), FY default range
@@ -23,11 +23,11 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 - [x] `npx tsc --noEmit` clean + regression-guard diff clean; open PR → `staging`
 - [x] Reviewer NO-BLOCKERS → builder merges into `staging`
 
-### Phase 3 — Nav/routing/gating + regression (branch `claude/engineering-works-phase-3`, PR: —)
-- [ ] `App.tsx`: BusinessRoute union + `/engineering/*` routes; login redirect for engineering tenants
-- [ ] `Common/Header.tsx`: `isEngineering` → Dashboard, Billing, Settings, Audit only
-- [ ] `Pages/Admin/Clients`: "Engineering" business type option
-- [ ] Full static verification + regression guard; open PR → `staging`
+### Phase 3 — Nav/routing/gating + regression (branch `claude/engineering-works-phase-3`, PR: **#24, open → staging**)
+- [x] `App.tsx`: BusinessRoute union + `/engineering/*` routes; login redirect for engineering tenants
+- [x] `Common/Header.tsx`: `isEngineering` → Dashboard, Billing, Settings, Audit only
+- [x] `Pages/Admin/Clients`: "Engineering" business type option
+- [x] Full static verification + regression guard; open PR → `staging`
 - [x] Reviewer NO-BLOCKERS → builder merges into `staging`
 - [ ] Final: document verification honestly below, disable both "Engineering works" Routines, push-notify user
 
