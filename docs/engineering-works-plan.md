@@ -28,7 +28,7 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 - [x] `Common/Header.tsx`: `isEngineering` → Dashboard, Billing, Settings, Audit only
 - [x] `Pages/Admin/Clients`: "Engineering" business type option
 - [x] Full static verification + regression guard; open PR → `staging`
-- [x] Reviewer NO-BLOCKERS → builder merges into `staging`
+- [ ] Reviewer NO-BLOCKERS → builder merges into `staging`
 - [ ] Final: document verification honestly below, disable both "Engineering works" Routines, push-notify user
 
 ## Hard rules (blocking)
