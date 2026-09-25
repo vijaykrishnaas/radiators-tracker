@@ -4,13 +4,13 @@ Long-lived branch: `claude/engineering-works-expansion` (this file). Phase branc
 
 ## Progress checklist
 
-### Phase 1 — Backend (branch `claude/engineering-works-phase-1`, PR: —)
-- [ ] `config/defaultSettings.js`: new top-level `engineering` block (starter catalog, blank/0 prices, quickAdd, billStartNumber, invoice)
-- [ ] `migrations/backfillSettingsShape.js`: add `"engineering"` to `BACKFILLABLE_SETTINGS_KEYS` (additive only)
-- [ ] `dao/engbill.dao.js` (new): list/filter/paginate, get, create (per-tenant counter honoring billStartNumber), update, delete, recordPayment, lookupVehicle, analytics (billed/received/outstanding, by month, by service type, by mechanic), export query; server-side math
-- [ ] `routes/engbill.routes.js` (new) at `/engbills`: authenticate + loadActiveTenant + engineering-only guard; auditClient on writes
-- [ ] `index.js` mount; `ensureIndexes.js` engbills indexes; `client.dao.js` BUSINESS_TYPES + export/offboard cascade; `admin.routes.js` accepts `engineering`
-- [ ] `node --check` clean + regression-guard diff clean; open PR → `staging`
+### Phase 1 — Backend (branch `claude/engineering-works-phase-1`, PR: **#22, open → staging**)
+- [x] `config/defaultSettings.js`: new top-level `engineering` block (starter catalog, blank/0 prices, quickAdd, billStartNumber, invoice)
+- [x] `migrations/backfillSettingsShape.js`: add `"engineering"` to `BACKFILLABLE_SETTINGS_KEYS` (additive only)
+- [x] `dao/engbill.dao.js` (new): list/filter/paginate, get, create (per-tenant counter honoring billStartNumber), update, delete, recordPayment, lookupVehicle, analytics (billed/received/outstanding, by month, by service type, by mechanic), export query; server-side math
+- [x] `routes/engbill.routes.js` (new) at `/engbills`: authenticate + loadActiveTenant + engineering-only guard; auditClient on writes
+- [x] `index.js` mount; `ensureIndexes.js` engbills indexes; `client.dao.js` BUSINESS_TYPES + export/offboard cascade; `admin.routes.js` accepts `engineering`
+- [x] `node --check` clean + regression-guard diff clean; open PR → `staging`
 - [ ] Reviewer NO-BLOCKERS → builder merges into `staging`
 
 ### Phase 2 — Frontend screens (branch `claude/engineering-works-phase-2`, PR: —)
