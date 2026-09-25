@@ -9,6 +9,7 @@ import InputTag from "../../Components/InputTag";
 import Switch from "../../Components/Switch";
 import { putData, postData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
+import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
 
 const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
@@ -36,7 +37,7 @@ const SettingsPage = () => {
     const [uploadingSignature, setUploadingSignature] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
-    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary">("company");
+    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engInvoice">("company");
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
@@ -48,6 +49,8 @@ const SettingsPage = () => {
     // is untouched — every automobile branch is additive.
     const isAutomobile = draft.businessType === "automobile";
     const auto = draft.automobile;
+    // Engineering tenants use their own tab ids, so no radiator/automobile tab renders for them.
+    const isEngineering = draft.businessType === "engineering";
 
     const uploadLogo = async (file: File | undefined) => {
         if (!file) return;
@@ -367,7 +370,12 @@ const SettingsPage = () => {
 
                 {/* Tabbed sections — Save All Settings (above) persists every tab at once. */}
                 <div className="settings-tabs mb-4" role="tablist">
-                    {(isAutomobile ? [
+                    {(isEngineering ? [
+                        ["company", "Company"],
+                        ["engCatalog", "Service Catalog"],
+                        ["engPeople", "Mechanics"],
+                        ["engInvoice", "Invoice"],
+                    ] as const : isAutomobile ? [
                         ["company", "Company"],
                         ["catalog", "Parts Catalog"],
                         ["people", `${auto.labels.agent} & ${auto.labels.worker}`],
@@ -1073,6 +1081,72 @@ const SettingsPage = () => {
                         <div className="row form-group g-3">
                             {textField("Payslip title", "salary.payslip.title", draft.salary.payslip.title, "SALARY SLIP")}
                             {textField("Payslip footer note", "salary.payslip.footerNote", draft.salary.payslip.footerNote)}
+                        </div>
+                    </div>
+                </div>
+                )}
+
+                {/* ---- Engineering tenants only ---- */}
+                {isEngineering && activeTab === "engCatalog" && (
+                    <EngCatalogTab eng={draft.engineering} set={set} />
+                )}
+
+                {isEngineering && activeTab === "engPeople" && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Mechanic List" />
+                        <InputTag
+                            tags={mechanicTags}
+                            handleDelete={handleMechanicDelete}
+                            handleAddition={handleMechanicAddition}
+                            handleDrag={handleMechanicDrag}
+                            inputFieldPosition="bottom"
+                            placeholder="Type a name and press Enter"
+                        />
+                        <small className="text-muted font-s12">Used as the source for the mechanic dropdown in the service form.</small>
+                    </div>
+                </div>
+                )}
+
+                {isEngineering && activeTab === "engInvoice" && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Invoice Options" />
+                        <div className="row form-group g-3">
+                            {textField("Bill title", "engineering.invoice.billTitle", draft.engineering.invoice.billTitle, "CASH / CREDIT BILL")}
+                            {textField("Footer note", "engineering.invoice.footerNote", draft.engineering.invoice.footerNote)}
+                        </div>
+                        <div className="row form-group g-3">
+                            <div className="col-xl-6 d-flex align-items-end">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Switch
+                                        key={`eng-qr-${settings.engineering.invoice.showQr}`}
+                                        id="eng-show-qr"
+                                        className="switch"
+                                        switchClassName="blue"
+                                        defaultChecked={draft.engineering.invoice.showQr}
+                                        onChange={(e) => set("engineering.invoice.showQr", e.target.checked)}
+                                    />
+                                    <label className="form-label mb-0" htmlFor="eng-show-qr">
+                                        Show payment QR on invoice (requires UPI ID)
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="col-xl-6 d-flex align-items-end">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Switch
+                                        key={`eng-sig-${settings.engineering.invoice.showSignature}`}
+                                        id="eng-show-signature"
+                                        className="switch"
+                                        switchClassName="blue"
+                                        defaultChecked={draft.engineering.invoice.showSignature}
+                                        onChange={(e) => set("engineering.invoice.showSignature", e.target.checked)}
+                                    />
+                                    <label className="form-label mb-0" htmlFor="eng-show-signature">
+                                        Show signature on invoice (requires a signature image)
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
