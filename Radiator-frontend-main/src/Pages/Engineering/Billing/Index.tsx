@@ -138,7 +138,12 @@ const EngBilling = () => {
         }
         try {
             setLoading(true);
-            const res = await postData(`engbills/${paymentItem._id}/payment`, { amount, discount: discount > 0 ? discount : undefined, mode: paymentMode });
+            const res = await postData(`engbills/${paymentItem._id}/payment`, {
+                amount,
+                // The API sets the bill's total discount; the modal's field is an extra discount on top of any existing one.
+                discount: discount > 0 ? (Number(paymentItem.discount) || 0) + discount : undefined,
+                mode: paymentMode,
+            });
             callAlertMsg(res.message || "Payment recorded", "success");
             setPaymentItem(null);
             await getTableData();
