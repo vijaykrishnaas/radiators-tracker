@@ -136,7 +136,12 @@ const AutoBilling = () => {
         }
         try {
             setLoading(true);
-            const res = await postData(`autobills/${paymentItem._id}/payment`, { amount, discount });
+            const res = await postData(`autobills/${paymentItem._id}/payment`, {
+                amount,
+                // The API sets the bill's total discount (a missing value becomes 0), so always send
+                // the existing discount plus the extra one entered in this modal.
+                discount: (Number(paymentItem.discount) || 0) + discount,
+            });
             callAlertMsg(res.message || "Payment recorded", "success");
             setPaymentItem(null);
             await getTableData();
