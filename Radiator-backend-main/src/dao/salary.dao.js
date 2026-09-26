@@ -42,6 +42,15 @@ export function getWorkingDays(periodStart, periodEnd, settings) {
   return Math.max(totalDays - offCount, 1);
 }
 
+// Advances can only be recovered up to the gross earned this period. Anything
+// beyond that is carried forward (as a new unapplied advance) instead of being
+// marked repaid and lost when net clamps at 0.
+export function splitAdvances(unappliedAdvances, grossAmount) {
+  const total = round2((unappliedAdvances || []).reduce((s, a) => s + Number(a.amount || 0), 0));
+  const deducted = round2(Math.min(total, Math.max(Number(grossAmount) || 0, 0)));
+  return { total, deducted, carryForward: round2(total - deducted) };
+}
+
 async function computeSettlementFigures(clientId, employeeId, periodStart, periodEnd, presentDaysManual) {
   const db = await connectDB();
   const cid = toClientId(clientId);
@@ -65,13 +74,13 @@ async function computeSettlementFigures(clientId, employeeId, periodStart, perio
   const unappliedAdvances = await db.collection(ADVANCES)
     .find({ clientId: cid, employeeId: eid, status: "unapplied" })
     .toArray();
-  const advancesDeducted = round2(unappliedAdvances.reduce((s, a) => s + Number(a.amount || 0), 0));
+  const { deducted: advancesDeducted, carryForward: advancesCarriedForward } = splitAdvances(unappliedAdvances, grossAmount);
 
   return {
     employee, settings, workingDays,
     presentDaysComputed, presentDaysMode, presentDaysUsed,
     baseSalary, grossAmount,
-    unappliedAdvances, advancesDeducted,
+    unappliedAdvances, advancesDeducted, advancesCarriedForward,
   };
 }
 
@@ -94,6 +103,7 @@ export async function previewSettlement(clientId, employeeId, periodStart, perio
       advanceId: a._id, amount: a.amount, date: a.date, reason: a.reason,
     })),
     advancesDeducted: figures.advancesDeducted,
+    advancesCarriedForward: figures.advancesCarriedForward,
     deductions,
     deductionsTotal,
     netAmount,
@@ -145,6 +155,7 @@ export async function settlePeriod(clientId, employeeId, periodStart, periodEnd,
     grossAmount: figures.grossAmount,
     advancesApplied,
     advancesDeducted: figures.advancesDeducted,
+    advancesCarriedForward: figures.advancesCarriedForward,
     deductions: cleanDeductions,
     deductionsTotal,
     netAmount,
@@ -163,6 +174,21 @@ export async function settlePeriod(clientId, employeeId, periodStart, periodEnd,
       { _id: { $in: figures.unappliedAdvances.map((a) => a._id) } },
       { $set: { status: "applied", appliedToPeriodId: result.insertedId, appliedAt: new Date() } }
     );
+  }
+
+  if (figures.advancesCarriedForward > 0) {
+    await db.collection(ADVANCES).insertOne({
+      clientId: cid,
+      employeeId: eid,
+      date: end,
+      amount: figures.advancesCarriedForward,
+      reason: `Carried forward from ${periodKey} settlement`,
+      status: "unapplied",
+      appliedToPeriodId: null,
+      appliedAt: null,
+      carriedFromPeriodId: result.insertedId,
+      createdAt: new Date(),
+    });
   }
 
   return { ...doc, _id: result.insertedId };
