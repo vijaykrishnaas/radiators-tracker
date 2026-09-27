@@ -7,6 +7,9 @@ function matches(doc, query) {
   return Object.entries(query).every(([key, val]) => {
     const docVal = doc[key];
     if (val && typeof val === "object" && !(val instanceof ObjectId)) {
+      if ("$in" in val) {
+        return val.$in.some((v) => String(v) === String(docVal));
+      }
       if ("$exists" in val) {
         const has = Object.prototype.hasOwnProperty.call(doc, key) && docVal !== undefined;
         return val.$exists ? has : !has;
