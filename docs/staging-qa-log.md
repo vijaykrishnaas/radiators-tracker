@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5**
+Next area: **6**
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -20,7 +20,8 @@ Next area: **5**
 - No live MongoDB is available: say so honestly; never claim DB-level verification.
 
 ## Open follow-ups (to verify with tests before touching live code)
-- Radiator Billing Record Payment likely has the same discount wipe/replace issue as automobile (#27) — check in area 5.
+- Radiator discount wipe/replace: CONFIRMED on live radiator, fix in PR #29. Production data may already have lost discounts — flag to user before promotion.
+- Salary payslip prints full advance amount, not the deducted part; carried-forward amount not shown on payslip or settle page (from #28 review).
 - Radiator + automobile analytics `totalPending = revenue − collected` ignores discounts (overstates pending) — check in area 5/6.
 - Salary: manual present-days above working days pushes gross above base salary (no validation).
 - e2e scripts use fixed `waitForTimeout` sleeps; replace with request/condition waits.
@@ -34,7 +35,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `test/backfillSettingsShape.test.js` (3 tests) — settings-backfill gated-on-absence, never overwrites existing tenant settings, idempotency, dry-run behavior.
   - `test/salary.dao.test.js` (4 tests) — advance split/carry-forward, settle math with deductions, re-settle rejection.
   - Run with: `node --experimental-test-module-mocks --test test/engbill.dao.test.js test/backfillSettingsShape.test.js test/salary.dao.test.js`
-  - Last result (2026-09-26 22:37, PR #28 branch): 19/19 pass.
+  - Last result (2026-09-27 06:38, staging after #28): 19/19 pass.
   - Last result (2026-09-26 06:37, on staging after #25 merge): 15/15 pass, 0 fail.
   - Note: `node --test test/` (bare, no file args) also picks up `src/scripts/test-isolation.js` via Node's default test-file glob — that script is a manual integration script requiring a live server/Mongo and is unrelated to this suite; run the two test files explicitly as shown above instead.
 - Frontend (`Radiator-frontend-main/e2e/`, Playwright via global install, real app on Vite, API mocked):
@@ -42,11 +43,13 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - Run with: `npx vite --port 5173 &` then `node e2e/engineering.e2e.mjs` (exit code 1 on any failure).
   - Last result (2026-09-26 14:37, staging after #26 + PR #27 branch): 33/33 pass.
   - `e2e/automobile.e2e.mjs` — 10 checks: automobile redirect/header, engineering route gating, billing list, Record Payment discount (payment keeps existing discount; extra discount adds), qty × rate, bill-date required, create payload.
-  - Run with: `node e2e/automobile.e2e.mjs` (same Vite setup). Last result (PR #27 branch): 10/10 pass.
+  - Run with: `node e2e/automobile.e2e.mjs` (same Vite setup). Last result (2026-09-27): 10/10 pass.
+  - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (PR #29 branch): 6/6 pass.
 
 ## Run log
 _(newest first: date, area, findings, PR, result)_
 
+- **2026-09-27 06:38** — Merged PR #28 (salary advance carry-forward) after NO-BLOCKERS review; re-ran backend 19/19, tsc clean. Area 5: Radiator (LIVE). **Real bug confirmed:** Record Payment wipes an existing discount when a later payment has no discount and replaces instead of adds a further discount (same as automobile #27), also skewing bonuses. Fixed in `Pages/IssueCounter/Billing/Index.tsx` (always send existing + entered); backend untouched. Added `e2e/radiator.e2e.mjs` (6 checks); both discount checks fail before, pass after; other suites green. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/29 — open, awaiting review. Production data may already be affected.
 - **2026-09-26 22:37** — Merged PR #27 (automobile discount fix + 10 e2e checks) after NO-BLOCKERS review; re-ran backend 15/15, tsc clean, e2e automobile 10/10 + engineering 33/33. Area 4: Salary. **Real bug found:** settling a period with advances larger than gross marked all advances applied while net clamped at 0, silently writing off the excess (₹5,000 advance vs ₹3,000 gross lost ₹2,000). Fixed in `dao/salary.dao.js` (cap at gross, carry remainder forward as a new unapplied advance). Added `test/salary.dao.test.js`; fails before (`expected 3000, actual 5000`), 19/19 backend after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/28 — open, awaiting review.
 - **2026-09-26 14:37** — Merged PR #26 (engineering payment-discount fix + 33 e2e checks) after NO-BLOCKERS review; re-ran backend 15/15, tsc clean, e2e 33/33. Area 3: Automobile. **Real bug found:** Record Payment wipes an existing discount when a later payment has no discount (route coerces missing → 0), and replaces instead of adds a further discount. Fixed in `Pages/Automobile/Billing/Index.tsx` (always send existing + entered). Added `e2e/automobile.e2e.mjs` (10 checks); both discount checks fail before the fix and pass after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/27 — open, awaiting review. Noted likely same issue in radiator (live) + analytics pending ignoring discounts, for area 5.
 - **2026-09-26 06:37** — Merged PR #25 (15 backend tests) into staging after NO-BLOCKERS review; re-ran 15/15 green. Area 2: Engineering Works (frontend). **Real bug found:** Record Payment dialog sent the entered discount as the bill's total discount, dropping any discount set on the service form (₹50 existing + ₹100 entered stored as ₹100). Fixed in `Pages/Engineering/Billing/Index.tsx` (send existing + entered). Added `e2e/engineering.e2e.mjs` (33 checks); the new payment test fails before the fix (`discount: 100`) and passes after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/26 — open, awaiting review.
