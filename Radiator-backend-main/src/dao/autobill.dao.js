@@ -7,6 +7,7 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { syncAutoBonusesForRecord, removeBonusesForRecord } from "./bonus.dao.js";
 import { getSettings } from "./settings.dao.js";
+import { pendingNetOfDiscount } from "../utils/analytics.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
 
@@ -251,6 +252,17 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
     { $match: query },
     { $addFields: computedFields },
     {
+      $addFields: {
+        // Discount capped at the bill total (mirrors enrich()), so Pending is net of discounts.
+        discountAmt: {
+          $min: [
+            { $max: [{ $cond: [{ $isNumber: "$discount" }, "$discount", 0] }, 0] },
+            "$totalAmount",
+          ],
+        },
+      },
+    },
+    {
       $facet: {
         kpis: [
           {
@@ -259,6 +271,7 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
               totalBills: { $sum: 1 },
               totalRevenue: { $sum: "$totalAmount" },
               totalCollected: { $sum: "$receivedAmt" },
+              totalDiscount: { $sum: "$discountAmt" },
             },
           },
         ],
@@ -293,7 +306,7 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
     totalBills: raw.totalBills,
     totalRevenue: raw.totalRevenue,
     totalCollected: raw.totalCollected,
-    totalPending: raw.totalRevenue - raw.totalCollected,
+    totalPending: pendingNetOfDiscount(raw),
     collectionRate: raw.totalRevenue > 0
       ? Math.round((raw.totalCollected / raw.totalRevenue) * 1000) / 10
       : 0,
