@@ -37,6 +37,7 @@ async function run(type) {
   page.on("pageerror", (e) => errors.push(e.message));
   let posted = null;
   let paid = null;
+  let putBody = null;
   const bill = {
     _id: "b1", billNo: 802, billDate: "2026-09-16T00:00:00.000Z", vehicleNo: "TN52J2622", lorryAddress: "Sankari",
     mechanic: "Ramesh", phone: "", services: [{ type: "turbo", typeLabel: "Turbo", bsModel: "bs3",
@@ -51,6 +52,8 @@ async function run(type) {
     if (p === "/engbills/lookup-vehicle") return json({ success: true, match: { lorryAddress: "Sri Velavan Radiators", phone: "8870713151" } });
     if (p === "/engbills/analytics") return json({ kpis: { totalBills: 1, totalBilled: 4850, totalReceived: 0, totalOutstanding: 4850 },
       byMonth: [{ month: "2026-09", billed: 4850, received: 0, count: 1 }], byServiceType: [{ type: "turbo", label: "Turbo", amount: 4850, count: 1 }], byMechanic: [{ mechanic: "Ramesh", billed: 4850, count: 1 }] });
+    if (p === "/engbills/b1" && req.method() === "GET") return json({ success: true, bill });
+    if (p === "/engbills/b1" && req.method() === "PUT") { putBody = req.postDataJSON(); return json({ success: true, message: "Service updated ✅", bill }); }
     if (p === "/engbills/b1/payment" && req.method() === "POST") { paid = req.postDataJSON(); return json({ success: true, message: "Payment recorded ✅", bill }); }
     if (p === "/engbills" && req.method() === "POST") { posted = req.postDataJSON(); return json({ success: true, message: "Service saved ✅", bill }); }
     if (p === "/engbills") return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: 1, bills: [bill] });
@@ -193,6 +196,33 @@ async function run(type) {
   await page.waitForTimeout(300);
   ok("eng: type dropdown switches to Air Compressor table", (await page.locator("table input[value='Sleeve fixing']").count()) > 0);
   await page.screenshot({ path: `${S}/eng-settings.png`, fullPage: true });
+
+  // Edit existing bill: form loads stored values; update sends PUT with them.
+  await page.goto(BASE + "/engineering/dashboard/edit/b1");
+  await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(800);
+  ok("eng: edit loads truck number", (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN52J2622");
+  ok("eng: edit loads item rate 4850", (await page.locator('input[placeholder="Rate"]').first().inputValue()) === "4850");
+  ok("eng: edit loads discount 50", (await page.locator("label:has-text('Discount') + div input").inputValue()) === "50");
+  await page.locator('input[placeholder="Qty"]').first().fill("2");
+  await page.getByRole("button", { name: "Update service" }).click();
+  for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
+  ok("eng: edit sends PUT with updated qty and kept discount", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === 50 && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
+
+  // View mode is read-only.
+  await page.goto(BASE + "/engineering/dashboard/view/b1");
+  await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(800);
+  ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Save service|Update service/ }).count()) === 0);
+
+  // Print from billing downloads a PDF without errors.
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  const dl = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
+  await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
+  await page.getByRole("menuitem", { name: "Print" }).click();
+  const download = await dl;
+  ok("eng: print downloads an invoice PDF", !!download && /\.pdf$/i.test(download.suggestedFilename()), download ? download.suggestedFilename() : "no download");
   ok("eng: no page errors", errors.length === 0, errors.join(" | "));
   await browser.close();
 }
