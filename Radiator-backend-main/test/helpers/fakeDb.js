@@ -7,6 +7,9 @@ function matches(doc, query) {
   return Object.entries(query).every(([key, val]) => {
     const docVal = doc[key];
     if (val && typeof val === "object" && !(val instanceof ObjectId)) {
+      if ("$nin" in val) {
+        return !val.$nin.some((v) => String(v) === String(docVal));
+      }
       if ("$in" in val) {
         return val.$in.some((v) => String(v) === String(docVal));
       }
@@ -120,11 +123,28 @@ class FakeCollection {
     return this.docs.filter((d) => matches(d, query)).length;
   }
 
-  async updateOne(query, update) {
+  async updateOne(query, update, opts = {}) {
     const idx = this.docs.findIndex((d) => matches(d, query));
-    if (idx === -1) return { matchedCount: 0, modifiedCount: 0 };
+    if (idx === -1) {
+      if (!opts.upsert) return { matchedCount: 0, modifiedCount: 0 };
+      // Upsert: equality fields from the filter + $set + $setOnInsert (Mongo semantics).
+      const seed = {};
+      for (const [k, v] of Object.entries(query)) {
+        if (!(v && typeof v === "object" && !(v instanceof ObjectId))) seed[k] = v;
+        else if (v instanceof ObjectId) seed[k] = v;
+      }
+      const doc = { _id: new ObjectId(), ...seed, ...(update.$set || {}), ...(update.$setOnInsert || {}) };
+      this.docs.push(doc);
+      return { matchedCount: 0, modifiedCount: 0, upsertedId: doc._id };
+    }
     if (update.$set) this.docs[idx] = { ...this.docs[idx], ...update.$set };
     return { matchedCount: 1, modifiedCount: 1 };
+  }
+
+  async deleteMany(query) {
+    const before = this.docs.length;
+    this.docs = this.docs.filter((d) => !matches(d, query));
+    return { deletedCount: before - this.docs.length };
   }
 
   async updateMany(query, update) {
@@ -155,7 +175,13 @@ class FakeCollection {
     } else {
       doc = this.docs[idx];
     }
-    const updated = Array.isArray(update) ? applyPipelineUpdate(doc, update) : { ...doc, ...(update.$set || {}) };
+    let updated;
+    if (Array.isArray(update)) {
+      updated = applyPipelineUpdate(doc, update);
+    } else {
+      updated = { ...doc, ...(update.$set || {}) };
+      for (const [k, by] of Object.entries(update.$inc || {})) updated[k] = (Number(updated[k]) || 0) + by;
+    }
     this.docs[idx] = updated;
     // Mimic mongodb driver v7: findOneAndUpdate resolves to the document itself.
     return updated;
