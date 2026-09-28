@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **2** (second lap)
+Next area: **3** (second lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -41,13 +41,13 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `test/analytics.pending.test.js` (5 tests) — dashboard Pending net of discounts for radiator + automobile (pipeline shape + KPI math, aggregate stubbed).
   - `test/engbill.more.test.js` (7 tests) — numbering from billStartNumber, payments + discounts, overpayment cap, edit-below-received adjustment, vehicle lookup; fresh FakeDb per test.
   - Run all: `node --experimental-test-module-mocks --test test/*.test.js` is NOT safe (picks up src/scripts); list files explicitly: engbill.more, analytics.pending, salary.dao, engbill.dao, backfillSettingsShape.
-  - Last result (2026-09-27 22:37, PR #31 branch): 31/31 pass.
+  - Last result (2026-09-28 10:37, staging after #31): 31/31 pass.
   - Last result (2026-09-26 06:37, on staging after #25 merge): 15/15 pass, 0 fail.
   - Note: `node --test test/` (bare, no file args) also picks up `src/scripts/test-isolation.js` via Node's default test-file glob — that script is a manual integration script requiring a live server/Mongo and is unrelated to this suite; run the two test files explicitly as shown above instead.
 - Frontend (`Radiator-frontend-main/e2e/`, Playwright via global install, real app on Vite, API mocked):
   - `e2e/engineering.e2e.mjs` — 33 checks: engineering redirect/header gating, service form (validation, uppercase truck, autofill, per-BS rates, subtotals, quick-add, BS-6 hiding, save payload), billing list, Record Payment discount, Settings catalog; radiator-tenant regression (header, dashboard, settings tabs, route gating).
   - Run with: `npx vite --port 5173 &` then `node e2e/engineering.e2e.mjs` (exit code 1 on any failure).
-  - Last result (2026-09-26 14:37, staging after #26 + PR #27 branch): 33/33 pass.
+  - Now 39 checks (added edit, view-only, print PDF). Last result (2026-09-28 10:37, PR #32 branch): 39/39 pass.
   - `e2e/automobile.e2e.mjs` — 10 checks: automobile redirect/header, engineering route gating, billing list, Record Payment discount (payment keeps existing discount; extra discount adds), qty × rate, bill-date required, create payload.
   - Run with: `node e2e/automobile.e2e.mjs` (same Vite setup). Last result (2026-09-27): 10/10 pass.
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
@@ -55,6 +55,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
 ## Run log
 _(newest first: date, area, findings, PR, result)_
 
+- **2026-09-28 10:37** — Merged PR #31 (engineering DAO tests) after NO-BLOCKERS review; re-ran backend 31/31, tsc clean. (06:37 run skipped merge: command classifier outage, retried here.) Second lap, Area 2: Engineering frontend — no new bug. Added 6 e2e checks (edit load/update, view-only, print PDF); engineering 39/39, radiator 6/6, automobile 10/10. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/32 (tests only) — open, awaiting review.
 - **2026-09-27 22:37** — Merged PR #30 (dashboard Pending net of discounts) after strict NO-BLOCKERS review; re-ran backend 24/24, tsc clean, e2e radiator 6/6, automobile 10/10, engineering 33/33. Second lap, Area 1: Engineering backend — no new bug. Added `test/engbill.more.test.js` (7 tests; fresh FakeDb per test). Noted low-priority payments[] log mismatch after a post-payment discount. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/31 (tests only) — open, awaiting review.
 - **2026-09-27 14:37** — Merged PR #29 (radiator discount fix) after strict NO-BLOCKERS review; re-ran backend 19/19, tsc clean, e2e radiator 6/6, automobile 10/10, engineering 33/33. Area 6: Cross-cutting. **Real bug found:** dashboard Pending KPI (radiator live + automobile) = gross revenue − collected, ignoring discounts (fully paid ₹100-discount bill showed ₹100 pending). Fixed in both analytics DAOs (sum capped discount, pending = revenue − discount − collected ≥ 0; no other KPI changed). Added `test/analytics.pending.test.js`; 4 fail before, 24/24 backend after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/30 — open, awaiting review. Rotation complete; next lap starts at area 1.
 - **2026-09-27 06:38** — Merged PR #28 (salary advance carry-forward) after NO-BLOCKERS review; re-ran backend 19/19, tsc clean. Area 5: Radiator (LIVE). **Real bug confirmed:** Record Payment wipes an existing discount when a later payment has no discount and replaces instead of adds a further discount (same as automobile #27), also skewing bonuses. Fixed in `Pages/IssueCounter/Billing/Index.tsx` (always send existing + entered); backend untouched. Added `e2e/radiator.e2e.mjs` (6 checks); both discount checks fail before, pass after; other suites green. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/29 — open, awaiting review. Production data may already be affected.
