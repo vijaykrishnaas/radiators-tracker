@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **6** (second lap)
+Next area: **1** (third lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -70,3 +70,5 @@ _(newest first: date, area, findings, PR, result)_
 - **2026-09-26 14:37** — Merged PR #26 (engineering payment-discount fix + 33 e2e checks) after NO-BLOCKERS review; re-ran backend 15/15, tsc clean, e2e 33/33. Area 3: Automobile. **Real bug found:** Record Payment wipes an existing discount when a later payment has no discount (route coerces missing → 0), and replaces instead of adds a further discount. Fixed in `Pages/Automobile/Billing/Index.tsx` (always send existing + entered). Added `e2e/automobile.e2e.mjs` (10 checks); both discount checks fail before the fix and pass after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/27 — open, awaiting review. Noted likely same issue in radiator (live) + analytics pending ignoring discounts, for area 5.
 - **2026-09-26 06:37** — Merged PR #25 (15 backend tests) into staging after NO-BLOCKERS review; re-ran 15/15 green. Area 2: Engineering Works (frontend). **Real bug found:** Record Payment dialog sent the entered discount as the bill's total discount, dropping any discount set on the service form (₹50 existing + ₹100 entered stored as ₹100). Fixed in `Pages/Engineering/Billing/Index.tsx` (send existing + entered). Added `e2e/engineering.e2e.mjs` (33 checks); the new payment test fails before the fix (`discount: 100`) and passes after. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/26 — open, awaiting review.
 - **2026-09-26** — Area 1: Engineering Works (backend). Reviewed `engbill.dao.js`, `engbill.routes.js`, `backfillSettingsShape.js` for money math, tenant isolation, validation, and crash bugs. No real bug found (money math, payment accumulation, tenant isolation, validation/crash paths, per-tenant bill numbering, and settings backfill all verified correct via mocked-DB tests). Added 15 new backend tests to lock in current behavior. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/25 (branch `claude/staging-qa-fix-1`) — open, pending review per the QA charter's review-then-merge process.
+
+- 2026-09-29 18:37 UTC — Merged #35 (radiator DAO tests; backend 42/42, tsc clean). Area 6 (lap 2): offboard/export cascades cover all 12 tenant collections incl. engbills + counters; audit and settings routes scoped to req.user.clientId. No new bugs.
