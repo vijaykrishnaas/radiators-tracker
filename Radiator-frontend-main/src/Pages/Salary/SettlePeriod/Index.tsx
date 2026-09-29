@@ -24,6 +24,7 @@ type Preview = {
     grossAmount: number;
     advancesApplied: { advanceId: string; amount: number; date: string; reason?: string }[];
     advancesDeducted: number;
+    advancesCarriedForward?: number;
     netAmount: number;
 };
 type DeductionRow = { amount: string; reason: string };
@@ -450,6 +451,9 @@ const SettlePeriod = () => {
                                                 <tbody>
                                                     <tr><td>Gross ({preview.presentDaysUsed}/{preview.workingDays} days)</td><td className="text-end">{money(preview.grossAmount)}</td></tr>
                                                     <tr><td>Advances deducted</td><td className="text-end">- {money(preview.advancesDeducted)}</td></tr>
+                                                    {Number(preview.advancesCarriedForward) > 0 && (
+                                                        <tr className="text-muted"><td>Advance carried forward to next settlement</td><td className="text-end">{money(Number(preview.advancesCarriedForward))}</td></tr>
+                                                    )}
                                                     <tr><td>Deductions</td><td className="text-end">- {money(deductionsTotal)}</td></tr>
                                                     <tr className="font-w600"><td>Net Payable</td><td className="text-end">{money(finalNet)}</td></tr>
                                                 </tbody>
