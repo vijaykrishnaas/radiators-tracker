@@ -25,6 +25,7 @@ export type SalaryPeriod = {
     grossAmount: number;
     advancesApplied?: { amount: number; date: string; reason?: string }[];
     advancesDeducted: number;
+    advancesCarriedForward?: number;
     deductions?: { amount: number; reason?: string }[];
     deductionsTotal: number;
     netAmount: number;
@@ -117,6 +118,10 @@ export const printPayslip = (period: SalaryPeriod, settings: AppSettings) => {
     (period.advancesApplied || []).forEach((a) => {
         rows.push([`Advance — ${a.reason || new Date(a.date).toLocaleDateString("en-IN")}`, `- ${money(a.amount)}`]);
     });
+    // Advances beyond this period's gross are carried to the next settlement, not deducted here.
+    if (Number(period.advancesCarriedForward) > 0) {
+        rows.push(["Advance carried forward to next settlement", `+ ${money(Number(period.advancesCarriedForward))}`]);
+    }
     (period.deductions || []).forEach((d) => {
         rows.push([`Deduction — ${d.reason || "—"}`, `- ${money(d.amount)}`]);
     });
