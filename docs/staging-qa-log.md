@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5** (second lap)
+Next area: **6** (second lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -21,7 +21,8 @@ Next area: **5** (second lap)
 
 ## Open follow-ups (to verify with tests before touching live code)
 - Radiator discount wipe/replace: CONFIRMED on live radiator, fix in PR #29. Production data may already have lost discounts — flag to user before promotion.
-- Salary payslip/preview carried-forward display: fix in PR #34.
+- Salary payslip/preview carried-forward display: fixed in #34 (merged). Remaining: deductions beyond gross are silently waived (not shown/carried).
+- Design decision for user: editing a bill below what was received permanently caps receivedAmount (radiator/auto/eng); a corrected edit doesn't restore it.
 - Dashboard Pending ignoring discounts: fixed in #30 (merged). Before release, compare Σ enrich().pendingAmount vs totalPending on a staging data snapshot (pipeline never run against real Mongo here).
 - Engineering: discount added after full payment caps amountReceived without a matching negative payments[] entry (log sum ≠ amountReceived; not shown in UI) — low priority.
 - Radiator discount fix #29 merged — production bills may already have lost discounts; offer a read-only check before promotion.
@@ -42,7 +43,8 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `test/engbill.more.test.js` (7 tests) — numbering from billStartNumber, payments + discounts, overpayment cap, edit-below-received adjustment, vehicle lookup; fresh FakeDb per test.
   - Run all: `node --experimental-test-module-mocks --test test/*.test.js` is NOT safe (picks up src/scripts); list files explicitly: engbill.more, analytics.pending, salary.dao, engbill.dao, backfillSettingsShape.
   - `test/autobill.bonus.test.js` (5 tests) — automobile totals, bill numbers, flat-% bonus on net, paid-lock, labour edits, tenant isolation.
-  - Last result (2026-09-29 02:37, staging after #33): 36/36 pass (files: autobill.bonus, engbill.more, analytics.pending, salary.dao, engbill.dao, backfillSettingsShape).
+  - `test/radiator.dao.test.js` (6 tests) — radiator (live) totals, payments/discount, matrix bonus, overpay cap, edit cap, delete keeps paid bonuses, tenant isolation.
+  - Last result (2026-09-29 10:37, PR #35 branch): 42/42 pass (files: autobill.bonus, engbill.more, analytics.pending, salary.dao, engbill.dao, backfillSettingsShape).
   - Last result (2026-09-26 06:37, on staging after #25 merge): 15/15 pass, 0 fail.
   - Note: `node --test test/` (bare, no file args) also picks up `src/scripts/test-isolation.js` via Node's default test-file glob — that script is a manual integration script requiring a live server/Mongo and is unrelated to this suite; run the two test files explicitly as shown above instead.
 - Frontend (`Radiator-frontend-main/e2e/`, Playwright via global install, real app on Vite, API mocked):
@@ -51,12 +53,13 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - Now 39 checks (added edit, view-only, print PDF). Last result (2026-09-28 18:37, staging after #32): 39/39 pass.
   - `e2e/automobile.e2e.mjs` — 10 checks: automobile redirect/header, engineering route gating, billing list, Record Payment discount (payment keeps existing discount; extra discount adds), qty × rate, bill-date required, create payload.
   - Run with: `node e2e/automobile.e2e.mjs` (same Vite setup). Last result (2026-09-27): 10/10 pass.
-  - `e2e/salary.e2e.mjs` — 6 checks: settle preview advance/carry/net, payslip PDF download + carried-forward text. Run: `node e2e/salary.e2e.mjs`. Last result (PR #34 branch): 6/6 pass.
+  - `e2e/salary.e2e.mjs` — 6 checks: settle preview advance/carry/net, payslip PDF download + carried-forward text. Run: `node e2e/salary.e2e.mjs`. Last result (2026-09-29 10:37, staging after #34): 6/6 pass.
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
 _(newest first: date, area, findings, PR, result)_
 
+- **2026-09-29 10:37** — Merged PR #34 (payslip/preview carried-forward) after NO-BLOCKERS review; re-ran backend 36/36, tsc clean, e2e salary 6/6, engineering 39/39, radiator 6/6, automobile 10/10. Second lap, Area 5: Radiator (live) — no new bug. Added `test/radiator.dao.test.js` (6 tests); backend 42/42. Logged design question (edit-below-received permanently caps received). PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/35 (tests only) — open, awaiting review.
 - **2026-09-29 02:37** — Merged PR #33 (automobile bill + bonus tests) after NO-BLOCKERS review; re-ran backend 36/36, tsc clean. Second lap, Area 4: Salary. **Real bug found (display):** after #28, the payslip PDF still printed full advance amounts with no carried-forward line (lines didn't reconcile with net), and the settle preview hid the carry. Fixed in `PrintPayslip.ts` + `SettlePeriod/Index.tsx` (add "carried forward" row). Added `e2e/salary.e2e.mjs` (6 checks); 2 fail before, 6/6 after; other e2e suites green. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/34 — open, awaiting review.
 - **2026-09-28 18:37** — Merged PR #32 (engineering e2e: edit/view/print) after NO-BLOCKERS review; re-ran backend 31/31, tsc clean, e2e engineering 39/39, radiator 6/6, automobile 10/10. Second lap, Area 3: Automobile — no new bug (reviewed autobill DAO + auto bonus sync). Added `test/autobill.bonus.test.js` (5 tests) and fakeDb upsert/deleteMany/$nin/$inc. Backend 36/36. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/33 (tests only) — open, awaiting review.
 - **2026-09-28 10:37** — Merged PR #31 (engineering DAO tests) after NO-BLOCKERS review; re-ran backend 31/31, tsc clean. (06:37 run skipped merge: command classifier outage, retried here.) Second lap, Area 2: Engineering frontend — no new bug. Added 6 e2e checks (edit load/update, view-only, print PDF); engineering 39/39, radiator 6/6, automobile 10/10. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/32 (tests only) — open, awaiting review.
