@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (third lap)
+Next area: **2** (third lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -72,3 +72,5 @@ _(newest first: date, area, findings, PR, result)_
 - **2026-09-26** — Area 1: Engineering Works (backend). Reviewed `engbill.dao.js`, `engbill.routes.js`, `backfillSettingsShape.js` for money math, tenant isolation, validation, and crash bugs. No real bug found (money math, payment accumulation, tenant isolation, validation/crash paths, per-tenant bill numbering, and settings backfill all verified correct via mocked-DB tests). Added 15 new backend tests to lock in current behavior. PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/25 (branch `claude/staging-qa-fix-1`) — open, pending review per the QA charter's review-then-merge process.
 
 - 2026-09-29 18:37 UTC — Merged #35 (radiator DAO tests; backend 42/42, tsc clean). Area 6 (lap 2): offboard/export cascades cover all 12 tenant collections incl. engbills + counters; audit and settings routes scoped to req.user.clientId. No new bugs.
+
+- 2026-09-29 22:37 UTC — No open QA PR. Area 1 (lap 3, Eng backend): backend 42/42 green. Reviewed list/filter/export, vehicle lookup, analytics facets (month bucketing consistent with other verticals), totals clamping. No bugs; existing tests already cover these paths, so no PR.
