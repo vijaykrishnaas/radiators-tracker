@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **4** (third lap)
+Next area: **5** (third lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -78,3 +78,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-09-30 02:37 UTC — No open QA PR. Area 2 (lap 3, Eng frontend): tsc clean; engineering e2e green incl. radiator regression checks. No bugs, no PR.
 
 - 2026-09-30 06:37 UTC — No open QA PR. Area 3 (lap 3, Automobile): backend 42/42. Read update/payment/delete/query paths: received capped at net, bonuses re-synced, tenant-scoped, negative amounts rejected at route. Payment route still replaces (not adds to) discount — frontend compensates since #27; stays on the "server-side additive discount" follow-up. No new bugs, no PR.
+
+- 2026-09-30 10:37 UTC — No open QA PR. Area 4 (lap 3, Salary): backend 42/42. Read settle (409 on duplicate period, advances applied + carry-forward insert), adjustments (append-only), payroll total, advances. Notes (not bugs): payroll total excludes adjustments by design; recordAdvance doesn't verify the employee belongs to the tenant (record is still stored under the caller's clientId, so no cross-tenant read/write). No PR.
