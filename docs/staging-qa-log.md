@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **6** (third lap)
+Next area: **1** (fourth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -82,3 +82,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-09-30 10:37 UTC — No open QA PR. Area 4 (lap 3, Salary): backend 42/42. Read settle (409 on duplicate period, advances applied + carry-forward insert), adjustments (append-only), payroll total, advances. Notes (not bugs): payroll total excludes adjustments by design; recordAdvance doesn't verify the employee belongs to the tenant (record is still stored under the caller's clientId, so no cross-tenant read/write). No PR.
 
 - 2026-09-30 14:37 UTC — No open QA PR. Area 5 (lap 3, Radiator live): backend 42/42 (incl. radiator DAO tests from #35), radiator e2e 6/6. Payment route validation mirrors automobile (negatives rejected; discount replaced — client sends cumulative since #29). No new bugs, no PR.
+
+- 2026-09-30 18:38 UTC — No open QA PR. Area 6 (lap 3, cross-cutting): backend 42/42. Auth: JWT verified per request; loadActiveTenant re-checks client existence/suspension every request; settings GET/PUT scoped to req.user.clientId and audited. No new bugs, no PR. Third lap complete with zero new findings — suggest reducing cadence (user decision).
