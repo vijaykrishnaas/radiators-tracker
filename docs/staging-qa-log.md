@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **2** (third lap)
+Next area: **3** (third lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -74,3 +74,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-09-29 18:37 UTC — Merged #35 (radiator DAO tests; backend 42/42, tsc clean). Area 6 (lap 2): offboard/export cascades cover all 12 tenant collections incl. engbills + counters; audit and settings routes scoped to req.user.clientId. No new bugs.
 
 - 2026-09-29 22:37 UTC — No open QA PR. Area 1 (lap 3, Eng backend): backend 42/42 green. Reviewed list/filter/export, vehicle lookup, analytics facets (month bucketing consistent with other verticals), totals clamping. No bugs; existing tests already cover these paths, so no PR.
+
+- 2026-09-30 02:37 UTC — No open QA PR. Area 2 (lap 3, Eng frontend): tsc clean; engineering e2e green incl. radiator regression checks. No bugs, no PR.
