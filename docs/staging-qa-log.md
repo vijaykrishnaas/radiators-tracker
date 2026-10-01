@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (fifth lap)
+Next area: **2** (fifth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -96,3 +96,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-10-01 14:37 UTC — No open QA PR. staging unchanged (4b0fedf). Area 5 (lap 4, Radiator live): backend 42/42; radiator e2e 6/6 PASS. No bugs, no PR.
 
 - 2026-10-01 18:37 UTC — No open QA PR. staging unchanged (4b0fedf). Area 6 (lap 4, cross-cutting): backend 42/42; auth/tenant/settings code unchanged since lap 3 review. No bugs, no PR. Lap 4 complete, zero findings.
+
+- 2026-10-01 22:38 UTC — No open QA PR. staging unchanged (4b0fedf). Area 1 (lap 5, Eng backend): backend 42/42. No bugs, no PR.
