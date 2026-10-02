@@ -303,7 +303,7 @@ const EngCreate = () => {
                     <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <span className="font-s13 text-muted">Quick add:</span>
                         {quick.map((q) => (
-                            <button key={`${q.type}-${q.item}`} type="button" className="btn btn-sm btn-light rounded-pill"
+                            <button key={`${q.type}-${q.item}`} type="button" className="btn btn-sm btn-light rounded-pill eng-quick"
                                 onClick={() => quickAdd(q.type, q.item)}>{q.text}</button>
                         ))}
                     </div>

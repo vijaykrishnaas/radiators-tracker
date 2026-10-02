@@ -414,3 +414,17 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
 
 /* Dropdowns (react-select, 38px) sit beside 44px inputs on the service form: match the control height token. */
 .eng-form div[class*="-control"] { min-height: var(--control-h, 44px) !important; }
+
+/* Quick-add chips: tinted brand pill with brand text, as in the mockup (replaces the grey button). */
+.eng-form .btn.eng-quick {
+    background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+    color: var(--primary) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-weight: 500;
+    padding: 5px 14px;
+    transition: background-color var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.eng-form .btn.eng-quick:hover { background: color-mix(in srgb, var(--primary) 18%, transparent) !important; }
+.eng-form .btn.eng-quick:focus-visible { box-shadow: var(--focus-ring) !important; outline: 0; }
+@media (prefers-reduced-motion: reduce) { .eng-form .btn.eng-quick { transition: none; } }
