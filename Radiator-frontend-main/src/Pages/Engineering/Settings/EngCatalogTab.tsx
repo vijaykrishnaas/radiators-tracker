@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "../engineering.css";
 import type { AppSettings, EngItem, EngServiceType } from "../../../Context/SettingsContext";
 
 type Eng = AppSettings["engineering"];
@@ -13,9 +14,10 @@ const uniqueSlug = (base: string, taken: string[]) => {
     return v;
 };
 
-// Engineering service catalog: pick a service type from the dropdown to edit
-// its table (item | price per BS model | needs description | quick add).
-// A blank price means "not offered for that BS model"; 0 is still offered.
+// Engineering service catalog: master/detail. The left rail lists service
+// types; the panel edits the selected type's items (name | price per BS model |
+// asks for description | quick add). A blank price means "not offered for that
+// BS model"; 0 is still offered. Below tablet width each item becomes a card.
 const EngCatalogTab = ({ eng, set }: Props) => {
     const types = eng.serviceTypes || [];
     const models = eng.bsModels || [];
@@ -108,131 +110,143 @@ const EngCatalogTab = ({ eng, set }: Props) => {
     };
 
     return (
-        <>
-            <div className="card card-shadow mb-4">
-                <div className="card-body">
-                    <p className="font-w600 mb-3">BS models</p>
-                    <div className="d-flex flex-wrap gap-2 align-items-center">
-                        {models.map((m) => (
-                            <div key={m.value} className="input-group" style={{ width: 170 }}>
-                                <input className="form-control form-control-sm" value={m.label}
-                                    onChange={(e) => renameModel(m.value, e.target.value)} />
-                                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => deleteModel(m.value)}>×</button>
-                            </div>
-                        ))}
-                        <div className="input-group" style={{ width: 220 }}>
-                            <input className="form-control form-control-sm" placeholder="Add model (e.g. BS-2)" value={newModel}
-                                onChange={(e) => setNewModel(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addModel()} />
-                            <button type="button" className="btn btn-sm btn-primary" onClick={addModel}>Add</button>
+        <div className="eng-stack">
+            <section className="eng-card eng-card-pad" aria-label="BS models">
+                <p className="eng-eyebrow">BS models</p>
+                <div className="eng-chips">
+                    {models.map((m) => (
+                        <div key={m.value} className="eng-chip">
+                            <input value={m.label} aria-label={`Rename ${m.label}`}
+                                onChange={(e) => renameModel(m.value, e.target.value)} />
+                            <button type="button" className="eng-icon-btn" aria-label={`Delete ${m.label}`}
+                                onClick={() => deleteModel(m.value)}>×</button>
                         </div>
+                    ))}
+                    <div className="eng-add">
+                        <input placeholder="Add model" value={newModel} aria-label="New BS model"
+                            onChange={(e) => setNewModel(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addModel()} />
+                        <button type="button" className="eng-link-btn" disabled={!newModel.trim()} onClick={addModel}>Add</button>
                     </div>
-                    <small className="text-muted font-s12">Adding a model adds a price column for it on every item.</small>
                 </div>
-            </div>
+                <p className="eng-hint">Adding a model adds a price column for it on every item.</p>
+            </section>
 
-            <div className="card card-shadow mb-4">
-                <div className="card-body">
-                    <div className="d-flex flex-wrap gap-3 align-items-end mb-3">
-                        <div style={{ minWidth: 220 }}>
-                            <label className="form-label">Service type</label>
-                            <select className="form-select" value={activeType} onChange={(e) => setActiveType(e.target.value)}>
-                                {types.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
-                        </div>
-                        {current && (
-                            <div style={{ minWidth: 200 }}>
-                                <label className="form-label">Rename</label>
-                                <input className="form-control" value={current.label} onChange={(e) => renameType(e.target.value)} />
-                            </div>
-                        )}
-                        {current && (
-                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={deleteType}>Delete type</button>
-                        )}
-                        <div className="input-group ms-auto" style={{ width: 260 }}>
-                            <input className="form-control" placeholder="New service type" value={newType}
+            <div className="eng-split">
+                <nav className="eng-card eng-rail" aria-label="Service types">
+                    <p className="eng-eyebrow eng-rail-title">Service types</p>
+                    {types.map((t) => (
+                        <button key={t.value} type="button" aria-current={t.value === activeType}
+                            className={`eng-type${t.value === activeType ? " is-active" : ""}`}
+                            onClick={() => setActiveType(t.value)}>
+                            <span>{t.label || "Untitled"}</span>
+                            <span className="eng-type-count">{t.items.length}</span>
+                        </button>
+                    ))}
+                    <div className="eng-rail-add">
+                        <div className="eng-add">
+                            <input placeholder="New service type" value={newType} aria-label="New service type"
                                 onChange={(e) => setNewType(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addType()} />
-                            <button type="button" className="btn btn-primary" onClick={addType}>+ Add type</button>
+                            <button type="button" className="eng-link-btn" disabled={!newType.trim()} onClick={addType}>Add</button>
                         </div>
                     </div>
+                </nav>
 
+                <section className="eng-card" aria-label="Service items" style={{ overflow: "hidden" }}>
                     {current ? (
                         <>
-                            <div className="table-responsive">
-                                <table className="table table-bordered font-s14 align-middle">
-                                    <thead>
-                                        <tr>
-                                            <th>Item</th>
-                                            {models.map((m) => <th key={m.value} style={{ width: 120 }}>{m.label} ₹</th>)}
-                                            <th className="text-center" style={{ width: 110 }}>Needs description</th>
-                                            <th className="text-center" style={{ width: 90 }}>Quick add</th>
-                                            <th style={{ width: 50 }} />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {current.items.map((it, idx) => (
-                                            <tr key={it.value}>
-                                                <td>
-                                                    <input className="form-control form-control-sm" value={it.label}
-                                                        onChange={(e) => patchItem(idx, { label: e.target.value })} />
-                                                </td>
-                                                {models.map((m) => {
-                                                    const p = it.prices?.[m.value];
-                                                    return (
-                                                        <td key={m.value}>
-                                                            <input type="number" min={0} className="form-control form-control-sm"
-                                                                placeholder="not offered"
-                                                                value={p === null || p === undefined ? "" : p}
-                                                                onChange={(e) => setPrice(idx, m.value, e.target.value)} />
-                                                        </td>
-                                                    );
-                                                })}
-                                                <td className="text-center">
-                                                    <input type="checkbox" className="form-check-input" checked={!!it.requiresComment}
-                                                        onChange={(e) => patchItem(idx, { requiresComment: e.target.checked })} />
-                                                </td>
-                                                <td className="text-center">
-                                                    <input type="checkbox" className="form-check-input" checked={isQuick(it.value)}
-                                                        onChange={() => toggleQuick(it.value)} />
-                                                </td>
-                                                <td className="text-center">
-                                                    <button type="button" className="btn btn-sm btn-link text-danger p-0" onClick={() => deleteItem(idx)}>×</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {!current.items.length && (
-                                            <tr><td colSpan={models.length + 4} className="text-center text-muted">No items yet</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                            <div className="eng-panel-head">
+                                <input className="eng-title-input" value={current.label} aria-label="Service type name"
+                                    onChange={(e) => renameType(e.target.value)} />
+                                <button type="button" className="eng-link-btn is-danger" onClick={deleteType}>Delete type</button>
                             </div>
-                            <div className="input-group" style={{ maxWidth: 360 }}>
-                                <input className="form-control" placeholder="New item name" value={newItem}
+
+                            <div className="eng-items" style={{ ["--n" as string]: models.length }}>
+                                <div className="eng-items-head" aria-hidden="true">
+                                    <span>Item</span>
+                                    {models.map((m) => <span key={m.value} className="is-num">{m.label}</span>)}
+                                    <span className="is-mid">Asks detail</span>
+                                    <span className="is-mid">Quick add</span>
+                                    <span />
+                                </div>
+
+                                {current.items.map((it, idx) => (
+                                    <div key={it.value} className="eng-item">
+                                        <div className="eng-name-cell">
+                                            <input className="eng-name" value={it.label} aria-label="Item name"
+                                                onChange={(e) => patchItem(idx, { label: e.target.value })} />
+                                        </div>
+                                        <div className="eng-del-cell">
+                                            <button type="button" className="eng-icon-btn" aria-label={`Delete ${it.label}`}
+                                                onClick={() => deleteItem(idx)}>×</button>
+                                        </div>
+                                        {models.map((m) => {
+                                            const p = it.prices?.[m.value];
+                                            const off = p === null || p === undefined;
+                                            return (
+                                                <label key={m.value} className={`eng-price${off ? " is-off" : ""}`}
+                                                    title={off ? `Not offered for ${m.label}` : undefined}>
+                                                    <span className="eng-price-label">{m.label}</span>
+                                                    <span className="eng-rs">₹</span>
+                                                    <input type="number" min={0} inputMode="decimal" placeholder="—"
+                                                        aria-label={`${it.label} price for ${m.label}`}
+                                                        value={off ? "" : p}
+                                                        onChange={(e) => setPrice(idx, m.value, e.target.value)} />
+                                                </label>
+                                            );
+                                        })}
+                                        <div className="eng-cell-mid">
+                                            <label className="eng-switch">
+                                                <input type="checkbox" checked={!!it.requiresComment}
+                                                    onChange={(e) => patchItem(idx, { requiresComment: e.target.checked })} />
+                                                <span className="eng-switch-track" />
+                                                <span className="eng-switch-text">Ask for a description</span>
+                                            </label>
+                                        </div>
+                                        <div className="eng-cell-mid">
+                                            <label className="eng-switch">
+                                                <input type="checkbox" checked={isQuick(it.value)} onChange={() => toggleQuick(it.value)} />
+                                                <span className="eng-switch-track" />
+                                                <span className="eng-switch-text">Quick-add chip</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {!current.items.length && (
+                                    <div className="eng-empty">No items yet. Add the first one below.</div>
+                                )}
+                            </div>
+
+                            <div className="eng-additem">
+                                <input placeholder="New item name" value={newItem} aria-label="New item name"
                                     onChange={(e) => setNewItem(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem()} />
-                                <button type="button" className="btn btn-primary" onClick={addItem}>Add item</button>
+                                <button type="button" className="btn btn-primary btn-sm" disabled={!newItem.trim()} onClick={addItem}>Add item</button>
                             </div>
-                            <small className="text-muted font-s12 d-block mt-2">
-                                Leave a price blank if the item is not offered for that BS model — it will be hidden in the service form.
-                                A price of 0 is still offered.
-                            </small>
+                            <div className="eng-legend">
+                                <span><i />Empty = not offered for that BS model (hidden in the service form)</span>
+                                <span>₹0 is still offered</span>
+                            </div>
                         </>
                     ) : (
-                        <p className="text-muted mb-0">Add a service type to start.</p>
+                        <div className="eng-empty">Add a service type to start.</div>
                     )}
-                </div>
+                </section>
             </div>
 
-            <div className="card card-shadow mb-4">
-                <div className="card-body">
-                    <p className="font-w600 mb-3">Bill numbering</p>
-                    <div style={{ maxWidth: 260 }}>
-                        <label className="form-label">Start bill numbers from</label>
-                        <input type="number" min={1} className="form-control" value={eng.billStartNumber ?? 1}
-                            onChange={(e) => set("engineering.billStartNumber", Math.max(parseInt(e.target.value, 10) || 1, 1))} />
-                        <small className="text-muted font-s12">Continue from your paper bill book (e.g. 802). Only raises the next number, never lowers it.</small>
-                    </div>
+            <section className="eng-card eng-card-pad eng-numbering" aria-label="Bill numbering">
+                <div>
+                    <p className="eng-eyebrow" style={{ marginBottom: 4 }}>Bill numbering</p>
+                    <p className="eng-hint" style={{ margin: 0 }}>
+                        Continue from your paper bill book (e.g. 802). This only ever raises the next number, never lowers it.
+                    </p>
                 </div>
-            </div>
-        </>
+                <label style={{ display: "grid", gap: 4, margin: 0 }}>
+                    <span className="eng-hint" style={{ margin: 0 }}>Start bill numbers from</span>
+                    <input type="number" min={1} className="eng-number-input" value={eng.billStartNumber ?? 1}
+                        onChange={(e) => set("engineering.billStartNumber", Math.max(parseInt(e.target.value, 10) || 1, 1))} />
+                </label>
+            </section>
+        </div>
     );
 };
 

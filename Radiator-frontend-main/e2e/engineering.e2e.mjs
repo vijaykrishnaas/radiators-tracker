@@ -191,11 +191,17 @@ async function run(type) {
   ok("eng: settings tabs = Company/Service Catalog/Mechanics/Invoice", /Service Catalog/.test(tabs) && /Mechanics/.test(tabs) && !/Bonus|Salary|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
   await page.getByRole("tab", { name: "Service Catalog" }).click();
   await page.waitForTimeout(500);
-  ok("eng: catalog table shows Turbo items", (await page.locator("table input[value='Hold set']").count()) > 0);
-  await page.locator("select.form-select").first().selectOption("compressor");
+  ok("eng: catalog table shows Turbo items", (await page.locator(".eng-item input[value='Hold set']").count()) > 0);
+  await page.locator(".eng-type", { hasText: "Air Compressor" }).click();
   await page.waitForTimeout(300);
-  ok("eng: type dropdown switches to Air Compressor table", (await page.locator("table input[value='Sleeve fixing']").count()) > 0);
+  ok("eng: type rail switches to Air Compressor items", (await page.locator(".eng-item input[value='Sleeve fixing']").count()) > 0);
   await page.screenshot({ path: `${S}/eng-settings.png`, fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  ok("eng: catalog has no horizontal overflow at 390px", overflow <= 0, `overflow=${overflow}`);
+  ok("eng: catalog items render as cards on phone (price labels visible)", await page.locator(".eng-item .eng-price-label").first().isVisible());
+  await page.setViewportSize({ width: 1300, height: 1000 });
 
   // Edit existing bill: form loads stored values; update sends PUT with them.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
