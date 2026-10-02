@@ -155,16 +155,25 @@ async function run(type) {
   const heights = await page.evaluate(() => {
     const h = (el) => Math.round(el.getBoundingClientRect().height);
     const inputs = [...document.querySelectorAll(".eng-form input.form-control")].filter((e) => e.type === "text" || e.type === "date").map(h);
-    const selects = [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).slice(0, 4).map(h);
+    const selects = [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map(h);
     return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
   });
-  ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.selects.every((v) => v >= heights.inputs[0]), JSON.stringify(heights));
+  ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
   const align = await page.evaluate(() => {
     const L = (sel) => document.querySelector(sel).getBoundingClientRect();
     return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };
   });
   ok("eng: item column headers line up with the fields (<=2px)", Math.abs(align.q) <= 2 && Math.abs(align.r) <= 2 && Math.abs(align.a) <= 2, JSON.stringify(align));
 
+  // Quick-add chips follow the mockup: tinted pill in the brand colour, not a grey button.
+  const chipStyle = await page.evaluate(() => {
+    const chip = document.querySelector(".eng-quick");
+    const brand = getComputedStyle(document.querySelector(".btn-primary")).backgroundColor;
+    if (!chip) return { found: false, brand };
+    const cs = getComputedStyle(chip);
+    return { found: true, color: cs.color, bg: cs.backgroundColor, radius: cs.borderTopLeftRadius, brand };
+  });
+  ok("eng: quick-add chip is brand-coloured text on a tinted pill (mockup)", chipStyle.found && chipStyle.color === chipStyle.brand && /(rgba\([^)]*,\s*0?\.\d+\)|color\(srgb [^)]*\/\s*0?\.\d+\))$/.test(chipStyle.bg) && parseFloat(chipStyle.radius) >= 12, JSON.stringify(chipStyle));
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();
   await page.waitForTimeout(300);
