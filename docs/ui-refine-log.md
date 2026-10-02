@@ -58,6 +58,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 ## Backlog (pick top unchecked; add new items as you find them)
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (open, awaiting review).
 - [x] Dashboard: date-range segmented control + phone layout — PR #39.
+- [ ] Dashboard follow-ups (small): hoist `Seg` + pass `preset` prop; fix `compact()` rounding at boundaries (999999 -> 1M-style "10L").
 - [ ] Service form: header fields grid rhythm; service-card header (type · BS model chips); item lines; quick-add chips styling; validation message styling.
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [ ] Billing: desktop table polish (row hover, numeric alignment, status pill palette, balance emphasis), empty state, loading skeleton.
@@ -77,4 +78,5 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 10:56 UTC — Step 1a only: independent review of #39 posted, VERDICT: NO-BLOCKERS (head dcd5761). Merge next run. Follow-ups from the review (do in a later small PR, not #39): hoist `Seg` out of `EngDashboard` (remounts each render, loses keyboard focus); `compact(999999)` shows "1000k".
 - 2026-10-02 10:00 UTC (first fired run) — Backlog items 1+2 (Dashboard). Before/after screenshots at 1300/390; fixed phone date-input overflow; recharts donut animates ~2s, wait >=3s before screenshots. Opened PR #39; engineering e2e 56/56, radiator 6, automobile 10, salary 6 no FAIL. Next run: review #39.
