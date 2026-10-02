@@ -97,6 +97,7 @@ async function run(type) {
   await page.getByRole("radio", { name: "Today" }).click();
   await page.waitForTimeout(500);
   ok("eng: choosing 'Today' makes it the active range", (await page.locator(".eng-seg-btn.is-active").innerText()) === "Today");
+  ok("eng: range control keeps keyboard focus after a click", (await page.evaluate(() => document.activeElement?.textContent)) === "Today");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(400);
   const dashOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
