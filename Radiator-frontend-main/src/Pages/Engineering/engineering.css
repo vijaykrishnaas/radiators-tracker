@@ -410,5 +410,4 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-svc .eng-line-qty { flex: 0 0 90px; }
     .eng-svc .eng-line-rate { flex: 0 0 140px; }
     .eng-svc .eng-line-amt { flex: 0 0 110px; }
-    .eng-svc .eng-lh-amt { padding-right: 0; }
 }

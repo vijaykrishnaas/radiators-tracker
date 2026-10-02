@@ -351,7 +351,7 @@ const EngCreate = () => {
                                     <span className="eng-lh-times" />
                                     <span className="eng-lh-rate">Rate</span>
                                     <span className="eng-lh-amt">Amount</span>
-                                    <span className="eng-lh-x" />
+                                    {!isView && <span className="eng-lh-x" />}
                                 </div>
                             )}
                             {c.rows.map((r) => (
