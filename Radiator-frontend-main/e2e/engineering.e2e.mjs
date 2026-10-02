@@ -236,6 +236,24 @@ async function run(type) {
     ok("eng: bill PDF is a real PDF named with the bill no.", raw.startsWith("%PDF") && /Bill-802-/.test(download.suggestedFilename()), download.suggestedFilename());
     ok("eng: bill PDF carries amount in words and plate", /Rupees Four Thousand Eight Hundred/.test(raw) && /TN 52 J 2622/.test(raw));
   }
+  // Phone layouts: bills become cards, filters collapse, Save stays reachable on the form.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  const billOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  ok("eng: billing has no horizontal overflow at 390px", billOverflow <= 0, `overflow=${billOverflow}`);
+  ok("eng: billing table header hidden on phone (card mode)", !(await page.locator(".eng-table thead").isVisible()));
+  ok("eng: bill card shows status pill", await page.locator(".eng-table .eng-c-status").first().isVisible());
+  ok("eng: secondary filters collapsed on phone", !(await page.locator("#from-date").isVisible()));
+  await page.getByRole("button", { name: "More filters" }).click();
+  ok("eng: 'More filters' reveals date filters", await page.locator("#from-date").isVisible());
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.getByRole("button", { name: "Save service" }).waitFor({ timeout: 10000 });
+  const saveBox = await page.getByRole("button", { name: "Save service" }).boundingBox();
+  ok("eng: Save service is inside the viewport without scrolling (sticky bar)", !!saveBox && saveBox.y + saveBox.height <= 844 && saveBox.y >= 0, JSON.stringify(saveBox));
+  const formOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  ok("eng: service form has no horizontal overflow at 390px", formOverflow <= 0, `overflow=${formOverflow}`);
+  await page.setViewportSize({ width: 1300, height: 1000 });
   ok("eng: no page errors", errors.length === 0, errors.join(" | "));
   await browser.close();
 }

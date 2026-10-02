@@ -12,6 +12,7 @@ import AlertComponent from "../../../Components/AlertComponent";
 import { getData, postData, deleteData } from "../../../Services/ApiServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { printEngInvoice } from "../../../Components/PrintEngInvoice";
+import "../engineering.css";
 import { money } from "../../../Utils/format";
 import { STATUS_OPTIONS as ENG_STATUS, PAYMENT_MODES, bsLabel, type EngBill } from "../types";
 
@@ -40,6 +41,7 @@ const EngBilling = () => {
     const [searchStatus, setSearchStatus] = useState("");
     const [filtersKey, setFiltersKey] = useState(0);
 
+    const [showFilters, setShowFilters] = useState(false);
     const [paymentItem, setPaymentItem] = useState<EngBill | null>(null);
     const [paymentAmount, setPaymentAmount] = useState("");
     const [paymentDiscount, setPaymentDiscount] = useState("");
@@ -230,7 +232,7 @@ const EngBilling = () => {
 
                 <div className="card card-shadow mt-4">
                     <div className="card-body p-0">
-                        <div className="table-header">
+                        <div className={`table-header eng-filters${showFilters ? " is-open" : ""}`}>
                             <div className="row table-accordion-header align-items-end g-3">
                                 <div className="col-12 col-md-4 col-xl-3" key={`search-${filtersKey}`}>
                                     <Search getData={handleSearchData} placeholder={`Search ${labels.vehicleNo}...`} />
@@ -247,38 +249,44 @@ const EngBilling = () => {
                                         placeholder="-- All Status --"
                                         onChange={(option: any) => { setSearchStatus(option ? option.value : ""); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-6 col-md-4 col-xl-2">
+                                <div className="col-12 d-md-none">
+                                    <button type="button" className="eng-filter-toggle" aria-expanded={showFilters}
+                                        onClick={() => setShowFilters((v) => !v)}>
+                                        {showFilters ? "Hide filters" : "More filters"}
+                                    </button>
+                                </div>
+                                <div className="eng-more col-6 col-md-4 col-xl-2">
                                     <label className="form-label font-w500 mb-1">Service type</label>
                                     <Selector key={`type-${filtersKey}`} isClearable placeholder="-- All --"
                                         options={(settings.engineering?.serviceTypes || []).map((t) => ({ value: t.value, label: t.label }))}
                                         onChange={(option: any) => { setSearchType(option ? option.value : ""); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-6 col-md-4 col-xl-2">
+                                <div className="eng-more col-6 col-md-4 col-xl-2">
                                     <label className="form-label font-w500 mb-1">BS model</label>
                                     <Selector key={`bs-${filtersKey}`} isClearable placeholder="-- All --"
                                         options={(settings.engineering?.bsModels || []).map((b) => ({ value: b.value, label: b.label }))}
                                         onChange={(option: any) => { setSearchBs(option ? option.value : ""); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-6 col-md-4 col-xl-2">
+                                <div className="eng-more col-6 col-md-4 col-xl-2">
                                     <label htmlFor="from-date" className="form-label font-w500 mb-1">From</label>
                                     <input id="from-date" type="date" className="form-control"
                                         value={fromDate} max={toDate || undefined}
                                         onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-6 col-md-4 col-xl-2">
+                                <div className="eng-more col-6 col-md-4 col-xl-2">
                                     <label htmlFor="to-date" className="form-label font-w500 mb-1">To</label>
                                     <input id="to-date" type="date" className="form-control"
                                         min={fromDate || undefined} value={toDate}
                                         onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
                                 </div>
-                                <div className="col-6 col-md-4 col-xl-1 d-flex align-items-end">
+                                <div className="eng-more col-6 col-md-4 col-xl-1 d-flex align-items-end">
                                     <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearFilters}>Clear</button>
                                 </div>
                             </div>
                         </div>
 
                         <div className="table-body">
-                            <table className="table table-bordered font-s14">
+                            <table className="table table-bordered font-s14 eng-table">
                                 <thead>
                                     <tr>
                                         <th className="cell-nowrap">SI No</th>
@@ -298,23 +306,23 @@ const EngBilling = () => {
                                     {recordData.length ? (
                                         recordData.map((o, i) => (
                                             <tr key={o._id}>
-                                                <td className="cell-nowrap">{(currentPage - 1) * limit + i + 1}</td>
-                                                <td className="cell-nowrap">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
-                                                <td className="cell-nowrap">{o.billNo}</td>
-                                                <td className="cell-nowrap">{o.vehicleNo}</td>
-                                                <td>{o.mechanic}</td>
-                                                <td>
+                                                <td className="cell-nowrap eng-c-si" data-label="No">{(currentPage - 1) * limit + i + 1}</td>
+                                                <td className="cell-nowrap eng-c-date" data-label="Date">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
+                                                <td className="cell-nowrap eng-c-bill" data-label="Bill no">{o.billNo}</td>
+                                                <td className="cell-nowrap eng-c-truck" data-label="">{o.vehicleNo}</td>
+                                                <td className="eng-c-mech" data-label="Mechanic">{o.mechanic}</td>
+                                                <td className="eng-c-types" data-label="">
                                                     {Array.from(new Set((o.services || []).map((s) => s.typeLabel || s.type))).map((t) => (
                                                         <span key={t} className="badge rounded-pill text-bg-light border me-1">{t}</span>
                                                     ))}
                                                 </td>
-                                                <td className="cell-nowrap">{money(o.netTotal)}</td>
-                                                <td className="cell-nowrap">{money(o.amountReceived)}</td>
-                                                <td className={`cell-nowrap ${o.balance > 0 ? "text-danger font-w600" : ""}`}>
+                                                <td className="cell-nowrap eng-c-net" data-label="Net">{money(o.netTotal)}</td>
+                                                <td className="cell-nowrap eng-c-rec" data-label="Received">{money(o.amountReceived)}</td>
+                                                <td className={`cell-nowrap eng-c-bal ${o.balance > 0 ? "text-danger font-w600" : ""}`} data-label="Balance">
                                                     {money(o.balance)}
                                                 </td>
-                                                <td className="cell-nowrap"><span className={`status-badge ${badge(o.paymentStatus)}`}>{o.paymentStatus}</span></td>
-                                                <td className="cell-nowrap">
+                                                <td className="cell-nowrap eng-c-status" data-label=""><span className={`status-badge ${badge(o.paymentStatus)}`}>{o.paymentStatus}</span></td>
+                                                <td className="cell-nowrap eng-c-act" data-label="">
                                                     <RowActions ariaLabel={`Actions for ${o.vehicleNo}`} items={[
                                                         { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/engineering/dashboard/view/${o._id}`) },
                                                         { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/engineering/dashboard/edit/${o._id}`) },

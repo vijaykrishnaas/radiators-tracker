@@ -12,6 +12,7 @@ import { useSettings } from "../../../Context/SettingsContext";
 import { money, today } from "../../../Utils/format";
 import ItemMultiSelect from "../Components/ItemMultiSelect";
 import { PAYMENT_MODES, defaultRate, isOffered, round2, type EngBill } from "../types";
+import "../engineering.css";
 
 type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
 type Card = { key: number; type: string; bsModel: string; rows: Row[] };
@@ -313,7 +314,7 @@ const EngCreate = () => {
                     const t = findType(c.type);
                     const itemOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel)).map((i) => ({ label: i.label, value: i.value }));
                     return (
-                        <div key={c.key} className="border rounded p-3 mb-3">
+                        <div key={c.key} className="border rounded p-3 mb-3 eng-svc">
                             <div className="row g-3 align-items-end">
                                 <div className="col-md-3">
                                     <label className="form-label text-uppercase font-s12">Service type</label>
@@ -344,29 +345,29 @@ const EngCreate = () => {
                             </div>
 
                             {c.rows.map((r) => (
-                                <div key={r.item} className="d-flex flex-wrap align-items-center gap-2 rounded px-3 py-2 mt-2"
+                                <div key={r.item} className="d-flex flex-wrap align-items-center gap-2 rounded px-3 py-2 mt-2 eng-line"
                                     style={{ background: "var(--canvas, #eef0f4)" }}>
-                                    <span className="font-w500 flex-grow-1" style={{ minWidth: 140 }}>{r.label}</span>
+                                    <span className="font-w500 flex-grow-1 eng-line-name" style={{ minWidth: 140 }}>{r.label}</span>
                                     {r.requiresComment && (
-                                        <div style={{ minWidth: 220 }}>
+                                        <div className="eng-line-comment" style={{ minWidth: 220 }}>
                                             <InputText value={r.comment} placeholder="Describe the work" disabled={isView}
                                                 onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
                                             {errors[`c${c.key}-${r.item}`] && <span className="text-danger font-s12">{errors[`c${c.key}-${r.item}`]}</span>}
                                         </div>
                                     )}
-                                    <div style={{ width: 90 }}>
+                                    <div className="eng-line-qty" style={{ width: 90 }}>
                                         <InputText type="number" value={r.qty} placeholder="Qty" disabled={isView}
                                             onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
                                         {errors[`q${c.key}-${r.item}`] && <span className="text-danger font-s12">{errors[`q${c.key}-${r.item}`]}</span>}
                                     </div>
-                                    <span className="text-muted">×</span>
-                                    <div style={{ width: 140 }}>
+                                    <span className="text-muted eng-line-times">×</span>
+                                    <div className="eng-line-rate" style={{ width: 140 }}>
                                         <InputText type="number" prefix="₹" value={r.rate} placeholder="Rate" disabled={isView}
                                             onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
                                     </div>
-                                    <span className="font-w600 text-end" style={{ width: 110 }}>{money(amount(r))}</span>
+                                    <span className="font-w600 text-end eng-line-amt" style={{ width: 110 }}>{money(amount(r))}</span>
                                     {!isView && (
-                                        <button type="button" className="btn btn-sm btn-link text-muted p-0" aria-label="Remove item"
+                                        <button type="button" className="btn btn-sm btn-link text-muted p-0 eng-line-x" aria-label="Remove item"
                                             onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>×</button>
                                     )}
                                 </div>
@@ -396,7 +397,7 @@ const EngCreate = () => {
                 </div>
 
                 <hr className="my-4" />
-                <div className="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 eng-foot">
                     <div className="d-flex flex-wrap gap-4">
                         {serviceTypes.map((t) => (
                             <div key={t.value}>
