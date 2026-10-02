@@ -50,7 +50,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
 - Frontend (`Radiator-frontend-main/e2e/`, Playwright via global install, real app on Vite, API mocked):
   - `e2e/engineering.e2e.mjs` — 33 checks: engineering redirect/header gating, service form (validation, uppercase truck, autofill, per-BS rates, subtotals, quick-add, BS-6 hiding, save payload), billing list, Record Payment discount, Settings catalog; radiator-tenant regression (header, dashboard, settings tabs, route gating).
   - Run with: `npx vite --port 5173 &` then `node e2e/engineering.e2e.mjs` (exit code 1 on any failure).
-  - Now 39 checks (added edit, view-only, print PDF). Last result (2026-09-28 18:37, staging after #32): 39/39 pass.
+  - Now 50 checks (edit, view-only, print PDF + PDF content, catalog rail/phone layout, billing cards + filters, sticky Save bar). Last result (2026-10-02, staging after #38): 50/50 pass. NOTE: catalog selectors are now `.eng-item` / `.eng-type` (UI redesign PRs #36-#38); Engineering UI is intentionally restyled — do not 'fix' it back.
   - `e2e/automobile.e2e.mjs` — 10 checks: automobile redirect/header, engineering route gating, billing list, Record Payment discount (payment keeps existing discount; extra discount adds), qty × rate, bill-date required, create payload.
   - Run with: `node e2e/automobile.e2e.mjs` (same Vite setup). Last result (2026-09-27): 10/10 pass.
   - `e2e/salary.e2e.mjs` — 6 checks: settle preview advance/carry/net, payslip PDF download + carried-forward text. Run: `node e2e/salary.e2e.mjs`. Last result (2026-09-29 10:37, staging after #34): 6/6 pass.
@@ -102,3 +102,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-10-02 02:37 UTC — No open QA PR. staging unchanged (4b0fedf). Area 2 (lap 5, Eng frontend): tsc clean (e2e last green 2026-10-01 on same SHA). No bugs, no PR.
 
 - 2026-10-02 06:37 UTC — No open QA PR. staging unchanged (4b0fedf). Area 3 (lap 5, Automobile): backend 42/42. No bugs, no PR.
+
+- 2026-10-02 — Engineering UI redesign merged to staging by the user's request (not a QA run): #36 catalog (master/detail, phone cards), #37 bill PDF rebuilt to the invoice mockup (standalone PrintEngInvoice.ts + Utils/amountInWords.ts), #38 billing cards on phones + sticky totals bar. Each had an independent NO-BLOCKERS review; engineering e2e 50/50, radiator 6/6, automobile 10/10, salary 6/6, tsc clean. All CSS is `eng-*` scoped (Pages/Engineering/engineering.css). Radiator/automobile untouched.
