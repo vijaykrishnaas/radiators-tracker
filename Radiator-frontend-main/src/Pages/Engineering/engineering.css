@@ -369,3 +369,46 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-kpi-value { font-size: 19px; max-width: 100%; }
     .eng-panel { padding: 16px 14px 12px; }
 }
+
+
+/* =========================================================================
+   Service form — field errors, item-line columns, calmer rows
+   ========================================================================= */
+.eng-field.has-error .form-control,
+.eng-field.has-error .input-group-text,
+.eng-field.has-error [class*="-control"] {
+    border-color: var(--danger) !important;
+}
+.eng-field.has-error .form-control:focus,
+.eng-field.has-error [class*="-control"]:focus-within {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent) !important;
+}
+.eng-field > .text-danger { display: block; margin-top: 4px; font-weight: 500; }
+
+/* Item lines: hairline rows instead of heavy grey bars, with a matching column header */
+.eng-svc .eng-line {
+    background: var(--surface-sunken) !important;
+    border: 1px solid var(--line);
+}
+.eng-line-times { width: 14px; text-align: center; flex: 0 0 14px; }
+.eng-line-head {
+    display: flex; align-items: center; gap: 8px; padding: 12px 17px 0; /* 17 = row padding 16 + 1px border */
+    font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary);
+}
+.eng-lh-name { flex: 1 1 auto; min-width: 140px; }
+.eng-lh-qty { flex: 0 0 90px; }
+.eng-lh-times { flex: 0 0 14px; }
+.eng-lh-rate { flex: 0 0 140px; }
+.eng-lh-amt { flex: 0 0 110px; text-align: right; }
+.eng-lh-x { flex: 0 0 22px; }
+.eng-line-amt { font-variant-numeric: tabular-nums; }
+.eng-foot .font-w600, .eng-foot .font-w700 { font-variant-numeric: tabular-nums; }
+@media (max-width: 767.98px) { .eng-line-head { display: none; } }
+/* Fixed widths so the column header lines up with the fields beneath it. */
+@media (min-width: 768px) {
+    .eng-svc .eng-line-x { flex: 0 0 22px; width: 22px; min-width: 0 !important; padding: 0 !important; text-align: center; }
+    .eng-svc .eng-line-qty { flex: 0 0 90px; }
+    .eng-svc .eng-line-rate { flex: 0 0 140px; }
+    .eng-svc .eng-line-amt { flex: 0 0 110px; }
+    .eng-svc .eng-lh-amt { padding-right: 0; }
+}

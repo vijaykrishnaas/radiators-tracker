@@ -145,10 +145,18 @@ async function run(type) {
   // Other without description → error
   await page.getByRole("button", { name: "Save service" }).click();
   ok("eng: Other requires description", (await page.getByText("Describe the work").count()) > 0);
+  await page.waitForTimeout(450); // border-color has a 150ms transition
+  const errBorder = await page.locator(".eng-line-comment.has-error .form-control").first().evaluate((el) => getComputedStyle(el).borderTopColor);
+  ok("eng: missing description field is marked with the error colour", /rgb\(2[0-9]{2}, ?\d{1,2}, ?\d{1,2}\)|rgb\(231, ?74, ?74\)/.test(errBorder), errBorder);
   await card.getByPlaceholder("Describe the work").fill("Bearing clean");
   // 2*500 + 2000 + 50 = 3050
   const subtotalText = await card.getByText(/Subtotal:/).innerText();
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
+  const align = await page.evaluate(() => {
+    const L = (sel) => document.querySelector(sel).getBoundingClientRect();
+    return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };
+  });
+  ok("eng: item column headers line up with the fields (<=2px)", Math.abs(align.q) <= 2 && Math.abs(align.r) <= 2 && Math.abs(align.a) <= 2, JSON.stringify(align));
 
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();

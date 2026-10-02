@@ -255,13 +255,13 @@ const EngCreate = () => {
                 </p>
 
                 <div className="row g-3">
-                    <div className="col-md-6">
+                    <div className={`col-md-6 eng-field${errors.billDate ? " has-error" : ""}`}>
                         <label className="form-label text-uppercase font-s12 label-required">Create date</label>
                         <input type="date" className="form-control" value={billDate} disabled={isView}
                             onChange={(e) => setBillDate(e.target.value)} />
                         {errors.billDate && <span className="text-danger font-s12">{errors.billDate}</span>}
                     </div>
-                    <div className="col-md-6">
+                    <div className={`col-md-6 eng-field${errors.vehicleNo ? " has-error" : ""}`}>
                         <label className="form-label text-uppercase font-s12 label-required">Truck number</label>
                         <InputText value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
                             onChange={(e) => setVehicleNo(e.target.value.toUpperCase())} onBlur={lookupVehicle} />
@@ -272,7 +272,7 @@ const EngCreate = () => {
                         <InputText value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
                             onChange={(e) => setLorryAddress(e.target.value)} />
                     </div>
-                    <div className="col-md-6">
+                    <div className={`col-md-6 eng-field${errors.mechanic ? " has-error" : ""}`}>
                         <label className="form-label text-uppercase font-s12 label-required">Mechanic name</label>
                         <Selector
                             options={mechanics.map((m) => ({ label: m, value: m }))}
@@ -283,7 +283,7 @@ const EngCreate = () => {
                         />
                         {errors.mechanic && <span className="text-danger font-s12">{errors.mechanic}</span>}
                     </div>
-                    <div className="col-md-6">
+                    <div className={`col-md-6 eng-field${errors.phone ? " has-error" : ""}`}>
                         <label className="form-label text-uppercase font-s12">Phone number</label>
                         <InputText value={phone} placeholder="Enter Phone Number" disabled={isView}
                             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
@@ -344,18 +344,28 @@ const EngCreate = () => {
                                 </div>
                             </div>
 
+                            {c.rows.length > 0 && (
+                                <div className="eng-line-head" aria-hidden="true">
+                                    <span className="eng-lh-name">Item</span>
+                                    <span className="eng-lh-qty">Qty</span>
+                                    <span className="eng-lh-times" />
+                                    <span className="eng-lh-rate">Rate</span>
+                                    <span className="eng-lh-amt">Amount</span>
+                                    <span className="eng-lh-x" />
+                                </div>
+                            )}
                             {c.rows.map((r) => (
                                 <div key={r.item} className="d-flex flex-wrap align-items-center gap-2 rounded px-3 py-2 mt-2 eng-line"
                                     style={{ background: "var(--canvas, #eef0f4)" }}>
                                     <span className="font-w500 flex-grow-1 eng-line-name" style={{ minWidth: 140 }}>{r.label}</span>
                                     {r.requiresComment && (
-                                        <div className="eng-line-comment" style={{ minWidth: 220 }}>
+                                        <div className={`eng-line-comment eng-field${errors[`c${c.key}-${r.item}`] ? " has-error" : ""}`} style={{ minWidth: 220 }}>
                                             <InputText value={r.comment} placeholder="Describe the work" disabled={isView}
                                                 onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
                                             {errors[`c${c.key}-${r.item}`] && <span className="text-danger font-s12">{errors[`c${c.key}-${r.item}`]}</span>}
                                         </div>
                                     )}
-                                    <div className="eng-line-qty" style={{ width: 90 }}>
+                                    <div className={`eng-line-qty eng-field${errors[`q${c.key}-${r.item}`] ? " has-error" : ""}`} style={{ width: 90 }}>
                                         <InputText type="number" value={r.qty} placeholder="Qty" disabled={isView}
                                             onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
                                         {errors[`q${c.key}-${r.item}`] && <span className="text-danger font-s12">{errors[`q${c.key}-${r.item}`]}</span>}
@@ -396,7 +406,6 @@ const EngCreate = () => {
                     </div>
                 </div>
 
-                <hr className="my-4" />
                 <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 eng-foot">
                     <div className="d-flex flex-wrap gap-4">
                         {serviceTypes.map((t) => (
