@@ -428,3 +428,12 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
 .eng-form .btn.eng-quick:hover { background: color-mix(in srgb, var(--primary) 18%, transparent) !important; }
 .eng-form .btn.eng-quick:focus-visible { box-shadow: var(--focus-ring) !important; outline: 0; }
 @media (prefers-reduced-motion: reduce) { .eng-form .btn.eng-quick { transition: none; } }
+
+/* Billing table (desktop): money columns right-aligned with tabular figures, truck number emphasised. */
+@media (min-width: 768px) {
+    .eng-table th.eng-num,
+    .eng-table td.eng-c-net,
+    .eng-table td.eng-c-rec,
+    .eng-table td.eng-c-bal { text-align: right; font-variant-numeric: tabular-nums; }
+    .eng-table td.eng-c-truck { font-weight: 600; letter-spacing: .02em; color: var(--titleColor); }
+}

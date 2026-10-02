@@ -295,9 +295,9 @@ const EngBilling = () => {
                                         <th className="cell-nowrap">{labels.vehicleNo}</th>
                                         <th>{labels.agent}</th>
                                         <th>Types</th>
-                                        <th className="cell-nowrap">Net</th>
-                                        <th className="cell-nowrap">Received</th>
-                                        <th className="cell-nowrap">Balance</th>
+                                        <th className="cell-nowrap eng-num">Net</th>
+                                        <th className="cell-nowrap eng-num">Received</th>
+                                        <th className="cell-nowrap eng-num">Balance</th>
                                         <th className="cell-nowrap">Status</th>
                                         <th className="cell-nowrap">Action</th>
                                     </tr>

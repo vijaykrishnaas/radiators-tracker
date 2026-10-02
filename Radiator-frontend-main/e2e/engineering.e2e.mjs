@@ -214,6 +214,22 @@ async function run(type) {
   await page.waitForTimeout(1000);
   ok("eng: billing list shows bill row", (await page.getByText("TN52J2622").count()) > 0);
   await page.screenshot({ path: `${S}/eng-billing.png`, fullPage: true });
+  // Desktop table polish: money columns right-aligned with tabular numerals, row hover, truck number emphasised.
+  const tbl = await page.evaluate(() => {
+    const th = (t) => [...document.querySelectorAll(".eng-table thead th")].find((e) => e.textContent.trim() === t);
+    const row = document.querySelector(".eng-table tbody tr");
+    const net = row.querySelector(".eng-c-net"), truck = row.querySelector(".eng-c-truck");
+    return { thNet: getComputedStyle(th("Net")).textAlign, thBal: getComputedStyle(th("Balance")).textAlign, tdNet: getComputedStyle(net).textAlign, tabular: getComputedStyle(net).fontVariantNumeric, truckW: getComputedStyle(truck).fontWeight };
+  });
+  ok("eng: billing money columns are right-aligned (header + cells) with tabular numerals", tbl.thNet === "right" && tbl.thBal === "right" && tbl.tdNet === "right" && /tabular-nums/.test(tbl.tabular), JSON.stringify(tbl));
+  ok("eng: billing truck number is emphasised (semibold)", parseInt(tbl.truckW, 10) >= 600, tbl.truckW);
+  const firstTd = page.locator(".eng-table tbody tr").first().locator("td").nth(2);
+  const bgBefore = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await page.locator(".eng-table tbody tr").first().hover();
+  await page.waitForTimeout(350);
+  const bgHover = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
+  ok("eng: billing rows have a hover state", bgHover !== bgBefore, `${bgBefore} -> ${bgHover}`);
+  await page.mouse.move(5, 5);
 
   // Record Payment: the modal's discount is extra on top of the bill's existing ₹50 discount,
   // and the API expects the bill's total discount → must send 50 + 100 = 150.
