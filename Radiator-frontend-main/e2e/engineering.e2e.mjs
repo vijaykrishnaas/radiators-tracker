@@ -152,6 +152,13 @@ async function run(type) {
   // 2*500 + 2000 + 50 = 3050
   const subtotalText = await card.getByText(/Subtotal:/).innerText();
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
+  const heights = await page.evaluate(() => {
+    const h = (el) => Math.round(el.getBoundingClientRect().height);
+    const inputs = [...document.querySelectorAll(".eng-form input.form-control")].filter((e) => e.type === "text" || e.type === "date").map(h);
+    const selects = [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).slice(0, 4).map(h);
+    return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
+  });
+  ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.selects.every((v) => v >= heights.inputs[0]), JSON.stringify(heights));
   const align = await page.evaluate(() => {
     const L = (sel) => document.querySelector(sel).getBoundingClientRect();
     return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };

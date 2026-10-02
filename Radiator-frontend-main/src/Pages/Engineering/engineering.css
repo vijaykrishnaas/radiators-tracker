@@ -411,3 +411,6 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-svc .eng-line-rate { flex: 0 0 140px; }
     .eng-svc .eng-line-amt { flex: 0 0 110px; }
 }
+
+/* Dropdowns (react-select, 38px) sit beside 44px inputs on the service form: match the control height token. */
+.eng-form div[class*="-control"] { min-height: var(--control-h, 44px) !important; }
