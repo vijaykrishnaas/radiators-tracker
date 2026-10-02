@@ -62,6 +62,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] Dashboard: date-range segmented control + phone layout — PR #39 (merged).
 - [x] Dashboard follow-ups: hoisted `Seg`, fixed `compact()` rounding — PR #40 (merged).
 - [x] Service form: validation styling, item column header + row polish — PR #41 (open, awaiting review).
+- [ ] Service form follow-ups from #41 review (view-mode header alignment, wrap case, nits) — do FIRST after #41 merges.
 - [ ] Service form (remaining): header grid rhythm, service-card header (type · BS chips), quick-add chip styling, Discount/Received/Payment-mode row spacing.
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [ ] Billing: desktop table polish (row hover, numeric alignment, status pill palette, balance emphasis), empty state, loading skeleton.
@@ -82,6 +83,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 14:56 UTC — Step 1a only: independent review of #41 posted, VERDICT: NO-BLOCKERS (head 136b30e). Merge next run. Follow-ups from the review (do right after merging, small PR): (1) VIEW MODE — header renders `.eng-lh-x` even though the remove button is absent, so AMOUNT header sits ~30px right of the values: skip `.eng-lh-x` when `isView` and extend the e2e alignment check to `/engineering/dashboard/view/b1`; (2) rows with the 220px description field can wrap at ~768-850px while the header can't (cosmetic); (3) tighten the error-colour regex to rgb(231, 74, 74); drop the no-op `.eng-lh-amt{padding-right:0}`.
 - 2026-10-02 13:56 UTC — Merged #40 (re-ran tsc, eng e2e 57/57, rad 6, auto 10, sal 6 on exact reviewed head 5b48df2; pushed notification sent). Refined service form -> PR #41: error colour+ring on invalid fields, QTY/RATE/AMOUNT header aligned to the fields (0px, measured in e2e), hairline rows, removed doubled rule above sticky bar. eng e2e 59/59; both new checks verified to fail on old code. Next run: review #41.
 - 2026-10-02 12:56 UTC — Step 1a only: independent review of #40 posted, VERDICT: NO-BLOCKERS (head 5b48df2). Reviewer ran `compact()` on 20 values (correct) and confirmed the focus test fails on the old code. Merge next run. Nits (optional, bundle into a later PR): comment the promotion test in `compact()`.
 - 2026-10-02 11:56 UTC — Merged #39 (re-ran tsc, engineering e2e 56/56, radiator 6, automobile 10, salary 6 on the exact reviewed head dcd5761). Then took the reviewer's two follow-ups: hoisted `Seg` (focus survived-click bug) and fixed `compact()` rounding; opened PR #40, engineering e2e 57/57. Verified the new focus check FAILS on the old code (use this technique: stash only the source file, rerun e2e, pop). Next run: review #40.
