@@ -1,0 +1,214 @@
+/* Engineering Works — layout system. Every selector is prefixed `eng-` so
+   nothing here can reach radiator / automobile screens. Colours, radii and
+   shadows come from the shared token layer (base-theme.css); the tenant
+   accent stays white-label via --primary. */
+
+.eng-stack { display: grid; gap: 16px; margin-bottom: 20px; }
+
+/* ---- Section card -------------------------------------------------------- */
+.eng-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+}
+.eng-card-pad { padding: 20px 22px; }
+.eng-eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--secondary); margin: 0 0 10px;
+}
+.eng-hint { font-size: 12.5px; color: var(--secondary); margin: 8px 0 0; line-height: 1.45; }
+
+/* ---- BS model chips ------------------------------------------------------ */
+.eng-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.eng-chip {
+    display: inline-flex; align-items: center; gap: 2px;
+    background: var(--surface-sunken); border: 1px solid var(--line);
+    border-radius: var(--r-pill); padding: 2px 4px 2px 12px;
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.eng-chip:focus-within { border-color: var(--primary); box-shadow: var(--focus-ring); }
+.eng-chip input {
+    border: 0; background: transparent; outline: 0; width: 72px;
+    font-size: 14px; font-weight: 600; color: var(--titleColor);
+}
+.eng-icon-btn {
+    border: 0; background: transparent; color: var(--secondary);
+    width: 28px; height: 28px; border-radius: var(--r-pill);
+    display: inline-grid; place-items: center; font-size: 18px; line-height: 1; cursor: pointer;
+    transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.eng-icon-btn:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.eng-add {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px dashed var(--line-strong); border-radius: var(--r-pill);
+    padding: 2px 4px 2px 12px; background: transparent;
+}
+.eng-add input { border: 0; outline: 0; background: transparent; width: 112px; font-size: 14px; }
+.eng-add:focus-within { border-color: var(--primary); border-style: solid; box-shadow: var(--focus-ring); }
+.eng-link-btn {
+    border: 0; background: transparent; color: var(--primary); font-weight: 600; font-size: 13.5px;
+    padding: 4px 10px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+}
+.eng-link-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.eng-link-btn:disabled { opacity: .4; cursor: default; }
+.eng-link-btn.is-danger { color: var(--danger); }
+.eng-link-btn.is-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
+/* ---- Master / detail ----------------------------------------------------- */
+.eng-split { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 16px; align-items: start; }
+.eng-rail { padding: 10px; position: sticky; top: 16px; }
+.eng-rail-title { padding: 8px 10px 6px; }
+.eng-type {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border: 0; background: transparent; text-align: left; cursor: pointer;
+    padding: 10px 12px; border-radius: var(--r-md);
+    font-size: 14.5px; font-weight: 500; color: var(--titleColor);
+    transition: background-color var(--dur) var(--ease);
+}
+.eng-type:hover { background: var(--surface-sunken); }
+.eng-type.is-active { background: color-mix(in srgb, var(--primary) 11%, transparent); color: var(--primary); font-weight: 600; }
+.eng-type-count {
+    min-width: 24px; text-align: center; font-size: 12px; font-weight: 600;
+    padding: 1px 8px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--secondary);
+}
+.eng-type.is-active .eng-type-count { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+.eng-rail-add { margin-top: 8px; padding: 6px 4px 2px; border-top: 1px solid var(--line); }
+.eng-rail-add .eng-add { width: 100%; justify-content: space-between; }
+.eng-rail-add .eng-add input { flex: 1; min-width: 0; width: auto; }
+
+.eng-panel-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 22px; border-bottom: 1px solid var(--line);
+}
+.eng-title-input {
+    border: 0; outline: 0; background: transparent; width: 100%; min-width: 0;
+    font-size: 20px; font-weight: 600; letter-spacing: var(--tracking-tight); color: var(--titleColor);
+    padding: 4px 8px; margin-left: -8px; border-radius: var(--r-sm);
+}
+.eng-title-input:hover { background: var(--surface-sunken); }
+.eng-title-input:focus { background: var(--surface); box-shadow: var(--focus-ring); }
+
+/* ---- Item list ----------------------------------------------------------- */
+.eng-items { --eng-cols: minmax(0, 1fr) repeat(var(--n, 3), 104px) 96px 76px 36px; }
+.eng-items-head, .eng-item {
+    display: grid; grid-template-columns: var(--eng-cols); gap: 10px; align-items: center; padding: 0 22px;
+}
+.eng-items-head {
+    padding-top: 10px; padding-bottom: 10px; background: var(--surface-sunken);
+    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary);
+}
+.eng-items-head .is-num { text-align: right; padding-right: 10px; }
+.eng-items-head .is-mid { text-align: center; }
+.eng-item { padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+.eng-item:hover { background: color-mix(in srgb, var(--surface-sunken) 55%, transparent); }
+.eng-name {
+    border: 1px solid transparent; background: transparent; outline: 0; width: 100%; min-width: 0;
+    font-size: 14.5px; font-weight: 500; color: var(--titleColor);
+    padding: 7px 10px; border-radius: var(--r-sm);
+}
+.eng-name:hover { background: var(--surface-sunken); }
+.eng-name:focus { background: var(--surface); border-color: var(--primary); box-shadow: var(--focus-ring); }
+
+.eng-price { position: relative; display: block; }
+.eng-price-label { display: none; }
+.eng-price span.eng-rs {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; color: var(--secondary); pointer-events: none;
+}
+.eng-price input {
+    width: 100%; height: 36px; padding: 0 10px 0 24px; text-align: right;
+    font-size: 14.5px; font-variant-numeric: tabular-nums; color: var(--titleColor);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); outline: 0;
+    -moz-appearance: textfield; appearance: textfield;
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+.eng-price input::-webkit-outer-spin-button, .eng-price input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.eng-price input:focus { border-color: var(--primary); box-shadow: var(--focus-ring); }
+/* blank = not offered for that BS model: visibly "off" but still editable */
+.eng-price.is-off input { background: var(--surface-sunken); border-style: dashed; }
+.eng-price.is-off input::placeholder { color: var(--gray); }
+.eng-price.is-off span.eng-rs { opacity: .4; }
+
+/* iOS-style switch built on a real checkbox (keyboard + screen-reader safe) */
+.eng-switch { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; margin: 0; }
+.eng-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.eng-switch-track {
+    width: 38px; height: 22px; border-radius: var(--r-pill); background: var(--line-strong); position: relative;
+    transition: background-color var(--dur) var(--ease);
+}
+.eng-switch-track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform var(--dur) var(--ease);
+}
+.eng-switch input:checked + .eng-switch-track { background: var(--primary); }
+.eng-switch input:checked + .eng-switch-track::after { transform: translateX(16px); }
+.eng-switch input:focus-visible + .eng-switch-track { box-shadow: var(--focus-ring); }
+.eng-switch-text { display: none; font-size: 13px; color: var(--secondary); }
+.eng-cell-mid { display: flex; justify-content: center; }
+.eng-del-cell { order: 99; justify-self: center; }
+
+.eng-additem { display: flex; gap: 10px; padding: 14px 22px; align-items: center; }
+.eng-additem .btn { white-space: nowrap; flex: 0 0 auto; }
+.eng-additem input {
+    flex: 1; min-width: 0; max-width: 360px; height: 38px; padding: 0 12px; font-size: 14.5px; outline: 0;
+    border: 1px dashed var(--line-strong); border-radius: var(--r-md); background: transparent;
+}
+.eng-additem input:focus { border-style: solid; border-color: var(--primary); box-shadow: var(--focus-ring); background: var(--surface); }
+.eng-empty { padding: 36px 22px; text-align: center; color: var(--secondary); }
+.eng-legend { padding: 0 22px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--secondary); }
+.eng-legend i {
+    display: inline-block; width: 18px; height: 10px; vertical-align: -1px; margin-right: 6px;
+    border: 1px dashed var(--line-strong); border-radius: 3px; background: var(--surface-sunken);
+}
+
+/* ---- Bill numbering ------------------------------------------------------ */
+.eng-numbering { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; justify-content: space-between; }
+.eng-number-input {
+    width: 150px; height: 40px; padding: 0 12px; text-align: right; font-size: 17px; font-weight: 600;
+    font-variant-numeric: tabular-nums; border: 1px solid var(--line-strong); border-radius: var(--r-md); outline: 0;
+}
+.eng-number-input:focus { border-color: var(--primary); box-shadow: var(--focus-ring); }
+
+/* ---- Tablet: rail becomes a scrolling segmented strip -------------------- */
+@media (max-width: 991.98px) {
+    .eng-split { grid-template-columns: minmax(0, 1fr); }
+    .eng-rail { position: static; padding: 8px; display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+    .eng-rail::-webkit-scrollbar { display: none; }
+    .eng-rail-title { display: none; }
+    .eng-type { width: auto; flex: 0 0 auto; padding: 8px 14px; white-space: nowrap; }
+    .eng-rail-add { margin: 0 0 0 4px; padding: 0 0 0 8px; border-top: 0; border-left: 1px solid var(--line); flex: 0 0 auto; }
+    .eng-rail-add .eng-add { width: 168px; }
+}
+
+/* ---- Phone: each item becomes a card ------------------------------------- */
+@media (max-width: 767.98px) {
+    .eng-card-pad { padding: 16px; }
+    .eng-panel-head { padding: 12px 16px; }
+    .eng-items-head { display: none; }
+    .eng-item {
+        grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 12px 10px; padding: 14px 16px;
+    }
+    .eng-item > .eng-name-cell { grid-column: 1 / -2; }
+    .eng-item > .eng-del-cell { grid-column: -2 / -1; justify-self: end; order: 0; }
+    .eng-price-label {
+        display: block; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+        color: var(--secondary); margin-bottom: 4px;
+    }
+    .eng-price input { height: 44px; font-size: 16px; }
+    .eng-item > .eng-cell-mid { grid-column: 1 / -1; justify-content: space-between; }
+    .eng-switch { width: 100%; justify-content: space-between; flex-direction: row-reverse; }
+    .eng-switch-text { display: inline; }
+    .eng-name { font-size: 16px; padding: 9px 10px; }
+    .eng-additem { padding: 14px 16px; }
+    .eng-additem input { max-width: none; height: 44px; font-size: 16px; }
+    .eng-legend { padding: 0 16px 14px; }
+    .eng-title-input { font-size: 18px; }
+    .eng-chip input, .eng-add input { font-size: 16px; }
+    .eng-numbering { flex-direction: column; align-items: stretch; }
+    .eng-number-input { width: 100%; height: 46px; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .eng-switch-track, .eng-switch-track::after, .eng-chip, .eng-type, .eng-price input { transition: none; }
+}
