@@ -78,6 +78,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 12:56 UTC — Step 1a only: independent review of #40 posted, VERDICT: NO-BLOCKERS (head 5b48df2). Reviewer ran `compact()` on 20 values (correct) and confirmed the focus test fails on the old code. Merge next run. Nits (optional, bundle into a later PR): comment the promotion test in `compact()`.
 - 2026-10-02 11:56 UTC — Merged #39 (re-ran tsc, engineering e2e 56/56, radiator 6, automobile 10, salary 6 on the exact reviewed head dcd5761). Then took the reviewer's two follow-ups: hoisted `Seg` (focus survived-click bug) and fixed `compact()` rounding; opened PR #40, engineering e2e 57/57. Verified the new focus check FAILS on the old code (use this technique: stash only the source file, rerun e2e, pop). Next run: review #40.
 - 2026-10-02 10:56 UTC — Step 1a only: independent review of #39 posted, VERDICT: NO-BLOCKERS (head dcd5761). Merge next run. Follow-ups from the review (do in a later small PR, not #39): hoist `Seg` out of `EngDashboard` (remounts each render, loses keyboard focus); `compact(999999)` shows "1000k".
 - 2026-10-02 10:00 UTC (first fired run) — Backlog items 1+2 (Dashboard). Before/after screenshots at 1300/390; fixed phone date-input overflow; recharts donut animates ~2s, wait >=3s before screenshots. Opened PR #39; engineering e2e 56/56, radiator 6, automobile 10, salary 6 no FAIL. Next run: review #39.
