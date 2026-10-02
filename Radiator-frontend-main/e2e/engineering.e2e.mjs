@@ -91,6 +91,20 @@ async function run(type) {
   ok("eng: header shows only Dashboard + Bills", /Dashboard/.test(nav) && /Bills/.test(nav) && !/Expenses|Bonus|Salary/.test(nav), nav.replace(/\s+/g, " "));
   ok("eng: dashboard KPIs render", (await page.getByText("Outstanding").count()) > 0);
   await page.screenshot({ path: `${S}/eng-dashboard.png`, fullPage: true });
+  ok("eng: dashboard shows 4 KPI tiles", (await page.locator(".eng-kpi").count()) === 4);
+  ok("eng: 'This FY' is the active range by default", (await page.locator(".eng-seg-btn.is-active").innerText()) === "This FY");
+  ok("eng: by-service-type legend lists Turbo with 100%", /Turbo/.test(await page.locator(".eng-legend-list").innerText()) && /100%/.test(await page.locator(".eng-legend-list").innerText()));
+  await page.getByRole("radio", { name: "Today" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: choosing 'Today' makes it the active range", (await page.locator(".eng-seg-btn.is-active").innerText()) === "Today");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  const dashOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  ok("eng: dashboard has no horizontal overflow at 390px", dashOverflow <= 0, `overflow=${dashOverflow}`);
+  const dateRight = await page.locator(".eng-range-dates input").last().evaluate((el) => el.getBoundingClientRect().right);
+  const cardRight = await page.locator(".eng-range").evaluate((el) => el.getBoundingClientRect().right);
+  ok("eng: phone date inputs stay inside their card", dateRight <= cardRight, `${dateRight} <= ${cardRight}`);
+  await page.setViewportSize({ width: 1300, height: 1000 });
 
   await page.goto(BASE + "/engineering/dashboard/create");
   await page.waitForTimeout(2000);
