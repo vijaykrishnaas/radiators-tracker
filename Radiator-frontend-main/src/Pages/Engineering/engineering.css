@@ -212,3 +212,82 @@
 @media (prefers-reduced-motion: reduce) {
     .eng-switch-track, .eng-switch-track::after, .eng-chip, .eng-type, .eng-price input { transition: none; }
 }
+
+
+/* =========================================================================
+   Billing list — table on desktop, bill cards on phones
+   ========================================================================= */
+.eng-filter-toggle {
+    border: 0; background: transparent; color: var(--primary); font-weight: 600; font-size: 14px;
+    padding: 6px 0; cursor: pointer;
+}
+@media (max-width: 767.98px) {
+    .eng-filters .table-accordion-header {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0;
+        padding: 16px !important;
+    }
+    .eng-filters .table-accordion-header > * { width: auto; max-width: none; padding: 0; margin: 0; }
+    .eng-filters .table-accordion-header > .col-12 { grid-column: 1 / -1; }
+    .eng-filters .search-input.form-control { width: 100% !important; }
+    .eng-filters .eng-more { display: none !important; }
+    .eng-filters.is-open .eng-more { display: block !important; }
+    .eng-filters.is-open .eng-more.d-flex { display: flex !important; }
+
+    .eng-table { border: 0 !important; }
+    .eng-table thead { display: none; }
+    .eng-table tbody { display: grid; gap: 12px; padding: 12px; }
+    .eng-table tbody tr {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; align-items: start;
+        background: var(--surface); border: 1px solid var(--line) !important; border-radius: var(--r-lg);
+        box-shadow: var(--shadow-xs); padding: 14px 16px;
+    }
+    .eng-table tbody tr > td {
+        display: block; border: 0 !important; padding: 0 !important; background: transparent !important; white-space: normal !important;
+    }
+    .eng-table tbody tr > td[data-label]:not([data-label=""])::before {
+        content: attr(data-label); display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .05em;
+        text-transform: uppercase; color: var(--secondary); margin-bottom: 2px;
+    }
+    .eng-table .eng-c-si { display: none !important; }
+    .eng-table .eng-c-truck { order: 1; grid-column: 1 / 3; font-size: 17px; font-weight: 700; letter-spacing: .04em; color: var(--titleColor); }
+    .eng-table .eng-c-status { order: 6; grid-column: 3; justify-self: end; align-self: center; }
+    .eng-table .eng-c-bill { order: 3; }
+    .eng-table .eng-c-date { order: 4; }
+    .eng-table .eng-c-mech { order: 5; }
+    .eng-table .eng-c-types { order: 6; grid-column: 1 / 3; align-self: center; }
+    .eng-table .eng-c-net { order: 7; } .eng-table .eng-c-rec { order: 8; } .eng-table .eng-c-bal { order: 9; }
+    .eng-table .eng-c-net, .eng-table .eng-c-rec, .eng-table .eng-c-bal {
+        font-variant-numeric: tabular-nums; font-weight: 600; padding-top: 10px !important; border-top: 1px solid var(--line) !important;
+    }
+    .eng-table .eng-c-act { order: 2; grid-column: 3; justify-self: end; align-self: center; }
+    .eng-table tbody tr:only-child > td[colspan] { grid-column: 1 / -1; text-align: center; }
+}
+
+/* =========================================================================
+   Service form — sticky totals bar, tidy item lines on phones
+   ========================================================================= */
+.eng-foot {
+    position: sticky; bottom: 0; z-index: 0; /* below react-select menus (z-index 1) */
+    margin: 0 -1px -1px; padding: 14px 4px 14px;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px);
+    border-top: 1px solid var(--line);
+}
+@media (max-width: 767.98px) {
+    .eng-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .eng-foot > div:first-child { gap: 12px 18px !important; }
+    .eng-foot > div:last-child { width: 100%; }
+    .eng-foot > div:last-child .btn { flex: 1; height: 46px; }
+
+    .eng-line { gap: 8px !important; padding: 12px !important; }
+    .eng-line-name { order: 0; flex: 1 1 calc(100% - 44px) !important; min-width: 0 !important; font-size: 15px; }
+    .eng-line-x { order: 1; flex: 0 0 28px; width: 28px; height: 28px; font-size: 22px; line-height: 1; text-decoration: none; display: grid; place-items: center; }
+    .eng-line-comment { order: 2; flex: 1 1 100%; min-width: 0 !important; }
+    .eng-line-qty { order: 3; width: 72px !important; }
+    .eng-line-times { order: 4; }
+    .eng-line-rate { order: 5; flex: 1 1 0; width: auto !important; min-width: 96px; }
+    .eng-line-amt { order: 6; width: auto !important; min-width: 84px; margin-left: auto; font-size: 15px; }
+}
+
+/* Keep focused / scrolled-to fields clear of the sticky totals bar. */
+html:has(.eng-foot) { scroll-padding-bottom: 120px; }
