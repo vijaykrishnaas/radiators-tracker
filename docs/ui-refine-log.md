@@ -54,6 +54,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Shared `ChartCard`/`ChartTooltip` live in `src/Components` (out of scope to edit). The Engineering dashboard uses its own local `Panel`; reuse `ChartTooltip` import only.
 - Shared `.btn` has a min-width that widens icon-only buttons (the line remove ×): override with `min-width: 0 !important` + fixed width inside `.eng-*`. Shared `.form-control` forces `border-color: ... !important` — to recolour (error state) use a higher-specificity `.eng-field.has-error .form-control { ... !important }`. Borders have a 150ms transition: in e2e wait ~450ms before reading a computed colour.
 - To prove alignment, measure `getBoundingClientRect()` in e2e (assert <=2px) rather than judging screenshots.
+- Test-first: for a reported visual bug, add the e2e measurement first, run it on unfixed code and keep the failing output in the PR description — proves the check is real. View mode (`/engineering/dashboard/view/b1`) and edit mode render different markup (no remove button): test both.
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
@@ -61,8 +62,8 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (merged).
 - [x] Dashboard: date-range segmented control + phone layout — PR #39 (merged).
 - [x] Dashboard follow-ups: hoisted `Seg`, fixed `compact()` rounding — PR #40 (merged).
-- [x] Service form: validation styling, item column header + row polish — PR #41 (open, awaiting review).
-- [ ] Service form follow-ups from #41 review (view-mode header alignment, wrap case, nits) — do FIRST after #41 merges.
+- [x] Service form: validation styling, item column header + row polish — PR #41 (merged).
+- [x] Service form follow-ups from #41 review (view-mode header alignment, nits) — PR #42 (open, awaiting review). Still open (cosmetic): description-field row can wrap at ~768-850px while the column header can't.
 - [ ] Service form (remaining): header grid rhythm, service-card header (type · BS chips), quick-add chip styling, Discount/Received/Payment-mode row spacing.
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [ ] Billing: desktop table polish (row hover, numeric alignment, status pill palette, balance emphasis), empty state, loading skeleton.
@@ -74,6 +75,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-02: #41 service form (field errors, item column header, calmer rows) merged. #42 view-mode alignment follow-up awaiting review.
 - 2026-10-02: #39 dashboard + #40 dashboard follow-ups merged. #41 service form (field errors, item columns) awaiting review.
 - 2026-10-02: Dashboard refine PR #39 merged (segmented range control, KPI tiles, chart panels, donut legend). Follow-ups in #40 awaiting review.
 - 2026-10-02: #36 Settings catalog (master/detail, phone cards), #37 bill PDF to mockup, #38 Billing cards + sticky totals bar (by the user's request).
@@ -83,6 +85,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 15:56 UTC — Merged #41 (re-ran tsc, eng e2e 59/59, rad 6, auto 10, sal 6 on exact reviewed head 136b30e). Took the reviewer's follow-ups: wrote the view-mode alignment check FIRST and watched it FAIL ({q:30,r:30,a:-30}), then fixed (skip the `.eng-lh-x` slot when `isView`), 0px after. PR #42, eng e2e 60/60. Push notification sent for the #41 merge. Next run: review #42.
 - 2026-10-02 14:56 UTC — Step 1a only: independent review of #41 posted, VERDICT: NO-BLOCKERS (head 136b30e). Merge next run. Follow-ups from the review (do right after merging, small PR): (1) VIEW MODE — header renders `.eng-lh-x` even though the remove button is absent, so AMOUNT header sits ~30px right of the values: skip `.eng-lh-x` when `isView` and extend the e2e alignment check to `/engineering/dashboard/view/b1`; (2) rows with the 220px description field can wrap at ~768-850px while the header can't (cosmetic); (3) tighten the error-colour regex to rgb(231, 74, 74); drop the no-op `.eng-lh-amt{padding-right:0}`.
 - 2026-10-02 13:56 UTC — Merged #40 (re-ran tsc, eng e2e 57/57, rad 6, auto 10, sal 6 on exact reviewed head 5b48df2; pushed notification sent). Refined service form -> PR #41: error colour+ring on invalid fields, QTY/RATE/AMOUNT header aligned to the fields (0px, measured in e2e), hairline rows, removed doubled rule above sticky bar. eng e2e 59/59; both new checks verified to fail on old code. Next run: review #41.
 - 2026-10-02 12:56 UTC — Step 1a only: independent review of #40 posted, VERDICT: NO-BLOCKERS (head 5b48df2). Reviewer ran `compact()` on 20 values (correct) and confirmed the focus test fails on the old code. Merge next run. Nits (optional, bundle into a later PR): comment the promotion test in `compact()`.
