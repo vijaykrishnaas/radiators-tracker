@@ -27,6 +27,33 @@ Branch: `claude/ui-refine` (this file only). Work PRs go from `claude/eng-ui-ref
 ## Reviewer charter (fresh-context subagent, diff only)
 BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engineering; any logic/handler/API/money change; behaviour regression; tsc error. Verify every finding by reading code. Output first line exactly `VERDICT: BLOCKING` or `VERDICT: NO-BLOCKERS`.
 
+## Lessons learned (from the build session — read before touching anything)
+**What the user wants**
+- The user judged the first UI "junior level" and said the *layouts themselves* are poor (e.g. Settings → Service Catalog). Priority is layout/structure and phone usability over colour. Keep the existing look and tenant `--primary`; do not invent a new palette or dark-first theme.
+- Their reference mockups: service form (BS model + service type + multi-select items + qty×rate rows, quick-add chips, footer totals) and the printed bill (green header band with logo/name/phones, address strip, vehicle | bill no | date cells, particulars with type tags, amount in words, UPI box, total pill, signature). Originals are images in the session transcript `/root/.claude/projects/-home-user-radiators-tracker/e3d98a1d-3293-56ac-a946-742667199fec.jsonl` (also uploaded under `/root/.claude/uploads/...`). If you need to look at them, extract base64 `"type":"image"` blocks from that file to the scratchpad. Match them; do not drift from them.
+- "The existing app must not be affected at any cost" (radiator is LIVE in production). When unsure, don't ship; log under Needs user.
+- BS model is chosen PER SERVICE CARD (user's earlier decision), not in the header, even though one mockup shows it in the header. Don't change that.
+- The user reviews on Netlify staging (`staging-service.netlify.app`). This container cannot reach netlify.app (proxy 403), so judge only via local Vite + Playwright screenshots.
+
+**Codebase gotchas that already cost time**
+- Shared `src/Assets/css/responsive.css` forces `!important` on `.table-accordion-header` padding and `table td { white-space: nowrap !important }`. To override inside Engineering, scope under an `eng-*` ancestor and use `!important` there. Never edit the shared files.
+- The shared `Selector` (react-select) renders menus unportalled at z-index 1. Anything sticky/overlapping must stay at z-index <= 0 or menus get covered. A sticky bottom bar needs `scroll-padding-bottom` (done via `html:has(.eng-foot)`), otherwise fields scroll under it and e2e clicks time out.
+- react-select in e2e: use `{ force: true }` clicks and `page.getByText("BS-6", { exact: true }).last()`; changing BS model re-applies the catalog rate, so type manual rates afterwards.
+- Catalog selectors now: rail `.eng-type`, rows `.eng-item`, price fields `.eng-price input`. Billing phone cards: `.eng-table`, `.eng-c-*` cells, `.eng-filters`/`.eng-more`, toggle "More filters". Form: `.eng-svc`, `.eng-line*`, `.eng-foot`.
+- `display: contents` wrappers inside Bootstrap `.row` don't survive the shared CSS; give the children an `eng-more` class instead of wrapping.
+- jsPDF standard fonts cannot draw `₹` or Tamil -> amounts print as "Rs"; company name prints Latin. Don't try to "fix" without an embedded font (Needs user). PDF text wraps, so e2e asserts on partial phrases ("Rupees Four Thousand Eight Hundred").
+- Rasterize a downloaded PDF with `pip install pymupdf` then `pymupdf.open(f)[0].get_pixmap(dpi=130).save(png)`; always LOOK at it. Test at least: qty 1 only, qty>1 + discount + part payment, long company name, many rows (multi-page), no logo/QR/address.
+
+**Process gotchas**
+- Merge needs the FULL 40-char head SHA (`git rev-parse HEAD`), not the 7-char one.
+- Stage only your own files (`git add <paths>`), never `git commit -a` on the log branches — a stray modified file nearly rode along once. Always `git status` clean before switching branches. Delete `e2e/.out` after e2e runs (the stop hook flags untracked files).
+- Start Vite once (`pgrep -f "vite --port"` first); `pkill -f "vite --port"` exits 144 — that's expected, not a failure.
+- Screenshot harness: copy the route-mock block from `e2e/engineering.e2e.mjs` (settings, `/engbills*`, analytics) into a scratchpad script; set `localStorage` `svr_token` / `svr_user` (role admin, clientId c1) on `/issueCounter/login`, then `goto` the Engineering page. Capture 1300x900 AND 390x844, `fullPage: true`, plus viewport shots for sticky elements. Measure `document.documentElement.scrollWidth - window.innerWidth` for overflow.
+- Run order each time: `npx tsc --noEmit`, `node e2e/engineering.e2e.mjs` (all PASS, currently 50), then radiator (6), automobile (10), salary (6) with no FAIL/ERROR.
+- Commit/PR attribution: use the Co-Authored-By + Claude-Session lines and the PR footer given in the system attribution reminder; never put a model identifier in code/PR text beyond those lines.
+- Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
+- Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
+
 ## Backlog (pick top unchecked; add new items as you find them)
 - [ ] Dashboard: KPI cards (type scale, tabular numerals, icon tile, outstanding emphasis), chart card headers, consistent chart colours via tokens, empty-state when no data.
 - [ ] Dashboard: date-range filter as a segmented control (Today / Month / FY) + custom range; phone layout.
