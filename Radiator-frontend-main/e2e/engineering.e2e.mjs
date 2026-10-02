@@ -229,6 +229,13 @@ async function run(type) {
   await page.getByRole("menuitem", { name: "Print" }).click();
   const download = await dl;
   ok("eng: print downloads an invoice PDF", !!download && /\.pdf$/i.test(download.suggestedFilename()), download ? download.suggestedFilename() : "no download");
+  if (download) {
+    const { readFileSync } = await import("node:fs");
+    const pdfPath = await download.path();
+    const raw = readFileSync(pdfPath).toString("latin1");
+    ok("eng: bill PDF is a real PDF named with the bill no.", raw.startsWith("%PDF") && /Bill-802-/.test(download.suggestedFilename()), download.suggestedFilename());
+    ok("eng: bill PDF carries amount in words and plate", /Rupees Four Thousand Eight Hundred/.test(raw) && /TN 52 J 2622/.test(raw));
+  }
   ok("eng: no page errors", errors.length === 0, errors.join(" | "));
   await browser.close();
 }
