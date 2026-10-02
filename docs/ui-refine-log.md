@@ -56,6 +56,8 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - To prove alignment, measure `getBoundingClientRect()` in e2e (assert <=2px) rather than judging screenshots.
 - Test-first: for a reported visual bug, add the e2e measurement first, run it on unfixed code and keep the failing output in the PR description — proves the check is real. View mode (`/engineering/dashboard/view/b1`) and edit mode render different markup (no remove button): test both.
 - A failing test is only meaningful if it fails for the RIGHT reason: print the measured values and make sure they show the defect (38 vs 44), not an empty selector set.
+- Chromium serialises `color-mix()` computed colours as `color(srgb 0.13 0.39 0.9 / 0.1)`, not `rgba(...)`: write assertions that accept both. When a check fails after the style is clearly right, print the computed value before changing the style.
+- Compare against the MOCKUP images (not just the rubric): mismatches with the user's designs (e.g. chip style) are the highest-value fixes.
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
@@ -65,8 +67,9 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] Dashboard follow-ups: hoisted `Seg`, fixed `compact()` rounding — PR #40 (merged).
 - [x] Service form: validation styling, item column header + row polish — PR #41 (merged).
 - [x] Service form follow-ups from #41 review (view-mode header alignment, nits) — PR #42 (merged). Still open (cosmetic): description-field row can wrap at ~768-850px while the column header can't.
-- [x] Service form: dropdown height 38px vs input 44px mismatch — PR #43 (open, awaiting review).
-- [ ] Service form (remaining): header grid rhythm (Phone sits alone in a half row), service-card header (Remove button alignment next to the type/BS/items row), quick-add chip styling, Discount/Received/Payment-mode row spacing. NOTE: judge the form with VIEWPORT screenshots, not fullPage (the sticky bar renders mid-page in stitched full-page shots and hides content).
+- [x] Service form: dropdown height 38px vs input 44px mismatch — PR #43 (merged).
+- [x] Service form: quick-add chips to the mockup (brand tint pill) — PR #44 (open, awaiting review).
+- [ ] Service form (remaining, low value): Discount/Received/Payment-mode row spacing; Remove button alignment in the service-card header. DECIDED: leave the empty slot beside Phone — the user's mockup puts BS Model there and BS model is per card by the user's choice; do NOT reorder fields. NOTE: judge the form with VIEWPORT screenshots, not fullPage (the sticky bar renders mid-page in stitched full-page shots and hides content).
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [ ] Billing: desktop table polish (row hover, numeric alignment, status pill palette, balance emphasis), empty state, loading skeleton.
 - [ ] Billing: payment modal + delete modal layout (Engineering-only markup, if scoped) and phone sizing.
@@ -77,6 +80,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-02: #43 dropdown height merged. #44 quick-add chips (mockup) awaiting review.
 - 2026-10-02: #42 view-mode alignment merged. #43 dropdown height awaiting review.
 - 2026-10-02: #41 service form (field errors, item column header, calmer rows) merged. #42 view-mode alignment follow-up awaiting review.
 - 2026-10-02: #39 dashboard + #40 dashboard follow-ups merged. #41 service form (field errors, item columns) awaiting review.
@@ -88,6 +92,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 19:56 UTC — Merged #43 (re-ran tsc, eng e2e 61/61, rad 6, auto 10, sal 6 on exact reviewed head 1693f34; push notification sent). Compared the form to the mockup: quick-add chips were grey buttons, mockup shows pale-blue pills -> PR #44 (`.eng-form .btn.eng-quick`, color-mix of --primary). Test-first done properly again: class-only run gave the real failure {color:rgb(29,29,31), bg:rgb(248,249,250)}. Chromium serialises color-mix() as `color(srgb r g b / a)` — an assertion expecting `rgba(` failed first; fixed the TEST not the style. Also folded in #43 nits. eng e2e 62/62. Next run: review #44.
 - 2026-10-02 18:56 UTC — Step 1a only: independent review of #43 posted, VERDICT: NO-BLOCKERS (head 1693f34). Merge next run. Optional nits to bundle into the next form PR: assert `inputs[0] === 44` for a clearer failure; make the dropdown e2e less order-dependent (filter controls outside `.eng-line` instead of `slice(0,4)`).
 - 2026-10-02 17:56 UTC — Merged #42 (re-ran tsc, eng e2e 60/60, rad 6, auto 10, sal 6 on exact reviewed head 1691015; push notification sent). Refined form -> PR #43: react-select controls were 38px beside 44px inputs (mechanic vs lorry address, payment mode vs discount); scoped `.eng-form div[class*="-control"] { min-height: var(--control-h) }`. Test-first: first run failed only because `.eng-form` didn't exist (empty arrays = meaningless red) — added the class alone to get the REAL failure `{inputs:[44],selects:[38]}`, then the rule. eng e2e 61/61. Next run: review #43.
 - 2026-10-02 16:56 UTC — Step 1a only: independent review of #42 posted, VERDICT: NO-BLOCKERS (head 1691015). Merge next run. Nits (optional): drop the `?` in the exact-colour regex; the error-colour check is tied to the default `--danger` (fine unless a tenant theme redefines it).
