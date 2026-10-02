@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
@@ -8,7 +8,8 @@ import {
 import Icons from "../../../Components/Icons";
 import Loader from "../../../Components/Loader";
 import AlertComponent from "../../../Components/AlertComponent";
-import ChartCard, { CHART_COLORS, ChartTooltip } from "../../../Components/ChartCard";
+import { CHART_COLORS, ChartTooltip } from "../../../Components/ChartCard";
+import "../engineering.css";
 import { getData } from "../../../Services/ApiServices";
 import { useAlertMsg } from "../../../Services/AllServices";
 import { money, today } from "../../../Utils/format";
@@ -27,14 +28,39 @@ const fyStartApril = () => {
     return `${y}-04-01`;
 };
 
-const KpiCard = ({ label, value, icon, accent }: { label: string; value: string; icon: string; accent?: boolean }) => (
-    <div className="col-6 col-md-3 mb-3">
-        <div className="card card-shadow text-center py-3 px-2 h-100">
-            <Icons iconName={icon} className="icon-24 mx-auto mb-2" />
-            <p className={`h6 font-w600 mb-1${accent ? " text-danger" : ""}`}>{value}</p>
-            <p className="text-muted font-s12 mb-0">{label}</p>
+// Compact axis numbers: 1500 -> 1.5k, 250000 -> 2.5L (Indian), 12000000 -> 1.2Cr.
+const compact = (n: number) => {
+    const a = Math.abs(n);
+    if (a >= 10000000) return `${+(n / 10000000).toFixed(1)}Cr`;
+    if (a >= 100000) return `${+(n / 100000).toFixed(1)}L`;
+    if (a >= 1000) return `${+(n / 1000).toFixed(1)}k`;
+    return String(n);
+};
+
+const KpiCard = ({ label, value, icon, tone }: { label: string; value: string; icon: string; tone?: "danger" | "success" | "primary" }) => (
+    <div className="eng-kpi">
+        <span className={`eng-kpi-icon${tone ? ` is-${tone}` : ""}`}><Icons iconName={icon} className="icon-18" /></span>
+        <div className="eng-kpi-text">
+            <p className="eng-kpi-label">{label}</p>
+            <p className={`eng-kpi-value${tone === "danger" ? " is-danger" : ""}`}>{value}</p>
         </div>
     </div>
+);
+
+// Local chart shell: title + optional caption, and a real empty state.
+const Panel = ({ title, caption, isEmpty, height = 240, children }: { title: string; caption?: string; isEmpty: boolean; height?: number; children: React.ReactNode }) => (
+    <section className="eng-card eng-panel">
+        <header className="eng-panel-top">
+            <h3 className="eng-panel-title">{title}</h3>
+            {caption && <span className="eng-panel-caption">{caption}</span>}
+        </header>
+        {isEmpty ? (
+            <div className="eng-chart-empty" style={{ height }}>
+                <span>No data for this period</span>
+                <small>Try a wider date range.</small>
+            </div>
+        ) : children}
+    </section>
 );
 
 const EngDashboard = () => {
@@ -62,6 +88,17 @@ const EngDashboard = () => {
 
     const k = data?.kpis;
     const byType = (data?.byServiceType || []).map((t) => ({ ...t, name: t.label || t.type }));
+    const typeTotal = byType.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    const todayStr = today();
+    const monthStart = `${todayStr.slice(0, 7)}-01`;
+    const preset = to === todayStr && from === todayStr ? "today"
+        : to === todayStr && from === monthStart ? "month"
+        : to === todayStr && from === fyStartApril() ? "fy" : "custom";
+    const Seg = ({ id, label, onPick }: { id: string; label: string; onPick: () => void }) => (
+        <button type="button" role="radio" aria-checked={preset === id} className={`eng-seg-btn${preset === id ? " is-active" : ""}`} onClick={onPick}>{label}</button>
+    );
+    const axis = { tick: { fontSize: 11, fill: "var(--secondary)" }, axisLine: false, tickLine: false } as const;
 
     return (
         <div className="row">
@@ -76,80 +113,83 @@ const EngDashboard = () => {
                     </button>
                 </div>
 
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <div className="row align-items-end g-3">
-                            <div className="col-6 col-md-3 col-xl-2">
-                                <label className="form-label font-w500 mb-1">From</label>
-                                <input type="date" className="form-control" value={from} max={to}
-                                    onChange={(e) => setFrom(e.target.value)} />
-                            </div>
-                            <div className="col-6 col-md-3 col-xl-2">
-                                <label className="form-label font-w500 mb-1">To</label>
-                                <input type="date" className="form-control" value={to} min={from}
-                                    onChange={(e) => setTo(e.target.value)} />
-                            </div>
-                            <div className="col-12 col-md-6 col-xl-4 d-flex gap-2">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => { setFrom(today()); setTo(today()); }}>Today</button>
-                                <button type="button" className="btn btn-cancel btn-sm"
-                                    onClick={() => { const t = today(); setFrom(`${t.slice(0, 7)}-01`); setTo(t); }}>This month</button>
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => { setFrom(fyStartApril()); setTo(today()); }}>This FY</button>
-                            </div>
-                        </div>
+                <section className="eng-card eng-range" aria-label="Date range">
+                    <div className="eng-seg" role="radiogroup" aria-label="Quick range">
+                        <Seg id="today" label="Today" onPick={() => { setFrom(todayStr); setTo(todayStr); }} />
+                        <Seg id="month" label="This month" onPick={() => { setFrom(monthStart); setTo(todayStr); }} />
+                        <Seg id="fy" label="This FY" onPick={() => { setFrom(fyStartApril()); setTo(todayStr); }} />
                     </div>
-                </div>
+                    <div className="eng-range-dates">
+                        <label><span>From</span>
+                            <input type="date" className="eng-date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+                        </label>
+                        <span className="eng-range-sep" aria-hidden="true">→</span>
+                        <label><span>To</span>
+                            <input type="date" className="eng-date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+                        </label>
+                    </div>
+                </section>
 
-                <div className="row mb-2">
+                <div className="eng-kpis">
                     <KpiCard label="Bills" value={String(k?.totalBills || 0)} icon="receipt-text" />
-                    <KpiCard label="Billed" value={money(k?.totalBilled || 0)} icon="currencyrupee" />
-                    <KpiCard label="Received" value={money(k?.totalReceived || 0)} icon="trendingup" />
-                    <KpiCard label="Outstanding" value={money(k?.totalOutstanding || 0)} icon="clock" accent />
+                    <KpiCard label="Billed" value={money(k?.totalBilled || 0)} icon="currencyrupee" tone="primary" />
+                    <KpiCard label="Received" value={money(k?.totalReceived || 0)} icon="trendingup" tone="success" />
+                    <KpiCard label="Outstanding" value={money(k?.totalOutstanding || 0)} icon="clock" tone="danger" />
                 </div>
 
-                <div className="row g-4 mb-4">
-                    <div className="col-12 col-md-8">
-                        <ChartCard title="Revenue by month" isEmpty={!(data?.byMonth?.length)}>
+                <div className="eng-dash-grid">
+                    <div className="eng-span-8">
+                        <Panel title="Revenue by month" caption="Billed vs received" isEmpty={!(data?.byMonth?.length)}>
                             <ResponsiveContainer width="100%" height={240}>
-                                <BarChart data={data?.byMonth || []}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                                    <YAxis tick={{ fontSize: 11 }} />
-                                    <Tooltip content={<ChartTooltip />} />
-                                    <Legend />
-                                    <Bar dataKey="billed" name="Billed" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-                                    <Bar dataKey="received" name="Received" fill="#36b37e" radius={[6, 6, 0, 0]} />
+                                <BarChart data={data?.byMonth || []} barCategoryGap="28%" barGap={4}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
+                                    <XAxis dataKey="month" {...axis} />
+                                    <YAxis {...axis} width={44} tickFormatter={compact} />
+                                    <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-sunken)" }} />
+                                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                                    <Bar dataKey="billed" name="Billed" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} maxBarSize={36} />
+                                    <Bar dataKey="received" name="Received" fill={CHART_COLORS[2]} radius={[6, 6, 0, 0]} maxBarSize={36} />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </ChartCard>
+                        </Panel>
                     </div>
-                    <div className="col-12 col-md-4">
-                        <ChartCard title="By service type" isEmpty={!byType.length}>
-                            <ResponsiveContainer width="100%" height={240}>
-                                <PieChart>
-                                    <Pie data={byType} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90}>
-                                        {byType.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                                    </Pie>
-                                    <Tooltip content={<ChartTooltip />} />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
+                    <div className="eng-span-4">
+                        <Panel title="By service type" caption={byType.length ? money(typeTotal) : undefined} isEmpty={!byType.length}>
+                            <div className="eng-donut">
+                                <ResponsiveContainer width="100%" height={168}>
+                                    <PieChart>
+                                        <Pie data={byType} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={78}
+                                            paddingAngle={byType.length > 1 ? 3 : 0} cornerRadius={4} stroke="none">
+                                            {byType.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                                        </Pie>
+                                        <Tooltip content={<ChartTooltip />} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <ul className="eng-legend-list">
+                                    {byType.map((t, i) => (
+                                        <li key={t.type}>
+                                            <i style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                            <span className="eng-legend-name">{t.name}</span>
+                                            <span className="eng-legend-pct">{typeTotal ? Math.round(((Number(t.amount) || 0) / typeTotal) * 100) : 0}%</span>
+                                            <span className="eng-legend-amt">{money(t.amount)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </Panel>
                     </div>
-                </div>
-
-                <div className="row g-4 mb-4">
-                    <div className="col-12">
-                        <ChartCard title="Revenue by mechanic" isEmpty={!(data?.byMechanic?.length)}>
-                            <ResponsiveContainer width="100%" height={220}>
-                                <BarChart data={data?.byMechanic || []} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                                    <YAxis type="category" dataKey="mechanic" width={110} tick={{ fontSize: 11 }} />
-                                    <Tooltip content={<ChartTooltip />} />
-                                    <Bar dataKey="billed" name="Billed" fill="#6554c0" radius={[0, 6, 6, 0]} />
+                    <div className="eng-span-12">
+                        <Panel title="Revenue by mechanic" caption="Billed" isEmpty={!(data?.byMechanic?.length)} height={200}>
+                            <ResponsiveContainer width="100%" height={Math.max(160, (data?.byMechanic?.length || 1) * 44 + 40)}>
+                                <BarChart data={data?.byMechanic || []} layout="vertical" barCategoryGap="30%">
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
+                                    <XAxis type="number" {...axis} tickFormatter={compact} />
+                                    <YAxis type="category" dataKey="mechanic" width={96} {...axis} tick={{ fontSize: 12, fill: "var(--titleColor)" }} />
+                                    <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--surface-sunken)" }} />
+                                    <Bar dataKey="billed" name="Billed" fill={CHART_COLORS[4]} radius={[0, 6, 6, 0]} maxBarSize={22} />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </ChartCard>
+                        </Panel>
                     </div>
                 </div>
             </div>
