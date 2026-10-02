@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (sixth lap)
+Next area: **2** (sixth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -110,3 +110,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-10-02 14:38 UTC — No open QA PR (#41 is a UI-refine PR, not QA scope). staging 3e6b46a (UI redesign #36-#40; Engineering-only changes, radiator/automobile/salary/backend files untouched). Area 5 (lap 5, Radiator live): backend 42/42, tsc clean, radiator e2e 6/6. Radiator code unchanged. No bugs, no PR.
 
 - 2026-10-02 18:38 UTC — No open QA PR (#43 is a UI-refine PR, not QA scope). staging eadbadd (UI #36-#42; Engineering-only). Area 6 (lap 5, cross-cutting): backend 42/42, no backend file changed since lap 4, tsc clean, engineering e2e 60/60. Auth/tenant/settings code unchanged. No bugs, no PR. Lap 5 complete, zero findings.
+
+- 2026-10-02 22:38 UTC — No open QA PR (#45 is a UI-refine PR, not QA scope). staging 9d0c355 (UI #36-#44; Engineering frontend only, no backend file changed). Area 1 (lap 6, Eng backend): backend 42/42, tsc clean, engineering e2e 62/62. Engineering DAO/routes unchanged since lap 5. No bugs, no PR.
