@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **4** (fifth lap)
+Next area: **5** (fifth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -104,3 +104,5 @@ _(newest first: date, area, findings, PR, result)_
 - 2026-10-02 06:37 UTC — No open QA PR. staging unchanged (4b0fedf). Area 3 (lap 5, Automobile): backend 42/42. No bugs, no PR.
 
 - 2026-10-02 — Engineering UI redesign merged to staging by the user's request (not a QA run): #36 catalog (master/detail, phone cards), #37 bill PDF rebuilt to the invoice mockup (standalone PrintEngInvoice.ts + Utils/amountInWords.ts), #38 billing cards on phones + sticky totals bar. Each had an independent NO-BLOCKERS review; engineering e2e 50/50, radiator 6/6, automobile 10/10, salary 6/6, tsc clean. All CSS is `eng-*` scoped (Pages/Engineering/engineering.css). Radiator/automobile untouched.
+
+- 2026-10-02 10:37 UTC — No open QA PR (open #39 is a UI-refine PR, not QA scope). staging now 0c302e6 (UI redesign #36-#38 merged). Area 4 (lap 5, Salary): backend 42/42, tsc clean, salary e2e 6/6. Salary code unchanged since lap 4. No bugs, no PR.
