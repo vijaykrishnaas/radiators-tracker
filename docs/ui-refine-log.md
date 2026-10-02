@@ -47,16 +47,17 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 **Process gotchas**
 - Merge needs the FULL 40-char head SHA (`git rev-parse HEAD`), not the 7-char one.
 - Stage only your own files (`git add <paths>`), never `git commit -a` on the log branches — a stray modified file nearly rode along once. Always `git status` clean before switching branches. Delete `e2e/.out` after e2e runs (the stop hook flags untracked files).
-- Start Vite once (`pgrep -f "vite --port"` first); `pkill -f "vite --port"` exits 144 — that's expected, not a failure.
+- Start Vite once. `pgrep -f "vite --port"` can match its own shell and falsely say "running" — start it with `nohup npx vite --port 5173 >/tmp/vite.log 2>&1 &`, wait ~7s and `curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/` must print 200 before taking screenshots. (Start Vite once; `pkill -f "vite --port"` exits 144 — that's expected, not a failure.
 - Screenshot harness: copy the route-mock block from `e2e/engineering.e2e.mjs` (settings, `/engbills*`, analytics) into a scratchpad script; set `localStorage` `svr_token` / `svr_user` (role admin, clientId c1) on `/issueCounter/login`, then `goto` the Engineering page. Capture 1300x900 AND 390x844, `fullPage: true`, plus viewport shots for sticky elements. Measure `document.documentElement.scrollWidth - window.innerWidth` for overflow.
 - Run order each time: `npx tsc --noEmit`, `node e2e/engineering.e2e.mjs` (all PASS, currently 50), then radiator (6), automobile (10), salary (6) with no FAIL/ERROR.
 - Commit/PR attribution: use the Co-Authored-By + Claude-Session lines and the PR footer given in the system attribution reminder; never put a model identifier in code/PR text beyond those lines.
+- Shared `ChartCard`/`ChartTooltip` live in `src/Components` (out of scope to edit). The Engineering dashboard uses its own local `Panel`; reuse `ChartTooltip` import only.
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
 ## Backlog (pick top unchecked; add new items as you find them)
-- [ ] Dashboard: KPI cards (type scale, tabular numerals, icon tile, outstanding emphasis), chart card headers, consistent chart colours via tokens, empty-state when no data.
-- [ ] Dashboard: date-range filter as a segmented control (Today / Month / FY) + custom range; phone layout.
+- [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (open, awaiting review).
+- [x] Dashboard: date-range segmented control + phone layout — PR #39.
 - [ ] Service form: header fields grid rhythm; service-card header (type · BS model chips); item lines; quick-add chips styling; validation message styling.
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [ ] Billing: desktop table polish (row hover, numeric alignment, status pill palette, balance emphasis), empty state, loading skeleton.
@@ -68,6 +69,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-02: Dashboard refine PR #39 (segmented range control, KPI tiles, chart panels, donut legend) — awaiting review.
 - 2026-10-02: #36 Settings catalog (master/detail, phone cards), #37 bill PDF to mockup, #38 Billing cards + sticky totals bar (by the user's request).
 
 ## Needs user (don't act without a decision)
@@ -75,3 +77,4 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-02 10:00 UTC (first fired run) — Backlog items 1+2 (Dashboard). Before/after screenshots at 1300/390; fixed phone date-input overflow; recharts donut animates ~2s, wait >=3s before screenshots. Opened PR #39; engineering e2e 56/56, radiator 6, automobile 10, salary 6 no FAIL. Next run: review #39.
