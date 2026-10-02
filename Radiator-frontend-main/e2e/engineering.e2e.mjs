@@ -147,7 +147,7 @@ async function run(type) {
   ok("eng: Other requires description", (await page.getByText("Describe the work").count()) > 0);
   await page.waitForTimeout(450); // border-color has a 150ms transition
   const errBorder = await page.locator(".eng-line-comment.has-error .form-control").first().evaluate((el) => getComputedStyle(el).borderTopColor);
-  ok("eng: missing description field is marked with the error colour", /rgb\(2[0-9]{2}, ?\d{1,2}, ?\d{1,2}\)|rgb\(231, ?74, ?74\)/.test(errBorder), errBorder);
+  ok("eng: missing description field is marked with the error colour", /^rgb\(231, ?74, ?74\)$/.test(errBorder), errBorder);
   await card.getByPlaceholder("Describe the work").fill("Bearing clean");
   // 2*500 + 2000 + 50 = 3050
   const subtotalText = await card.getByText(/Subtotal:/).innerText();
@@ -243,6 +243,11 @@ async function run(type) {
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
   ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Save service|Update service/ }).count()) === 0);
+  const viewAlign = await page.evaluate(() => {
+    const L = (sel) => document.querySelector(sel).getBoundingClientRect();
+    return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };
+  });
+  ok("eng: view mode item column headers line up too (no remove button)", Math.abs(viewAlign.q) <= 2 && Math.abs(viewAlign.r) <= 2 && Math.abs(viewAlign.a) <= 2, JSON.stringify(viewAlign));
 
   // Print from billing downloads a PDF without errors.
   await page.goto(BASE + "/engineering/billing");
