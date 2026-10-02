@@ -28,14 +28,24 @@ const fyStartApril = () => {
     return `${y}-04-01`;
 };
 
-// Compact axis numbers: 1500 -> 1.5k, 250000 -> 2.5L (Indian), 12000000 -> 1.2Cr.
+// Compact axis numbers (Indian): 1500 -> 1.5k, 100000 -> 1L, 12000000 -> 1.2Cr.
+// Rounds first, then promotes the unit, so 99999 -> 1L and 999999 -> 10L (never "100k"/"1000k").
 const compact = (n: number) => {
+    const unit = (v: number, suffix: string) => `${+v.toFixed(1)}${suffix}`;
     const a = Math.abs(n);
-    if (a >= 10000000) return `${+(n / 10000000).toFixed(1)}Cr`;
-    if (a >= 100000) return `${+(n / 100000).toFixed(1)}L`;
-    if (a >= 1000) return `${+(n / 1000).toFixed(1)}k`;
+    if (a >= 1000) {
+        if (a >= 10000000 || Math.abs(+(n / 100000).toFixed(1)) >= 100) return unit(n / 10000000, "Cr");
+        if (a >= 100000 || Math.abs(+(n / 1000).toFixed(1)) >= 100) return unit(n / 100000, "L");
+        return unit(n / 1000, "k");
+    }
     return String(n);
 };
+
+// Segmented-control button. Declared at module level (not inside the page) so React keeps the
+// same element between renders and keyboard focus survives a click.
+const Seg = ({ active, label, onPick }: { active: boolean; label: string; onPick: () => void }) => (
+    <button type="button" role="radio" aria-checked={active} className={`eng-seg-btn${active ? " is-active" : ""}`} onClick={onPick}>{label}</button>
+);
 
 const KpiCard = ({ label, value, icon, tone }: { label: string; value: string; icon: string; tone?: "danger" | "success" | "primary" }) => (
     <div className="eng-kpi">
@@ -95,9 +105,6 @@ const EngDashboard = () => {
     const preset = to === todayStr && from === todayStr ? "today"
         : to === todayStr && from === monthStart ? "month"
         : to === todayStr && from === fyStartApril() ? "fy" : "custom";
-    const Seg = ({ id, label, onPick }: { id: string; label: string; onPick: () => void }) => (
-        <button type="button" role="radio" aria-checked={preset === id} className={`eng-seg-btn${preset === id ? " is-active" : ""}`} onClick={onPick}>{label}</button>
-    );
     const axis = { tick: { fontSize: 11, fill: "var(--secondary)" }, axisLine: false, tickLine: false } as const;
 
     return (
@@ -115,9 +122,9 @@ const EngDashboard = () => {
 
                 <section className="eng-card eng-range" aria-label="Date range">
                     <div className="eng-seg" role="radiogroup" aria-label="Quick range">
-                        <Seg id="today" label="Today" onPick={() => { setFrom(todayStr); setTo(todayStr); }} />
-                        <Seg id="month" label="This month" onPick={() => { setFrom(monthStart); setTo(todayStr); }} />
-                        <Seg id="fy" label="This FY" onPick={() => { setFrom(fyStartApril()); setTo(todayStr); }} />
+                        <Seg active={preset === "today"} label="Today" onPick={() => { setFrom(todayStr); setTo(todayStr); }} />
+                        <Seg active={preset === "month"} label="This month" onPick={() => { setFrom(monthStart); setTo(todayStr); }} />
+                        <Seg active={preset === "fy"} label="This FY" onPick={() => { setFrom(fyStartApril()); setTo(todayStr); }} />
                     </div>
                     <div className="eng-range-dates">
                         <label><span>From</span>
