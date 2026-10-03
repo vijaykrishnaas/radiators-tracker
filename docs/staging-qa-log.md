@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **4** (sixth lap)
+Next area: **5** (sixth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-03 10:37 UTC — Area 4 (Salary): no new bug. Staging at 3a74c35: backend 42/42, tsc clean, e2e salary 6, radiator 6, automobile 10 (Vite was down and had to be restarted first; first pass ran 0 checks, re-run green). Known open item unchanged: manual present-days above working days is unvalidated (needs a product decision). No PR, no notification. Open UI PR #51 not touched.
 _(newest first: date, area, findings, PR, result)_
 
 - **2026-09-29 10:37** — Merged PR #34 (payslip/preview carried-forward) after NO-BLOCKERS review; re-ran backend 36/36, tsc clean, e2e salary 6/6, engineering 39/39, radiator 6/6, automobile 10/10. Second lap, Area 5: Radiator (live) — no new bug. Added `test/radiator.dao.test.js` (6 tests); backend 42/42. Logged design question (edit-below-received permanently caps received). PR: https://github.com/vijaykrishnaas/radiators-tracker/pull/35 (tests only) — open, awaiting review.
