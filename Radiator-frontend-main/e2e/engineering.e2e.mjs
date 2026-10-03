@@ -123,12 +123,13 @@ async function run(type) {
   // Mechanic
   await page.getByText("Select Mechanic Name").click({ force: true });
   await page.getByText("Ramesh", { exact: true }).last().click();
-  // Service type Turbo, BS-3
+  // One BS model for the whole bill (header), then service type Turbo on the card.
+  ok("eng: BS model is a bill-level header field (no BS select inside the service card)", (await page.getByText("BS model", { exact: true }).count()) === 1 && (await page.locator(".border.rounded.p-3").first().getByText("BS model").count()) === 0);
+  await page.getByText("Select BS model").click({ force: true });
+  await page.getByText("BS-3", { exact: true }).last().click();
   const card = page.locator(".border.rounded.p-3").first();
   await card.getByText("Select...").first().click({ force: true });
   await page.getByText("Turbo", { exact: true }).last().click();
-  await card.getByText("Select...").first().click({ force: true });
-  await page.getByText("BS-3", { exact: true }).last().click();
   await card.getByText("Select items").click({ force: true });
   await page.getByText("Hold set", { exact: true }).last().click();
   await page.getByText("O-ring kit change", { exact: true }).last().click();
@@ -179,25 +180,27 @@ async function run(type) {
   await page.waitForTimeout(300);
   ok("eng: quick-add created compressor card with Piston row", (await page.locator(".border.rounded.p-3").count()) === 2 && (await page.locator(".border.rounded.p-3").nth(1).getByText("Piston", { exact: true }).count()) > 0);
 
-  // BS-6 hides Block bush change for compressor
+  // BS-6 (bill-level) hides Block bush change for compressor
   const c2 = page.locator(".border.rounded.p-3").nth(1);
-  await c2.getByText("Select...").first().click({ force: true });
+  await page.locator(".eng-form").getByText("BS-3", { exact: true }).first().click({ force: true });
   await page.getByText("BS-6", { exact: true }).last().click();
-  await c2.locator("[class*='control']").nth(2).click({ force: true });
+  await c2.locator("[class*='control']").nth(1).click({ force: true });
   await page.waitForTimeout(300);
   const menu = await page.locator("[class*='menu']").last().innerText();
   ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
   await page.keyboard.press("Escape");
-  // BS change re-applies the catalog rate for the new model, so type the manual rate afterwards.
+  // Back to BS-3: the change re-applies catalog rates on every card, so retype the manual values afterwards.
+  await page.locator(".eng-form").getByText("BS-6", { exact: true }).first().click({ force: true });
+  await page.getByText("BS-3", { exact: true }).last().click();
+  await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
+  await rateInputs.nth(2).fill("50");
   await c2.locator('input[placeholder="Rate"]').fill("1000");
 
-  // Discount + received
-  const moneyInputs = page.locator('input[type="number"]');
-  await page.locator("label:has-text('Discount') + div input").fill("50");
-  await page.locator("label:has-text('Amount received') + div input").fill("1000");
+  // Footer shows only the total; discount / received / mode are entered later via Record payment.
   const footer = await page.locator(".font-w700.font-s20").innerText();
-  // total 3050 + 1000 = 4050 - 50 = 4000
-  ok("eng: footer net total ₹4,000.00", footer.includes("4,000.00"), footer);
+  ok("eng: footer total ₹4,050.00", footer.includes("4,050.00"), footer);
+  const footText = await page.locator(".eng-foot").innerText();
+  ok("eng: create footer has no discount / per-type totals, form has no payment fields", !/Discount|Amount received|Payment mode|Turbo|Air Compressor/i.test(footText) && (await page.locator("label:has-text('Discount'), label:has-text('Amount received'), label:has-text('Payment mode')").count()) === 0, footText.replace(/\s+/g, " "));
   await page.screenshot({ path: `${S}/eng-form-full.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Save service" }).click();
@@ -208,7 +211,7 @@ async function run(type) {
     ok("eng: payload 2 services", posted.services.length === 2, JSON.stringify(posted.services.map((s) => [s.type, s.bsModel, s.items.length])));
     ok("eng: payload turbo bsModel bs3, qty 2 on Hold set", posted.services[0].bsModel === "bs3" && posted.services[0].items[0].qty === 2);
     ok("eng: payload Other has comment", posted.services[0].items.some((i) => i.item === "other" && i.comment === "Bearing clean"));
-    ok("eng: payload discount 50, received 1000", posted.discount === 50 && posted.amountReceived === 1000);
+    ok("eng: payload discount 0, received 0 (paid later via Record payment)", posted.discount === 0 && posted.amountReceived === 0);
   }
   ok("eng: navigated to billing after save", page.url().endsWith("/engineering/billing"), page.url());
   await page.waitForTimeout(1000);
@@ -219,9 +222,10 @@ async function run(type) {
     const th = (t) => [...document.querySelectorAll(".eng-table thead th")].find((e) => e.textContent.trim() === t);
     const row = document.querySelector(".eng-table tbody tr");
     const net = row.querySelector(".eng-c-net"), truck = row.querySelector(".eng-c-truck");
-    return { thNet: getComputedStyle(th("Net")).textAlign, thBal: getComputedStyle(th("Balance")).textAlign, tdNet: getComputedStyle(net).textAlign, tabular: getComputedStyle(net).fontVariantNumeric, truckW: getComputedStyle(truck).fontWeight };
+    return { thNet: getComputedStyle(th("Total")).textAlign, thBal: getComputedStyle(th("Balance")).textAlign, tdNet: getComputedStyle(net).textAlign, tabular: getComputedStyle(net).fontVariantNumeric, truckW: getComputedStyle(truck).fontWeight };
   });
   ok("eng: billing money columns are right-aligned (header + cells) with tabular numerals", tbl.thNet === "right" && tbl.thBal === "right" && tbl.tdNet === "right" && /tabular-nums/.test(tbl.tabular), JSON.stringify(tbl));
+  ok("eng: billing table column is labelled Total (not Net)", (await page.locator(".eng-table thead th").allTextContents()).some((t) => t.trim() === "Total") && !(await page.locator(".eng-table thead th").allTextContents()).some((t) => t.trim() === "Net"));
   ok("eng: billing truck number is emphasised (semibold)", parseInt(tbl.truckW, 10) >= 600, tbl.truckW);
   const firstTd = page.locator(".eng-table tbody tr").first().locator("td").nth(2);
   const bgBefore = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -408,11 +412,57 @@ async function run(type) {
   await page.waitForTimeout(800);
   ok("eng: edit loads truck number", (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN52J2622");
   ok("eng: edit loads item rate 4850", (await page.locator('input[placeholder="Rate"]').first().inputValue()) === "4850");
-  ok("eng: edit loads discount 50", (await page.locator("label:has-text('Discount') + div input").inputValue()) === "50");
+  ok("eng: edit shows the net total (4,800) and no discount field", (await page.locator(".font-w700.font-s20").innerText()).includes("4,800.00") && (await page.locator("label:has-text('Discount')").count()) === 0);
   await page.locator('input[placeholder="Qty"]').first().fill("2");
   await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
-  ok("eng: edit sends PUT with updated qty and kept discount", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === 50 && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
+  ok("eng: edit sends PUT with updated qty and leaves discount to the server", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === undefined && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
+
+  // Edit keeps the stored payment fields although the form no longer shows them.
+  ok("eng: edit PUT omits discount/received/mode so the server keeps stored values", putBody && !("discount" in putBody) && !("amountReceived" in putBody) && !("paymentMode" in putBody), JSON.stringify(putBody && { d: putBody.discount, r: putBody.amountReceived, m: putBody.paymentMode }));
+  // Cancel on edit goes straight to the bills list.
+  await page.goto(BASE + "/engineering/dashboard/edit/b1");
+  await page.getByRole("button", { name: "Cancel" }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: Cancel on edit returns to the bills list", page.url().endsWith("/engineering/billing"), page.url());
+  // Cancel on an empty new bill leaves immediately; with entries it asks first and can be declined.
+  let dialogs = [];
+  const onDialog = async (d) => { dialogs.push(d.message()); await (dialogs.length === 1 ? d.dismiss() : d.accept()); };
+  page.on("dialog", onDialog);
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.getByRole("button", { name: "Cancel" }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: Cancel on an empty new bill leaves without asking", page.url().endsWith("/engineering/billing") && dialogs.length === 0, `${page.url()} dialogs=${dialogs.length}`);
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.getByPlaceholder("Enter Truck Number").fill("TN01X1");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(400);
+  ok("eng: Cancel with entries asks to discard; declining keeps the form", dialogs.length === 1 && /Discard/i.test(dialogs[0]) && page.url().endsWith("/engineering/dashboard/create") && (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN01X1", `${dialogs.join("|")} ${page.url()}`);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: accepting the discard prompt returns to the bills list", dialogs.length === 2 && page.url().endsWith("/engineering/billing"), `${dialogs.length} ${page.url()}`);
+  page.off("dialog", onDialog);
+  ok("eng: no Clear form button anymore", (await (async () => { await page.goto(BASE + "/engineering/dashboard/create"); await page.getByRole("button", { name: "Cancel" }).waitFor(); return page.getByRole("button", { name: "Clear form" }).count(); })()) === 0);
+
+  // A legacy bill whose cards had different BS models shows "Mixed" and is not silently rewritten on save.
+  const mixedBill = { ...bill, services: [bill.services[0], { ...bill.services[0], type: "compressor", typeLabel: "Air Compressor", bsModel: "bs6", items: [{ item: "kit", label: "Kit", qty: 1, rate: 100, amount: 100 }] }] };
+  const mixedHandler = async (route) => {
+    const u = new URL(route.request().url());
+    if (u.pathname === "/engbills/b1" && route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, bill: mixedBill }) });
+    return route.fallback();
+  };
+  await page.route("http://localhost:5000/**", mixedHandler);
+  putBody = null;
+  await page.goto(BASE + "/engineering/dashboard/edit/b1");
+  await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(800);
+  ok("eng: legacy mixed-BS bill shows 'Mixed' in the BS field", (await page.getByText("Mixed", { exact: true }).count()) === 1);
+  await page.getByRole("button", { name: "Update service" }).click();
+  for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
+  ok("eng: saving a mixed-BS bill keeps each card's own BS model", putBody?.services?.[0]?.bsModel === "bs3" && putBody?.services?.[1]?.bsModel === "bs6", JSON.stringify(putBody?.services?.map((x) => x.bsModel)));
+  await page.unroute("http://localhost:5000/**", mixedHandler);
 
   // View mode is read-only.
   await page.goto(BASE + "/engineering/dashboard/view/b1");

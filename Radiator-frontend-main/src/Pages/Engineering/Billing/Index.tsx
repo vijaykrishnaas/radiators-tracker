@@ -304,7 +304,7 @@ const EngBilling = () => {
                                         <th className="cell-nowrap">{labels.vehicleNo}</th>
                                         <th>{labels.agent}</th>
                                         <th>Types</th>
-                                        <th className="cell-nowrap eng-num">Net</th>
+                                        <th className="cell-nowrap eng-num">Total</th>
                                         <th className="cell-nowrap eng-num">Received</th>
                                         <th className="cell-nowrap eng-num">Balance</th>
                                         <th className="cell-nowrap">Status</th>
@@ -325,7 +325,7 @@ const EngBilling = () => {
                                                         <span key={t} className="badge rounded-pill text-bg-light border me-1">{t}</span>
                                                     ))}
                                                 </td>
-                                                <td className="cell-nowrap eng-c-net" data-label="Net">{money(o.netTotal)}</td>
+                                                <td className="cell-nowrap eng-c-net" data-label="Total">{money(o.netTotal)}</td>
                                                 <td className="cell-nowrap eng-c-rec" data-label="Received">{money(o.amountReceived)}</td>
                                                 <td className={`cell-nowrap eng-c-bal ${o.balance > 0 ? "text-danger font-w600" : ""}`} data-label="Balance">
                                                     {money(o.balance)}
