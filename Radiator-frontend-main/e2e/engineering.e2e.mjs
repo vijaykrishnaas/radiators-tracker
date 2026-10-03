@@ -284,6 +284,36 @@ async function run(type) {
   await page.waitForTimeout(800);
   ok("eng: payment modal sends existing + new discount (150)", paid?.discount === 150, JSON.stringify(paid));
 
+  // Payment modal layout: hint is quiet sentence-case text; nothing overflows the modal at 390px; footer buttons align with the fields.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
+  await page.getByRole("menuitem", { name: "Record Payment" }).click();
+  await page.locator("#payment-discount").waitFor({ timeout: 5000 });
+  await page.waitForTimeout(500);
+  const modalM = await page.evaluate(() => {
+    const content = document.querySelector(".modal-content").getBoundingClientRect();
+    const label = document.querySelector('label[for="payment-discount"]');
+    const hint = document.querySelector(".eng-modal .eng-hint") || label;
+    const lcs = getComputedStyle(label);
+    const hcs = getComputedStyle(hint);
+    const kids = [...document.querySelectorAll(".modal-body *")].map((e) => e.getBoundingClientRect().right);
+    const input = document.querySelector("#payment-amount").getBoundingClientRect();
+    const btns = [...document.querySelectorAll(".modal-footer .btn")].map((b) => b.getBoundingClientRect());
+    return {
+      overflowPx: Math.round(Math.max(...kids) - content.right),
+      labelTransform: lcs.textTransform, hintTransform: hcs.textTransform, hintWeight: hcs.fontWeight,
+      footerLeftVsInput: Math.round(Math.min(...btns.map((b) => b.left)) - input.left),
+      footerRightVsInput: Math.round(Math.max(...btns.map((b) => b.right)) - input.right),
+    };
+  });
+  ok("eng: payment modal has no horizontal overflow at 390px", modalM.overflowPx <= 0, JSON.stringify(modalM));
+  ok("eng: payment modal hint is quiet sentence-case text (not loud capitals)", modalM.hintTransform === "none" && parseInt(modalM.hintWeight, 10) <= 400, JSON.stringify({ t: modalM.hintTransform, w: modalM.hintWeight }));
+  ok("eng: payment modal footer buttons align with the fields (<=2px)", Math.abs(modalM.footerLeftVsInput) <= 2 && Math.abs(modalM.footerRightVsInput) <= 2, JSON.stringify({ l: modalM.footerLeftVsInput, r: modalM.footerRightVsInput }));
+  await page.locator(".modal-footer").getByRole("button", { name: "Cancel" }).click();
+  await page.setViewportSize({ width: 1300, height: 1000 });
+
   await page.goto(BASE + "/settings");
   await page.waitForTimeout(1500);
   const tabs = await page.locator(".settings-tabs").innerText();
