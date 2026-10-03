@@ -520,3 +520,11 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
 /* The service-items picker (ItemMultiSelect) keeps react-select's default 4px radius; match the other controls.
    `!important` because react-select applies its radius through emotion class rules. */
 .eng-form div[class*="-control"]:not([class*="form-control"]) { border-radius: var(--eng-radius-sm, 8px) !important; }
+
+/* Billing filter row + payment dialog + page-header buttons: same control recipe as the service form
+   (8px radius, 44px fields, >=40px buttons). `!important` because shared apple-rebrand.css / style.css force these
+   radii and the react-select min-height; only .eng-filters / .eng-modal / .eng-theme descendants are overridden. */
+.eng-filters input.form-control, .eng-modal input.form-control { border-radius: var(--eng-radius-sm, 8px) !important; }
+.eng-filters div[class*="-control"]:not([class*="form-control"]) { min-height: var(--control-h, 44px) !important; border-radius: var(--eng-radius-sm, 8px) !important; }
+.eng-theme .btn:not(.eng-quick), .eng-modal .btn { border-radius: var(--eng-radius-sm, 8px) !important; }
+.eng-filters .btn, .eng-modal .modal-footer .btn, .eng-head-btn { min-height: 40px; }

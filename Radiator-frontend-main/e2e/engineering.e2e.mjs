@@ -462,6 +462,31 @@ async function run(type) {
   ok("eng: phone footer buttons are >= 44px tall and inside the viewport", pf.length === 2 && pf.every((b) => b.h >= 44 && b.right <= 390), JSON.stringify(pf));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
+  // Button/input recipe on Billing: the filter row and the payment dialog use one 8px control radius, 44px fields, >=40px buttons.
+  await page.goto(BASE + "/engineering/billing");
+  await page.locator("#from-date").waitFor({ timeout: 10000 });
+  const bf = await page.evaluate(() => {
+    const g = (el) => { if (!el) return null; const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
+    const btn = (re) => [...document.querySelectorAll(".eng-theme button")].find((b) => re.test(b.textContent.trim()));
+    return { search: g(document.querySelector(".eng-filters input.form-control")), date: g(document.querySelector("#from-date")),
+      selects: [...document.querySelectorAll('.eng-filters div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map(g),
+      clear: g(btn(/^Clear$/)), add: g(btn(/Add New/)), excel: g(btn(/Excel/)) };
+  });
+  ok("eng: billing filter inputs and dropdowns share an 8px radius", bf.search.r === "8px" && bf.date.r === "8px" && bf.selects.length >= 3 && bf.selects.every((x) => x.r === "8px"), JSON.stringify({ s: bf.search.r, d: bf.date.r, sel: bf.selects.map((x) => x.r) }));
+  ok("eng: billing filter dropdowns are as tall as the inputs (44px)", bf.selects.every((x) => x.h >= 44) && bf.search.h === 44, JSON.stringify({ search: bf.search.h, sel: bf.selects.map((x) => x.h) }));
+  ok("eng: billing buttons (Add New / Excel / Clear) are 8px radius and >= 40px", [bf.clear, bf.add, bf.excel].every((x) => x && x.r === "8px" && x.h >= 40), JSON.stringify({ clear: bf.clear, add: bf.add, excel: bf.excel }));
+  await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
+  await page.getByRole("menuitem", { name: /Record Payment/i }).click();
+  await page.locator(".eng-modal").first().waitFor({ timeout: 10000 });
+  await page.waitForTimeout(400);
+  const pm = await page.evaluate(() => {
+    const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
+    return { inputs: [...document.querySelectorAll(".eng-modal input.form-control")].map(g), btns: [...document.querySelectorAll(".eng-modal .modal-footer .btn")].map(g) };
+  });
+  ok("eng: payment dialog inputs are 8px radius / 44px and footer buttons 8px / >= 40px", pm.inputs.length > 0 && pm.inputs.every((x) => x.r === "8px" && x.h === 44) && pm.btns.length === 2 && pm.btns.every((x) => x.r === "8px" && x.h >= 40), JSON.stringify(pm));
+  await page.locator(".eng-modal .modal-footer").getByRole("button", { name: "Cancel" }).click();
+  await page.waitForTimeout(300);
+
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
     if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();
