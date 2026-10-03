@@ -121,7 +121,7 @@ const EngDashboard = () => {
             <div className="col">
                 <div className="w-100 d-flex justify-content-between align-items-center my-4">
                     <h4 className="fw-semibold">Dashboard</h4>
-                    <button type="button" className="btn btn-primary btn-sm d-flex align-items-center"
+                    <button type="button" className="btn btn-primary btn-sm d-flex align-items-center eng-head-btn"
                         onClick={() => navigate("/engineering/dashboard/create")}>
                         <Icons iconName="add" className="icon-12 icon-white me-2" /> New service
                     </button>

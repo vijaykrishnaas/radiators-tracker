@@ -225,12 +225,12 @@ const EngBilling = () => {
                 <div className="w-100 d-flex justify-content-between my-4">
                     <h4 className="fw-semibold">Billing</h4>
                     <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"
+                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center eng-head-btn"
                             onClick={exportExcel} disabled={exportLoading}>
                             <Icons iconName="exporticon" className="icon-15 me-2" />
                             {exportLoading ? "Exporting..." : "Excel"}
                         </button>
-                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center"
+                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center eng-head-btn"
                             onClick={() => navigate("/engineering/dashboard/create")}
                             style={{ whiteSpace: "nowrap" }}>
                             <Icons iconName="add" className="icon-12 icon-white me-2" />
