@@ -26,8 +26,11 @@ const Header = () => {
     const onDashboardSub = location.pathname.startsWith(`${dashboardPath}/`);
 
     const handleLogout = () => {
+        // Engineering tenants return to their own company login (/t/<code>/login) so the business code is pre-filled.
+        // Radiator and automobile keep the generic login page, exactly as before.
+        const code = isEngineering ? (getUser()?.code || '').trim() : '';
         clearSession();
-        navigate('/issueCounter/login');
+        navigate(code ? `/t/${encodeURIComponent(code)}/login` : '/issueCounter/login');
     };
 
     const navbarCollapseRef = useRef<HTMLDivElement>(null);
