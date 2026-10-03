@@ -364,6 +364,26 @@ async function run(type) {
   }
 
 
+  // TailAdmin metric card + chart card recipe (desktop): stacked icon chip / label / big value, 18px panel titles.
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator(".eng-kpi").first().waitFor({ timeout: 10000 });
+  const kpiM = await page.evaluate(() => {
+    const k = document.querySelector(".eng-kpi"); const ic = k.querySelector(".eng-kpi-icon");
+    const l = k.querySelector(".eng-kpi-label"); const v = k.querySelector(".eng-kpi-value");
+    const t = document.querySelector(".eng-panel-title");
+    const kb = k.getBoundingClientRect(), ib = ic.getBoundingClientRect(), lb = l.getBoundingClientRect(), vb = v.getBoundingClientRect();
+    return { dir: getComputedStyle(k).flexDirection, icon: Math.round(ib.width), iconR: getComputedStyle(ic).borderTopLeftRadius,
+      labelPx: getComputedStyle(l).fontSize, labelW: getComputedStyle(l).fontWeight, valuePx: getComputedStyle(v).fontSize, valueW: getComputedStyle(v).fontWeight,
+      stacked: ib.bottom <= lb.top + 1 && lb.bottom <= vb.top + 1, leftAligned: Math.abs(ib.left - lb.left) < 1 && Math.abs(lb.left - vb.left) < 1,
+      titlePx: t && getComputedStyle(t).fontSize, valueColor: getComputedStyle(v).color, kpiRadius: getComputedStyle(k).borderTopLeftRadius,
+      kpiBorder: getComputedStyle(k).borderTopColor };
+  });
+  ok("eng: KPI card stacks icon chip / label / value, left-aligned", kpiM.dir === "column" && kpiM.stacked && kpiM.leftAligned, JSON.stringify(kpiM));
+  ok("eng: KPI icon chip is 44px with 12px radius", kpiM.icon === 44 && kpiM.iconR === "12px", `${kpiM.icon}px ${kpiM.iconR}`);
+  ok("eng: KPI label 13/500, value 28/600", kpiM.labelPx === "13px" && kpiM.labelW === "500" && kpiM.valuePx === "28px" && kpiM.valueW === "600", `${kpiM.labelPx}/${kpiM.labelW} ${kpiM.valuePx}/${kpiM.valueW}`);
+  ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
+  ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
+
   // Edit existing bill: form loads stored values; update sends PUT with them.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
