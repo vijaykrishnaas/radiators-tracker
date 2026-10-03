@@ -1,13 +1,16 @@
 // Engineering-works bills (turbo / air-compressor service). Collection
 // "engbills", used only by engineering-vertical tenants. Payment/discount/status
 // semantics match autobill.dao.js; line items are grouped into service cards
-// (service type + BS model), each item priced qty × rate. No bonus sync.
+// (service type + BS model), each item priced qty × rate. Each save keeps the mechanic bonus entry in sync
+// (engbonus.dao.js); a bonus failure is logged and never blocks the bill.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
 import moment from "moment";
 import { getSettings } from "./settings.dao.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
+import { removeBonusesForRecord } from "./bonus.dao.js";
+import { syncEngBonusesForRecord } from "./engbonus.dao.js";
 
 const COLLECTION = "engbills";
 
@@ -18,6 +21,14 @@ export const STATUS = {
 };
 
 const PAYMENT_MODES = ["cash", "upi", "card", "bank", "other"];
+
+async function syncBonus(clientId, bill) {
+  try {
+    await syncEngBonusesForRecord(clientId, bill);
+  } catch (err) {
+    console.error("engineering bonus sync failed:", err?.message || err);
+  }
+}
 
 function httpError(message, statusCode) {
   const err = new Error(message);
@@ -165,6 +176,7 @@ export async function createEngBill(clientId, data) {
     updatedAt: now,
   };
   const result = await db.collection(COLLECTION).insertOne(doc);
+  await syncBonus(clientId, { ...doc, _id: result.insertedId });
   return { ...doc, _id: result.insertedId };
 }
 
@@ -191,6 +203,7 @@ export async function updateEngBill(clientId, id, data) {
 
   const set = { ...header, services, ...totals, paymentMode, payments, updatedAt: new Date() };
   await db.collection(COLLECTION).updateOne({ _id: existing._id, clientId: cid }, { $set: set });
+  await syncBonus(clientId, { ...existing, ...set });
   return { ...existing, ...set };
 }
 
@@ -200,6 +213,11 @@ export async function deleteEngBill(clientId, id) {
     .collection(COLLECTION)
     .deleteOne({ _id: new ObjectId(id), clientId: toClientId(clientId) });
   if (result.deletedCount === 0) throw notFound();
+  try {
+    await removeBonusesForRecord(clientId, id);
+  } catch (err) {
+    console.error("engineering bonus cleanup failed:", err?.message || err);
+  }
   return true;
 }
 
@@ -222,6 +240,7 @@ export async function recordEngPayment(clientId, id, { amount = 0, discount = nu
 
   const set = { ...totals, payments, updatedAt: new Date() };
   await db.collection(COLLECTION).updateOne({ _id: existing._id, clientId: cid }, { $set: set });
+  await syncBonus(clientId, { ...existing, ...set });
   return { ...existing, ...set };
 }
 

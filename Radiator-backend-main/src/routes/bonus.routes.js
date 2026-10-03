@@ -13,6 +13,7 @@ import {
   backfill,
   backfillAuto,
 } from "../dao/bonus.dao.js";
+import { getEngReviewData, backfillEng } from "../dao/engbonus.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
 import { getClientById } from "../dao/client.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
@@ -79,6 +80,10 @@ router.get("/review", async (req, res, next) => {
     // live in `autobills` and bonus is a flat %, so review data is sourced
     // from a parallel aggregation. Radiator tenants take the existing path.
     const client = await getClientById(req.user.clientId);
+    // Engineering tenants: flat-% mechanic bonus over `engbills` (see dao/engbonus.dao.js).
+    if (client?.businessType === "engineering") {
+      return res.json({ success: true, ...(await getEngReviewData(req.user.clientId, type, name, from, to, settings)) });
+    }
     const data = client?.businessType === "automobile"
       ? await getAutoReviewData(req.user.clientId, type, name, from, to, settings)
       : await getReviewData(req.user.clientId, type, name, from, to, settings);
@@ -165,9 +170,11 @@ router.post("/sync", async (req, res, next) => {
   try {
     const { fromDate = "", toDate = "" } = req.body || {};
     const client = await getClientById(req.user.clientId);
-    const count = client?.businessType === "automobile"
-      ? await backfillAuto(req.user.clientId, fromDate, toDate)
-      : await backfill(req.user.clientId, fromDate, toDate);
+    const count = client?.businessType === "engineering"
+      ? await backfillEng(req.user.clientId, fromDate, toDate)
+      : client?.businessType === "automobile"
+        ? await backfillAuto(req.user.clientId, fromDate, toDate)
+        : await backfill(req.user.clientId, fromDate, toDate);
     res.json({ success: true, message: `Synced bonuses for ${count} bill(s) ✅`, count });
   } catch (error) {
     next(error);

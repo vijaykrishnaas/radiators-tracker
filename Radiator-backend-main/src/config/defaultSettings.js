@@ -188,6 +188,8 @@ export const defaultSettings = {
     // Month (1-12) the financial year starts in. Drives the dashboard "This FY" range and its default start date.
     // Existing tenants without it fall back to 4 (April) in the frontend.
     fyStartMonth: 4,
+    // Mechanic bonus: flat % of each bill's net total, paid in proportion to the amount collected (engbonus.dao.js).
+    bonus: { mechanicPercent: 0 },
     invoice: {
       billTitle: "CASH / CREDIT BILL",
       footerNote: "Thank you for your business",

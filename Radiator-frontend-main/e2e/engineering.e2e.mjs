@@ -49,6 +49,8 @@ async function run(type) {
     const req = route.request(); const url = new URL(req.url()); const p = url.pathname;
     const json = (b) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
     if (p === "/settings") { const st = settingsFor(type); if (fyMonth) st.engineering.fyStartMonth = fyMonth; return json({ settings: st }); }
+    if (p === "/bonus/pending") return json({ success: true, rows: [{ beneficiary: "Ramesh", operations: 3, totalBusiness: 10000, totalCollected: 6000, accruedBonus: 1000, payableBonus: 600, paidBonus: 0, status: "pending" }] });
+    if (p === "/mechanic") return json({ success: true, mechdata: ["Ramesh", "Suresh"] });
     if (p === "/engbills/mechanics") return json({ success: true, mechanics: ["Ramesh", "Suresh"] });
     if (p === "/engbills/lookup-vehicle") return json({ success: true, match: { lorryAddress: "Sri Velavan Radiators", phone: "8870713151" } });
     if (p === "/engbills/analytics") return json({ kpis: { totalBills: 1, totalBilled: 4850, totalReceived: 0, totalOutstanding: 4850 },
@@ -96,7 +98,7 @@ async function run(type) {
   await page.waitForTimeout(2500);
   ok("eng: /issueCounter/dashboard redirects to /engineering/dashboard", page.url().endsWith("/engineering/dashboard"), page.url());
   const nav = await page.locator(".navbar-nav-header").innerText();
-  ok("eng: header shows only Dashboard + Bills", /Dashboard/.test(nav) && /Bills/.test(nav) && !/Expenses|Bonus|Salary/.test(nav), nav.replace(/\s+/g, " "));
+  ok("eng: header shows Dashboard + Bills + Bonus (no Expenses / Salary)", /Dashboard/.test(nav) && /Bills/.test(nav) && /Bonus/.test(nav) && !/Expenses|Salary/.test(nav), nav.replace(/\s+/g, " "));
   ok("eng: dashboard KPIs render", (await page.getByText("Outstanding").count()) > 0);
   await page.screenshot({ path: `${S}/eng-dashboard.png`, fullPage: true });
   ok("eng: dashboard shows 4 KPI tiles", (await page.locator(".eng-kpi").count()) === 4);
@@ -336,7 +338,13 @@ async function run(type) {
   await page.goto(BASE + "/settings");
   await page.waitForTimeout(1500);
   const tabs = await page.locator(".settings-tabs").innerText();
-  ok("eng: settings tabs = Company/Service Catalog/Mechanics/Invoice", /Service Catalog/.test(tabs) && /Mechanics/.test(tabs) && !/Bonus|Salary|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
+  ok("eng: settings tabs = Company/Service Catalog/Mechanics/Bonus/Invoice", /Service Catalog/.test(tabs) && /Mechanics/.test(tabs) && /Bonus/.test(tabs) && !/Salary|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
+  await page.getByRole("tab", { name: "Bonus" }).click();
+  const pct = page.getByLabel("Mechanic bonus % (of net bill total)");
+  ok("eng: Settings Bonus tab has a mechanic bonus % (default 0, no labour %)", (await pct.count()) === 1 && (await pct.inputValue()) === "0" && (await page.getByLabel(/Labour bonus/i).count()) === 0, String(await pct.count() && await pct.inputValue()));
+  await pct.fill("7.5");
+  ok("eng: bonus % can be changed", (await pct.inputValue()) === "7.5");
+  await page.getByRole("tab", { name: "Service Catalog" }).click();
   await page.getByRole("tab", { name: "Service Catalog" }).click();
   await page.waitForTimeout(500);
   ok("eng: catalog table shows Turbo items", (await page.locator(".eng-item input[value='Hold set']").count()) > 0);
@@ -488,6 +496,23 @@ async function run(type) {
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
   ok("eng: saving a mixed-BS bill keeps each card's own BS model", putBody?.services?.[0]?.bsModel === "bs3" && putBody?.services?.[1]?.bsModel === "bs6", JSON.stringify(putBody?.services?.map((x) => x.bsModel)));
   await page.unroute("http://localhost:5000/**", mixedHandler);
+
+  // Bonus: header link opens the existing Mechanic Bonus page, defaulting to the configured financial year.
+  await page.goto(BASE + "/engineering/billing");
+  await page.locator(".navbar-nav-header").getByText("Bonus", { exact: true }).click();
+  await page.getByRole("heading", { name: "Mechanic Bonus" }).waitFor({ timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  ok("eng: header Bonus link opens the Mechanic Bonus page", page.url().endsWith("/bonus/mechanics") && (await page.getByText("Mechanic Bonus").count()) > 0, page.url());
+  ok("eng: bonus page lists the mechanic row with payable bonus", (await page.getByText("Ramesh").count()) > 0 && (await page.getByText("600").count()) > 0);
+  const bonusFrom = await page.locator('input[type="date"]').first().inputValue();
+  ok("eng: bonus page starts from the financial-year start", bonusFrom === fyExpect(4), `${bonusFrom} vs ${fyExpect(4)}`);
+
+  fyMonth = new Date().getMonth() + 1 === 10 ? 7 : 10;
+  await page.goto(BASE + "/bonus/mechanics");
+  await page.waitForTimeout(1200);
+  const bonusFrom2 = await page.locator('input[type="date"]').first().inputValue();
+  ok("eng: bonus year start follows the Settings financial-year month", bonusFrom2 === fyExpect(fyMonth), `${bonusFrom2} vs ${fyExpect(fyMonth)}`);
+  fyMonth = null;
 
   // Logout returns to the company login (/t/<code>/login); without a code it falls back to the generic login.
   await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
