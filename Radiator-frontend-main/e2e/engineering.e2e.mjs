@@ -364,6 +364,44 @@ async function run(type) {
   }
 
 
+  // TailAdmin metric card + chart card recipe (desktop): stacked icon chip / label / big value, 18px panel titles.
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator(".eng-kpi").first().waitFor({ timeout: 10000 });
+  const kpiM = await page.evaluate(() => {
+    const k = document.querySelector(".eng-kpi"); const ic = k.querySelector(".eng-kpi-icon");
+    const l = k.querySelector(".eng-kpi-label"); const v = k.querySelector(".eng-kpi-value");
+    const t = document.querySelector(".eng-panel-title");
+    const kb = k.getBoundingClientRect(), ib = ic.getBoundingClientRect(), lb = l.getBoundingClientRect(), vb = v.getBoundingClientRect();
+    return { dir: getComputedStyle(k).flexDirection, icon: Math.round(ib.width), iconR: getComputedStyle(ic).borderTopLeftRadius,
+      labelPx: getComputedStyle(l).fontSize, labelW: getComputedStyle(l).fontWeight, valuePx: getComputedStyle(v).fontSize, valueW: getComputedStyle(v).fontWeight,
+      stacked: ib.bottom <= lb.top + 1 && lb.bottom <= vb.top + 1, leftAligned: Math.abs(ib.left - lb.left) < 1 && Math.abs(lb.left - vb.left) < 1,
+      titlePx: t && getComputedStyle(t).fontSize, valueColor: getComputedStyle(v).color, kpiRadius: getComputedStyle(k).borderTopLeftRadius,
+      kpiBorder: getComputedStyle(k).borderTopColor };
+  });
+  ok("eng: KPI card stacks icon chip / label / value, left-aligned", kpiM.dir === "column" && kpiM.stacked && kpiM.leftAligned, JSON.stringify(kpiM));
+  ok("eng: KPI icon chip is 44px with 12px radius", kpiM.icon === 44 && kpiM.iconR === "12px", `${kpiM.icon}px ${kpiM.iconR}`);
+  ok("eng: KPI label 13/500, value 28/600", kpiM.labelPx === "13px" && kpiM.labelW === "500" && kpiM.valuePx === "28px" && kpiM.valueW === "600", `${kpiM.labelPx}/${kpiM.labelW} ${kpiM.valuePx}/${kpiM.valueW}`);
+  ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
+  ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
+
+  // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
+  const longKpi = async (route) => {
+    if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+      kpis: { totalBills: 12, totalBilled: 123456789, totalReceived: 123456789, totalOutstanding: 3345.5 },
+      byMonth: [], byServiceType: [], byMechanic: [] }) });
+  };
+  await page.route("http://localhost:5000/**", longKpi);
+  for (const w of [1024, 1100, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(BASE + "/engineering/dashboard");
+    await page.locator(".eng-kpi-value", { hasText: "12,34,56,789" }).first().waitFor({ timeout: 10000 });
+    const clip = await page.evaluate(() => [...document.querySelectorAll(".eng-kpi-value")].filter((e) => e.scrollWidth > e.clientWidth).map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`));
+    ok(`eng: 9-digit KPI values are not clipped at ${w}px`, clip.length === 0, clip.join(" | "));
+  }
+  await page.unroute("http://localhost:5000/**", longKpi);
+  await page.setViewportSize({ width: 1300, height: 1000 });
+
   // Edit existing bill: form loads stored values; update sends PUT with them.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
