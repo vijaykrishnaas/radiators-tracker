@@ -517,3 +517,6 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
 .eng-form input.form-control { border-radius: var(--eng-radius-sm, 8px) !important; }
 .eng-form .btn:not(.eng-quick) { border-radius: var(--eng-radius-sm, 8px) !important; }
 .eng-foot .btn { min-height: 44px; }
+/* The service-items picker (ItemMultiSelect) keeps react-select's default 4px radius; match the other controls.
+   `!important` because react-select applies its radius through emotion class rules. */
+.eng-form div[class*="-control"]:not([class*="form-control"]) { border-radius: var(--eng-radius-sm, 8px) !important; }
