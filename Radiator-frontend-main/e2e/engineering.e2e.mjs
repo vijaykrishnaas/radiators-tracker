@@ -38,6 +38,7 @@ async function run(type) {
   let posted = null;
   let paid = null;
   let putBody = null;
+  let fyMonth = null; // test hook: override settings.engineering.fyStartMonth
   const bill = {
     _id: "b1", billNo: 802, billDate: "2026-09-16T00:00:00.000Z", vehicleNo: "TN52J2622", lorryAddress: "Sankari",
     mechanic: "Ramesh", phone: "", services: [{ type: "turbo", typeLabel: "Turbo", bsModel: "bs3",
@@ -47,7 +48,7 @@ async function run(type) {
   await page.route("http://localhost:5000/**", async (route) => {
     const req = route.request(); const url = new URL(req.url()); const p = url.pathname;
     const json = (b) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
-    if (p === "/settings") return json({ settings: settingsFor(type) });
+    if (p === "/settings") { const st = settingsFor(type); if (fyMonth) st.engineering.fyStartMonth = fyMonth; return json({ settings: st }); }
     if (p === "/engbills/mechanics") return json({ success: true, mechanics: ["Ramesh", "Suresh"] });
     if (p === "/engbills/lookup-vehicle") return json({ success: true, match: { lorryAddress: "Sri Velavan Radiators", phone: "8870713151" } });
     if (p === "/engbills/analytics") return json({ kpis: { totalBills: 1, totalBilled: 4850, totalReceived: 0, totalOutstanding: 4850 },
@@ -339,6 +340,10 @@ async function run(type) {
   await page.getByRole("tab", { name: "Service Catalog" }).click();
   await page.waitForTimeout(500);
   ok("eng: catalog table shows Turbo items", (await page.locator(".eng-item input[value='Hold set']").count()) > 0);
+  const fySel = page.getByLabel("Financial year starts in");
+  ok("eng: Settings has a financial-year start month (default April)", (await fySel.count()) === 1 && (await fySel.inputValue()) === "4", String(await fySel.count() && await fySel.inputValue()));
+  await fySel.selectOption("10");
+  ok("eng: financial-year month can be changed in Settings", (await fySel.inputValue()) === "10");
   await page.locator(".eng-type", { hasText: "Air Compressor" }).click();
   await page.waitForTimeout(300);
   ok("eng: type rail switches to Air Compressor items", (await page.locator(".eng-item input[value='Sleeve fixing']").count()) > 0);
@@ -394,6 +399,19 @@ async function run(type) {
   ok("eng: KPI label 13/500, value 28/600", kpiM.labelPx === "13px" && kpiM.labelW === "500" && kpiM.valuePx === "28px" && kpiM.valueW === "600", `${kpiM.labelPx}/${kpiM.labelW} ${kpiM.valuePx}/${kpiM.valueW}`);
   ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
   ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
+
+  // Financial-year start comes from Settings: default April; October when configured.
+  const fyExpect = (mth) => { const n = new Date(); const y = n.getMonth() + 1 >= mth ? n.getFullYear() : n.getFullYear() - 1; return `${y}-${String(mth).padStart(2, "0")}-01`; };
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
+  ok("eng: dashboard start date defaults to April 1 of the current financial year", (await page.locator(".eng-date").first().inputValue()) === fyExpect(4), await page.locator(".eng-date").first().inputValue());
+  fyMonth = new Date().getMonth() + 1 === 10 ? 7 : 10; // any month other than the current one (else FY start == month start and "This month" wins)
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
+  await page.waitForTimeout(500);
+  ok("eng: dashboard start date follows the Settings financial-year month", (await page.locator(".eng-date").first().inputValue()) === fyExpect(fyMonth), `${await page.locator(".eng-date").first().inputValue()} vs ${fyExpect(fyMonth)}`);
+  ok("eng: 'This FY' is highlighted for the configured start", (await page.locator(".eng-seg-btn.is-active").innerText()).trim() === "This FY");
+  fyMonth = null;
 
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {

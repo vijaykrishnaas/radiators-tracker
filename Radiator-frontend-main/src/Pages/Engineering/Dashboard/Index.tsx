@@ -12,6 +12,7 @@ import { CHART_COLORS, ChartTooltip } from "../../../Components/ChartCard";
 import "../engineering.css";
 import { getData } from "../../../Services/ApiServices";
 import { useAlertMsg } from "../../../Services/AllServices";
+import { useSettings } from "../../../Context/SettingsContext";
 import { money, today } from "../../../Utils/format";
 
 type Analytics = {
@@ -21,11 +22,12 @@ type Analytics = {
     byMechanic: { mechanic: string; billed: number; count: number }[];
 };
 
-// Indian financial year (April–March) containing today.
-const fyStartApril = () => {
+// Start of the financial year containing today. The start month comes from Settings (default 4 = April, the Indian FY).
+const fyStart = (month: number) => {
+    const m = Number.isInteger(month) && month >= 1 && month <= 12 ? month : 4;
     const now = new Date();
-    const y = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-    return `${y}-04-01`;
+    const y = now.getMonth() + 1 >= m ? now.getFullYear() : now.getFullYear() - 1;
+    return `${y}-${String(m).padStart(2, "0")}-01`;
 };
 
 // Compact axis numbers (Indian): 1500 -> 1.5k, 100000 -> 1L, 12000000 -> 1.2Cr.
@@ -78,7 +80,12 @@ const EngDashboard = () => {
     const { alert, alertMessage, callAlertMsg } = useAlertMsg();
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<Analytics | null>(null);
-    const [from, setFrom] = useState(fyStartApril());
+    const { settings } = useSettings();
+    const fyFrom = fyStart(Number(settings.engineering?.fyStartMonth));
+    // null = "use the financial-year start from Settings" (follows Settings if they finish loading after first paint).
+    const [fromPick, setFromPick] = useState<string | null>(null);
+    const from = fromPick ?? fyFrom;
+    const setFrom = (v: string) => setFromPick(v);
     const [to, setTo] = useState(today());
 
     useEffect(() => {
@@ -104,7 +111,7 @@ const EngDashboard = () => {
     const monthStart = `${todayStr.slice(0, 7)}-01`;
     const preset = to === todayStr && from === todayStr ? "today"
         : to === todayStr && from === monthStart ? "month"
-        : to === todayStr && from === fyStartApril() ? "fy" : "custom";
+        : to === todayStr && from === fyFrom ? "fy" : "custom";
     const axis = { tick: { fontSize: 11, fill: "var(--secondary)" }, axisLine: false, tickLine: false } as const;
 
     return (
@@ -124,7 +131,7 @@ const EngDashboard = () => {
                     <div className="eng-seg" role="radiogroup" aria-label="Quick range">
                         <Seg active={preset === "today"} label="Today" onPick={() => { setFrom(todayStr); setTo(todayStr); }} />
                         <Seg active={preset === "month"} label="This month" onPick={() => { setFrom(monthStart); setTo(todayStr); }} />
-                        <Seg active={preset === "fy"} label="This FY" onPick={() => { setFrom(fyStartApril()); setTo(todayStr); }} />
+                        <Seg active={preset === "fy"} label="This FY" onPick={() => { setFrom(fyFrom); setTo(todayStr); }} />
                     </div>
                     <div className="eng-range-dates">
                         <label><span>From</span>

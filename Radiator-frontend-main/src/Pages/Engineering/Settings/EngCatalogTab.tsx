@@ -18,6 +18,8 @@ const uniqueSlug = (base: string, taken: string[]) => {
 // types; the panel edits the selected type's items (name | price per BS model |
 // asks for description | quick add). A blank price means "not offered for that
 // BS model"; 0 is still offered. Below tablet width each item becomes a card.
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 const EngCatalogTab = ({ eng, set }: Props) => {
     const types = eng.serviceTypes || [];
     const models = eng.bsModels || [];
@@ -244,6 +246,22 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                     <span className="eng-hint" style={{ margin: 0 }}>Start bill numbers from</span>
                     <input type="number" min={1} className="eng-number-input" value={eng.billStartNumber ?? 1}
                         onChange={(e) => set("engineering.billStartNumber", Math.max(parseInt(e.target.value, 10) || 1, 1))} />
+                </label>
+            </section>
+
+            <section className="eng-card eng-card-pad eng-numbering" aria-label="Financial year">
+                <div>
+                    <p className="eng-eyebrow" style={{ marginBottom: 4 }}>Financial year</p>
+                    <p className="eng-hint" style={{ margin: 0 }}>
+                        The Dashboard starts from the first day of this month (default April) and "This FY" uses it.
+                    </p>
+                </div>
+                <label style={{ display: "grid", gap: 4, margin: 0 }}>
+                    <span className="eng-hint" style={{ margin: 0 }}>Financial year starts in</span>
+                    <select className="eng-number-input" value={eng.fyStartMonth ?? 4}
+                        onChange={(e) => set("engineering.fyStartMonth", parseInt(e.target.value, 10))}>
+                        {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
                 </label>
             </section>
         </div>

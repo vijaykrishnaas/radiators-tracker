@@ -112,6 +112,7 @@ export type AppSettings = {
         serviceTypes: EngServiceType[];
         quickAdd: { type: string; item: string }[];
         billStartNumber: number;
+        fyStartMonth?: number;
         invoice: {
             billTitle: string;
             footerNote: string;
@@ -169,6 +170,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         serviceTypes: [],
         quickAdd: [],
         billStartNumber: 1,
+        fyStartMonth: 4,
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     salary: {
