@@ -104,7 +104,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 
 ## Backlog (pick top unchecked; add new items as you find them)
 - [x] **TailAdmin v2 — step 1: token layer** — PR #51 (open, awaiting review) (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
-- [ ] **TailAdmin v2 — step 2: Dashboard** metric cards + chart cards + range control to recipes.
+- [x] **TailAdmin v2 — step 2 (PR #52 open): Dashboard** metric cards + chart cards + range control to recipes.
 - [ ] **TailAdmin v2 — step 3: Billing** table + status badges + filter card.
 - [ ] **TailAdmin v2 — step 4: buttons/inputs** inside Engineering.
 - [ ] **TailAdmin v2 — step 5: Settings catalog, form cards, modals.**
@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 11:56 UTC — Merged #51 (squash bfe90eb; tsc clean, eng 84, other suites no FAIL). Opened PR #52: TailAdmin step 2 Dashboard metric cards (stacked 44px chip/13px label/28px value) + 18px chart titles; 89 eng checks; after screenshots at 1300/390 reviewed, no overflow; no before screenshots (red measurements are the record). Fold #51 nits into next e2e PR. Next: step 3 (Billing table + badge recipe).
 - 2026-10-03 10:56 UTC — Step 1a only: independent review of #51 posted, VERDICT: NO-BLOCKERS (head d93edf5). Merge next run. Nits (optional, fold into next e2e PR): stray blank line; wait for `.eng-theme` in the probe loop instead of relying on an earlier 500ms sleep; rename the catalog check ("settings catalog root" -> inner stack). Next after merge: step 2 (Dashboard KPI/chart cards), and capture before/after screenshots.
 - 2026-10-03 09:56 UTC — Merged #50 (squash 3a74c35; tsc clean, eng e2e 78, other suites no FAIL). Opened PR #51: TailAdmin step 1 token layer (`eng-theme` on Dashboard/Billing/Create/Catalog roots, `--eng-*` tokens, `.eng-card` migrated; 84 eng checks). No before/after screenshots this run (only card radius/border/shadow changed) — next UI PR should capture them. Next: review #51, then step 2 (Dashboard KPI/chart cards).
 - 2026-10-03 08:56 UTC — Step 1a only: independent review of #50 posted, VERDICT: NO-BLOCKERS (head e90848d). Merge next run. Reviewer-found edge (cosmetic, optional follow-up): logo URL configured but UNREACHABLE and no company name -> empty white badge circle (staging showed '?', so no worse); fix = skip the circle when the logo fetch fails and there's no name. Nit: the no-name print flow in the e2e duplicates the earlier print flow (small helper). After #50 merges the next item is TailAdmin v2 step 1 (token layer).
