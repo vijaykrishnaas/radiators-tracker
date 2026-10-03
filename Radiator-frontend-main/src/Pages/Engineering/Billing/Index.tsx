@@ -413,8 +413,8 @@ const EngBilling = () => {
                                 </div>
                                 <div className="form-group mb-3">
                                     <label className="form-label mb-0" htmlFor="payment-discount">Discount (₹)</label>
-                                    <small className="eng-hint">Optional. Reduces the amount owed.</small>
-                                    <input id="payment-discount" type="number" className="form-control"
+                                    <small className="eng-hint" id="payment-discount-hint">Optional. Reduces the amount owed.</small>
+                                    <input id="payment-discount" aria-describedby="payment-discount-hint" type="number" className="form-control"
                                         min={0} max={paymentItem.balance} value={paymentDiscount}
                                         onChange={(e) => setPaymentDiscount(e.target.value)}
                                         placeholder="0" />
