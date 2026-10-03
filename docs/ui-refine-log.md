@@ -63,6 +63,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Don't over-claim in PR text: 'never flashes' must be verified at FIRST PAINT, not only after 350ms. Check error/failed-fetch states too, not just empty and loading.
 - To catch ONE-FRAME states in e2e, install a `MutationObserver` with `page.addInitScript` before `goto` and read a window flag later — screenshots/timeouts can't see a single frame.
 - UI copy must be verifiable from the page: no reassurances like 'your data is safe' unless the page knows it.
+- Modals: open them WITH typed values at both widths (long labels/amounts expose overflow); measure `max(child.right) - modal-content.right` and footer-vs-field offsets. Bootstrap `.modal-footer` and shared `.btn` margins fight the body padding on phones — scope fixes under `.eng-modal`.
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
@@ -78,8 +79,8 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Service form: view-only mode styling (read-only fields look like text, not disabled inputs).
 - [x] Billing: desktop table — numeric alignment + truck emphasis — PR #45 (merged). Row hover already existed (shared).
 - [x] Billing: empty state (no bills / filtered) + loading skeleton — PR #46 (merged).
-- [x] Billing follow-ups: first-paint flash (`loaded` flag) + fetch-failure state with Retry — PR #47 (open, awaiting review).
-- [ ] Billing: payment modal + delete modal layout (Engineering-only markup, if scoped) and phone sizing.
+- [x] Billing follow-ups: first-paint flash (`loaded` flag) + fetch-failure state with Retry — PR #47 (merged).
+- [x] Billing: payment modal + delete modal — PR #48 (open, awaiting review): hint overflow (60px) on phones, loud uppercase hint, footer 5/13px off fields. Delete modal only got scoping + footer fix (it was fine).
 - [ ] Settings: Company / Mechanics / Invoice tabs inside the Engineering branch only (if they are Engineering-specific markup); otherwise log under Needs user.
 - [ ] Header/nav for engineering tenants: only if Engineering-specific markup; otherwise Needs user.
 - [ ] PDF: second pass (long item lists multi-page, long company name in band, many-row totals block), compare against mockup.
@@ -87,6 +88,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-03: #47 first-paint + failed-load merged. #48 billing pop-ups awaiting review.
 - 2026-10-03: #46 billing empty state + skeleton merged. #47 first-paint flash + failed-load state awaiting review.
 - 2026-10-03: #45 billing table merged. #46 billing empty state + skeleton awaiting review.
 - 2026-10-02: #44 quick-add chips merged. #45 billing table awaiting review.
@@ -102,6 +104,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 03:56 UTC — Merged #47 (re-ran tsc, eng e2e 71/71, rad 6, auto 10, sal 6 on exact reviewed head 9a67e90; push notification sent). Billing pop-ups: opened Record Payment AND Delete at 1300 and 390 with typed values. Found: discount hint was uppercase semibold, overflowed the modal 60px on phones (clipped), footer buttons -5/+13px off fields -> PR #48. Measured-first (all 3 checks failed with real numbers), then CSS scoped under `.eng-modal`; footer fixed with `.modal-footer` padding + `> .btn { margin:0; width:100% }` on phones. Payment logic untouched; existing additive-discount e2e still passes. eng e2e 74/74. Next run: review #48.
 - 2026-10-03 02:56 UTC — Step 1a only: independent review of #47 posted, VERDICT: NO-BLOCKERS (head 9a67e90). Merge next run. Reviewer confirmed the fetch logic is byte-for-byte unchanged apart from three display flag setters, the skeleton can't get stuck, and a failed refresh with stale rows behaves as on staging. Optional nits to bundle later: replace fixed waits in the new e2e checks with waitFor on text; disable Retry while loading (double-click fires two fetches — same pattern as filters); consider surfacing a failed-refresh banner when stale rows are shown.
 - 2026-10-03 01:56 UTC — Merged #46 (re-ran tsc, eng e2e 68/68, rad 6, auto 10, sal 6 on exact reviewed head 3268fe0; push notification sent). Took the review's follow-ups -> PR #47. Test-first with REAL reds: a MutationObserver installed via `page.addInitScript` BEFORE navigation saw the empty state on first commit (`sawEmpty=true`) — proving my own PR-#46 claim 'never flashes' was wrong, and the PR text now says so; a mocked 500 showed 'No bills yet'. Fix: display-only `loaded` + `loadError` flags set inside the existing try/catch/finally of getTableData (fetch logic untouched). Dropped a draft 'Your bills are safe' copy line (unverifiable reassurance). eng e2e 71/71. Next run: review #47.
 - 2026-10-03 00:56 UTC — Step 1a only: independent review of #46 posted, VERDICT: NO-BLOCKERS (head 3268fe0). Merge next run. FOLLOW-UPS to do right after merging (small PR): (1) honest correction — my PR text said the list 'never flashes no-bills' but on FIRST paint `loading` is false and `recordData` is [] for one frame: add a display-only `loaded` flag (skeleton until the first fetch settles); do NOT change the `loading` initialiser; add an e2e that reads the DOM synchronously on first render if feasible (e.g. `page.addInitScript` / check the first mutation) or at least asserts the skeleton is present before the first response resolves; (2) fetch FAILURE shows 'No bills yet / New service' beside the error alert — show 'Couldn't load bills' + Retry (needs a display-only `loadError` flag set in the existing catch); (3) `role="status"` announce nit.
