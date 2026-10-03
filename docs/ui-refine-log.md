@@ -81,7 +81,8 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] Billing: desktop table — numeric alignment + truck emphasis — PR #45 (merged). Row hover already existed (shared).
 - [x] Billing: empty state (no bills / filtered) + loading skeleton — PR #46 (merged).
 - [x] Billing follow-ups: first-paint flash (`loaded` flag) + fetch-failure state with Retry — PR #47 (merged).
-- [x] Billing: payment modal + delete modal — PR #48 (open, awaiting review): hint overflow (60px) on phones, loud uppercase hint, footer 5/13px off fields. Delete modal only got scoping + footer fix (it was fine).
+- [x] Billing modal a11y follow-up (re-link hint with aria-describedby) — PR #49 (open, awaiting review).
+- [x] Billing: payment modal + delete modal — PR #48 (merged): hint overflow (60px) on phones, loud uppercase hint, footer 5/13px off fields. Delete modal only got scoping + footer fix (it was fine).
 - [ ] Settings: Company / Mechanics / Invoice tabs inside the Engineering branch only (if they are Engineering-specific markup); otherwise log under Needs user.
 - [ ] Header/nav for engineering tenants: only if Engineering-specific markup; otherwise Needs user.
 - [ ] PDF: second pass (long item lists multi-page, long company name in band, many-row totals block), compare against mockup.
@@ -89,6 +90,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-03: #48 billing pop-ups merged. #49 a11y fix for #48 awaiting review.
 - 2026-10-03: #47 first-paint + failed-load merged. #48 billing pop-ups awaiting review.
 - 2026-10-03: #46 billing empty state + skeleton merged. #47 first-paint flash + failed-load state awaiting review.
 - 2026-10-03: #45 billing table merged. #46 billing empty state + skeleton awaiting review.
@@ -105,6 +107,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 05:56 UTC — Merged #48 (re-ran tsc, eng e2e 74/74, rad 6, auto 10, sal 6 on exact reviewed head cc2c72a; push notification sent). Paid back the a11y regression #48 introduced: PR #49 gives the hint an id and the discount input `aria-describedby` (2-line diff), e2e reads the input's accessible description (failed first with ids=[]), documented the modal-footer `!important`, removed the `|| label` fallback in the hint check. eng e2e 75/75. Next run: review #49. Remaining backlog: PDF 2nd pass, accessibility sweep across Engineering screens (labels/aria/contrast/focus order), motion polish.
 - 2026-10-03 04:56 UTC — Step 1a only: independent review of #48 posted, VERDICT: NO-BLOCKERS (head cc2c72a). Merge next run. OWN A REGRESSION I INTRODUCED: moving the discount hint out of the `<label>` into a separate `<small>` dropped it from the input's accessible name (screen readers no longer hear 'optional…'). FOLLOW-UP (right after merge, small PR): give the `<small>` an id and add `aria-describedby` on `#payment-discount` (a deliberate one-attribute change to the input), add an e2e that reads the input's accessible description (`page.getByLabel`/`locator.evaluate(el => el.getAttribute('aria-describedby'))` → element text), comment why `!important` is needed on the modal footer padding/margin, and drop the `|| label` fallback in the e2e hint check.
 - 2026-10-03 03:56 UTC — Merged #47 (re-ran tsc, eng e2e 71/71, rad 6, auto 10, sal 6 on exact reviewed head 9a67e90; push notification sent). Billing pop-ups: opened Record Payment AND Delete at 1300 and 390 with typed values. Found: discount hint was uppercase semibold, overflowed the modal 60px on phones (clipped), footer buttons -5/+13px off fields -> PR #48. Measured-first (all 3 checks failed with real numbers), then CSS scoped under `.eng-modal`; footer fixed with `.modal-footer` padding + `> .btn { margin:0; width:100% }` on phones. Payment logic untouched; existing additive-discount e2e still passes. eng e2e 74/74. Next run: review #48.
 - 2026-10-03 02:56 UTC — Step 1a only: independent review of #47 posted, VERDICT: NO-BLOCKERS (head 9a67e90). Merge next run. Reviewer confirmed the fetch logic is byte-for-byte unchanged apart from three display flag setters, the skeleton can't get stuck, and a failed refresh with stale rows behaves as on staging. Optional nits to bundle later: replace fixed waits in the new e2e checks with waitFor on text; disable Retry while loading (double-click fires two fetches — same pattern as filters); consider surfacing a failed-refresh banner when stale rows are shown.
