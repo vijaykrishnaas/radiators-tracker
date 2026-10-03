@@ -393,7 +393,7 @@ const EngBilling = () => {
             {/* Record Payment Modal */}
             {paymentItem && (
                 <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
+                    <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
                                 <span className="modal-title">Record Payment — {paymentItem.vehicleNo} (Bill {paymentItem.billNo})</span>
@@ -412,9 +412,8 @@ const EngBilling = () => {
                                     <span className="font-w600 text-danger">{money(paymentItem.balance)}</span>
                                 </div>
                                 <div className="form-group mb-3">
-                                    <label className="form-label" htmlFor="payment-discount">
-                                        Discount (₹) <span className="text-muted font-s12">— optional, reduces the amount owed</span>
-                                    </label>
+                                    <label className="form-label mb-0" htmlFor="payment-discount">Discount (₹)</label>
+                                    <small className="eng-hint">Optional. Reduces the amount owed.</small>
                                     <input id="payment-discount" type="number" className="form-control"
                                         min={0} max={paymentItem.balance} value={paymentDiscount}
                                         onChange={(e) => setPaymentDiscount(e.target.value)}
@@ -458,7 +457,7 @@ const EngBilling = () => {
             {/* Delete Confirm Modal */}
             {deleteItem && (
                 <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
+                    <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
                                 <span className="modal-title">Delete Record</span>
