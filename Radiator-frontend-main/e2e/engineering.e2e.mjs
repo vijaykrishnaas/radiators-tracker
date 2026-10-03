@@ -258,7 +258,9 @@ async function run(type) {
   });
   await page.route("http://localhost:5000/**", emptyHandler);
   await page.goto(BASE + "/engineering/billing");
-  await page.waitForTimeout(350);
+  // Wait for the skeleton itself (the response is held for 900ms) instead of a fixed sleep: on a cold/busy Vite the page can
+  // take longer than a fixed delay to render its first rows, which made this check flaky.
+  await page.locator(".eng-skel").first().waitFor({ timeout: 3000 }).catch(() => {});
   const sawEmptyEarly = await page.evaluate(() => window.__sawEmpty);
   ok("eng: billing never renders the empty state before the first response (first paint)", sawEmptyEarly === false, `sawEmpty=${sawEmptyEarly}`);
   ok("eng: billing shows a loading skeleton (not 'no bills') while data is on its way", (await page.locator(".eng-skel").count()) > 0 && (await page.locator(".eng-empty-state").count()) === 0, `skel=${await page.locator(".eng-skel").count()} empty=${await page.locator(".eng-empty-state").count()}`);
@@ -448,7 +450,17 @@ async function run(type) {
   });
   ok("eng: form inputs and dropdowns share the 8px radius", bi.input.r === "8px" && bi.select.r === "8px", `input ${bi.input.r} select ${bi.select.r}`);
   ok("eng: footer buttons are 8px radius and at least 44px tall", bi.save.r === "8px" && bi.cancel.r === "8px" && bi.save.h >= 44 && bi.cancel.h >= 44, JSON.stringify({ save: bi.save, cancel: bi.cancel }));
+  const ctlRadii = await page.evaluate(() => [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map((e) => getComputedStyle(e).borderTopLeftRadius));
+  ok("eng: every dropdown in the form (incl. the service-items picker) is 8px radius", ctlRadii.length >= 3 && ctlRadii.every((r) => r === "8px"), JSON.stringify(ctlRadii));
   ok("eng: small form buttons (Add New Service / Remove) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
+
+  // Phone: footer actions stay at least 44px tall and inside the viewport.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  const pf = await page.evaluate(() => [...document.querySelectorAll(".eng-foot .btn")].map((b) => { const r = b.getBoundingClientRect(); return { h: Math.round(r.height), right: Math.round(r.right) }; }));
+  ok("eng: phone footer buttons are >= 44px tall and inside the viewport", pf.length === 2 && pf.every((b) => b.h >= 44 && b.right <= 390), JSON.stringify(pf));
+  await page.setViewportSize({ width: 1300, height: 1000 });
 
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
