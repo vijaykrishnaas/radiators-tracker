@@ -351,6 +351,8 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .eng-kpi-value.is-danger { color: var(--danger); }
+/* Four columns on 992-1279px leave ~190px for the value; 22px keeps a 9-digit amount (Rs 12,34,56,789.00) unclipped. */
+@media (min-width: 992px) and (max-width: 1279.98px) { .eng-kpi-value { font-size: 22px; } }
 
 .eng-dash-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
 .eng-span-8 { grid-column: span 8; } .eng-span-4 { grid-column: span 4; } .eng-span-12 { grid-column: 1 / -1; }

@@ -384,6 +384,24 @@ async function run(type) {
   ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
   ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
 
+  // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
+  const longKpi = async (route) => {
+    if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+      kpis: { totalBills: 12, totalBilled: 123456789, totalReceived: 123456789, totalOutstanding: 3345.5 },
+      byMonth: [], byServiceType: [], byMechanic: [] }) });
+  };
+  await page.route("http://localhost:5000/**", longKpi);
+  for (const w of [1024, 1100, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(BASE + "/engineering/dashboard");
+    await page.locator(".eng-kpi-value", { hasText: "12,34,56,789" }).first().waitFor({ timeout: 10000 });
+    const clip = await page.evaluate(() => [...document.querySelectorAll(".eng-kpi-value")].filter((e) => e.scrollWidth > e.clientWidth).map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`));
+    ok(`eng: 9-digit KPI values are not clipped at ${w}px`, clip.length === 0, clip.join(" | "));
+  }
+  await page.unroute("http://localhost:5000/**", longKpi);
+  await page.setViewportSize({ width: 1300, height: 1000 });
+
   // Edit existing bill: form loads stored values; update sends PUT with them.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
