@@ -3,8 +3,7 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import type { AppSettings } from "../Context/SettingsContext";
 import type { EngBill } from "../Pages/Engineering/types";
-import { bsLabel, itemText } from "../Pages/Engineering/types";
-import { amountInWords } from "../Utils/amountInWords";
+import { bsLabel, itemText, typeLabel } from "../Pages/Engineering/types";
 
 type RGB = [number, number, number];
 
@@ -12,11 +11,9 @@ const hexToRgb = (hex: string): RGB => {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [18, 70, 130];
 };
-const mix = (a: RGB, b: RGB, t: number): RGB => [0, 1, 2].map((i) => Math.round(a[i] * (1 - t) + b[i] * t)) as RGB;
 
 const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
-const num = (n: number) => Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const rs = (n: number) => `Rs ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const rs = (n: number) => `Rs ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`; // radiator format: no forced decimals
 
 async function fetchImage(url: string): Promise<{ dataUrl: string; format: string }> {
     const resp = await fetch(url.startsWith("/") ? `${BACKEND}${url}` : url);
@@ -39,245 +36,203 @@ const spacedPlate = (v: string) => {
 };
 
 /**
- * Engineering Works bill (A5). Standalone — it shares no drawing code with the
- * radiator / automobile invoices, so those stay byte-identical. Identity,
- * colour and options all come from settings; nothing is hardcoded.
+ * Engineering Works bill (A5), laid out like the radiator / automobile invoices: masthead (company left, bill
+ * title + date + bill no. right), Billed to / Details, plain particulars table, totals, QR + signature, footer.
+ * Standalone — it shares no drawing code with those invoices, so they stay byte-identical. Identity, colour and
+ * options all come from settings; nothing is hardcoded.
  */
 export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     const accent = hexToRgb(settings.branding.primaryColor);
-    const deep = mix(accent, [0, 0, 0], 0.22);
-    const tint = mix(accent, [255, 255, 255], 0.88);
     const ink: RGB = [29, 29, 31];
     const sub: RGB = [110, 110, 115];
     const hair: RGB = [224, 224, 229];
-    const white: RGB = [255, 255, 255];
-
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
+
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
-    const M = 10;
+    const M = 12;
     const co = settings.company;
     const inv = settings.engineering?.invoice;
-    const text = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
-    const fill = (c: RGB) => doc.setFillColor(c[0], c[1], c[2]);
-    const draw = (c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
+    const setRGB = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
+    const drawRGB = (c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
 
-    // ---- Header band: logo · name · phones ---------------------------------
-    const bandH = 30;
-    fill(accent); doc.rect(0, 0, W, bandH + 0.4, "F");
-    // A brand-new tenant has not filled in Company settings yet: no name and no logo means no badge circle,
-    // and the band shows the bill title instead of a blank strip.
-    const coName = (co.name || "").trim();
-    const hasBadge = !!coName || !!co.logoUrl;
-    if (hasBadge) { fill(white); doc.circle(M + 9, bandH / 2, 9, "F"); }
-    let logoDrawn = false;
-    if (co.logoUrl) {
-        try {
-            const { dataUrl, format } = await fetchImage(co.logoUrl);
-            doc.addImage(dataUrl, format, M + 3.2, bandH / 2 - 5.8, 11.6, 11.6);
-            logoDrawn = true;
-        } catch { /* fall back to the initial */ }
-    }
-    if (!logoDrawn && coName) {
-        text(accent); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
-        doc.text(coName.charAt(0).toUpperCase(), M + 9, bandH / 2 + 2.6, { align: "center" });
-    }
+    const gross = Number(bill.total ?? (bill.services || []).reduce((sum, s) => sum + Number(s.subtotal || 0), 0));
+    const discount = Math.max(Number(bill.discount || 0), 0);
+    const net = Number(bill.netTotal ?? Math.max(gross - discount, 0));
+    const received = Number(bill.amountReceived || 0);
+    const pending = Number(bill.balance ?? Math.max(net - received, 0));
+    const billDateObj = bill.billDate ? new Date(bill.billDate) : new Date();
+    const billDate = billDateObj.toLocaleDateString("en-IN");
 
-    const phones = [co.phone1, co.phone2].filter(Boolean) as string[];
-    const phoneBlockW = phones.length ? 34 : 0;
-    const nameX = hasBadge ? M + 22 : M;
-    const nameW = W - M - phoneBlockW - nameX - 3;
-    text(white); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-    const nameLines = doc.splitTextToSize(coName || inv?.billTitle || "Invoice", nameW) as string[];
-    const nameBlockH = nameLines.length * 5.2;
-    doc.text(nameLines, nameX, bandH / 2 - nameBlockH / 2 + 4);
+    /* ---- Masthead: company (left) · title + date + bill no. (right) ---- */
+    const titleText = (inv?.billTitle || "Invoice").toUpperCase();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    const titleW = doc.getTextWidth(titleText);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    const metaW = Math.max(titleW, doc.getTextWidth(billDate));
+    const nameMaxW = Math.max(46, W - 2 * M - metaW - 8);
 
-    if (phones.length) {
-        text(mix(accent, white, 0.7)); doc.setFont("helvetica", "normal"); doc.setFontSize(6);
-        doc.text("PHONE / WHATSAPP", W - M, bandH / 2 - 5.5, { align: "right" });
-        text(white); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-        phones.forEach((p, i) => doc.text(p, W - M, bandH / 2 - 0.5 + i * 5, { align: "right" }));
-    }
+    const coName = (co.name || "").trim().toUpperCase();
+    const nameY = 15.5;
+    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
+    doc.text(coName, M, nameY, { maxWidth: nameMaxW });
+    const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: 17 }).h : 6;
 
-    // ---- Address strip -----------------------------------------------------
-    let y = bandH;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
+    doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    doc.text(billDate, W - M, nameY + 5, { align: "right" });
+    if (bill.billNo != null) doc.text(`Bill No: ${bill.billNo}`, W - M, nameY + 9.5, { align: "right" });
+
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
+    let cy = nameY + Math.max(nameH, 6) + 2.5;
     if (co.address) {
-        doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-        const lines = doc.splitTextToSize(co.address, W - 2 * M) as string[];
-        const stripH = Math.max(8, lines.length * 3.4 + 4);
-        fill(deep); doc.rect(0, y, W, stripH, "F");
-        text(white); doc.text(lines, M, y + 5);
-        y += stripH;
+        doc.text(co.address, M, cy, { maxWidth: 84 });
+        cy += doc.getTextDimensions(co.address, { maxWidth: 84, fontSize: 7 }).h + 1;
     }
+    const phone = `${co.phone1 || ""}${co.phone2 ? "  ·  " + co.phone2 : ""}`;
+    if (phone.trim()) doc.text(phone, M, cy);
 
-    // ---- Vehicle · Bill no · Date -------------------------------------------
-    y += 6;
-    const billDate = bill.billDate ? new Date(bill.billDate) : new Date();
-    const dateText = billDate.toLocaleDateString("en-GB");
-    const boxH = 17;
-    const c1 = 58, c2 = 30;
-    draw(hair); doc.setLineWidth(0.3);
-    doc.roundedRect(M, y, W - 2 * M, boxH, 2, 2, "S");
-    doc.line(M + c1, y, M + c1, y + boxH);
-    doc.line(M + c1 + c2, y, M + c1 + c2, y + boxH);
-    const cell = (x: number, label: string, value: string, color: RGB, size: number) => {
-        text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
-        doc.text(label, x + 4, y + 5.5);
-        text(color); doc.setFont("helvetica", "bold"); doc.setFontSize(size);
-        doc.text(value, x + 4, y + 12.5, { maxWidth: (x === M ? c1 : x === M + c1 ? c2 : W - M - x) - 8 });
-    };
-    cell(M, "M/s · Vehicle no.", spacedPlate(bill.vehicleNo), accent, 11.5);
-    cell(M + c1, "Bill no.", String(bill.billNo ?? "—"), ink, 11.5);
-    cell(M + c1 + c2, "Date", dateText, ink, 11.5);
-    y += boxH;
+    /* ---- Billed to / Details ---- */
+    let y = Math.max(36, cy + 7);
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, y - 4, W - M, y - 4);
 
-    const meta = [
-        bill.lorryAddress && `Lorry: ${bill.lorryAddress}`,
-        bill.mechanic && `Mechanic: ${bill.mechanic}`,
-        bill.phone && `Ph: ${bill.phone}`,
-    ].filter(Boolean) as string[];
-    if (meta.length) {
-        text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-        const lines = doc.splitTextToSize(meta.join("   ·   "), W - 2 * M) as string[];
-        doc.text(lines, M, y + 5);
-        y += lines.length * 3.4 + 3;
+    const colR = W / 2 + 6;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub);
+    doc.text("BILLED TO", M, y);
+    doc.text("DETAILS", colR, y);
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
+    doc.text(spacedPlate(bill.vehicleNo), M, y + 5);
+    let by = y + 9.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    if (bill.lorryAddress) {
+        doc.text(bill.lorryAddress, M, by, { maxWidth: colR - M - 6 });
+        by += doc.getTextDimensions(bill.lorryAddress, { maxWidth: colR - M - 6, fontSize: 7.5 }).h + 0.8;
     }
-    y += 5;
+    if (bill.phone) { doc.text(String(bill.phone), M, by); by += 4; }
 
-    // ---- Particulars -------------------------------------------------------
-    const rows = (bill.services || []).flatMap((s) =>
-        (s.items || []).map((i) => ({
-            label: itemText(i),
-            tag: [s.typeLabel || s.type, bsLabel(settings, s.bsModel)].filter(Boolean).join(" · "),
-            qty: i.qty,
-            rate: i.rate,
-            amount: i.amount,
-        }))
-    );
-    const showRate = rows.some((r) => Number(r.qty) !== 1);
-    const head = ["No", "Particulars", "Qty", ...(showRate ? ["Rate"] : []), "Amount (Rs)"];
-    const amountCol = showRate ? 4 : 3;
+    const bsSet = [...new Set((bill.services || []).map((s) => bsLabel(settings, s.bsModel)).filter(Boolean))];
+    const details: [string, string][] = [];
+    if (bill.mechanic) details.push(["Mechanic", bill.mechanic]);
+    if (bsSet.length) details.push(["BS model", bsSet.join(", ")]);
+    doc.setFontSize(7.5);
+    let dy = y + 5;
+    details.forEach(([k, v]) => {
+        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
+        setRGB(ink); doc.text(v, W - M, dy, { align: "right", maxWidth: 50 });
+        dy += 4.6;
+    });
+    y = Math.max(y + 13, dy + 3, by + 2);
+
+    /* ---- Particulars: a quiet group row per service, then its items ---- */
+    const body: any[] = [];
+    (bill.services || []).forEach((s) => {
+        const tag = [s.typeLabel || typeLabel(settings, s.type), bsLabel(settings, s.bsModel)].filter(Boolean).join(" · ");
+        body.push([{ content: tag.toUpperCase(), colSpan: 4, styles: { fontSize: 6.5, fontStyle: "bold", textColor: sub, cellPadding: { top: 2.4, bottom: 0.6 } } }]);
+        s.items.forEach((i) => body.push([itemText(i), String(i.qty), rs(Number(i.rate || 0)), rs(Number(i.amount || 0))]));
+    });
 
     autoTable(doc, {
         startY: y,
         margin: { left: M, right: M },
-        head: [head],
-        body: rows.map((r, i) => [String(i + 1), r.label, String(r.qty), ...(showRate ? [num(r.rate)] : []), num(r.amount)]),
+        head: [["Particulars", "Qty", "Rate", "Amount"]],
+        body,
         theme: "plain",
-        headStyles: { fontSize: 7, fontStyle: "bold", textColor: ink, cellPadding: { top: 1.5, bottom: 2.8, left: 1, right: 1 } },
-        bodyStyles: { fontSize: 8.5, textColor: ink, cellPadding: { top: 3, bottom: rows.some((r) => r.tag) ? 8 : 3, left: 1, right: 1 }, valign: "top" },
+        headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
+        bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
         columnStyles: {
-            0: { cellWidth: 10, textColor: sub },
-            2: { halign: "center", cellWidth: 14 },
-            ...(showRate ? { 3: { halign: "right", cellWidth: 20 } } : {}),
-            [amountCol]: { halign: "right", cellWidth: 26 },
+            0: { halign: "left" },
+            1: { halign: "center", cellWidth: 16 },
+            2: { halign: "right", cellWidth: 28 },
+            3: { halign: "right", cellWidth: 30 },
         },
-        didParseCell: (d: any) => {
-            if (d.section === "head" && d.column.index === 2) d.cell.styles.halign = "center";
-            if (d.section === "head" && d.column.index >= 3) d.cell.styles.halign = "right";
+        didParseCell: (data: any) => {
+            if (data.cell.colSpan > 1) return;
+            data.cell.styles.halign = data.column.index === 0 ? "left" : data.column.index === 1 ? "center" : "right";
         },
-        didDrawCell: (d: any) => {
-            draw(d.section === "head" ? ink : hair);
-            doc.setLineWidth(d.section === "head" ? 0.5 : 0.2);
-            if (d.section === "head" || d.section === "body") {
-                doc.line(d.cell.x - 0.1, d.cell.y + d.cell.height, d.cell.x + d.cell.width + 0.1, d.cell.y + d.cell.height);
-            }
-            if (d.section === "body" && d.column.index === 1) {
-                const tag = rows[d.row.index]?.tag;
-                if (!tag) return;
-                doc.setFont("helvetica", "bold"); doc.setFontSize(6);
-                const tw = doc.getTextWidth(tag) + 4;
-                const tx = d.cell.x + 1, ty = d.cell.y + d.cell.height - 6.2;
-                fill(tint); doc.roundedRect(tx, ty, tw, 4, 1, 1, "F");
-                text(deep); doc.text(tag, tx + 2, ty + 2.9);
+        didDrawCell: (data: any) => {
+            if (data.section === "head" || (data.section === "body" && data.cell.colSpan === 1)) {
+                drawRGB(hair);
+                doc.setLineWidth(data.section === "head" ? 0.35 : 0.2);
+                doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
             }
         },
     });
 
-    // ---- Totals + payment --------------------------------------------------
     let ty = (doc as any).lastAutoTable.finalY + 7;
-    const blockNeeded = 56;
-    if (ty + blockNeeded > H - 18) { doc.addPage(); ty = M + 4; }
-
-    const total = Number(bill.total ?? 0);
-    const discount = Math.max(Number(bill.discount || 0), 0);
-    const net = Number(bill.netTotal ?? Math.max(total - discount, 0));
-    const received = Number(bill.amountReceived || 0);
-    const balance = Math.max(net - received, 0);
-    const itemCount = rows.length;
-
-    // right column
-    const rx = W - M - 58;
-    let ry = ty;
-    const line = (label: string, value: string, color: RGB = ink) => {
-        text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-        doc.text(label, rx, ry);
-        text(color); doc.text(value, W - M, ry, { align: "right" });
-        ry += 5.2;
+    const valX = W - M;
+    const labX = W - 58;
+    // Keep the totals together: if they would run into the signature block, move to a new page.
+    if (ty + 22 > H - 46) { doc.addPage(); ty = M + 8; }
+    const row = (label: string, val: string, opt: { bold?: boolean; size?: number; lc?: RGB; vc?: RGB; gap?: number } = {}) => {
+        doc.setFont("helvetica", opt.bold ? "bold" : "normal");
+        doc.setFontSize(opt.size || 8);
+        setRGB(opt.lc || sub); doc.text(label, labX, ty);
+        setRGB(opt.vc || ink); doc.text(val, valX, ty, { align: "right" });
+        ty += opt.gap || 5;
     };
-    line("Items", String(itemCount));
-    if (discount > 0) { line("Subtotal", rs(total)); line("Discount", `- ${rs(discount)}`); }
-    ry += 1;
-    fill(accent); doc.roundedRect(rx - 2, ry - 4, 60, 12, 2.2, 2.2, "F");
-    text(white); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
-    doc.text("Total", rx + 2, ry + 3.2);
-    doc.setFontSize(11);
-    doc.text(rs(net), W - M - 2, ry + 3.4, { align: "right" });
-    ry += 13;
-    if (received > 0) {
-        line("Received", rs(received));
-        line("Balance", rs(balance), balance > 0 ? [200, 50, 50] : ink);
+    row("Subtotal", rs(gross));
+    if (discount > 0) row("Discount", `- ${rs(discount)}`);
+    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 2.6, valX, ty - 2.6); ty += 1.5;
+    row("Total", rs(net), { bold: true, size: 9.5, lc: ink });
+    if (received > 0) row("Amount paid", rs(received));
+
+    /* ---- QR (left) · signature (right) ---- */
+    const QR = 30;
+    const footerLineY = H - 9;
+    const blockH = Math.max(QR + 9, 28);
+    const sectionY = Math.max(ty + 4, footerLineY - 3 - blockH);
+    let qrShown = false;
+    const drawQrCaption = () => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7); setRGB(ink);
+        doc.text("Scan to pay", M, sectionY + QR + 5);
+        if (co.upiDisplay) { doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); setRGB(sub); doc.text(co.upiDisplay, M, sectionY + QR + 9); }
+    };
+    if (co.qrUrl) {
+        try {
+            const { dataUrl, format } = await fetchImage(co.qrUrl);
+            doc.addImage(dataUrl, format, M, sectionY, QR, QR);
+            drawQrCaption(); qrShown = true;
+        } catch { /* fall through */ }
+    }
+    if (!qrShown && inv?.showQr && co.upiId) {
+        const upi = `upi://pay?pa=${encodeURIComponent(co.upiId)}&pn=${encodeURIComponent(co.name)}&am=${pending > 0 ? pending : net}&cu=INR`;
+        const qr = await QRCode.toDataURL(upi, { margin: 0 });
+        doc.addImage(qr, "PNG", M, sectionY, QR, QR);
+        drawQrCaption();
+    } else if (!qrShown && co.upiDisplay) {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub); doc.text("PAY VIA", M, sectionY + 6);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink); doc.text(co.upiDisplay, M, sectionY + 11);
     }
 
-    // left column
-    text(sub); doc.setFont("helvetica", "bold"); doc.setFontSize(6.5);
-    doc.text("AMOUNT IN WORDS", M, ty);
-    text(ink); doc.setFontSize(8.5);
-    const words = doc.splitTextToSize(amountInWords(net), 60) as string[];
-    doc.text(words, M, ty + 4.6);
-    const boxY = ty + 4.6 + words.length * 4 + 4;
-
-    let qrData: { dataUrl: string; format: string } | null = null;
-    if (co.qrUrl) { try { qrData = await fetchImage(co.qrUrl); } catch { /* ignore */ } }
-    if (!qrData && inv?.showQr && co.upiId) {
-        const upi = `upi://pay?pa=${encodeURIComponent(co.upiId)}&pn=${encodeURIComponent(co.name)}&am=${net}&cu=INR`;
-        qrData = { dataUrl: await QRCode.toDataURL(upi, { margin: 0 }), format: "PNG" };
-    }
-    if (qrData || co.upiDisplay) {
-        const QR = 20;
-        const bw = 58, bh = qrData ? QR + 8 : 18;
-        draw(mix(sub, white, 0.45)); doc.setLineWidth(0.3);
-        (doc as any).setLineDashPattern([1, 1], 0);
-        doc.roundedRect(M, boxY, bw, bh, 2, 2, "S");
-        (doc as any).setLineDashPattern([], 0);
-        let tx = M + 4;
-        if (qrData) { doc.addImage(qrData.dataUrl, qrData.format, M + 4, boxY + 4, QR, QR); tx = M + QR + 9; }
-        text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-        doc.text("Pay by UPI", tx, boxY + 6);
-        if (co.upiDisplay) {
-            text(ink); doc.setFont("helvetica", "bold"); doc.setFontSize(qrData ? 8.5 : 11);
-            doc.text(co.upiDisplay, tx, boxY + 12.5, { maxWidth: bw - (tx - M) - 3 });
-        }
-        text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
-        doc.text("GPay · PhonePe", tx, boxY + (qrData ? 17.5 : 15.5));
-    }
-
-    // ---- Footer: note + signature -------------------------------------------
-    const fy = H - 14;
-    text(sub); doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-    if (inv?.footerNote) doc.text(doc.splitTextToSize(inv.footerNote, 70) as string[], M, fy + 1);
+    const fitOneLine = (t: string, maxW: number, size: number) => {
+        doc.setFontSize(size);
+        if (doc.getTextWidth(t) <= maxW) return t;
+        let c = t;
+        while (c.length > 1 && doc.getTextWidth(c + "…") > maxW) c = c.slice(0, -1);
+        return c.trimEnd() + "…";
+    };
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
+    if (co.name) doc.text(fitOneLine(`For ${co.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
     if (inv?.showSignature && co.signatureUrl) {
         try {
             const { dataUrl, format } = await fetchImage(co.signatureUrl);
-            doc.addImage(dataUrl, format, W - M - 34, fy - 14, 34, 12);
+            doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
         } catch { /* blank signing space */ }
     }
-    draw(ink); doc.setLineWidth(0.3);
-    doc.line(W - M - 52, fy - 1.5, W - M, fy - 1.5);
-    doc.setFontSize(7);
-    if (coName) doc.text(`For ${coName}`, W - M, fy + 2.5, { align: "right", maxWidth: 52 });
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(W - 48, sectionY + 24, W - M, sectionY + 24);
+    doc.setFontSize(6.5); setRGB(sub);
+    doc.text("Authorised signatory", W - M, sectionY + 28, { align: "right" });
 
-    const d = billDate;
-    const fileDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    drawRGB(hair); doc.setLineWidth(0.3);
+    doc.line(M, H - 9, W - M, H - 9);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
+    const footer = [inv?.footerNote, co.name].filter(Boolean).join("  ·  ");
+    doc.text(footer, W / 2, H - 5, { align: "center" });
+
+    const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
     doc.save(`Bill-${bill.billNo ?? ""}-${fileDate}-${bill.vehicleNo || ""}.pdf`);
 };
