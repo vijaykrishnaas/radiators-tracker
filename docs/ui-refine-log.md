@@ -105,7 +105,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 ## Backlog (pick top unchecked; add new items as you find them)
 - [x] **TailAdmin v2 — step 1: token layer** — PR #51 (open, awaiting review) (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
 - [x] **TailAdmin v2 — step 2 (PR #52 open): Dashboard** metric cards + chart cards + range control to recipes.
-- [ ] **TailAdmin v2 — step 3: Billing** table + status badges + filter card.
+- [x] **TailAdmin v2 — step 3 (PR #53 open): Billing** table + status badges + filter card.
 - [ ] **TailAdmin v2 — step 4: buttons/inputs** inside Engineering.
 - [ ] **TailAdmin v2 — step 5: Settings catalog, form cards, modals.**
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (merged).
@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 14:56 UTC — Merged #52 (squash 4d8d881; tsc clean, eng 92, other suites no FAIL). Opened PR #53: TailAdmin step 3 billing table header/rows + soft-tint status pills, plus the #52 follow-up (22px KPI rule to 1439px, KPI 28px test at 1500px); 95 eng checks; after screenshots 1300/390 reviewed, no overflow. LESSONS: shared apple-rebrand.css zeroes cell borders and forces th/badge styles with !important, and `.table-body table thead th` outranks `.eng-table thead th` — use `.table-body table.eng-table ...` + commented !important; row borders are ignored on `tr`, put them on `td`; a one-row mock is always :last-child, clone a row to test separators. Next: step 4 (buttons/inputs inside Engineering).
 - 2026-10-03 13:56 UTC — Step 1a only: fresh review of #52 new head 440a587 posted, VERDICT: NO-BLOCKERS. Merge next run. Follow-up (put in the next PR, after merge): 1280px has ~zero headroom for a 9-digit amount (234 vs 234) — widen the 22px rule to max-width 1439.98px (or 24px) and move the e2e long-value case off the exact edge (1200/1300 with a sidebar); fix comment "~190px" -> "~190-210px"; drop redundant phone flex-direction/align-items.
 - 2026-10-03 12:56 UTC — Reviewed #52: VERDICT: BLOCKING (head dfefd42): 28px nowrap KPI value clipped a 9-digit amount at 1024/1100px (measured 234>192, 234>211). Fixed in 440a587 (22px at 992-1279px + e2e with a 9-digit mock at 1024/1100/1280; red first). Next run: fresh review of the new head, then merge. LESSON: when enlarging a nowrap/ellipsis number, test with a worst-case real value (9 digits with decimals) at every breakpoint where the column count changes; mock data like 4850 hides clipping. Nits: icon radius 12px not a token; wrapped caption left-aligned.
 - 2026-10-03 11:56 UTC — Merged #51 (squash bfe90eb; tsc clean, eng 84, other suites no FAIL). Opened PR #52: TailAdmin step 2 Dashboard metric cards (stacked 44px chip/13px label/28px value) + 18px chart titles; 89 eng checks; after screenshots at 1300/390 reviewed, no overflow; no before screenshots (red measurements are the record). Fold #51 nits into next e2e PR. Next: step 3 (Billing table + badge recipe).
