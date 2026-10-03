@@ -247,7 +247,7 @@ const EngCreate = () => {
         <>
             <AlertComponent alertMessage={alertMessage} alert={alert} />
             <Loader loading={loading} />
-            <div className="card card-shadow mt-3 p-4 eng-form">
+            <div className="card card-shadow mt-3 p-4 eng-form eng-theme">
                 <h5 className="font-w600 mb-0">{title}</h5>
                 <p className="text-muted font-s13 mb-4">
                     {bsModels.map((b) => b.label).join(" / ") || "BS"} service work record

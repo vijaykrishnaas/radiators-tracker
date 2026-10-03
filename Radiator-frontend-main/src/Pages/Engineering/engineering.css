@@ -3,14 +3,29 @@
    shadows come from the shared token layer (base-theme.css); the tenant
    accent stays white-label via --primary. */
 
+/* ---- Design tokens (TailAdmin-style, Engineering only) ---------------------
+   Defined on `.eng-theme` (the root of each Engineering screen) instead of the
+   shared base-theme.css, so other verticals cannot be affected. The accent is
+   NOT hard-coded: tints are derived from the tenant's --primary. */
+.eng-theme {
+    --eng-gray-50: #F9FAFB; --eng-gray-100: #F2F4F7; --eng-gray-200: #E4E7EC; --eng-gray-300: #D0D5DD;
+    --eng-gray-400: #98A2B3; --eng-gray-500: #667085; --eng-gray-600: #475467; --eng-gray-700: #344054;
+    --eng-gray-800: #1D2939; --eng-gray-900: #101828;
+    --eng-success-bg: #ECFDF3; --eng-success-fg: #027A48; --eng-warning-bg: #FFFAEB; --eng-warning-fg: #B54708;
+    --eng-error-bg: #FEF3F2; --eng-error-fg: #B42318;
+    --eng-radius-sm: 8px; --eng-radius-lg: 16px;
+    --eng-shadow-xs: 0 1px 2px rgba(16, 24, 40, .05);
+    --eng-ring: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
 .eng-stack { display: grid; gap: 16px; margin-bottom: 20px; }
 
 /* ---- Section card -------------------------------------------------------- */
 .eng-card {
     background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--eng-gray-200, var(--line));
+    border-radius: var(--eng-radius-lg, var(--r-lg));
+    box-shadow: var(--eng-shadow-xs, var(--shadow-sm));
 }
 .eng-card-pad { padding: 20px 22px; }
 .eng-eyebrow {

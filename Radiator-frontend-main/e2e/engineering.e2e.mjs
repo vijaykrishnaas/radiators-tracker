@@ -339,6 +339,31 @@ async function run(type) {
   ok("eng: catalog items render as cards on phone (price labels visible)", await page.locator(".eng-item .eng-price-label").first().isVisible());
   await page.setViewportSize({ width: 1300, height: 1000 });
 
+  // TailAdmin token layer: every Engineering page root carries `eng-theme`, which defines the --eng-* tokens;
+  // the section card uses them (16px radius, gray-200 hairline).
+  const themeProbe = () => page.evaluate(() => {
+    const t = document.querySelector(".eng-theme");
+    if (!t) return null;
+    const cs = getComputedStyle(t);
+    const card = document.querySelector(".eng-card");
+    const cc = card ? getComputedStyle(card) : null;
+    return { gray200: cs.getPropertyValue("--eng-gray-200").trim().toLowerCase(), radius: cs.getPropertyValue("--eng-radius-lg").trim(),
+      ring: cs.getPropertyValue("--eng-ring").trim(), shadow: cs.getPropertyValue("--eng-shadow-xs").trim(),
+      cardRadius: cc && cc.borderTopLeftRadius, cardBorder: cc && cc.borderTopColor };
+  });
+  for (const [label, url, ready] of [
+    ["settings catalog", null, null],
+    ["dashboard", "/engineering/dashboard", ".eng-kpi"],
+    ["billing", "/engineering/billing", ".eng-table"],
+    ["service form", "/engineering/dashboard/create", ".eng-form"],
+  ]) {
+    if (url) { await page.goto(BASE + url); await page.locator(ready).first().waitFor({ timeout: 10000 }); }
+    const th = await themeProbe();
+    ok(`eng: ${label} root carries eng-theme tokens`, !!th && th.gray200 === "#e4e7ec" && th.radius === "16px" && /^0 0 0 4px/.test(th.ring) && /rgba\(16, 24, 40, 0?\.05\)/.test(th.shadow), JSON.stringify(th));
+    if (th && th.cardRadius) ok(`eng: ${label} section card = 16px radius + gray-200 border`, th.cardRadius === "16px" && th.cardBorder === "rgb(228, 231, 236)", `${th.cardRadius} ${th.cardBorder}`);
+  }
+
+
   // Edit existing bill: form loads stored values; update sends PUT with them.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });

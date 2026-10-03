@@ -110,7 +110,7 @@ const EngCatalogTab = ({ eng, set }: Props) => {
     };
 
     return (
-        <div className="eng-stack">
+        <div className="eng-stack eng-theme">
             <section className="eng-card eng-card-pad" aria-label="BS models">
                 <p className="eng-eyebrow">BS models</p>
                 <div className="eng-chips">

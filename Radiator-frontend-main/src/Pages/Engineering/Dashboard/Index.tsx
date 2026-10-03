@@ -108,7 +108,7 @@ const EngDashboard = () => {
     const axis = { tick: { fontSize: 11, fill: "var(--secondary)" }, axisLine: false, tickLine: false } as const;
 
     return (
-        <div className="row">
+        <div className="row eng-theme">
             <Loader loading={loading} />
             <AlertComponent alertMessage={alertMessage} alert={alert} />
             <div className="col">
