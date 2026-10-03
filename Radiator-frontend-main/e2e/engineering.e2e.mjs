@@ -295,7 +295,7 @@ async function run(type) {
   const modalM = await page.evaluate(() => {
     const content = document.querySelector(".modal-content").getBoundingClientRect();
     const label = document.querySelector('label[for="payment-discount"]');
-    const hint = document.querySelector(".eng-modal .eng-hint") || label;
+    const hint = document.querySelector(".eng-modal .eng-hint");
     const lcs = getComputedStyle(label);
     const hcs = getComputedStyle(hint);
     const kids = [...document.querySelectorAll(".modal-body *")].map((e) => e.getBoundingClientRect().right);
@@ -311,6 +311,12 @@ async function run(type) {
   ok("eng: payment modal has no horizontal overflow at 390px", modalM.overflowPx <= 0, JSON.stringify(modalM));
   ok("eng: payment modal hint is quiet sentence-case text (not loud capitals)", modalM.hintTransform === "none" && parseInt(modalM.hintWeight, 10) <= 400, JSON.stringify({ t: modalM.hintTransform, w: modalM.hintWeight }));
   ok("eng: payment modal footer buttons align with the fields (<=2px)", Math.abs(modalM.footerLeftVsInput) <= 2 && Math.abs(modalM.footerRightVsInput) <= 2, JSON.stringify({ l: modalM.footerLeftVsInput, r: modalM.footerRightVsInput }));
+  const desc = await page.evaluate(() => {
+    const input = document.querySelector("#payment-discount");
+    const ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
+    return { ids, text: ids.map((id) => document.getElementById(id)?.textContent || "").join(" ").trim() };
+  });
+  ok("eng: discount field is described by its hint for screen readers (aria-describedby)", /Reduces the amount owed/.test(desc.text), JSON.stringify(desc));
   await page.locator(".modal-footer").getByRole("button", { name: "Cancel" }).click();
   await page.setViewportSize({ width: 1300, height: 1000 });
 
