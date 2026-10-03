@@ -297,7 +297,7 @@ async function run(type) {
     const label = document.querySelector('label[for="payment-discount"]');
     const hint = document.querySelector(".eng-modal .eng-hint");
     const lcs = getComputedStyle(label);
-    const hcs = getComputedStyle(hint);
+    const hcs = hint ? getComputedStyle(hint) : { textTransform: "missing", fontWeight: "missing" };
     const kids = [...document.querySelectorAll(".modal-body *")].map((e) => e.getBoundingClientRect().right);
     const input = document.querySelector("#payment-amount").getBoundingClientRect();
     const btns = [...document.querySelectorAll(".modal-footer .btn")].map((b) => b.getBoundingClientRect());
@@ -316,7 +316,8 @@ async function run(type) {
     const ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
     return { ids, text: ids.map((id) => document.getElementById(id)?.textContent || "").join(" ").trim() };
   });
-  ok("eng: discount field is described by its hint for screen readers (aria-describedby)", /Reduces the amount owed/.test(desc.text), JSON.stringify(desc));
+  const hintOwnText = await page.evaluate(() => (document.querySelector(".eng-modal .eng-hint")?.textContent || "").trim());
+  ok("eng: discount field is described by its hint for screen readers (aria-describedby)", hintOwnText.length > 0 && desc.text === hintOwnText, JSON.stringify({ desc, hintOwnText }));
   await page.locator(".modal-footer").getByRole("button", { name: "Cancel" }).click();
   await page.setViewportSize({ width: 1300, height: 1000 });
 
@@ -376,6 +377,31 @@ async function run(type) {
     ok("eng: bill PDF is a real PDF named with the bill no.", raw.startsWith("%PDF") && /Bill-802-/.test(download.suggestedFilename()), download.suggestedFilename());
     ok("eng: bill PDF carries amount in words and plate", /Rupees Four Thousand Eight Hundred/.test(raw) && /TN 52 J 2622/.test(raw));
   }
+  // A new tenant has not filled in Company settings yet: the bill must not print a "?" logo or a dangling "For".
+  const noNameHandler = async (route) => {
+    const u = new URL(route.request().url());
+    if (route.request().method() !== "GET" || u.pathname !== "/settings") return route.fallback();
+    const st = settingsFor("engineering");
+    st.company.name = "";
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ settings: st }) });
+  };
+  await page.route("http://localhost:5000/**", noNameHandler);
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  const dl2 = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
+  await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
+  await page.getByRole("menuitem", { name: "Print" }).click();
+  const download2 = await dl2;
+  if (download2) {
+    const { readFileSync } = await import("node:fs");
+    const raw2 = readFileSync(await download2.path()).toString("latin1");
+    ok("eng: bill PDF without a company name has no '?' logo placeholder", !raw2.includes("(?)"), raw2.includes("(?)") ? "found (?)" : "clean");
+    ok("eng: bill PDF without a company name has no dangling 'For' footer", !raw2.includes("(For)"), raw2.includes("(For)") ? "found (For)" : "clean");
+    ok("eng: bill PDF without a company name still carries the bill title", /CASH \/ CREDIT BILL/i.test(raw2), "title");
+  } else {
+    ok("eng: bill PDF without a company name downloads", false, "no download");
+  }
+  await page.unroute("http://localhost:5000/**", noNameHandler);
   // Phone layouts: bills become cards, filters collapse, Save stays reachable on the form.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/engineering/billing");

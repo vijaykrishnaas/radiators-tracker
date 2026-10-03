@@ -65,7 +65,11 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     // ---- Header band: logo · name · phones ---------------------------------
     const bandH = 30;
     fill(accent); doc.rect(0, 0, W, bandH + 0.4, "F");
-    fill(white); doc.circle(M + 9, bandH / 2, 9, "F");
+    // A brand-new tenant has not filled in Company settings yet: no name and no logo means no badge circle,
+    // and the band shows the bill title instead of a blank strip.
+    const coName = (co.name || "").trim();
+    const hasBadge = !!coName || !!co.logoUrl;
+    if (hasBadge) { fill(white); doc.circle(M + 9, bandH / 2, 9, "F"); }
     let logoDrawn = false;
     if (co.logoUrl) {
         try {
@@ -74,17 +78,17 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
             logoDrawn = true;
         } catch { /* fall back to the initial */ }
     }
-    if (!logoDrawn) {
+    if (!logoDrawn && coName) {
         text(accent); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
-        doc.text((co.name || "?").trim().charAt(0).toUpperCase(), M + 9, bandH / 2 + 2.6, { align: "center" });
+        doc.text(coName.charAt(0).toUpperCase(), M + 9, bandH / 2 + 2.6, { align: "center" });
     }
 
     const phones = [co.phone1, co.phone2].filter(Boolean) as string[];
     const phoneBlockW = phones.length ? 34 : 0;
-    const nameX = M + 22;
+    const nameX = hasBadge ? M + 22 : M;
     const nameW = W - M - phoneBlockW - nameX - 3;
     text(white); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-    const nameLines = doc.splitTextToSize((co.name || "").trim(), nameW) as string[];
+    const nameLines = doc.splitTextToSize(coName || inv?.billTitle || "Invoice", nameW) as string[];
     const nameBlockH = nameLines.length * 5.2;
     doc.text(nameLines, nameX, bandH / 2 - nameBlockH / 2 + 4);
 
@@ -271,7 +275,7 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     draw(ink); doc.setLineWidth(0.3);
     doc.line(W - M - 52, fy - 1.5, W - M, fy - 1.5);
     doc.setFontSize(7);
-    doc.text(`For ${co.name || ""}`.trim(), W - M, fy + 2.5, { align: "right", maxWidth: 52 });
+    if (coName) doc.text(`For ${coName}`, W - M, fy + 2.5, { align: "right", maxWidth: 52 });
 
     const d = billDate;
     const fileDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
