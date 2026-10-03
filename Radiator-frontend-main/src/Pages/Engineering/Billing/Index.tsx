@@ -70,6 +70,9 @@ const EngBilling = () => {
         setFiltersKey((k) => k + 1);
     };
 
+    // Display-only: are any filters narrowing the list? Drives the empty-state wording.
+    const hasFilters = !!(searchText || searchMechanicName || searchStatus || searchType || searchBs || fromDate || toDate);
+
     const getTableData = async () => {
         try {
             setLoading(true);
@@ -335,7 +338,24 @@ const EngBilling = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={11} className="text-center py-3">No Records Found</td>
+                                            <td colSpan={11} className="eng-empty-cell">
+                                                {loading ? (
+                                                    <div className="eng-skel" aria-hidden="true"><i /><i /><i /></div>
+                                                ) : (
+                                                    <div className="eng-empty-state" role="status">
+                                                        <span className="eng-empty-icon"><Icons iconName="receipt-text" className="icon-24" /></span>
+                                                        <p className="eng-empty-title">{hasFilters ? "No bills match these filters" : "No bills yet"}</p>
+                                                        <p className="eng-empty-hint">
+                                                            {hasFilters ? "Try a different truck number, mechanic or date range." : "Create your first service bill and it will show up here."}
+                                                        </p>
+                                                        {hasFilters ? (
+                                                            <button type="button" className="btn btn-cancel btn-sm" onClick={clearFilters}>Clear filters</button>
+                                                        ) : (
+                                                            <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate("/engineering/dashboard/create")}>New service</button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>

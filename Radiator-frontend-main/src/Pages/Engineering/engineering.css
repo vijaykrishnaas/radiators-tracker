@@ -437,3 +437,25 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-table td.eng-c-bal { text-align: right; font-variant-numeric: tabular-nums; }
     .eng-table td.eng-c-truck { font-weight: 600; letter-spacing: .02em; color: var(--titleColor); }
 }
+
+/* Billing list: real empty state and loading skeleton (replaces the bare "No Records Found" row). */
+.eng-table td.eng-empty-cell { padding: 0 !important; text-align: center; background: var(--surface) !important; }
+.eng-empty-state { display: grid; justify-items: center; gap: 6px; padding: 44px 20px 48px; }
+.eng-empty-icon {
+    width: 48px; height: 48px; border-radius: var(--r-lg); display: grid; place-items: center; margin-bottom: 6px;
+    background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary);
+}
+.eng-empty-title { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: var(--tracking-tight); color: var(--titleColor); }
+.eng-empty-hint { margin: 0 0 10px; max-width: 360px; font-size: 13.5px; color: var(--secondary); line-height: 1.45; }
+.eng-skel { display: grid; gap: 14px; padding: 22px 20px; }
+.eng-skel i {
+    display: block; height: 14px; border-radius: var(--r-pill); background: var(--surface-sunken);
+    animation: eng-pulse 1.2s var(--ease, ease) infinite alternate;
+}
+.eng-skel i:nth-child(1) { width: 92%; } .eng-skel i:nth-child(2) { width: 78%; } .eng-skel i:nth-child(3) { width: 64%; }
+@keyframes eng-pulse { from { opacity: .45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .eng-skel i { animation: none; } }
+@media (max-width: 767.98px) {
+    .eng-table tbody tr:has(> td.eng-empty-cell) { padding: 0; border: 0 !important; box-shadow: none; background: transparent; }
+    .eng-empty-state { padding: 32px 16px 36px; }
+}
