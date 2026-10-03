@@ -528,7 +528,9 @@ async function run(type) {
     const pdfPath = await download.path();
     const raw = readFileSync(pdfPath).toString("latin1");
     ok("eng: bill PDF is a real PDF named with the bill no.", raw.startsWith("%PDF") && /Bill-802-/.test(download.suggestedFilename()), download.suggestedFilename());
-    ok("eng: bill PDF carries amount in words and plate", /Rupees Four Thousand Eight Hundred/.test(raw) && /TN 52 J 2622/.test(raw));
+    ok("eng: bill PDF uses the radiator layout (masthead with bill no., Billed to / Details, plain table, signatory)", /\(Bill No: 802\)/.test(raw) && /\(BILLED TO\)/.test(raw) && /\(DETAILS\)/.test(raw) && /\(Particulars\)/.test(raw) && /\(Authorised signatory\)/.test(raw), "layout markers");
+    ok("eng: bill PDF carries plate, mechanic, service group tag and totals", /TN 52 J 2622/.test(raw) && /\(Ramesh\)/.test(raw) && /\(TURBO · BS-3\)/.test(raw) && /\(Subtotal\)/.test(raw) && /\(Total\)/.test(raw) && /\(Discount\)/.test(raw), "content");
+    ok("eng: bill PDF no longer prints the old mockup extras (amount in words, PHONE / WHATSAPP band label)", !/Rupees Four Thousand/.test(raw) && !/PHONE \/ WHATSAPP/.test(raw), "legacy markers absent");
   }
   // A new tenant has not filled in Company settings yet: the bill must not print a "?" logo or a dangling "For".
   const noNameHandler = async (route) => {
