@@ -24,6 +24,37 @@ Branch: `claude/ui-refine` (this file only). Work PRs go from `claude/eng-ui-ref
 - No horizontal page overflow at 390px; no layout shift on load.
 - Dark mode: if tokens already support it, Engineering screens must not break it.
 
+## DESIGN DIRECTION v2 — TailAdmin-CRM style (user request 2026-10-03; supersedes "keep the existing look")
+The user pointed at https://demo.tailadmin.com/crm as the style to aim for and asked to "infer from this and upgrade". **That site is BLOCKED from this environment (egress proxy 403) — do NOT try to fetch it.** The spec below is inferred from TailAdmin's published design language (Tailwind-based admin kit, Untitled-UI-style gray scale), NOT from viewing the page. If the user uploads screenshots later they appear in the session transcript/uploads: compare against them and correct this spec. Scope is unchanged: Engineering screens only, `eng-*` CSS only, behaviour frozen, tenant `--primary` stays white-label (never hard-code TailAdmin's #465FFF; use `var(--primary)` and `color-mix` tints of it).
+
+**Look & feel.** Airy and calm: white cards on a very light gray canvas, generous whitespace, hairline borders, soft shadows, one accent colour, soft-tint status badges, quiet gray secondary text.
+- Canvas gray-50 `#F9FAFB`; cards white, `1px` border gray-200 `#E4E7EC`, radius **16px**, shadow-xs (`0 1px 2px rgba(16,24,40,.05)`); page gutter 24px, card padding 20–24px, section gap 24px.
+- Gray scale (use via `--eng-gray-*`): 50 `#F9FAFB`, 100 `#F2F4F7`, 200 `#E4E7EC`, 300 `#D0D5DD`, 400 `#98A2B3`, 500 `#667085`, 600 `#475467`, 700 `#344054`, 800 `#1D2939`, 900 `#101828`.
+- Semantic: success `#12B76A` (tint `#ECFDF3`, text `#027A48`), warning `#F79009` (tint `#FFFAEB`, text `#B54708`), error `#F04438` (tint `#FEF3F2`, text `#B42318`). Brand tint = `color-mix(in srgb, var(--primary) 10%, transparent)`; focus ring = `0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent)`.
+- Type: geometric sans (TailAdmin uses *Outfit*) — **keep the existing font stack; loading Outfit means an external font fetch and touching shared CSS = "Needs user".** Page title 24/600 gray-900; card title 18/600 gray-900; body 14/400 gray-700; label/caption 12–13/500 gray-500; metric value 28–30/600 gray-900; `tabular-nums` on every number.
+- Motion: ≤200ms, subtle, `prefers-reduced-motion` respected.
+
+**Component recipes (build these as `eng-*` classes).**
+- *Metric card* (Dashboard KPIs): white card r16; a 44–48px rounded-xl icon chip (gray-100 bg, gray-800 icon); label 13/500 gray-500 under it; value 28/600; optional trend pill (↑ 11.0% in success tint / ↓ in error tint) **only if a real comparison value already exists in the data — NEVER invent numbers or add fetching.**
+- *Chart card*: title 18/600 + 14 gray-500 subtitle on the left, kebab/segmented control on the right; chart colours = `--primary` + soft tints, hairline gray-100 gridlines, rounded bar tops, minimal axes.
+- *Status badge*: pill (`border-radius:999px`), `padding:2px 10px`, 12/500, soft tint bg + darker text, optional 6px leading dot (Received = success, Partial = warning, Not received = error).
+- *Table*: card-wrapped; header row gray-50 bg, 12/500 gray-500 (sentence case or light uppercase), rows separated by gray-100 hairlines, cell padding 14–16px, row hover gray-50, numbers right-aligned tabular, quiet pagination.
+- *Buttons*: height 40–44, radius 8px; primary = filled `--primary` + shadow-xs; secondary = white, `1px` gray-300 border, gray-700 text; ghost/link for tertiary; focus ring as above.
+- *Inputs/selects*: height 44, radius 8px, `1px` gray-300, placeholder gray-400, focus border = tinted `--primary` + 4px ring; error = error-500 border + ring. Keep dropdown height equal to input height (e2e guards 44px).
+- *Tabs / segmented*: gray-100 container r8, active segment white + shadow-xs.
+- *Modals*: r16, overlay gray-900 @ 50%, header with title + close, footer actions right-aligned (full-width stacked on phones).
+- *Empty/loading/error states*: soft icon chip + title + one-line hint + action (already built for Billing; reuse the pattern everywhere).
+
+**How to apply (order of backlog, one small PR each).**
+1. Token layer: add a wrapper class `eng-theme` on each Engineering page root (Dashboard, Create, Billing, Settings tab wrapper) and define `--eng-gray-*`, `--eng-radius-*`, `--eng-shadow-xs`, `--eng-ring` on `.eng-theme` in engineering.css. Do NOT edit shared `base-theme.css`. Existing `eng-*` rules then migrate to these tokens gradually.
+2. Dashboard KPIs → metric-card recipe; chart cards → chart-card recipe; segmented range control to the recipe.
+3. Billing table → table + badge recipes; filters card.
+4. Buttons/inputs inside Engineering → button/input recipes (scoped under `.eng-theme`, `!important` only where shared CSS forces it, with a comment).
+5. Settings catalog (rail + rows) → card/table recipes. Form cards → card/section recipes. Modals → modal recipe.
+6. PDF stays brand-coloured; only adopt spacing/typography ideas if they clearly help.
+**Per-PR proof (test-first):** assert computed styles in e2e (card radius 16px, border colour = gray-200, metric value font-size/weight, badge `border-radius` 999px + tint background, button radius 8px/height 44, input focus ring present) — print the measured values, fail on the OLD code first. Contrast ≥ 4.5:1 for text on tints (compute and note in the PR). Compare before/after screenshots at 1300 and 390.
+**Needs user (new):** Outfit font; any change to the shared sidebar/header/layout that TailAdmin shows (the app's existing header is shared with other verticals); dark mode.
+
 ## Reviewer charter (fresh-context subagent, diff only)
 BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engineering; any logic/handler/API/money change; behaviour regression; tsc error. Verify every finding by reading code. Output first line exactly `VERDICT: BLOCKING` or `VERDICT: NO-BLOCKERS`.
 
@@ -67,10 +98,16 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - When you MOVE text out of a `<label>` for looks, re-associate it (`aria-describedby`) in the same PR — don't leave an a11y regression for later. Also: a PR rule like 'keep X byte-identical' must not stop you fixing a regression the PR itself causes.
 - 'Fail loudly' in e2e means a clean FAIL line, not an exception that aborts the run: guard null lookups (`el ? … : 'missing'`) so remaining checks still execute.
 - New tenants have EMPTY defaults (company name/address/phones/UPI all ''). Always test PDFs and screens with the BARE-settings case, not just the filled-in demo tenant. jsPDF writes text as `(text) Tj`, uncompressed, so e2e can assert on raw PDF bytes (e.g. `!raw.includes('(?)')`).
+- demo.tailadmin.com is blocked by the egress proxy (403) — the TailAdmin spec in this file is inferred from its design language, not viewed. Don't retry fetching; ask the user for screenshots if exact values matter.
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
 ## Backlog (pick top unchecked; add new items as you find them)
+- [ ] **TailAdmin v2 — step 1: token layer** (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
+- [ ] **TailAdmin v2 — step 2: Dashboard** metric cards + chart cards + range control to recipes.
+- [ ] **TailAdmin v2 — step 3: Billing** table + status badges + filter card.
+- [ ] **TailAdmin v2 — step 4: buttons/inputs** inside Engineering.
+- [ ] **TailAdmin v2 — step 5: Settings catalog, form cards, modals.**
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (merged).
 - [x] Dashboard: date-range segmented control + phone layout — PR #39 (merged).
 - [x] Dashboard follow-ups: hoisted `Seg`, fixed `compact()` rounding — PR #40 (merged).
@@ -110,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 (user request, between runs) — Added DESIGN DIRECTION v2 (TailAdmin-CRM style) + backlog steps 1–5 at the top. Site unreachable (egress 403), spec inferred. Supersedes the earlier 'keep the existing look' choice for Engineering screens (tenant `--primary` stays white-label).
 - 2026-10-03 07:56 UTC — Merged #49 (re-ran tsc, eng e2e 75/75, rad 6, auto 10, sal 6 on exact reviewed head 65d0ea2; push notification sent). PDF second pass: generated 3 stress PDFs through the real Print action with parametrised mocks (25 items / very long name+address / empty company name), rasterised every page with pymupdf and looked. Real defect: a tenant with NO company name (every new tenant until Settings is filled!) printed a '?' badge, an empty band and a dangling 'For' -> PR #50 (no badge, band shows invoice.billTitle, footer line omitted). Test-first via a later `page.route` for /settings with company.name='' (all 3 checks failed before). Also folded the #49 e2e nits. eng e2e 78/78. Next run: review #50.
 - 2026-10-03 06:56 UTC — Step 1a only: independent review of #49 posted, VERDICT: NO-BLOCKERS (head 65d0ea2). Merge next run. A trade-off I introduced: removing the `|| label` fallback in the e2e hint check makes a missing hint THROW inside page.evaluate (aborts the rest of that run as an ERROR; later checks don't execute). Better: `hint ? getComputedStyle(hint) : null` with 'missing' values so it FAILS cleanly and the suite continues. Also compare the aria-describedby text to the `.eng-hint` element's own text instead of hardcoding the copy. Fold both into the next e2e-touching PR.
 - 2026-10-03 05:56 UTC — Merged #48 (re-ran tsc, eng e2e 74/74, rad 6, auto 10, sal 6 on exact reviewed head cc2c72a; push notification sent). Paid back the a11y regression #48 introduced: PR #49 gives the hint an id and the discount input `aria-describedby` (2-line diff), e2e reads the input's accessible description (failed first with ids=[]), documented the modal-footer `!important`, removed the `|| label` fallback in the hint check. eng e2e 75/75. Next run: review #49. Remaining backlog: PDF 2nd pass, accessibility sweep across Engineering screens (labels/aria/contrast/focus order), motion polish.
