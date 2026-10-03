@@ -25,9 +25,14 @@ export function computeEngMechanicBonus(bill, settings) {
 
 // Upserts the bill's mechanic entry. A paid entry is a settlement record and is never rewritten.
 export async function syncEngBonusesForRecord(clientId, bill) {
-  if (!bill?.mechanic) return;
+  if (!bill?._id) return;
   const db = await connectDB();
   const collection = db.collection(COLLECTION);
+  if (!bill.mechanic) {
+    // Mechanic cleared on an edit: drop the pending entry (paid history stays).
+    await collection.deleteMany({ clientId: toClientId(clientId), recordId: new ObjectId(bill._id), type: "mechanic", status: "pending" });
+    return;
+  }
   const settings = await getSettings(clientId);
   const cid = toClientId(clientId);
   const recordId = new ObjectId(bill._id);

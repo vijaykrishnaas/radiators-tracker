@@ -143,8 +143,12 @@ test("labour review is empty for engineering (no labour role)", async () => {
   assert.deepEqual(r.bills, []);
 });
 
-test("no mechanic means no entry", async () => {
+test("no mechanic means no entry, and clearing the mechanic drops the pending entry", async () => {
   const before = bonuses().length;
   await syncEngBonusesForRecord(CLIENT, { _id: new ObjectId(), billDate: "2026-05-10", total: 100, netTotal: 100 });
   assert.equal(bonuses().length, before);
+  const b = await createEngBill(CLIENT, bill());
+  assert.ok(bonuses().some((x) => String(x.recordId) === String(b._id)));
+  await syncEngBonusesForRecord(CLIENT, { ...b, mechanic: "" });
+  assert.ok(!bonuses().some((x) => String(x.recordId) === String(b._id)));
 });
