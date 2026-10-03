@@ -437,6 +437,19 @@ async function run(type) {
   ok("eng: 'This FY' is highlighted for the configured start", (await page.locator(".eng-seg-btn.is-active").innerText()).trim() === "This FY");
   fyMonth = null;
 
+  // TailAdmin button/input recipe inside the service form: inputs and dropdowns share one 8px radius, buttons are r8 and >= 44px (footer).
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  const bi = await page.evaluate(() => {
+    const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
+    return { input: g(document.querySelector(".eng-form input.form-control")), select: g([...document.querySelectorAll('.eng-form div[class*="-control"]')][0]),
+      save: g(document.querySelector(".eng-foot .btn-primary")), cancel: g(document.querySelector(".eng-foot .btn-cancel")),
+      add: g(document.querySelector(".eng-form .btn-sm.btn-primary")), remove: g(document.querySelector(".eng-svc .btn-outline-danger")) };
+  });
+  ok("eng: form inputs and dropdowns share the 8px radius", bi.input.r === "8px" && bi.select.r === "8px", `input ${bi.input.r} select ${bi.select.r}`);
+  ok("eng: footer buttons are 8px radius and at least 44px tall", bi.save.r === "8px" && bi.cancel.r === "8px" && bi.save.h >= 44 && bi.cancel.h >= 44, JSON.stringify({ save: bi.save, cancel: bi.cancel }));
+  ok("eng: small form buttons (Add New Service / Remove) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
+
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
     if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();

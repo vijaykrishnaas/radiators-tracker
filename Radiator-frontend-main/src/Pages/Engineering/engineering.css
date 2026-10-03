@@ -510,3 +510,10 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-modal .modal-footer { padding: 14px 24px 18px !important; gap: 10px; }
     .eng-modal .modal-footer > .btn { margin: 0 !important; width: 100%; }
 }
+
+/* Service form: one 8px control radius (text inputs matched the dropdowns' 8px but rendered 12px), buttons r8,
+   footer actions >= 44px. `!important` because the shared apple-rebrand.css sets .btn / .form-control radius and
+   height with !important; only .eng-form descendants are overridden. */
+.eng-form input.form-control { border-radius: var(--eng-radius-sm, 8px) !important; }
+.eng-form .btn:not(.eng-quick) { border-radius: var(--eng-radius-sm, 8px) !important; }
+.eng-foot .btn { min-height: 44px; }
