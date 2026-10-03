@@ -185,6 +185,9 @@ export const defaultSettings = {
     quickAdd: [],
     // First bill number for a tenant continuing from a paper bill book.
     billStartNumber: 1,
+    // Month (1-12) the financial year starts in. Drives the dashboard "This FY" range and its default start date.
+    // Existing tenants without it fall back to 4 (April) in the frontend.
+    fyStartMonth: 4,
     invoice: {
       billTitle: "CASH / CREDIT BILL",
       footerNote: "Thank you for your business",
