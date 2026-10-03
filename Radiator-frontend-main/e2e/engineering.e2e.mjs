@@ -78,6 +78,13 @@ async function run(type) {
     await page.waitForTimeout(1500);
     const tabs = await page.locator(".settings-tabs").innerText();
     ok("radiator: settings tabs unchanged", /Catalog & Pricing/.test(tabs) && /Bonus/.test(tabs) && !/Service Catalog/.test(tabs), tabs.replace(/\s+/g, " "));
+    // Logout: radiator keeps the generic login page even when the session carries a business code.
+    await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
+    await page.goto(BASE + "/issueCounter/dashboard");
+    await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
+    await page.getByRole("button", { name: "Logout" }).click();
+    await page.waitForTimeout(500);
+    ok("radiator: logout still goes to the generic login page", page.url().endsWith("/issueCounter/login"), page.url());
     ok("radiator: no page errors", errors.length === 0, errors.join(" | "));
     await browser.close();
     return;
@@ -413,6 +420,21 @@ async function run(type) {
   await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
   ok("eng: edit sends PUT with updated qty and kept discount", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === 50 && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
+
+  // Logout returns to the company login (/t/<code>/login); without a code it falls back to the generic login.
+  await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
+  await page.goto(BASE + "/engineering/billing");
+  await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
+  await page.getByRole("button", { name: "Logout" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: logout goes to the company login URL with the business code", page.url().endsWith("/t/acme/login"), page.url());
+  await page.evaluate(() => { localStorage.setItem("svr_token", "x"); localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" })); });
+  await page.goto(BASE + "/engineering/billing");
+  await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
+  await page.getByRole("button", { name: "Logout" }).click();
+  await page.waitForTimeout(500);
+  ok("eng: logout without a stored code falls back to the generic login", page.url().endsWith("/issueCounter/login"), page.url());
+  await page.evaluate(() => { localStorage.setItem("svr_token", "x"); localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" })); });
 
   // View mode is read-only.
   await page.goto(BASE + "/engineering/dashboard/view/b1");
