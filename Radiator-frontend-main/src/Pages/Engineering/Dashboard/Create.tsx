@@ -44,8 +44,6 @@ const EngCreate = () => {
     // One BS model for the whole bill (header select). Cards still carry it so the saved payload shape is unchanged.
     const [billBs, setBillBs] = useState("");
     const [discount, setDiscount] = useState("");
-    const [amountReceived, setAmountReceived] = useState("");
-    const [paymentMode, setPaymentMode] = useState("cash");
     const [mechanics, setMechanics] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -77,8 +75,6 @@ const EngCreate = () => {
                     })),
                 })));
                 setDiscount(bill.discount ? String(bill.discount) : "");
-                setAmountReceived(bill.amountReceived ? String(bill.amountReceived) : "");
-                setPaymentMode(bill.paymentMode || "cash");
             } catch (e: any) {
                 callAlertMsg(e?.message || "Error loading bill", "error");
             } finally {
@@ -171,7 +167,6 @@ const EngCreate = () => {
     const total = round2(Object.values(typeTotals).reduce((a, b) => a + b, 0));
     const disc = Math.min(Math.max(Number(discount) || 0, 0), total);
     const net = round2(total - disc);
-    const received = Math.min(Math.max(Number(amountReceived) || 0, 0), net);
 
     const validate = () => {
         const e: Record<string, string> = {};
@@ -226,9 +221,9 @@ const EngCreate = () => {
                         qty: Number(r.qty), rate: Number(r.rate) || 0,
                     })),
                 })),
-                discount: disc,
-                amountReceived: received,
-                paymentMode,
+                // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
+                // server keeps what is stored (and a payment recorded elsewhere meanwhile is not overwritten).
+                ...(isEdit ? {} : { discount: 0, amountReceived: 0, paymentMode: "cash" }),
             };
             const res = isEdit ? await putData(`engbills/${id}`, payload) : await postData("engbills", payload);
             callAlertMsg(res.message || "Saved", "success");

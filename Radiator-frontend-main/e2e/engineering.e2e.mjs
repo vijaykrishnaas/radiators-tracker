@@ -416,10 +416,10 @@ async function run(type) {
   await page.locator('input[placeholder="Qty"]').first().fill("2");
   await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
-  ok("eng: edit sends PUT with updated qty and kept discount", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === 50 && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
+  ok("eng: edit sends PUT with updated qty and leaves discount to the server", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === undefined && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
 
   // Edit keeps the stored payment fields although the form no longer shows them.
-  ok("eng: edit PUT keeps stored received/mode", putBody?.amountReceived === 0 && putBody?.paymentMode !== undefined, JSON.stringify({ r: putBody?.amountReceived, m: putBody?.paymentMode }));
+  ok("eng: edit PUT omits discount/received/mode so the server keeps stored values", putBody && !("discount" in putBody) && !("amountReceived" in putBody) && !("paymentMode" in putBody), JSON.stringify(putBody && { d: putBody.discount, r: putBody.amountReceived, m: putBody.paymentMode }));
   // Cancel on edit goes straight to the bills list.
   await page.goto(BASE + "/engineering/dashboard/edit/b1");
   await page.getByRole("button", { name: "Cancel" }).waitFor({ timeout: 10000 });
