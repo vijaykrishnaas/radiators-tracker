@@ -11,7 +11,7 @@ import { useAlertMsg } from "../../../Services/AllServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { money, today } from "../../../Utils/format";
 import ItemMultiSelect from "../Components/ItemMultiSelect";
-import { PAYMENT_MODES, defaultRate, isOffered, round2, type EngBill } from "../types";
+import { defaultRate, isOffered, round2, type EngBill } from "../types";
 import "../engineering.css";
 
 type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
@@ -41,9 +41,9 @@ const EngCreate = () => {
     const [mechanic, setMechanic] = useState("");
     const [phone, setPhone] = useState("");
     const [cards, setCards] = useState<Card[]>([newCard()]);
+    // One BS model for the whole bill (header select). Cards still carry it so the saved payload shape is unchanged.
+    const [billBs, setBillBs] = useState("");
     const [discount, setDiscount] = useState("");
-    const [amountReceived, setAmountReceived] = useState("");
-    const [paymentMode, setPaymentMode] = useState("cash");
     const [mechanics, setMechanics] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -63,6 +63,8 @@ const EngCreate = () => {
                 setLorryAddress(bill.lorryAddress || "");
                 setMechanic(bill.mechanic || "");
                 setPhone(bill.phone || "");
+                const bsSet = new Set((bill.services || []).map((s) => s.bsModel || ""));
+                setBillBs(bsSet.size === 1 ? [...bsSet][0] : ""); // legacy bills with mixed BS per card show "Mixed" and keep each card's own value
                 setCards((bill.services || []).map((s) => ({
                     key: keySeq++,
                     type: s.type,
@@ -73,8 +75,6 @@ const EngCreate = () => {
                     })),
                 })));
                 setDiscount(bill.discount ? String(bill.discount) : "");
-                setAmountReceived(bill.amountReceived ? String(bill.amountReceived) : "");
-                setPaymentMode(bill.paymentMode || "cash");
             } catch (e: any) {
                 callAlertMsg(e?.message || "Error loading bill", "error");
             } finally {
@@ -91,8 +91,10 @@ const EngCreate = () => {
 
     const setType = (key: number, type: string) => updateCard(key, (c) => ({ ...c, type, rows: [] }));
 
-    const setBs = (key: number, bsModel: string) =>
-        updateCard(key, (c) => {
+    // Changing the bill's BS model re-applies the catalog rate on every card and drops items not offered for that model.
+    const setBs = (bsModel: string) => {
+        setBillBs(bsModel);
+        setCards((cs) => cs.map((c) => {
             const t = findType(c.type);
             return {
                 ...c,
@@ -104,7 +106,8 @@ const EngCreate = () => {
                         return it ? { ...r, rate: String(defaultRate(it, bsModel)) } : r;
                     }),
             };
-        });
+        }));
+    };
 
     const setItems = (key: number, values: string[]) =>
         updateCard(key, (c) => {
@@ -139,7 +142,7 @@ const EngCreate = () => {
             let target = list.find((c) => c.type === type);
             if (!target) {
                 const blank = list.find((c) => !c.type);
-                target = blank ? { ...blank, type } : newCard(type);
+                target = blank ? { ...blank, type } : newCard(type, billBs);
                 list = blank ? list.map((c) => (c.key === blank.key ? target! : c)) : [...list, target];
             }
             if (target.rows.some((r) => r.item === item)) return list;
@@ -164,7 +167,6 @@ const EngCreate = () => {
     const total = round2(Object.values(typeTotals).reduce((a, b) => a + b, 0));
     const disc = Math.min(Math.max(Number(discount) || 0, 0), total);
     const net = round2(total - disc);
-    const received = Math.min(Math.max(Number(amountReceived) || 0, 0), net);
 
     const validate = () => {
         const e: Record<string, string> = {};
@@ -194,9 +196,11 @@ const EngCreate = () => {
         } catch { /* autofill is best-effort */ }
     };
 
-    const clearForm = () => {
-        setVehicleNo(""); setLorryAddress(""); setMechanic(""); setPhone("");
-        setCards([newCard()]); setDiscount(""); setAmountReceived(""); setPaymentMode("cash"); setErrors({});
+    // Cancel returns to the bills list. A new bill with anything entered asks first; editing just leaves (as before).
+    const cancel = () => {
+        const dirty = !!(vehicleNo || lorryAddress || mechanic || phone || billBs || cards.some((c) => c.type || c.rows.length));
+        if (!isEdit && dirty && !window.confirm("Discard this bill? Anything entered will be lost.")) return;
+        navigate("/engineering/billing");
     };
 
     const save = async () => {
@@ -217,9 +221,9 @@ const EngCreate = () => {
                         qty: Number(r.qty), rate: Number(r.rate) || 0,
                     })),
                 })),
-                discount: disc,
-                amountReceived: received,
-                paymentMode,
+                // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
+                // server keeps what is stored (and a payment recorded elsewhere meanwhile is not overwritten).
+                ...(isEdit ? {} : { discount: 0, amountReceived: 0, paymentMode: "cash" }),
             };
             const res = isEdit ? await putData(`engbills/${id}`, payload) : await postData("engbills", payload);
             callAlertMsg(res.message || "Saved", "success");
@@ -240,6 +244,7 @@ const EngCreate = () => {
         .filter(Boolean) as { type: string; item: string; text: string }[];
 
     const title = isView ? "View service" : isEdit ? "Edit service" : "Turbo & air compressor service";
+    const mixedBs = !billBs && new Set(cards.filter((c) => c.type).map((c) => c.bsModel || "")).size > 1;
     const typeOpts = serviceTypes.map((t) => ({ label: t.label, value: t.value }));
     const bsOpts = bsModels.map((b) => ({ label: b.label, value: b.value }));
 
@@ -289,12 +294,19 @@ const EngCreate = () => {
                             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
                         {errors.phone && <span className="text-danger font-s12">{errors.phone}</span>}
                     </div>
+                    <div className="col-md-6 eng-field">
+                        <label className="form-label text-uppercase font-s12">BS model</label>
+                        <Selector options={bsOpts} isDisabled={isView} isClearable
+                            placeholder={mixedBs ? "Mixed" : "Select BS model"}
+                            value={billBs ? bsOpts.find((b) => b.value === billBs) || { label: billBs, value: billBs } : null}
+                            onChange={(o: any) => setBs(o ? o.value : "")} />
+                    </div>
                 </div>
 
                 <div className="d-flex justify-content-between align-items-center mt-5 mb-2">
                     <h6 className="font-w600 mb-0">Services</h6>
                     {!isView && (
-                        <button type="button" className="btn btn-sm btn-primary" onClick={() => setCards((cs) => [...cs, newCard()])}>
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
                             <Icons iconName="addcircle" className="icon-15 icon-white" /> Add New Service
                         </button>
                     )}
@@ -316,19 +328,13 @@ const EngCreate = () => {
                     return (
                         <div key={c.key} className="border rounded p-3 mb-3 eng-svc">
                             <div className="row g-3 align-items-end">
-                                <div className="col-md-3">
+                                <div className="col-md-4">
                                     <label className="form-label text-uppercase font-s12">Service type</label>
                                     <Selector options={typeOpts} isDisabled={isView} placeholder="Select..."
                                         value={c.type ? { label: t?.label || c.type, value: c.type } : null}
                                         onChange={(o: any) => setType(c.key, o ? o.value : "")} />
                                 </div>
-                                <div className="col-md-2">
-                                    <label className="form-label text-uppercase font-s12">BS model</label>
-                                    <Selector options={bsOpts} isDisabled={isView} isClearable placeholder="Select..."
-                                        value={c.bsModel ? bsOpts.find((b) => b.value === c.bsModel) || { label: c.bsModel, value: c.bsModel } : null}
-                                        onChange={(o: any) => setBs(c.key, o ? o.value : "")} />
-                                </div>
-                                <div className="col-md-5">
+                                <div className="col-md-6">
                                     <label className="form-label text-uppercase font-s12">Work / service items</label>
                                     <ItemMultiSelect options={itemOpts} value={c.rows.map((r) => r.item)} disabled={isView || !c.type}
                                         placeholder={c.type ? "Select items" : "Select type first"}
@@ -337,7 +343,7 @@ const EngCreate = () => {
                                 <div className="col-md-2 text-end">
                                     {!isView && (
                                         <button type="button" className="btn btn-sm btn-outline-danger"
-                                            onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard()]))}>
+                                            onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
                                             <Icons iconName="delete" className="icon-15 me-1" /> Remove
                                         </button>
                                     )}
@@ -389,37 +395,8 @@ const EngCreate = () => {
                     );
                 })}
 
-                <div className="row g-3 mt-2">
-                    <div className="col-md-3">
-                        <label className="form-label text-uppercase font-s12">Discount</label>
-                        <InputText type="number" prefix="₹" value={discount} disabled={isView} onChange={(e) => setDiscount(e.target.value)} />
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label text-uppercase font-s12">Amount received</label>
-                        <InputText type="number" prefix="₹" value={amountReceived} disabled={isView} onChange={(e) => setAmountReceived(e.target.value)} />
-                    </div>
-                    <div className="col-md-3">
-                        <label className="form-label text-uppercase font-s12">Payment mode</label>
-                        <Selector options={PAYMENT_MODES} isDisabled={isView}
-                            value={PAYMENT_MODES.find((m) => m.value === paymentMode) || null}
-                            onChange={(o: any) => setPaymentMode(o ? o.value : "cash")} />
-                    </div>
-                </div>
-
                 <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 eng-foot">
                     <div className="d-flex flex-wrap gap-4">
-                        {serviceTypes.map((t) => (
-                            <div key={t.value}>
-                                <div className="font-s12 text-muted">{t.label}</div>
-                                <div className="font-w600">{money(typeTotals[t.value] || 0)}</div>
-                            </div>
-                        ))}
-                        {disc > 0 && (
-                            <div>
-                                <div className="font-s12 text-muted">Discount</div>
-                                <div className="font-w600">−{money(disc)}</div>
-                            </div>
-                        )}
                         <div>
                             <div className="font-s12 text-muted">Total amount</div>
                             <div className="font-w700 font-s20" style={{ color: "var(--primary)" }}>{money(net)}</div>
@@ -430,9 +407,7 @@ const EngCreate = () => {
                             <button type="button" className="btn btn-cancel" onClick={() => navigate(-1)}>Back</button>
                         ) : (
                             <>
-                                <button type="button" className="btn btn-cancel" onClick={isEdit ? () => navigate(-1) : clearForm}>
-                                    {isEdit ? "Cancel" : "Clear form"}
-                                </button>
+                                <button type="button" className="btn btn-cancel" onClick={cancel}>Cancel</button>
                                 <button type="button" className="btn btn-primary" disabled={loading} onClick={save}>
                                     {loading ? "Saving..." : isEdit ? "Update service" : "Save service"}
                                 </button>
