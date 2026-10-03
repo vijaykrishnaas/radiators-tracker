@@ -103,7 +103,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
 ## Backlog (pick top unchecked; add new items as you find them)
-- [ ] **TailAdmin v2 — step 1: token layer** (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
+- [x] **TailAdmin v2 — step 1: token layer** — PR #51 (open, awaiting review) (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
 - [ ] **TailAdmin v2 — step 2: Dashboard** metric cards + chart cards + range control to recipes.
 - [ ] **TailAdmin v2 — step 3: Billing** table + status badges + filter card.
 - [ ] **TailAdmin v2 — step 4: buttons/inputs** inside Engineering.
@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 09:56 UTC — Merged #50 (squash 3a74c35; tsc clean, eng e2e 78, other suites no FAIL). Opened PR #51: TailAdmin step 1 token layer (`eng-theme` on Dashboard/Billing/Create/Catalog roots, `--eng-*` tokens, `.eng-card` migrated; 84 eng checks). No before/after screenshots this run (only card radius/border/shadow changed) — next UI PR should capture them. Next: review #51, then step 2 (Dashboard KPI/chart cards).
 - 2026-10-03 08:56 UTC — Step 1a only: independent review of #50 posted, VERDICT: NO-BLOCKERS (head e90848d). Merge next run. Reviewer-found edge (cosmetic, optional follow-up): logo URL configured but UNREACHABLE and no company name -> empty white badge circle (staging showed '?', so no worse); fix = skip the circle when the logo fetch fails and there's no name. Nit: the no-name print flow in the e2e duplicates the earlier print flow (small helper). After #50 merges the next item is TailAdmin v2 step 1 (token layer).
 - 2026-10-03 (user request, between runs) — Added DESIGN DIRECTION v2 (TailAdmin-CRM style) + backlog steps 1–5 at the top. Site unreachable (egress 403), spec inferred. Supersedes the earlier 'keep the existing look' choice for Engineering screens (tenant `--primary` stays white-label).
 - 2026-10-03 07:56 UTC — Merged #49 (re-ran tsc, eng e2e 75/75, rad 6, auto 10, sal 6 on exact reviewed head 65d0ea2; push notification sent). PDF second pass: generated 3 stress PDFs through the real Print action with parametrised mocks (25 items / very long name+address / empty company name), rasterised every page with pymupdf and looked. Real defect: a tenant with NO company name (every new tenant until Settings is filled!) printed a '?' badge, an empty band and a dangling 'For' -> PR #50 (no badge, band shows invoice.billTitle, footer line omitted). Test-first via a later `page.route` for /settings with company.name='' (all 3 checks failed before). Also folded the #49 e2e nits. eng e2e 78/78. Next run: review #50.
