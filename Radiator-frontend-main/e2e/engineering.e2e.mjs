@@ -231,6 +231,28 @@ async function run(type) {
   ok("eng: billing rows have a hover state", bgHover !== bgBefore, `${bgBefore} -> ${bgHover}`);
   await page.mouse.move(5, 5);
 
+  // Empty + loading states of the Billing list (API mocked empty, with a delay to observe the skeleton).
+  const emptyHandler = async (route) => {
+    const u = new URL(route.request().url());
+    if (route.request().method() !== "GET" || u.pathname !== "/engbills") return route.fallback();
+    await new Promise((r) => setTimeout(r, 900));
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, currentPage: 1, totalPages: 1, totalRecords: 0, bills: [] }) });
+  };
+  await page.route("http://localhost:5000/**", emptyHandler);
+  await page.goto(BASE + "/engineering/billing");
+  await page.waitForTimeout(350);
+  ok("eng: billing shows a loading skeleton (not 'no bills') while data is on its way", (await page.locator(".eng-skel").count()) > 0 && (await page.locator(".eng-empty-state").count()) === 0, `skel=${await page.locator(".eng-skel").count()} empty=${await page.locator(".eng-empty-state").count()}`);
+  await page.waitForTimeout(1500);
+  const emptyTxt = await page.locator(".eng-table tbody").innerText();
+  ok("eng: billing empty state (no filters) says 'No bills yet' and offers New service", /No bills yet/.test(emptyTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "New service" }).count()) === 1, emptyTxt.replace(/\s+/g, " "));
+  await page.getByPlaceholder(/Search Truck/).fill("ZZZ");
+  await page.waitForTimeout(1900);
+  const filteredTxt = await page.locator(".eng-table tbody").innerText();
+  ok("eng: billing empty state with a filter says 'No bills match' and offers Clear filters", /No bills match these filters/.test(filteredTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "Clear filters" }).count()) === 1, filteredTxt.replace(/\s+/g, " "));
+  await page.unroute("http://localhost:5000/**", emptyHandler);
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+
   // Record Payment: the modal's discount is extra on top of the bill's existing ₹50 discount,
   // and the API expects the bill's total discount → must send 50 + 100 = 150.
   await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
