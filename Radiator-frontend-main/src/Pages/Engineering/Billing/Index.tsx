@@ -24,6 +24,9 @@ const EngBilling = () => {
     const { alert, alertMessage, callAlertMsg } = useAlertMsg();
 
     const [loading, setLoading] = useState(false);
+    // Display-only flags for the empty/skeleton/error states (they never gate data):
+    const [loaded, setLoaded] = useState(false);   // true once the first fetch has settled
+    const [loadError, setLoadError] = useState(false); // last fetch failed
     const [exportLoading, setExportLoading] = useState(false);
     const [recordData, setRecordData] = useState<EngBill[]>([]);
 
@@ -80,10 +83,13 @@ const EngBilling = () => {
             setRecordData(res.bills || []);
             settotalPage(res.totalPages || 1);
             setTotalRecords(res.totalRecords || 0);
+            setLoadError(false);
         } catch (err: any) {
+            setLoadError(true);
             callAlertMsg(err?.message || "Failed to load records", "error");
         } finally {
             setLoading(false);
+            setLoaded(true);
         }
     };
 
@@ -339,8 +345,15 @@ const EngBilling = () => {
                                     ) : (
                                         <tr>
                                             <td colSpan={11} className="eng-empty-cell">
-                                                {loading ? (
+                                                {!loaded || loading ? (
                                                     <div className="eng-skel" aria-hidden="true"><i /><i /><i /></div>
+                                                ) : loadError ? (
+                                                    <div className="eng-empty-state" role="status">
+                                                        <span className="eng-empty-icon is-error"><Icons iconName="clock" className="icon-24" /></span>
+                                                        <p className="eng-empty-title">Couldn't load bills</p>
+                                                        <p className="eng-empty-hint">Check your connection and try again.</p>
+                                                        <button type="button" className="btn btn-primary btn-sm" onClick={getTableData}>Retry</button>
+                                                    </div>
                                                 ) : (
                                                     <div className="eng-empty-state" role="status">
                                                         <span className="eng-empty-icon"><Icons iconName="receipt-text" className="icon-24" /></span>
