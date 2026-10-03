@@ -81,13 +81,13 @@ async function run(type) {
     await page.waitForTimeout(1500);
     const tabs = await page.locator(".settings-tabs").innerText();
     ok("radiator: settings tabs unchanged", /Catalog & Pricing/.test(tabs) && /Bonus/.test(tabs) && !/Service Catalog/.test(tabs), tabs.replace(/\s+/g, " "));
-    // Logout: radiator keeps the generic login page even when the session carries a business code.
+    // Logout: every tenant type returns to its company login (/t/<code>/login) when the session carries a business code.
     await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
     await page.goto(BASE + "/issueCounter/dashboard");
     await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
     await page.getByRole("button", { name: "Logout" }).click();
     await page.waitForTimeout(500);
-    ok("radiator: logout still goes to the generic login page", page.url().endsWith("/issueCounter/login"), page.url());
+    ok("radiator: logout goes to the company login URL with the business code", page.url().endsWith("/t/acme/login"), page.url());
     ok("radiator: no page errors", errors.length === 0, errors.join(" | "));
     await browser.close();
     return;

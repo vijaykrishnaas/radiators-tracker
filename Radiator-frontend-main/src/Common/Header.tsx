@@ -26,9 +26,9 @@ const Header = () => {
     const onDashboardSub = location.pathname.startsWith(`${dashboardPath}/`);
 
     const handleLogout = () => {
-        // Engineering tenants return to their own company login (/t/<code>/login) so the business code is pre-filled.
-        // Radiator and automobile keep the generic login page, exactly as before.
-        const code = isEngineering ? (getUser()?.code || '').trim() : '';
+        // Return to the tenant's own company login (/t/<code>/login) so the business code is pre-filled;
+        // a session without a code falls back to the generic login page.
+        const code = (getUser()?.code || '').trim();
         clearSession();
         navigate(code ? `/t/${encodeURIComponent(code)}/login` : '/issueCounter/login');
     };
