@@ -459,3 +459,4 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
     .eng-table tbody tr:has(> td.eng-empty-cell) { padding: 0; border: 0 !important; box-shadow: none; background: transparent; }
     .eng-empty-state { padding: 32px 16px 36px; }
 }
+.eng-empty-icon.is-error { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }

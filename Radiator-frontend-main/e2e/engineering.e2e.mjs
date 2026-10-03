@@ -238,9 +238,15 @@ async function run(type) {
     await new Promise((r) => setTimeout(r, 900));
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, currentPage: 1, totalPages: 1, totalRecords: 0, bills: [] }) });
   };
+  await page.addInitScript(() => {
+    window.__sawEmpty = false;
+    new MutationObserver(() => { if (document.querySelector(".eng-empty-state")) window.__sawEmpty = true; }).observe(document, { childList: true, subtree: true });
+  });
   await page.route("http://localhost:5000/**", emptyHandler);
   await page.goto(BASE + "/engineering/billing");
   await page.waitForTimeout(350);
+  const sawEmptyEarly = await page.evaluate(() => window.__sawEmpty);
+  ok("eng: billing never renders the empty state before the first response (first paint)", sawEmptyEarly === false, `sawEmpty=${sawEmptyEarly}`);
   ok("eng: billing shows a loading skeleton (not 'no bills') while data is on its way", (await page.locator(".eng-skel").count()) > 0 && (await page.locator(".eng-empty-state").count()) === 0, `skel=${await page.locator(".eng-skel").count()} empty=${await page.locator(".eng-empty-state").count()}`);
   await page.waitForTimeout(1500);
   const emptyTxt = await page.locator(".eng-table tbody").innerText();
@@ -250,6 +256,22 @@ async function run(type) {
   const filteredTxt = await page.locator(".eng-table tbody").innerText();
   ok("eng: billing empty state with a filter says 'No bills match' and offers Clear filters", /No bills match these filters/.test(filteredTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "Clear filters" }).count()) === 1, filteredTxt.replace(/\s+/g, " "));
   await page.unroute("http://localhost:5000/**", emptyHandler);
+  let failNext = true;
+  const failHandler = async (route) => {
+    const u = new URL(route.request().url());
+    if (route.request().method() !== "GET" || u.pathname !== "/engbills" || !failNext) return route.fallback();
+    return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ success: false, message: "boom" }) });
+  };
+  await page.route("http://localhost:5000/**", failHandler);
+  await page.goto(BASE + "/engineering/billing");
+  await page.waitForTimeout(1200);
+  const failTxt = await page.locator(".eng-table tbody").innerText();
+  ok("eng: billing failed load says 'Couldn't load bills' with Retry (not 'No bills yet')", /Couldn.t load bills/.test(failTxt) && !/No bills yet/.test(failTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "Retry" }).count()) === 1, failTxt.replace(/\s+/g, " "));
+  failNext = false;
+  await page.locator(".eng-empty-state").getByRole("button", { name: "Retry" }).click().catch(() => {});
+  await page.waitForTimeout(900);
+  ok("eng: Retry reloads the list", (await page.getByText("TN52J2622").count()) > 0);
+  await page.unroute("http://localhost:5000/**", failHandler);
   await page.goto(BASE + "/engineering/billing");
   await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
 
