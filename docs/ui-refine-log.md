@@ -106,7 +106,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] **TailAdmin v2 — step 1: token layer** — PR #51 (open, awaiting review) (`eng-theme` wrapper + `--eng-*` tokens in engineering.css) — see DESIGN DIRECTION v2. Do this BEFORE other restyles.
 - [x] **TailAdmin v2 — step 2 (PR #52 open): Dashboard** metric cards + chart cards + range control to recipes.
 - [x] **TailAdmin v2 — step 3 (PR #53 open): Billing** table + status badges + filter card.
-- [x] **TailAdmin v2 — step 4 (service form done, PR open; Billing filters + modals remain): buttons/inputs** inside Engineering.
+- [x] **TailAdmin v2 — step 4 (service form #60 + Billing filters/dialog/header buttons done; Dashboard date inputs + Settings remain): buttons/inputs** inside Engineering.
 - [ ] **TailAdmin v2 — step 5: Settings catalog, form cards, modals.**
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (merged).
 - [x] Dashboard: date-range segmented control + phone layout — PR #39 (merged).
@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 20:56 UTC — Merged #61 (squash 5992a41; tsc clean, eng 127, others no FAIL). Opened PR for eng-ui-refine-18: TailAdmin step 4 on Billing — filter row (search 6px / date 12px / dropdowns 8px+38px -> all 8px, 44px), payment dialog inputs 8px + footer buttons 8px/40px (were 31px), header buttons (Excel/Add New/New service via new `eng-head-btn` class) 8px/40px; 131 eng checks; screenshots 1300/390 reviewed. LESSON: a measurement pass over a screen finds mismatches the form pass missed (three radii in one row) — measure every control type per screen before restyling. Next: step 5 (Settings catalog rail/rows + remaining modals), Dashboard date inputs, then an accessibility sweep.
 - 2026-10-03 19:56 UTC — Step 1a only: independent review of #61 (eng-ui-refine-17) posted, VERDICT: NO-BLOCKERS (head 20fb3b2). Merge next run. Next after merge: step 4 for the Billing filters row and the payment modal (inputs/buttons/ring), then step 5 (Settings catalog + modals).
 - 2026-10-03 18:56 UTC — Merged #60 (squash 1ff0f06; tsc clean, eng 125, others no FAIL). Opened PR for eng-ui-refine-17: items-picker 8px radius (was 4px), phone footer >=44px guard, and de-flaked the "loading skeleton" e2e (fixed 350ms sleep -> waitFor(.eng-skel); it failed intermittently twice on a busy Vite). LESSON: never assert a transient UI state after a fixed sleep; wait for the state itself. Next: step 4 for Billing filters + payment modal, then step 5 (Settings catalog/modals).
 - 2026-10-03 17:56 UTC — Step 1a only: independent review of PR #60 (eng-ui-refine-16, step 4 service form) posted, VERDICT: NO-BLOCKERS (head 8794dbb). Merge next run. FOLLOW-UPS (next PR): the "Work / service items" ItemMultiSelect control is still 4px radius beside the 8px inputs (rename the check or extend the radius to it — measure it too, not just the first dropdown); Rate input prefix seam; add a phone-viewport check for 44px+ footer buttons. Then step 4 for Billing filters/modals, step 5.
