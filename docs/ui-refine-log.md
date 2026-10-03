@@ -66,6 +66,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Modals: open them WITH typed values at both widths (long labels/amounts expose overflow); measure `max(child.right) - modal-content.right` and footer-vs-field offsets. Bootstrap `.modal-footer` and shared `.btn` margins fight the body padding on phones — scope fixes under `.eng-modal`.
 - When you MOVE text out of a `<label>` for looks, re-associate it (`aria-describedby`) in the same PR — don't leave an a11y regression for later. Also: a PR rule like 'keep X byte-identical' must not stop you fixing a regression the PR itself causes.
 - 'Fail loudly' in e2e means a clean FAIL line, not an exception that aborts the run: guard null lookups (`el ? … : 'missing'`) so remaining checks still execute.
+- New tenants have EMPTY defaults (company name/address/phones/UPI all ''). Always test PDFs and screens with the BARE-settings case, not just the filled-in demo tenant. jsPDF writes text as `(text) Tj`, uncompressed, so e2e can assert on raw PDF bytes (e.g. `!raw.includes('(?)')`).
 - Another routine, "Staging QA" (every 4h, :37), runs in this same session and its log `docs/staging-qa-log.md` expects engineering e2e = 50 checks and the new `.eng-*` selectors. If you add/remove e2e checks, tell it by updating that count in its log (branch `claude/staging-qa`) — but only that line.
 - Open user questions NOT yours to decide: promote staging→master/prod (explicit user confirmation only, never automatic), lost radiator discounts check, edit-below-received cap.
 
@@ -82,15 +83,16 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] Billing: desktop table — numeric alignment + truck emphasis — PR #45 (merged). Row hover already existed (shared).
 - [x] Billing: empty state (no bills / filtered) + loading skeleton — PR #46 (merged).
 - [x] Billing follow-ups: first-paint flash (`loaded` flag) + fetch-failure state with Retry — PR #47 (merged).
-- [x] Billing modal a11y follow-up (re-link hint with aria-describedby) — PR #49 (open, awaiting review).
+- [x] Billing modal a11y follow-up (re-link hint with aria-describedby) — PR #49 (merged).
 - [x] Billing: payment modal + delete modal — PR #48 (merged): hint overflow (60px) on phones, loud uppercase hint, footer 5/13px off fields. Delete modal only got scoping + footer fix (it was fine).
 - [ ] Settings: Company / Mechanics / Invoice tabs inside the Engineering branch only (if they are Engineering-specific markup); otherwise log under Needs user.
 - [ ] Header/nav for engineering tenants: only if Engineering-specific markup; otherwise Needs user.
-- [ ] PDF: second pass (long item lists multi-page, long company name in band, many-row totals block), compare against mockup.
+- [x] PDF second pass — PR #50 (open, awaiting review): 25 items (3 pages, header repeats, totals ok), long name/address (ok), BARE tenant (no company name) fixed. Still 'Needs user': ₹ glyph + Tamil need an embedded font. Not yet covered: very long single item name (>2 lines), 'Other' comment text overflow, logo/QR/signature images present.
 - [ ] Accessibility sweep: labels, aria, contrast, focus order across Engineering screens.
 - [ ] Reduced-motion + subtle transitions on cards/buttons within `.eng-*` scope.
 
 ## Done
+- 2026-10-03: #49 a11y fix merged. #50 PDF no-company-name fix awaiting review.
 - 2026-10-03: #48 billing pop-ups merged. #49 a11y fix for #48 awaiting review.
 - 2026-10-03: #47 first-paint + failed-load merged. #48 billing pop-ups awaiting review.
 - 2026-10-03: #46 billing empty state + skeleton merged. #47 first-paint flash + failed-load state awaiting review.
@@ -108,6 +110,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-03 07:56 UTC — Merged #49 (re-ran tsc, eng e2e 75/75, rad 6, auto 10, sal 6 on exact reviewed head 65d0ea2; push notification sent). PDF second pass: generated 3 stress PDFs through the real Print action with parametrised mocks (25 items / very long name+address / empty company name), rasterised every page with pymupdf and looked. Real defect: a tenant with NO company name (every new tenant until Settings is filled!) printed a '?' badge, an empty band and a dangling 'For' -> PR #50 (no badge, band shows invoice.billTitle, footer line omitted). Test-first via a later `page.route` for /settings with company.name='' (all 3 checks failed before). Also folded the #49 e2e nits. eng e2e 78/78. Next run: review #50.
 - 2026-10-03 06:56 UTC — Step 1a only: independent review of #49 posted, VERDICT: NO-BLOCKERS (head 65d0ea2). Merge next run. A trade-off I introduced: removing the `|| label` fallback in the e2e hint check makes a missing hint THROW inside page.evaluate (aborts the rest of that run as an ERROR; later checks don't execute). Better: `hint ? getComputedStyle(hint) : null` with 'missing' values so it FAILS cleanly and the suite continues. Also compare the aria-describedby text to the `.eng-hint` element's own text instead of hardcoding the copy. Fold both into the next e2e-touching PR.
 - 2026-10-03 05:56 UTC — Merged #48 (re-ran tsc, eng e2e 74/74, rad 6, auto 10, sal 6 on exact reviewed head cc2c72a; push notification sent). Paid back the a11y regression #48 introduced: PR #49 gives the hint an id and the discount input `aria-describedby` (2-line diff), e2e reads the input's accessible description (failed first with ids=[]), documented the modal-footer `!important`, removed the `|| label` fallback in the hint check. eng e2e 75/75. Next run: review #49. Remaining backlog: PDF 2nd pass, accessibility sweep across Engineering screens (labels/aria/contrast/focus order), motion polish.
 - 2026-10-03 04:56 UTC — Step 1a only: independent review of #48 posted, VERDICT: NO-BLOCKERS (head cc2c72a). Merge next run. OWN A REGRESSION I INTRODUCED: moving the discount hint out of the `<label>` into a separate `<small>` dropped it from the input's accessible name (screen readers no longer hear 'optional…'). FOLLOW-UP (right after merge, small PR): give the `<small>` an id and add `aria-describedby` on `#payment-discount` (a deliberate one-attribute change to the input), add an e2e that reads the input's accessible description (`page.getByLabel`/`locator.evaluate(el => el.getAttribute('aria-describedby'))` → element text), comment why `!important` is needed on the modal footer padding/margin, and drop the `|| label` fallback in the e2e hint check.
