@@ -389,6 +389,7 @@ async function run(type) {
 
 
   // TailAdmin metric card + chart card recipe (desktop): stacked icon chip / label / big value, 18px panel titles.
+  await page.setViewportSize({ width: 1500, height: 1000 }); // 28px values apply from 1440px; 992-1439px uses 22px
   await page.goto(BASE + "/engineering/dashboard");
   await page.locator(".eng-kpi").first().waitFor({ timeout: 10000 });
   const kpiM = await page.evaluate(() => {
@@ -407,6 +408,21 @@ async function run(type) {
   ok("eng: KPI label 13/500, value 28/600", kpiM.labelPx === "13px" && kpiM.labelW === "500" && kpiM.valuePx === "28px" && kpiM.valueW === "600", `${kpiM.labelPx}/${kpiM.labelW} ${kpiM.valuePx}/${kpiM.valueW}`);
   ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
   ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
+  await page.setViewportSize({ width: 1300, height: 1000 });
+
+  // TailAdmin table + badge recipe (desktop billing list).
+  await page.goto(BASE + "/engineering/billing");
+  await page.locator(".eng-table tbody tr td.eng-c-status .status-badge").first().waitFor({ timeout: 10000 });
+  const tb = await page.evaluate(() => {
+    const th = document.querySelector(".eng-table thead th"); const b = document.querySelector(".eng-table td.eng-c-status .status-badge");
+    const row = document.querySelector(".eng-table tbody tr"); row.parentElement.appendChild(row.cloneNode(true)); /* one mock row: add a second so the first is not :last-child */ const td = row.querySelector("td"); const ts = getComputedStyle(th), bs = getComputedStyle(b), tds = getComputedStyle(td), trs = getComputedStyle(td.parentElement);
+    return { thBg: ts.backgroundColor, thPx: ts.fontSize, thW: ts.fontWeight, thColor: ts.color,
+      badgeR: bs.borderTopLeftRadius, badgePx: bs.fontSize, badgeW: bs.fontWeight, badgeBg: bs.backgroundColor, badgeColor: bs.color,
+      badgePad: `${bs.paddingTop} ${bs.paddingRight}`, tdPad: `${tds.paddingTop} ${tds.paddingLeft}`, tdBorderB: `${tds.borderBottomWidth} ${tds.borderBottomColor}`, tdBorderL: tds.borderLeftWidth };
+  });
+  ok("eng: billing header row = gray-50 bg, 12/500 gray-500", tb.thBg === "rgb(249, 250, 251)" && tb.thPx === "12px" && tb.thW === "500" && tb.thColor === "rgb(102, 112, 133)", `${tb.thBg} ${tb.thPx}/${tb.thW} ${tb.thColor}`);
+  ok("eng: status badge is a soft-tint pill (999px, 12/500, error tint)", /^(999|9999)px$|^[0-9]{3,}px$/.test(tb.badgeR) && tb.badgePx === "12px" && tb.badgeW === "500" && tb.badgeBg === "rgb(254, 243, 242)" && tb.badgeColor === "rgb(180, 35, 24)", `${tb.badgeR} ${tb.badgePx}/${tb.badgeW} ${tb.badgeBg} ${tb.badgeColor} pad ${tb.badgePad}`);
+  ok("eng: billing rows use gray-100 hairline separators, no vertical cell borders", tb.tdBorderB === "1px rgb(242, 244, 247)" && tb.tdBorderL === "0px", `${tb.tdBorderB} left ${tb.tdBorderL} pad ${tb.tdPad}`);
 
   // Financial-year start comes from Settings: default April; October when configured.
   const fyExpect = (mth) => { const n = new Date(); const y = n.getMonth() + 1 >= mth ? n.getFullYear() : n.getFullYear() - 1; return `${y}-${String(mth).padStart(2, "0")}-01`; };
