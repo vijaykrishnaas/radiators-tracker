@@ -37,7 +37,7 @@ const SettingsPage = () => {
     const [uploadingSignature, setUploadingSignature] = useState(false);
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
-    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engInvoice">("company");
+    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice">("company");
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
@@ -374,6 +374,7 @@ const SettingsPage = () => {
                         ["company", "Company"],
                         ["engCatalog", "Service Catalog"],
                         ["engPeople", "Mechanics"],
+                        ["engBonus", "Bonus"],
                         ["engInvoice", "Invoice"],
                     ] as const : isAutomobile ? [
                         ["company", "Company"],
@@ -1104,6 +1105,27 @@ const SettingsPage = () => {
                             placeholder="Type a name and press Enter"
                         />
                         <small className="text-muted font-s12">Used as the source for the mechanic dropdown in the service form.</small>
+                    </div>
+                </div>
+                )}
+
+                {isEngineering && draft.engineering && activeTab === "engBonus" && (
+                <div className="card card-shadow mb-4">
+                    <div className="card-body">
+                        <SectionTitle title="Mechanic Bonus" />
+                        <div className="row form-group g-3 mb-3">
+                            <div className="col-xl-3 col-md-6">
+                                <label className="form-label" htmlFor="eng-mech-pct">Mechanic bonus % (of net bill total)</label>
+                                <input id="eng-mech-pct" type="number" className="form-control" min={0} max={100} step={0.5}
+                                    value={draft.engineering.bonus?.mechanicPercent ?? 0}
+                                    onChange={(e) => set("engineering.bonus", { mechanicPercent: Number(e.target.value || 0) })} /* whole object: tenants created before this setting have no engineering.bonus yet */ />
+                            </div>
+                        </div>
+                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                            Each bill earns its mechanic this percentage of the bill's net (post-discount) total, payable in proportion to
+                            the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog →
+                            Financial year. After changing the percentage, open Bonus → Sync to re-price existing bills.
+                        </small>
                     </div>
                 </div>
                 )}

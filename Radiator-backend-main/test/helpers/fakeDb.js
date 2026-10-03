@@ -13,6 +13,10 @@ function matches(doc, query) {
       if ("$in" in val) {
         return val.$in.some((v) => String(v) === String(docVal));
       }
+      if ("$gte" in val || "$lte" in val) {
+        const t = new Date(docVal).getTime();
+        return (!("$gte" in val) || t >= new Date(val.$gte).getTime()) && (!("$lte" in val) || t <= new Date(val.$lte).getTime());
+      }
       if ("$exists" in val) {
         const has = Object.prototype.hasOwnProperty.call(doc, key) && docVal !== undefined;
         return val.$exists ? has : !has;

@@ -113,6 +113,7 @@ export type AppSettings = {
         quickAdd: { type: string; item: string }[];
         billStartNumber: number;
         fyStartMonth?: number;
+        bonus?: { mechanicPercent: number };
         invoice: {
             billTitle: string;
             footerNote: string;
@@ -171,6 +172,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         quickAdd: [],
         billStartNumber: 1,
         fyStartMonth: 4,
+        bonus: { mechanicPercent: 0 },
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     salary: {

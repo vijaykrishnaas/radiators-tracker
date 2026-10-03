@@ -88,6 +88,14 @@ const Header = () => {
                                         Bills
                                     </NavLink>
                                 </li>
+                                {isEngineering && (
+                                <li className="nav-item">
+                                    <NavLink to="/bonus/mechanics" onClick={handleNavLinkClick}
+                                        className={({ isActive }) => navClass(isActive || location.pathname.startsWith('/bonus/'))}>
+                                        Bonus
+                                    </NavLink>
+                                </li>
+                                )}
                                 {!isEngineering && (
                                 <>
                                 <li className="nav-item">
