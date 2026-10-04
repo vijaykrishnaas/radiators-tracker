@@ -531,3 +531,9 @@ html:has(.eng-foot) { scroll-padding-bottom: 120px; }
 .eng-theme .btn:not(.eng-quick), .eng-modal .btn { border-radius: var(--eng-radius-sm, 8px) !important; }
 .eng-filters .btn, .eng-modal .modal-footer .btn, .eng-head-btn { min-height: 40px; }
 @media (max-width: 575.98px) { .eng-modal .modal-footer .btn, .eng-head-btn { min-height: 44px; } }
+
+/* Reduced motion: switch off every transition/animation inside the Engineering screens (shared .btn and the
+   segmented/icon buttons carry their own transitions). `!important` so the shared rules cannot win. */
+@media (prefers-reduced-motion: reduce) {
+    .eng-theme, .eng-theme *, .eng-theme *::before, .eng-theme *::after { transition: none !important; animation: none !important; }
+}

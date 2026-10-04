@@ -533,6 +533,19 @@ async function run(type) {
   for (const l of ["Create date", "Truck number", "Lorry address", "Phone number"]) labelled[l] = await page.getByLabel(l, { exact: true }).count();
   ok("eng: service form date/truck/address/phone inputs are labelled for assistive tech", Object.values(labelled).every((n) => n === 1), JSON.stringify(labelled));
 
+  // Reduced motion: Engineering elements run no transitions or animations when the user asks for less motion.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const motionOffenders = [];
+  for (const [label, url, tab] of [["dashboard", "/engineering/dashboard", null], ["billing", "/engineering/billing", null], ["catalog", "/settings", "Service Catalog"]]) {
+    await page.goto(BASE + url);
+    await page.locator(label === "dashboard" ? ".eng-kpi" : label === "billing" ? ".eng-table" : ".settings-tabs").first().waitFor({ timeout: 10000 });
+    if (tab) { await page.getByRole("tab", { name: tab }).click(); await page.locator(".eng-item").first().waitFor({ timeout: 10000 }); }
+    const bad = await page.evaluate(() => [...document.querySelectorAll('[class*="eng-"]')].filter((e) => { const c = getComputedStyle(e); const td = c.transitionDuration.split(",").some((d) => parseFloat(d) > 0.001); const an = c.animationName !== "none" && parseFloat(c.animationDuration) > 0.001; return td || an; }).map((e) => (e.className + "").split(" ").filter((c) => c.startsWith("eng-")).join(".")));
+    motionOffenders.push(...[...new Set(bad)].map((b) => `${label}:${b}`));
+  }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  ok("eng: no Engineering element animates when the user prefers reduced motion", motionOffenders.length === 0, motionOffenders.join(" | "));
+
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
     if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();
