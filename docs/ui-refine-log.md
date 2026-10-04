@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-04 19:56 UTC — Idle run (staging unchanged 256ac9f; no open UI PR; Needs-user only). Quiet.
 - 2026-10-04 18:56 UTC — Idle run: staging unchanged (256ac9f), no open UI PR, Needs-user items only. Quiet.
 - 2026-10-04 17:56 UTC — Idle run: staging unchanged since #69 (256ac9f), no open UI PR, backlog exhausted (Needs-user only). Reviewed, no change, quiet.
 - 2026-10-04 16:56 UTC — Idle run: no open UI PR; staging unchanged since #69; backlog exhausted (only Needs-user items remain). Reviewed, no change, no PR, no notification. Awaiting the user: pause/slow this routine; approve shared-component a11y, dialog focus trap + Escape, shared Settings tabs styling.
