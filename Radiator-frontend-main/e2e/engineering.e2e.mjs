@@ -512,7 +512,8 @@ async function run(type) {
   ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === brandRgb, JSON.stringify({ ring, brandRgb }));
 
   // The arrow between From and To is vertically centred on the 44px date inputs.
-  const sepDelta = await page.evaluate(() => { const i = document.querySelector(".eng-date").getBoundingClientRect(); const a = document.querySelector(".eng-range-sep").getBoundingClientRect(); return Math.round(Math.abs((i.top + i.height / 2) - (a.top + a.height / 2))); });
+  // Measure the glyph's own text box (a Range on the text), not the padded element box: padding moves the box but not the arrow.
+  const sepDelta = await page.evaluate(() => { const i = document.querySelector(".eng-date").getBoundingClientRect(); const r = document.createRange(); r.selectNodeContents(document.querySelector(".eng-range-sep")); const g = r.getBoundingClientRect(); return Math.round(Math.abs((i.top + i.height / 2) - (g.top + g.height / 2))); });
   ok("eng: the From/To arrow is centred on the date inputs (<= 2px)", sepDelta <= 2, `delta=${sepDelta}px`);
   // Settings numbering/financial-year controls keep 16px on phones (no iOS zoom on focus).
   await page.setViewportSize({ width: 390, height: 844 });
