@@ -497,6 +497,16 @@ async function run(type) {
   ok("eng: phone header buttons (Excel / Add New) are >= 44px", ph.length === 2 && ph.every((h) => h >= 44), JSON.stringify(ph));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
+  // Dashboard date inputs follow the control recipe (44px / 8px / hairline gray-300 / brand focus ring).
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
+  const dd = await page.evaluate(() => [...document.querySelectorAll(".eng-date")].map((e) => { const c = getComputedStyle(e); return { h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, b: c.borderTopColor }; }));
+  ok("eng: dashboard date inputs are 44px tall with an 8px radius", dd.length === 2 && dd.every((d) => d.h === 44 && d.r === "8px"), JSON.stringify(dd));
+  await page.locator(".eng-date").first().focus();
+  await page.waitForTimeout(250);
+  const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { shadow: c.boxShadow, border: c.borderTopColor }; });
+  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === "rgb(34, 100, 229)", JSON.stringify(ring));
+
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
     if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();
