@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-04 20:56 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (5th consecutive idle run; user has not answered the pause/slow question.)
 - 2026-10-04 19:56 UTC — Idle run (staging unchanged 256ac9f; no open UI PR; Needs-user only). Quiet.
 - 2026-10-04 18:56 UTC — Idle run: staging unchanged (256ac9f), no open UI PR, Needs-user items only. Quiet.
 - 2026-10-04 17:56 UTC — Idle run: staging unchanged since #69 (256ac9f), no open UI PR, backlog exhausted (Needs-user only). Reviewed, no change, quiet.
