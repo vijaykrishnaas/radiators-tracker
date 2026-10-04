@@ -350,6 +350,9 @@ async function run(type) {
   await page.getByRole("tab", { name: "Service Catalog" }).click();
   await page.waitForTimeout(500);
   ok("eng: catalog table shows Turbo items", (await page.locator(".eng-item input[value='Hold set']").count()) > 0);
+  // Bill numbering input and Financial year select should look like one control family (44px, 8px, white, same type).
+  const numCtl = await page.evaluate(() => [...document.querySelectorAll(".eng-numbering .eng-number-input")].map((e) => { const c = getComputedStyle(e); return { tag: e.tagName, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor, fs: c.fontSize, fw: c.fontWeight }; }));
+  ok("eng: bill-numbering input and financial-year select match (44px, 8px, white, same type)", numCtl.length === 2 && numCtl.every((c) => c.h === 44 && c.r === "8px" && c.bg === "rgb(255, 255, 255)") && numCtl[0].fs === numCtl[1].fs && numCtl[0].fw === numCtl[1].fw, JSON.stringify(numCtl));
   const fySel = page.getByLabel("Financial year starts in");
   ok("eng: Settings has a financial-year start month (default April)", (await fySel.count()) === 1 && (await fySel.inputValue()) === "4", String(await fySel.count() && await fySel.inputValue()));
   await fySel.selectOption("10");
