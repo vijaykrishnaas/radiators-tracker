@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5** (seventh lap)
+Next area: **6** (seventh lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-04 14:37 UTC — Area 5 (Radiator, live): no new bug. Staging at 78fb36e: backend 53/53, tsc clean, e2e radiator 6, engineering 141, automobile 10, salary 6. No radiator-owned file (radiator.dao/routes, bonus.dao, Pages/IssueCounter, PrintInvoice) changed since 2026-10-03; the only shared change touching radiator users is the Header logout now going to /t/<code>/login (user-approved; covered by the radiator e2e). PROMOTION REMINDERS still open: (1) read-only check of live radiator bills for discounts lost before #29, (2) logout redirect change affects radiator users. No PR, no notification.
 - 2026-10-04 10:37 UTC — Area 4 (Salary): no new bug. Staging at 4d6c07d: backend 53/53 (salary.dao 4 tests), tsc clean, e2e salary 6, engineering 139, radiator 6, automobile 10. No salary source file changed in the last day (git log empty for salary.dao/routes/Pages/Salary). Known open item unchanged: manual present-days above working days is unvalidated (needs a product decision). No PR, no notification.
 - 2026-10-04 06:37 UTC — Area 3 (Automobile): no new bug. Staging at 3a76348: backend 53/53, tsc clean, e2e automobile 10, engineering 137, radiator 6, salary 6; no automobile source file changed since the last lap (only the shared Header logout, now company-login for all tenants, covered by the e2e). NOTE: staging head 3a76348 "docs: add frontend spec for redesign input" (docs/FRONTEND_SPEC.md, docs only, authored by another Claude session at 05:32 UTC, not by these routines) — no code impact. No PR, no notification.
 - 2026-10-04 02:37 UTC — Area 2 (Engineering frontend): no new bug. Staging at 9c38468: backend 53/53, tsc clean, e2e engineering 134, radiator 6, automobile 10, salary 6. The engineering form/billing/dialog/dashboard/settings/PDF/bonus/logout flows are covered by the 134 browser checks (incl. mixed-BS legacy bills, cancel/dirty confirm, payload omits payment fields on edit, FY month drives dashboard + bonus, radiator-style PDF incl. no-company-name). No PR, no notification.
