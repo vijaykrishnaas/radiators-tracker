@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **3** (seventh lap)
+Next area: **4** (seventh lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-04 06:37 UTC — Area 3 (Automobile): no new bug. Staging at 3a76348: backend 53/53, tsc clean, e2e automobile 10, engineering 137, radiator 6, salary 6; no automobile source file changed since the last lap (only the shared Header logout, now company-login for all tenants, covered by the e2e). NOTE: staging head 3a76348 "docs: add frontend spec for redesign input" (docs/FRONTEND_SPEC.md, docs only, authored by another Claude session at 05:32 UTC, not by these routines) — no code impact. No PR, no notification.
 - 2026-10-04 02:37 UTC — Area 2 (Engineering frontend): no new bug. Staging at 9c38468: backend 53/53, tsc clean, e2e engineering 134, radiator 6, automobile 10, salary 6. The engineering form/billing/dialog/dashboard/settings/PDF/bonus/logout flows are covered by the 134 browser checks (incl. mixed-BS legacy bills, cancel/dirty confirm, payload omits payment fields on edit, FY month drives dashboard + bonus, radiator-style PDF incl. no-company-name). No PR, no notification.
 - 2026-10-03 22:37 UTC — Area 1 (Engineering backend): no new bug. Staging at 5992a41: backend 53/53, tsc clean, e2e engineering 127, radiator 6, automobile 10, salary 6. Re-read engbill.dao totals/validation + new bonus sync: totals clamp discount/received correctly, mechanic is required server-side (so the bonus "mechanic cleared" path is defensive only), routes are tenant-gated (`requireEngineeringTenant`). Minor, not fixed: the backend accepts qty 0 (amount 0) on an item although the form requires qty > 0 — harmless. No PR, no notification.
 - 2026-10-03 18:37 UTC — Area 6 (cross-cutting): no new bug. Staging at a1d57ab (includes today's user-requested Engineering features: bonus, logout-to-company-login for ALL tenants, FY setting, radiator-style PDF, form changes): backend 53/53 (11 new engbonus tests), tsc clean, e2e engineering 122, radiator 6, automobile 10, salary 6. Checked: offboard/export cascade covers `engbills` + `bonuses`; engineering bonus sync reads settings with safe fallbacks (tenants created before `engineering.bonus`/`fyStartMonth` get 0% / April). NOTE FOR PROMOTION: logout now returns radiator users to /t/<code>/login (user-approved). No PR, no notification.
