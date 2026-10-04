@@ -524,6 +524,13 @@ async function run(type) {
   ok("eng: phone numbering/financial-year controls use 16px text", phoneFs.length === 2 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
+  // Accessibility: the service form's text fields are programmatically labelled (visible label <-> input), not placeholder-only.
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  const labelled = {};
+  for (const l of ["Create date", "Truck number", "Lorry address", "Phone number"]) labelled[l] = await page.getByLabel(l, { exact: true }).count();
+  ok("eng: service form date/truck/address/phone inputs are labelled for assistive tech", Object.values(labelled).every((n) => n === 1), JSON.stringify(labelled));
+
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
     if (new URL(route.request().url()).pathname !== "/engbills/analytics") return route.fallback();

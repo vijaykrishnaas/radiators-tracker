@@ -261,20 +261,20 @@ const EngCreate = () => {
 
                 <div className="row g-3">
                     <div className={`col-md-6 eng-field${errors.billDate ? " has-error" : ""}`}>
-                        <label className="form-label text-uppercase font-s12 label-required">Create date</label>
-                        <input type="date" className="form-control" value={billDate} disabled={isView}
+                        <label className="form-label text-uppercase font-s12 label-required" htmlFor="eng-bill-date">Create date</label>
+                        <input id="eng-bill-date" type="date" className="form-control" value={billDate} disabled={isView}
                             onChange={(e) => setBillDate(e.target.value)} />
                         {errors.billDate && <span className="text-danger font-s12">{errors.billDate}</span>}
                     </div>
                     <div className={`col-md-6 eng-field${errors.vehicleNo ? " has-error" : ""}`}>
-                        <label className="form-label text-uppercase font-s12 label-required">Truck number</label>
-                        <InputText value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
+                        <label className="form-label text-uppercase font-s12 label-required" htmlFor="eng-truck-no">Truck number</label>
+                        <InputText id="eng-truck-no" value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
                             onChange={(e) => setVehicleNo(e.target.value.toUpperCase())} onBlur={lookupVehicle} />
                         {errors.vehicleNo && <span className="text-danger font-s12">{errors.vehicleNo}</span>}
                     </div>
                     <div className="col-md-6">
-                        <label className="form-label text-uppercase font-s12">Lorry address</label>
-                        <InputText value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
+                        <label className="form-label text-uppercase font-s12" htmlFor="eng-lorry-address">Lorry address</label>
+                        <InputText id="eng-lorry-address" value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
                             onChange={(e) => setLorryAddress(e.target.value)} />
                     </div>
                     <div className={`col-md-6 eng-field${errors.mechanic ? " has-error" : ""}`}>
@@ -289,8 +289,8 @@ const EngCreate = () => {
                         {errors.mechanic && <span className="text-danger font-s12">{errors.mechanic}</span>}
                     </div>
                     <div className={`col-md-6 eng-field${errors.phone ? " has-error" : ""}`}>
-                        <label className="form-label text-uppercase font-s12">Phone number</label>
-                        <InputText value={phone} placeholder="Enter Phone Number" disabled={isView}
+                        <label className="form-label text-uppercase font-s12" htmlFor="eng-phone">Phone number</label>
+                        <InputText id="eng-phone" value={phone} placeholder="Enter Phone Number" disabled={isView}
                             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
                         {errors.phone && <span className="text-danger font-s12">{errors.phone}</span>}
                     </div>
