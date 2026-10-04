@@ -508,7 +508,20 @@ async function run(type) {
   await page.locator(".eng-date").first().focus();
   await page.waitForTimeout(250);
   const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { shadow: c.boxShadow, border: c.borderTopColor }; });
-  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === "rgb(34, 100, 229)", JSON.stringify(ring));
+  const brandRgb = await page.evaluate(() => { const p = document.createElement("span"); p.style.color = "var(--primary)"; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; });
+  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === brandRgb, JSON.stringify({ ring, brandRgb }));
+
+  // The arrow between From and To is vertically centred on the 44px date inputs.
+  const sepDelta = await page.evaluate(() => { const i = document.querySelector(".eng-date").getBoundingClientRect(); const a = document.querySelector(".eng-range-sep").getBoundingClientRect(); return Math.round(Math.abs((i.top + i.height / 2) - (a.top + a.height / 2))); });
+  ok("eng: the From/To arrow is centred on the date inputs (<= 2px)", sepDelta <= 2, `delta=${sepDelta}px`);
+  // Settings numbering/financial-year controls keep 16px on phones (no iOS zoom on focus).
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + "/settings");
+  await page.getByRole("tab", { name: "Service Catalog" }).click();
+  await page.locator(".eng-number-input").first().waitFor({ timeout: 10000 });
+  const phoneFs = await page.evaluate(() => [...document.querySelectorAll(".eng-number-input")].map((e) => getComputedStyle(e).fontSize));
+  ok("eng: phone numbering/financial-year controls use 16px text", phoneFs.length === 2 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
+  await page.setViewportSize({ width: 1300, height: 1000 });
 
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
