@@ -1,0 +1,51 @@
+/*
+ * fonts.css — self-hosted fonts (no Google Fonts CDN: shop-floor networks are unreliable).
+ *
+ * Outfit (OFL) has NO ₹ (U+20B9) glyph — verified against Outfit-Fonts and @fontsource/outfit 5.3.
+ * "Rupee Fallback" maps ONLY U+20B9 to Inter latin-ext, so ₹ renders consistently instead of
+ * falling back to whatever system font the device has.
+ *
+ * Setup:
+ *   npm i @fontsource/outfit @fontsource/inter
+ *   copy node_modules/@fontsource/inter/files/inter-latin-ext-{400,500,600,700}-normal.woff2
+ *     → s../Assets/fonts/rupee/
+ *   In main.tsx (before theme.css):
+ *     import "@fontsource/outfit/400.css";
+ *     import "@fontsource/outfit/500.css";
+ *     import "@fontsource/outfit/600.css";
+ *     import "@fontsource/outfit/700.css";
+ *     import "./styles/fonts.css";
+ *   Remove the old bundled Inter @font-face rules once nothing references "Inter" by name.
+ */
+@font-face {
+  font-family: "Rupee Fallback";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../Assets/fonts/rupee/inter-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+20B9;
+}
+@font-face {
+  font-family: "Rupee Fallback";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../Assets/fonts/rupee/inter-latin-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+20B9;
+}
+@font-face {
+  font-family: "Rupee Fallback";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../Assets/fonts/rupee/inter-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+20B9;
+}
+@font-face {
+  font-family: "Rupee Fallback";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../Assets/fonts/rupee/inter-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+20B9;
+}

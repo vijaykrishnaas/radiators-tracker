@@ -1,0 +1,367 @@
+/*
+ * bootstrap-bridge.css — points Bootstrap 5.3 at theme.css tokens.
+ * Uses only Bootstrap's own component CSS variables (verified against bootstrap@5.3.8),
+ * so markup (.btn, .card, .table, .modal, .form-control, .dropdown-menu, .badge) keeps working.
+ * Load AFTER bootstrap.css and theme.css. No !important anywhere in this file.
+ */
+
+:root {
+  --bs-body-font-family: var(--font-sans);
+  --bs-body-font-size: var(--text-md);
+  --bs-body-color: var(--text);
+  --bs-body-bg: var(--page-bg);
+  --bs-emphasis-color: var(--text-strong);
+  --bs-secondary-color: var(--text-muted);
+  --bs-tertiary-bg: var(--gray-100);
+  --bs-border-color: var(--border);
+  --bs-border-color-translucent: var(--border);
+  --bs-border-radius-sm: var(--radius-sm);
+  --bs-border-radius: var(--radius-md);
+  --bs-border-radius-lg: var(--radius-xl);
+  --bs-border-radius-xl: var(--radius-xl);
+  --bs-border-radius-xxl: var(--radius-2xl);
+  --bs-border-radius-pill: var(--radius-full);
+  --bs-link-color: var(--brand-text);
+  --bs-link-hover-color: var(--brand-text);
+  --bs-focus-ring-color: var(--focus-ring-color);
+  --bs-box-shadow: var(--shadow-theme-lg);
+  --bs-box-shadow-sm: var(--shadow-theme-xs);
+}
+/* --bs-link-color-rgb is used by .link-* utilities; set it from JS if you rely on those. */
+/* Links: --brand-hover is a SURFACE colour and can fail as text, so hover = underline, same colour. */
+a { color: var(--brand-text); }
+a:hover { color: var(--brand-text); text-decoration: underline; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  --bs-btn-padding-x: 16px;
+  --bs-btn-padding-y: 11px;           /* 14px/20px text + 2×11 + 2×1 border = 44px */
+  --bs-btn-font-size: var(--text-sm);
+  --bs-btn-font-weight: var(--weight-medium);
+  --bs-btn-line-height: var(--lh-sm);
+  --bs-btn-border-radius: var(--radius-md);
+  --bs-btn-focus-box-shadow: 0 0 0 4px var(--focus-ring-color);
+  --bs-btn-disabled-opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--control-h);
+  transition: background-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+.btn-sm {
+  --bs-btn-padding-x: 14px;
+  --bs-btn-padding-y: 9px;
+  --bs-btn-font-size: var(--text-sm);
+  --bs-btn-border-radius: var(--radius-md);
+  min-height: var(--control-h-sm);
+}
+.btn-lg { --bs-btn-border-radius: var(--radius-md); }
+/* Compact buttons are a desktop density; on phones every button is a full 44px touch target. */
+@media (max-width: 767.98px) { .btn-sm { min-height: var(--control-h); } }
+.btn-primary {
+  --bs-btn-color: var(--on-brand);
+  --bs-btn-bg: var(--brand-solid);
+  --bs-btn-border-color: var(--brand-solid-border);
+  --bs-btn-hover-color: var(--on-brand);
+  --bs-btn-hover-bg: var(--brand-hover);
+  --bs-btn-hover-border-color: var(--brand-solid-border);
+  --bs-btn-active-color: var(--on-brand);
+  --bs-btn-active-bg: var(--brand-hover);
+  --bs-btn-active-border-color: var(--brand-solid-border);
+  --bs-btn-disabled-color: var(--on-brand);
+  --bs-btn-disabled-bg: var(--brand-solid);
+  --bs-btn-disabled-border-color: var(--brand-solid-border);
+  box-shadow: var(--shadow-theme-xs);
+}
+/* Secondary = TailAdmin outline button. Replaces .btn-cancel / .btn-outline-secondary. */
+.btn-secondary,
+.btn-outline-secondary,
+.btn-light {
+  --bs-btn-color: var(--gray-700);
+  --bs-btn-bg: var(--white);
+  --bs-btn-border-color: var(--border-control);
+  --bs-btn-hover-color: var(--gray-800);
+  --bs-btn-hover-bg: var(--gray-50);
+  --bs-btn-hover-border-color: var(--border-control);
+  --bs-btn-active-color: var(--gray-800);
+  --bs-btn-active-bg: var(--gray-100);
+  --bs-btn-active-border-color: var(--border-control);
+  --bs-btn-disabled-color: var(--gray-400);
+  --bs-btn-disabled-bg: var(--white);
+  --bs-btn-disabled-border-color: var(--gray-200);
+  box-shadow: var(--shadow-theme-xs);
+}
+.btn-danger {
+  --bs-btn-color: var(--white);
+  --bs-btn-bg: var(--error-600);           /* #D92D20 — white text 4.5:1+; error-500 is only 3.76:1 */
+  --bs-btn-border-color: var(--error-600);
+  --bs-btn-hover-color: var(--white);
+  --bs-btn-hover-bg: var(--error-700);
+  --bs-btn-hover-border-color: var(--error-700);
+  --bs-btn-active-bg: var(--error-700);
+  --bs-btn-active-border-color: var(--error-700);
+  --bs-btn-disabled-bg: var(--error-600);
+  --bs-btn-disabled-border-color: var(--error-600);
+  --bs-btn-focus-box-shadow: 0 0 0 4px var(--focus-ring-error);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--error-600);
+  --bs-btn-bg: var(--white);
+  --bs-btn-border-color: var(--error-300);
+  --bs-btn-hover-color: var(--error-700);
+  --bs-btn-hover-bg: var(--error-50);
+  --bs-btn-hover-border-color: var(--error-300);
+  --bs-btn-active-color: var(--error-700);
+  --bs-btn-active-bg: var(--error-100);
+  --bs-btn-active-border-color: var(--error-300);
+}
+.btn-link {
+  --bs-btn-color: var(--brand-text);
+  --bs-btn-hover-color: var(--brand-text);
+  --bs-btn-active-color: var(--brand-text);
+  text-decoration: none;
+}
+.btn-link:hover { text-decoration: underline; }
+
+/* ---------- Forms ---------- */
+.form-control,
+.form-select {
+  min-height: var(--control-h);
+  padding: 10px 16px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-strong);
+  background-color: var(--white);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-theme-xs);
+}
+.form-control::placeholder { color: var(--text-subtle); }
+.form-select { padding-right: 40px; background-position: right 14px center; }
+.form-control-lg, .form-select-lg { border-radius: var(--radius-md); }
+.form-control:focus,
+.form-select:focus {
+  color: var(--text-strong);
+  border-color: var(--brand-300);
+  box-shadow: 0 0 0 3px var(--focus-ring-color);
+}
+/* Disabled and read-only stay LEGIBLE (gray-700 on gray-50 ≈ 10:1): bill forms in view mode keep
+   using `disabled` as today. If a date-picker library sets readOnly on its input, give that input
+   the class `picker-input` so it keeps the normal field look. */
+.form-control:disabled,
+.form-control[readonly]:not(.picker-input),
+.form-select:disabled {
+  background-color: var(--gray-50);
+  color: var(--gray-700);
+  opacity: 1;
+  box-shadow: none;
+}
+.form-control.is-invalid,
+.form-select.is-invalid { border-color: var(--error-300); }
+.form-control.is-invalid { background-image: none; padding-right: 16px; }
+/* Same specificity as Bootstrap's rule, loaded later, so it wins: no error icon in selects (inputs have none either). */
+.form-select.is-invalid:not([multiple]):not([size]) { --bs-form-select-bg-icon: none; padding-right: 40px; background-size: 16px 12px; }
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus { border-color: var(--error-300); box-shadow: 0 0 0 3px var(--focus-ring-error); }
+.invalid-feedback { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--error-600); margin-top: 6px; }
+.form-text { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--text-muted); margin-top: 6px; }
+.form-label {
+  margin-bottom: 6px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--weight-medium);
+  color: var(--gray-700);
+}
+textarea.form-control { min-height: 96px; }
+/* Colour picker (Settings → Branding): 44px square swatch. Without this, the 16px side padding
+   above squeezes Bootstrap's 48px-wide .form-control-color down to a 14px sliver. */
+.form-control-color { width: var(--control-h); height: var(--control-h); min-height: 0; padding: 4px; }
+.form-control-color::-webkit-color-swatch { border: 0; border-radius: var(--radius-sm); }
+.form-control-color::-moz-color-swatch { border: 0; border-radius: var(--radius-sm); }
+/* File input (logo, QR, signature, login background): button flush with the field edges. */
+.form-control::file-selector-button {
+  padding: 10px 16px;
+  margin: -10px -16px;
+  margin-inline-end: 16px;
+  color: var(--gray-700);
+  background-color: var(--gray-50);
+  border-inline-end-width: 1px;
+  border-color: var(--border-control);
+}
+.form-control:hover:not(:disabled):not([readonly])::file-selector-button { background-color: var(--gray-100); }
+/* ₹ prefix / unit suffix addons share the input's border colour and height. */
+.input-group-text {
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+  background-color: var(--gray-50);
+  border-color: var(--border-control);
+  border-radius: var(--radius-md);
+}
+.form-check { min-height: 24px; padding-left: 28px; }
+.form-check .form-check-input { margin-left: -28px; }
+.form-check-input { width: 20px; height: 20px; border-color: var(--border-control); }
+.form-check-input[type="checkbox"] { border-radius: var(--radius-sm); }
+.form-check-input:checked { background-color: var(--brand-solid); border-color: var(--brand-solid); }
+.form-check-input:focus { border-color: var(--brand-300); box-shadow: 0 0 0 3px var(--focus-ring-color); }
+/* Switch: 44×24 track. Bootstrap's knob turns light-blue on focus; keep it gray instead. */
+.form-switch { padding-left: 56px; }
+.form-switch .form-check-input { width: 44px; height: 24px; margin-left: -56px; border-radius: var(--radius-full); }
+.form-switch .form-check-input:focus:not(:checked) {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2398a2b3'/%3e%3c/svg%3e");
+}
+
+/* ---------- Card ---------- */
+.card {
+  --bs-card-bg: var(--surface);
+  --bs-card-border-color: var(--border);
+  --bs-card-border-radius: var(--radius-xl);
+  --bs-card-inner-border-radius: calc(var(--radius-xl) - 1px);
+  --bs-card-box-shadow: none;
+  --bs-card-spacer-x: 24px;
+  --bs-card-spacer-y: 24px;
+  --bs-card-cap-padding-x: 24px;
+  --bs-card-cap-padding-y: 16px;
+  --bs-card-cap-bg: transparent;
+  --bs-card-title-color: var(--text-strong);
+  --bs-card-subtitle-color: var(--text-muted);
+  box-shadow: none;
+}
+/* Cards that contain a table clip it to the rounded corners. `clip` (not `hidden`) so the card does not
+   become a scroll container — position: sticky inside it keeps working. `hidden` is the fallback for
+   browsers without `clip`. Row-action and react-select menus render in a portal, so nothing is cut off. */
+.card:has(> .table, > .table-responsive, > .table-wrap) { overflow: hidden; overflow: clip; }
+@media (max-width: 767.98px) {
+  .card { --bs-card-spacer-x: 20px; --bs-card-spacer-y: 20px; --bs-card-cap-padding-x: 20px; }
+}
+
+/* ---------- Table ---------- */
+.table {
+  --bs-table-color: var(--text-muted);
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--border-subtle);
+  --bs-table-hover-color: var(--text-muted);
+  --bs-table-hover-bg: var(--gray-50);
+  --bs-table-striped-bg: transparent;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  margin-bottom: 0;
+}
+.table > :not(caption) > * > * { padding: 16px 20px; border-bottom-width: 1px; }
+.table > thead > tr > th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+}
+.table > tfoot > tr > * { background: var(--surface-muted); color: var(--text-strong); font-weight: var(--weight-semibold); }
+/* Cells holding a 44px row-action button or an inline .btn-sm: trim vertical padding so the row
+   stays ≈52px instead of growing to ≈77px. Put class="cell-actions" on those <td>s. */
+.table > tbody > tr > td.cell-actions { padding-top: 4px; padding-bottom: 4px; vertical-align: middle; }
+
+/* ---------- Dropdown (user menu, row-action menus, column picker) ---------- */
+.dropdown-menu {
+  --bs-dropdown-bg: var(--white);
+  --bs-dropdown-border-color: var(--border);
+  --bs-dropdown-border-radius: var(--radius-xl);
+  --bs-dropdown-padding-x: 8px;
+  --bs-dropdown-padding-y: 8px;
+  --bs-dropdown-font-size: var(--text-sm);
+  --bs-dropdown-color: var(--gray-700);
+  --bs-dropdown-box-shadow: var(--shadow-theme-lg);
+  --bs-dropdown-min-width: 200px;
+  --bs-dropdown-link-color: var(--gray-700);
+  --bs-dropdown-link-hover-color: var(--gray-800);
+  --bs-dropdown-link-hover-bg: var(--gray-100);
+  --bs-dropdown-link-active-color: var(--brand-text);
+  --bs-dropdown-link-active-bg: var(--brand-50);
+  --bs-dropdown-item-padding-x: 12px;
+  --bs-dropdown-item-padding-y: 8px;
+  --bs-dropdown-divider-bg: var(--border-subtle);
+  box-shadow: var(--bs-dropdown-box-shadow);
+  z-index: var(--z-popover);
+}
+.dropdown-item { border-radius: var(--radius-md); font-weight: var(--weight-medium); display: flex; align-items: center; gap: 12px; }
+
+/* ---------- Modal ---------- */
+.modal {
+  --bs-modal-bg: var(--white);
+  --bs-modal-border-width: 0;
+  --bs-modal-border-radius: var(--radius-2xl);
+  --bs-modal-inner-border-radius: var(--radius-2xl);
+  --bs-modal-box-shadow: var(--shadow-theme-xl);
+  --bs-modal-padding: 24px;
+  --bs-modal-header-padding: 24px 24px 0;
+  --bs-modal-header-border-width: 0;
+  --bs-modal-footer-border-width: 0;
+  --bs-modal-footer-gap: 12px;
+  --bs-modal-width: 480px;
+  --bs-modal-color: var(--text);
+}
+@media (min-width: 576px) { .modal-sm { --bs-modal-width: 400px; } }
+@media (min-width: 992px) { .modal-lg, .modal-xl { --bs-modal-width: 700px; } }
+.modal-title { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.modal-footer { padding: 0 24px 24px; gap: 12px; }
+.modal-footer > * { margin: 0; }
+.modal-backdrop { --bs-backdrop-bg: var(--gray-400); --bs-backdrop-opacity: 0.5; }
+/* Bootstrap close (×) button → 44px round icon button on gray-100 (modals, toasts, drawer). */
+.btn-close {
+  --bs-btn-close-opacity: 0.7;
+  --bs-btn-close-hover-opacity: 1;
+  --bs-btn-close-focus-shadow: 0 0 0 4px var(--focus-ring-color);
+  box-sizing: border-box;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--gray-100);
+  background-size: 12px;
+}
+.modal-header .btn-close { margin: -8px -8px -8px auto; }
+
+/* ---------- Badge ---------- */
+.badge {
+  --bs-badge-padding-x: 10px;
+  --bs-badge-padding-y: 2px;
+  --bs-badge-font-size: var(--text-xs);
+  --bs-badge-font-weight: var(--weight-medium);
+  --bs-badge-border-radius: var(--radius-full);
+  line-height: var(--lh-xs);
+}
+
+/* ---------- Pagination (if Bootstrap pagination markup is used) ---------- */
+.pagination {
+  --bs-pagination-color: var(--gray-700);
+  --bs-pagination-bg: var(--white);
+  --bs-pagination-border-color: var(--border-control);
+  --bs-pagination-border-radius: var(--radius-md);
+  --bs-pagination-hover-color: var(--gray-800);
+  --bs-pagination-hover-bg: var(--gray-50);
+  --bs-pagination-hover-border-color: var(--border-control);
+  --bs-pagination-focus-box-shadow: 0 0 0 4px var(--focus-ring-color);
+  --bs-pagination-active-color: var(--on-brand);
+  --bs-pagination-active-bg: var(--brand-solid);
+  --bs-pagination-active-border-color: var(--brand-solid);
+  --bs-pagination-disabled-color: var(--gray-400);
+  --bs-pagination-padding-x: 12px;
+  --bs-pagination-padding-y: 9px;
+  --bs-pagination-font-size: var(--text-sm);
+  gap: 8px;
+}
+
+/* ---------- Nav pills (segmented control base) ---------- */
+.nav-pills {
+  --bs-nav-pills-border-radius: var(--radius-md);
+  --bs-nav-pills-link-active-color: var(--text-strong);
+  --bs-nav-pills-link-active-bg: var(--white);
+}

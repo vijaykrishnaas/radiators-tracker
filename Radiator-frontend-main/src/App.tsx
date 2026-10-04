@@ -1,25 +1,17 @@
-import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
+import React, { lazy, Suspense, useMemo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap/dist/js/bootstrap.min.js";
-import "./Assets/css/base-theme.css";
-import "./Assets/css/common.css";
-import "./Assets/css/style.css";
-import "./Assets/css/responsive.css";
-import "./Assets/css/admin.css";
-import "./Assets/css/apple-rebrand.css";
-
 import { Navigate } from "react-router-dom";
-import Header from "./Common/Header";
-import AdminHeader from "./Common/AdminHeader";
-import Footer from "./Common/Footer";
-import Loader from "./Components/Loader";
+import AppShell from "./layout/AppShell";
+import { adminNav, tenantNav, verticalBase } from "./layout/navConfig";
+import { ToastRegion } from "./Components/ui/Toast";
+import Icons from "./Components/Icons";
 
 // Landing route — kept eager so the first paint isn't gated on a chunk fetch.
 import LoginPage from "./Pages/IssueCounter/Login/Index";
@@ -50,7 +42,14 @@ const EngCreate = lazy(() => import("./Pages/Engineering/Dashboard/Create"));
 const EngBilling = lazy(() => import("./Pages/Engineering/Billing/Index"));
 
 import { SettingsProvider, useSettings } from "./Context/SettingsContext";
-import { isLoggedIn, isSuperAdmin } from "./Services/Auth";
+import { isLoggedIn, isSuperAdmin, getUser, clearSession } from "./Services/Auth";
+
+// Route-chunk / settings wait: an in-page spinner, never a full-screen overlay (spec §4.17).
+const PageSpinner = () => (
+  <div className="d-flex justify-content-center py-5" role="status" aria-label="Loading">
+    <span className="spinner t-muted" style={{ width: 24, height: 24 }} aria-hidden="true" />
+  </div>
+);
 
 // Client-app routes: must be logged in and NOT a super-admin.
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -68,7 +67,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // a radiator tenant never sees a flash-redirect off their own dashboard.
 const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" | "engineering" }> = ({ children, type }) => {
   const { settings, loading } = useSettings();
-  if (loading) return <Loader loading={true} />;
+  if (loading) return <PageSpinner />;
   if (settings.businessType !== type) {
     return (
       <Navigate
@@ -88,56 +87,37 @@ const RequireSuperAdmin: React.FC<{ children: React.ReactNode }> = ({ children }
   return <>{children}</>;
 };
 
+const VERTICAL_NAME: Record<string, string> = { radiator: "Radiator", automobile: "Automobile", engineering: "Engineering" };
+
 const AppLayout: React.FC = () => {
   const location = useLocation();
-  const [screenHeight, setScreenHeight] = useState<number | null>(null);
-  const [headerHeight, setHeaderHeight] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const { settings } = useSettings();
 
   const path = location.pathname;
   const isClientLogin = path === "/issueCounter/login" || /^\/t\/[^/]+\/login$/.test(path);
   const isAdminLogin = path === "/admin/login";
   const isAdminArea = path.startsWith("/admin");
-  // No chrome on any login screen or the standalone change-password screen.
-  const isLoginPage = isClientLogin || isAdminLogin || path === "/change-password";
+  // No shell on any login screen or the standalone change-password screen (spec §3.5).
+  const noShell = isClientLogin || isAdminLogin || path === "/change-password";
 
-  const handleResize = () => {
-    const header = document.getElementById("header");
-    const headerH = header?.offsetHeight ?? 0;
-    const bodyHeight = window.innerHeight - headerH + 8;
-    setScreenHeight(bodyHeight);
-    setHeaderHeight(headerH);
+  const user = getUser();
+  const tenantNavGroups = useMemo(() => tenantNav(settings), [settings]);
+
+  const logout = () => {
+    if (isAdminArea) {
+      clearSession();
+      navigate("/admin/login");
+      return;
+    }
+    // Back to the tenant's own login (/t/<code>/login) so the business code is pre-filled.
+    const code = (getUser()?.code || "").trim();
+    clearSession();
+    navigate(code ? `/t/${encodeURIComponent(code)}/login` : "/issueCounter/login");
   };
 
-  useEffect(() => {
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Re-measure the header on every navigation. The header is absent on the login
-  // screens (so the initial measurement is 0); without this, the first app page
-  // after login renders UNDER the fixed header until a window resize. useLayoutEffect
-  // applies the corrected padding before paint, avoiding a visible jump.
-  useLayoutEffect(() => {
-    handleResize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, isLoginPage, isAdminArea]);
-
-  return (
-    <>
-      {!isLoginPage && (isAdminArea ? <AdminHeader /> : <Header />)}
-      <div
-        className="section bg-light"
-        id="section"
-        style={{
-          minHeight: screenHeight ?? undefined,
-          paddingTop: isLoginPage ? 0 : (headerHeight ?? 0),
-          paddingLeft: isLoginPage ? 0 : 20,
-          paddingRight: isLoginPage ? 0 : 20,
-          paddingBottom: isLoginPage ? 0 : 15,
-        }}
-      >
-        <Suspense fallback={<Loader loading={true} />}>
+  const routes = (
+        <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/" element={<Navigate to="/issueCounter/login" replace />} />
           <Route path="/issueCounter/login" element={<LoginPage />} />
@@ -173,10 +153,48 @@ const AppLayout: React.FC = () => {
           <Route path="/salary/settle" element={<ProtectedRoute><SalarySettlePeriod /></ProtectedRoute>} />
         </Routes>
         </Suspense>
-      </div>
-      {!isLoginPage && !isAdminArea && <Footer />}
-    </>
   );
+
+  if (noShell) return <>{routes}<ToastRegion /></>;
+
+  const name = user?.name || user?.userId || (isAdminArea ? "Admin" : "User");
+  const shell = isAdminArea ? (
+    <AppShell
+      nav={adminNav}
+      brand={{ name: "Super Admin", sub: "Console", homeTo: "/admin/clients", mark: <span className="initials-tile" aria-hidden="true"><Icons iconName="shield" /></span> }}
+      user={{
+        name,
+        meta: "Super admin",
+        items: [
+          { label: "Change Password", icon: "key", to: "/change-password" },
+          { divider: true },
+          { label: "Logout", icon: "logout", onClick: logout },
+        ],
+      }}
+    >
+      {routes}
+    </AppShell>
+  ) : (
+    <AppShell
+      nav={tenantNavGroups}
+      brand={{ name: settings.company.name || "", logoUrl: settings.company.logoUrl, homeTo: `${verticalBase(settings)}/dashboard` }}
+      user={{
+        name,
+        meta: [user?.code, VERTICAL_NAME[settings.businessType] || ""].filter(Boolean).join(" · "),
+        items: [
+          // Q2: Settings and Activity Log stay in the user menu as well as the sidebar.
+          { label: "Settings", icon: "settings", to: "/settings" },
+          { label: "Activity Log", icon: "history", to: "/audit" },
+          { label: "Change Password", icon: "key", to: "/change-password" },
+          { divider: true },
+          { label: "Logout", icon: "logout", onClick: logout },
+        ],
+      }}
+    >
+      {routes}
+    </AppShell>
+  );
+  return <>{shell}<ToastRegion /></>;
 };
 const App: React.FC = () => {
   return (

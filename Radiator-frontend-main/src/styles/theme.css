@@ -1,0 +1,247 @@
+/*
+ * theme.css — design tokens for the white-label workshop billing app.
+ * TailAdmin visual language on Bootstrap 5.3, with tenant-driven brand colours.
+ *
+ * Fixed scales (gray, success, error, warning, orange, blue-light) and shadows come from the
+ * TailAdmin free template (MIT): https://github.com/TailAdmin/tailadmin-free-tailwind-dashboard-template
+ *
+ * The --brand-* and --accent-* values below are DEFAULTS for first paint only. At runtime
+ * applyTenantBrand() overwrites them on <html> from tenant settings. Never hard-code a brand hex
+ * anywhere else in the codebase — use these variables.
+ *
+ * Import order (src/main.tsx) — same as spec §15.2:
+ *   1. bootstrap/dist/css/bootstrap.min.css
+ *   2. legacy CSS (until deleted in phase 4)
+ *   3. @fontsource/outfit/{400,500,600,700}.css
+ *   4. ./styles/fonts.css
+ *   5. ./styles/theme.css          (this file)
+ *   6. ./styles/bootstrap-bridge.css
+ *   7. ./styles/components/*.css
+ *
+ * Phase-0 collision check: legacy CSS may already define some of these names (likely --surface,
+ * --surface-sunken, --radius-*, --primary). This file loads later, so its values win. Run
+ *   grep -rhoE --include='*.css' -- '--[a-z0-9-]+:' src | sort -u
+ * and compare before merging (spec §15.1).
+ */
+
+:root {
+  /* ---------- Brand (runtime, from tenant settings) ---------- */
+  --brand-25: #F3F6F8;
+  --brand-50: #E7EDF2;
+  --brand-100: #D9E1EA;
+  --brand-200: #BDCBDA;
+  --brand-300: #94ACC3;
+  --brand-400: #547A9F;
+  --brand-500: #12467A;
+  --brand-600: #103E6B;
+  --brand-700: #0D345A;
+  --brand-800: #0B2A49;
+  --brand-900: #082038;
+  --brand-950: #051525;
+  --brand-solid: #12467A;
+  --brand-hover: #103E6B;
+  --on-brand: #FFFFFF;
+  --brand-text: #12467A;
+  --brand-solid-border: transparent;
+  --focus-ring-color: rgba(18, 70, 122, 0.2);
+  --accent: #F47F6B;
+  --accent-solid: #F47F6B;
+  --on-accent: #101828;
+  --accent-hover: #D7705E;
+  --primary: var(--brand-500);
+  --accentColor: var(--accent);
+
+  /* ---------- Neutrals ---------- */
+  --gray-25: #fcfcfd;
+  --gray-50: #f9fafb;
+  --gray-100: #f2f4f7;
+  --gray-200: #e4e7ec;
+  --gray-300: #d0d5dd;
+  --gray-400: #98a2b3;
+  --gray-500: #667085;
+  --gray-600: #475467;
+  --gray-700: #344054;
+  --gray-800: #1d2939;
+  --gray-900: #101828;
+  --gray-950: #0c111d;
+  --white: #FFFFFF;
+
+  /* ---------- Status ---------- */
+  --success-25: #f6fef9;
+  --success-50: #ecfdf3;
+  --success-100: #d1fadf;
+  --success-200: #a6f4c5;
+  --success-300: #6ce9a6;
+  --success-400: #32d583;
+  --success-500: #12b76a;
+  --success-600: #039855;
+  --success-700: #027a48;
+  --success-800: #05603a;
+  --success-900: #054f31;
+  --success-950: #053321;
+
+  --error-25: #fffbfa;
+  --error-50: #fef3f2;
+  --error-100: #fee4e2;
+  --error-200: #fecdca;
+  --error-300: #fda29b;
+  --error-400: #f97066;
+  --error-500: #f04438;
+  --error-600: #d92d20;
+  --error-700: #b42318;
+  --error-800: #912018;
+  --error-900: #7a271a;
+  --error-950: #55160c;
+
+  --warning-25: #fffcf5;
+  --warning-50: #fffaeb;
+  --warning-100: #fef0c7;
+  --warning-200: #fedf89;
+  --warning-300: #fec84b;
+  --warning-400: #fdb022;
+  --warning-500: #f79009;
+  --warning-600: #dc6803;
+  --warning-700: #b54708;
+  --warning-800: #93370d;
+  --warning-900: #7a2e0e;
+  --warning-950: #4e1d09;
+
+  /* ---------- Extra hues (charts, category badges) ---------- */
+  --blue-light-25: #f5fbff;
+  --blue-light-50: #f0f9ff;
+  --blue-light-100: #e0f2fe;
+  --blue-light-200: #b9e6fe;
+  --blue-light-300: #7cd4fd;
+  --blue-light-400: #36bffa;
+  --blue-light-500: #0ba5ec;
+  --blue-light-600: #0086c9;
+  --blue-light-700: #026aa2;
+  --blue-light-800: #065986;
+  --blue-light-900: #0b4a6f;
+  --blue-light-950: #062c41;
+
+  --orange-25: #fffaf5;
+  --orange-50: #fff6ed;
+  --orange-100: #ffead5;
+  --orange-200: #fddcab;
+  --orange-300: #feb273;
+  --orange-400: #fd853a;
+  --orange-500: #fb6514;
+  --orange-600: #ec4a0a;
+  --orange-700: #c4320a;
+  --orange-800: #9c2a10;
+  --orange-900: #7e2410;
+  --orange-950: #511c10;
+  --theme-purple-500: #7A5AF8;
+  --theme-pink-500: #EE46BC;
+
+  /* ---------- Semantic roles (use these in components) ---------- */
+  --page-bg: var(--gray-50);
+  --surface: var(--white);
+  --surface-muted: var(--gray-50);      /* table footer, sidebar promo-style boxes, hover rows */
+  --surface-sunken: var(--gray-100);    /* icon tiles, segmented-control track, chips */
+  --border: var(--gray-200);            /* cards, sidebar, header, dividers */
+  --border-subtle: var(--gray-100);     /* table rows, list separators inside cards */
+  --border-control: var(--gray-300);    /* inputs, outline buttons */
+  --text-strong: var(--gray-800);       /* titles, values, primary cell */
+  --text: var(--gray-700);              /* labels, menu items, body copy */
+  --text-muted: var(--gray-500);        /* secondary text, table cells, helper text */
+  --text-subtle: var(--gray-400);       /* placeholders, sidebar group titles (decorative only) */
+  --overlay: rgba(152, 162, 179, 0.5);  /* gray-400 @ 50% — modal backdrop */
+  --overlay-nav: rgba(16, 24, 40, 0.5); /* gray-900 @ 50% — mobile sidebar backdrop */
+  --focus-ring-error: rgba(240, 68, 56, 0.16); /* error-500 @ 16% — focus ring on invalid fields, danger buttons */
+
+  /* ---------- Typography ---------- */
+  --font-sans: "Outfit", "Rupee Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 12px;   --lh-xs: 18px;     /* helper, table header, badges in tables, meta */
+  --text-sm: 14px;   --lh-sm: 20px;     /* UI default: labels, inputs, buttons, table cells, menu */
+  --text-md: 16px;   --lh-md: 24px;     /* body copy, modal body */
+  --text-lg: 18px;   --lh-lg: 28px;     /* card titles, dropdown titles */
+  --text-xl: 20px;   --lh-xl: 30px;     /* page titles, modal titles */
+  --text-2xl: 24px;  --lh-2xl: 32px;    /* bill total in form footer, suggested bonus */
+  --text-3xl: 30px;  --lh-3xl: 38px;    /* max KPI value size (KPI values scale with tile width, spec §4.13) */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 6px;    /* checkbox, small chips inside inputs */
+  --radius-md: 8px;    /* inputs, buttons, menu items, dropdown items, tooltips */
+  --radius-lg: 12px;   /* icon tiles, alerts, toasts */
+  --radius-xl: 16px;   /* cards, dropdown panels, table containers */
+  --radius-2xl: 24px;  /* modals */
+  --radius-full: 9999px; /* badges, avatars, round icon buttons, switches */
+
+  /* ---------- Elevation (TailAdmin is border-first: cards have NO shadow) ---------- */
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1),
+    0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1),
+    0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08),
+    0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-theme-xl: 0px 20px 24px -4px rgba(16, 24, 40, 0.08),
+    0px 8px 8px -4px rgba(16, 24, 40, 0.03);
+  --shadow-tooltip: 0px 4px 6px -2px rgba(16, 24, 40, 0.05),
+    -8px 0px 20px 8px rgba(16, 24, 40, 0.05);
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+
+  /* ---------- Sizes ---------- */
+  --control-h: 44px;        /* inputs, selects, default buttons — also the min touch target */
+  --control-h-sm: 40px;     /* compact buttons in table toolbars / card headers (desktop only) */
+  --sidebar-w: 290px;
+  --sidebar-w-collapsed: 90px;
+  --content-max: 1536px;
+
+  /* ---------- Layers ---------- */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;          /* sticky form footers */
+  --z-header: 1030;
+  --z-overlay: 1040;         /* mobile sidebar backdrop */
+  --z-sidebar: 1045;
+  --z-modal: 1055;           /* matches Bootstrap .modal */
+  --z-popover: 1070;         /* row-action menus (portal), react-select menus */
+  --z-toast: 1090;
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 150ms;
+  --duration: 300ms;         /* sidebar width / slide */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration: 0ms; }
+}
+
+/* ---------- Base ---------- */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: var(--weight-regular);
+  color: var(--text);
+  background: var(--page-bg);
+  -webkit-font-smoothing: antialiased;
+}
+*, ::before, ::after { border-color: var(--border); }
+
+/* Money, counts, dates, IDs: aligned digits everywhere numbers are compared. */
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Focus: brand ring via box-shadow. The transparent outline is kept on purpose — Windows
+   high-contrast / forced-colors mode drops box-shadows but paints outlines. */
+:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus-ring-color);
+}

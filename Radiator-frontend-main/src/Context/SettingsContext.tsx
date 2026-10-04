@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { getData } from "../Services/ApiServices";
 import { isLoggedIn, isSuperAdmin } from "../Services/Auth";
+import { applyTenantBrand, DEFAULT_ACCENT, DEFAULT_PRIMARY } from "../theme/applyTenantBrand";
 
 // Generic, white-label default for the browser tab title.
 const APP_TITLE = "Radiator Management";
@@ -149,7 +150,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     company: { name: "", address: "", phone1: "", phone2: "", upiId: "", upiDisplay: "", logoUrl: "" },
-    branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#FFFFFF" },
+    branding: { primaryColor: DEFAULT_PRIMARY, accentColor: DEFAULT_ACCENT, loginTextColor: "#FFFFFF" },
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },
     labour: [],
     mechanics: [],
@@ -183,16 +184,10 @@ export const FALLBACK_SETTINGS: AppSettings = {
     },
 };
 
-// Pushes branding colors into the CSS custom properties the theme is built on,
-// so the whole UI follows the Settings page without code changes.
+// Derives the full brand scale + contrast-safe companions from the tenant colours (spec D3) and
+// writes them as CSS custom properties, so the whole UI follows the Settings page.
 const applyBranding = (settings: AppSettings) => {
-    const root = document.documentElement;
-    if (settings.branding.primaryColor) {
-        root.style.setProperty("--primary", settings.branding.primaryColor);
-    }
-    if (settings.branding.accentColor) {
-        root.style.setProperty("--accentColor", settings.branding.accentColor);
-    }
+    applyTenantBrand(settings.branding?.primaryColor, settings.branding?.accentColor);
 };
 
 type SettingsContextValue = {
@@ -217,6 +212,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!isLoggedIn() || isSuperAdmin()) {
             // Keep the browser tab title sensible without a client context.
             document.title = isSuperAdmin() ? "Super Admin Console" : APP_TITLE;
+            applyTenantBrand(DEFAULT_PRIMARY, DEFAULT_ACCENT);
             setLoading(false);
             return;
         }

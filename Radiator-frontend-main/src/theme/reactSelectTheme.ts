@@ -1,0 +1,65 @@
+// react-select styling (spec §4.5): 44px control, 8px radius, token colours, menu in a portal
+// on --z-popover. Kept in one place so every <Selector> matches the native form controls.
+import type { StylesConfig } from "react-select";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const selectStyles: StylesConfig<any, boolean> = {
+    control: (base, state) => ({
+        ...base,
+        minHeight: 44,
+        fontSize: 14,
+        lineHeight: "20px",
+        borderRadius: 8,
+        backgroundColor: state.isDisabled ? "var(--gray-50)" : "var(--white)",
+        borderColor: state.isFocused ? "var(--brand-300)" : "var(--border-control)",
+        boxShadow: state.isFocused ? "0 0 0 3px var(--focus-ring-color)" : "var(--shadow-theme-xs)",
+        cursor: state.isDisabled ? "default" : "pointer",
+        ":hover": { borderColor: state.isFocused ? "var(--brand-300)" : "var(--border-control)" },
+    }),
+    valueContainer: (base) => ({ ...base, padding: "2px 8px 2px 14px", gap: 4 }),
+    placeholder: (base) => ({ ...base, color: "var(--text-subtle)" }),
+    singleValue: (base, state) => ({ ...base, color: state.isDisabled ? "var(--gray-700)" : "var(--text-strong)" }),
+    input: (base) => ({ ...base, color: "var(--text-strong)", margin: 0 }),
+    indicatorSeparator: () => ({ display: "none" }),
+    dropdownIndicator: (base, state) => ({
+        ...base,
+        color: "var(--gray-500)",
+        padding: "0 12px 0 4px",
+        transition: "transform var(--duration-fast) var(--ease)",
+        transform: state.selectProps.menuIsOpen ? "rotate(180deg)" : undefined,
+        ":hover": { color: "var(--gray-700)" },
+    }),
+    clearIndicator: (base) => ({ ...base, color: "var(--gray-400)", padding: "0 4px", ":hover": { color: "var(--gray-700)" } }),
+    loadingIndicator: (base) => ({ ...base, color: "var(--gray-400)" }),
+    menuPortal: (base) => ({ ...base, zIndex: "var(--z-popover)" as unknown as number }),
+    menu: (base) => ({
+        ...base,
+        marginTop: 6,
+        borderRadius: 12,
+        border: "1px solid var(--border)",
+        boxShadow: "var(--shadow-theme-lg)",
+        overflow: "hidden",
+    }),
+    menuList: (base) => ({ ...base, padding: 6, maxHeight: 260 }),
+    option: (base, state) => ({
+        ...base,
+        borderRadius: 8,
+        padding: "8px 12px",
+        fontSize: 14,
+        lineHeight: "20px",
+        cursor: "pointer",
+        color: state.isSelected ? "var(--brand-text)" : "var(--gray-700)",
+        fontWeight: state.isSelected ? 500 : 400,
+        backgroundColor: state.isSelected ? "var(--brand-50)" : state.isFocused ? "var(--gray-100)" : "transparent",
+        ":active": { backgroundColor: "var(--gray-100)" },
+    }),
+    noOptionsMessage: (base) => ({ ...base, fontSize: 14, color: "var(--text-muted)" }),
+    multiValue: (base) => ({ ...base, backgroundColor: "var(--gray-100)", borderRadius: 6, margin: 0 }),
+    multiValueLabel: (base) => ({ ...base, fontSize: 12, fontWeight: 500, color: "var(--gray-700)", padding: "3px 4px 3px 8px" }),
+    multiValueRemove: (base) => ({
+        ...base,
+        color: "var(--gray-500)",
+        borderRadius: 6,
+        ":hover": { backgroundColor: "var(--gray-200)", color: "var(--gray-800)" },
+    }),
+};

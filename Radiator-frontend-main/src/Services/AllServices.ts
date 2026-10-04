@@ -1,51 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getData } from './ApiServices';
 import axios from 'axios';
 
-// Hook: useAlertMsg
+import { toast, toneFrom } from '../Components/ui/Toast';
+
+// Hook: useAlertMsg — kept for its call sites; messages now render as toasts (spec §4.17).
+// `alert` / `alertMessage` stay in the return value so existing destructuring keeps compiling.
 export const useAlertMsg = () => {
-    const [alertMessage, setAlertMessage] = useState<string | null | false>(null);
-    const [alert, setAlert] = useState<string>('');
-
     const callAlertMsg = useCallback((msg: string | null, category: string) => {
-        let timeOut;
-        if (!msg) {
-            setAlertMessage(false);
-            clearTimeout(timeOut);
-            return;
-        }
-        window.scrollTo(0, 0);
-        setAlertMessage(msg);
-        setAlert(category);
-        timeOut = setTimeout(() => {
-            setAlertMessage(false);
-        }, 10000);
+        if (!msg) return;
+        toast.show(toneFrom(category), msg);
     }, []);
-
-    return { alert, alertMessage, callAlertMsg };
-};
-
-// Hook: useAlertModalMsg
-export const useAlertModalMsg = () => {
-    const [alertModalMessage, setAlertModalMessage] = useState<string | null | false>(null);
-    const [alertModal, setAlertModal] = useState<string>('');
-
-    const callAlertModalMsg = useCallback((msg: string | null, category: string) => {
-        let timeOut;
-        if (!msg) {
-            setAlertModalMessage(false);
-            clearTimeout(timeOut);
-            return;
-        }
-        window.scrollTo(0, 0);
-        setAlertModalMessage(msg);
-        setAlertModal(category);
-        timeOut = setTimeout(() => {
-            setAlertModalMessage(false);
-        }, 10000);
-    }, []);
-
-    return { alertModal, alertModalMessage, callAlertModalMsg };
+    return { alert: '', alertMessage: null as string | null, callAlertMsg };
 };
 
 // Utility: downloadFile
