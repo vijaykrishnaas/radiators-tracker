@@ -51,8 +51,8 @@ await page.evaluate(() => {
 await page.goto(BASE + "/issueCounter/billing");
 await page.getByText("TN52R0001").first().waitFor({ timeout: 10000 });
 ok("radiator: billing list shows bill", true);
-const nav = await page.locator(".navbar-nav-header").innerText();
-ok("radiator: header has Expenses/Bonus/Salary", /Expenses/.test(nav) && /Bonus/.test(nav) && /Salary/.test(nav), nav.replace(/\s+/g, " "));
+const nav = await page.locator(".sidebar-nav").innerText();
+ok("radiator: sidebar has Expenses/Bonus/Salary", /Expenses/.test(nav) && /Bonus/.test(nav) && /Salary/.test(nav), nav.replace(/\s+/g, " "));
 
 const recordPayment = async (discount, amount) => {
   await page.getByRole("button", { name: "Actions for TN52R0001" }).click();
@@ -60,7 +60,7 @@ const recordPayment = async (discount, amount) => {
   if (discount != null) await page.locator("#payment-discount").fill(String(discount));
   if (amount != null) await page.locator("#payment-amount").fill(String(amount));
   const before = payments.length;
-  await page.locator(".modal-footer").getByRole("button", { name: "Record Payment" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Record Payment" }).click();
   for (let i = 0; i < 50 && payments.length === before; i++) await page.waitForTimeout(100);
   return payments[payments.length - 1];
 };

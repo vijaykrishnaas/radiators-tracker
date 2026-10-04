@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
-import AlertComponent from "../../../../Components/AlertComponent";
-import Loader from "../../../../Components/Loader";
 import Icons from "../../../../Components/Icons";
 import InputText from "../../../../Components/InputText";
 import Selector from "../../../../Components/Selector";
@@ -12,6 +10,9 @@ import DateCalendar from "../../../../Components/DateCalendar";
 import { getData, postData, putData } from "../../../../Services/ApiServices";
 import { useAlertMsg } from "../../../../Services/AllServices";
 import { useSettings, CatalogOption } from "../../../../Context/SettingsContext";
+import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../../Components/ui/Basics";
+import { AffixInput } from "../../../../Components/ui/Inputs";
+import { money } from "../../../../Utils/format";
 
 type ServiceGroup = {
     subject: CatalogOption | null;
@@ -37,11 +38,13 @@ const CreateRadiators = () => {
     const location = useLocation();
     const { id } = useParams();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
+    const reduceMotion = useReducedMotion();
 
     const isView = location.pathname.includes("/view/");
     const isEdit = !!id && !isView;
     const [loading, setLoading] = useState(false);
+    const [loadingRecord, setLoadingRecord] = useState(!!id);
 
     // Catalogs come from settings — nothing hardcoded per company.
     const productOptions = settings.catalog.productTypes;
@@ -81,7 +84,7 @@ const CreateRadiators = () => {
     });
 
     const loadRecord = async () => {
-        setLoading(true);
+        setLoadingRecord(true);
         try {
             const data = await getData(`radiators/${id}`);
 
@@ -108,7 +111,7 @@ const CreateRadiators = () => {
         } catch (err: any) {
             callAlertMsg(err?.message || "Error loading record", "error");
         } finally {
-            setLoading(false);
+            setLoadingRecord(false);
         }
     };
 
@@ -183,241 +186,150 @@ const CreateRadiators = () => {
         }
     };
 
-    const pageTitle = isView ? "View Bill" : isEdit ? "Edit Bill" : "Create Bill";
+    const pageTitle = isView ? "View bill" : isEdit ? "Edit bill" : "Create bill";
+    const E = errors.radiatorsManagement;
+    const billTotal = (groups || []).reduce((sum: number, g: any) => sum + Number(g?.price || 0), 0);
 
     return (
         <>
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
-            <Loader loading={loading} />
-
-            <div className="mt-2 overflow-hidden">
-                <div className="base-title">
-                    <div className="d-flex justify-content-start align-items-center">
-                        <div className="resp-bar" />
-                        <span className="card-sub-title">{pageTitle}</span>
-                    </div>
-                </div>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="row bg-white py-4">
-                        <div className="col-12 pt-4 px-3 px-md-5">
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={pageTitle}
-                                    initial={{ opacity: 0, x: 100 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">Create Date</label>
-                                            <Controller
-                                                name="radiatorsManagement.date"
-                                                control={control}
-                                                rules={{ required: "Date is required" }}
-                                                render={({ field }) => (
-                                                    <DateCalendar {...field} disabled={isView} />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.date && (
-                                                <div className="text-danger">
-                                                    {errors.radiatorsManagement.date.message}
-                                                </div>
+            <PageHeader title={pageTitle} back={{ onClick: () => navigate(-1), label: "Bills" }} />
+            <motion.form
+                key={pageTitle}
+                onSubmit={handleSubmit(onSubmit)}
+                noValidate
+                initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            >
+                <div className="card-stack">
+                    <section className="card">
+                        <div className="card-body">
+                            <CardHead title="Bill details" />
+                            {loadingRecord ? <SkeletonRows rows={3} /> : (
+                                <div className="form-grid mt-4">
+                                    <Field label="Bill date" htmlFor="bill-date" required error={E?.date?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.date"
+                                            control={control}
+                                            rules={{ required: "Date is required" }}
+                                            render={({ field }) => <DateCalendar {...field} id="bill-date" disabled={isView} />}
+                                        />
+                                    </Field>
+                                    <Field label={settings.labels.vehicleNo} htmlFor="truck-number" required error={E?.truckNumber?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.truckNumber"
+                                            control={control}
+                                            rules={{ required: `${settings.labels.vehicleNo} is required` }}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="truck-number" placeholder={`Enter ${settings.labels.vehicleNo}`} disabled={isView} />
                                             )}
-                                        </div>
-
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">
-                                                {settings.labels.vehicleNo}
-                                            </label>
-                                            <Controller
-                                                name="radiatorsManagement.truckNumber"
-                                                control={control}
-                                                rules={{ required: `${settings.labels.vehicleNo} is required` }}
-                                                render={({ field }) => (
-                                                    <InputText
-                                                        {...field}
-                                                        placeholder={`Enter ${settings.labels.vehicleNo}`}
-                                                        disabled={isView}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.truckNumber && (
-                                                <span className="text-danger">
-                                                    {errors.radiatorsManagement.truckNumber.message}
-                                                </span>
+                                        />
+                                    </Field>
+                                    <Field label={settings.labels.party} htmlFor="party" required error={E?.transportName?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.transportName"
+                                            control={control}
+                                            rules={{ required: `${settings.labels.party} is required` }}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="party" placeholder={`Enter ${settings.labels.party}`} disabled={isView} />
                                             )}
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">
-                                                {settings.labels.party}
-                                            </label>
-                                            <Controller
-                                                name="radiatorsManagement.transportName"
-                                                control={control}
-                                                rules={{ required: `${settings.labels.party} is required` }}
-                                                render={({ field }) => (
-                                                    <InputText
-                                                        {...field}
-                                                        placeholder={`Enter ${settings.labels.party}`}
-                                                        disabled={isView}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.transportName && (
-                                                <div className="text-danger">
-                                                    {errors.radiatorsManagement.transportName.message}
-                                                </div>
+                                        />
+                                    </Field>
+                                    <Field label={settings.labels.agent} htmlFor="agent" required error={E?.mechanicName?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.mechanicName"
+                                            control={control}
+                                            rules={{ required: `${settings.labels.agent} is required` }}
+                                            render={({ field }) => (
+                                                <Selector
+                                                    inputId="agent"
+                                                    options={(settings.mechanics || []).map((m) => ({ label: m, value: m }))}
+                                                    value={field.value ? { label: field.value, value: field.value } : null}
+                                                    isDisabled={isView}
+                                                    placeholder={`Select ${settings.labels.agent}`}
+                                                    aria-invalid={!!E?.mechanicName}
+                                                    onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
+                                                />
                                             )}
-                                        </div>
-
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">
-                                                {settings.labels.agent}
-                                            </label>
-                                            <Controller
-                                                name="radiatorsManagement.mechanicName"
-                                                control={control}
-                                                rules={{ required: `${settings.labels.agent} is required` }}
-                                                render={({ field }) => (
-                                                    <Selector
-                                                        options={(settings.mechanics || []).map((m) => ({ label: m, value: m }))}
-                                                        value={field.value ? { label: field.value, value: field.value } : null}
-                                                        isDisabled={isView}
-                                                        placeholder={`Select ${settings.labels.agent}`}
-                                                        onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.mechanicName && (
-                                                <span className="text-danger">
-                                                    {errors.radiatorsManagement.mechanicName.message}
-                                                </span>
+                                        />
+                                    </Field>
+                                    <Field label={settings.labels.product} htmlFor="product" required error={E?.radiatorType?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.radiatorType"
+                                            control={control}
+                                            rules={{ required: `${settings.labels.product} is required` }}
+                                            render={({ field }) => (
+                                                <Selector
+                                                    {...field}
+                                                    inputId="product"
+                                                    options={productOptions}
+                                                    disabled={isView}
+                                                    aria-invalid={!!E?.radiatorType}
+                                                    onChange={(val: any) => {
+                                                        field.onChange(val);
+                                                        applyMatrixPrices(val);
+                                                    }}
+                                                />
                                             )}
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">
-                                                {settings.labels.product}
-                                            </label>
-                                            <Controller
-                                                name="radiatorsManagement.radiatorType"
-                                                control={control}
-                                                rules={{ required: `${settings.labels.product} is required` }}
-                                                render={({ field }) => (
-                                                    <Selector
-                                                        {...field}
-                                                        options={productOptions}
-                                                        disabled={isView}
-                                                        onChange={(val: any) => {
-                                                            field.onChange(val);
-                                                            applyMatrixPrices(val);
-                                                        }}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.radiatorType && (
-                                                <div className="text-danger">
-                                                    {errors.radiatorsManagement.radiatorType.message}
-                                                </div>
+                                        />
+                                    </Field>
+                                    <Field label={settings.labels.worker} htmlFor="worker" required error={E?.labourName?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.labourName"
+                                            control={control}
+                                            rules={{
+                                                validate: (v) =>
+                                                    (Array.isArray(v) && v.length > 0) ||
+                                                    `${settings.labels.worker} is required`,
+                                            }}
+                                            render={({ field }) => (
+                                                <Selector {...field} inputId="worker" isMulti options={labourOptions} disabled={isView} aria-invalid={!!E?.labourName} />
                                             )}
-                                        </div>
-
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">
-                                                {settings.labels.worker}
-                                            </label>
-                                            <Controller
-                                                name="radiatorsManagement.labourName"
-                                                control={control}
-                                                rules={{
-                                                    validate: (v) =>
-                                                        (Array.isArray(v) && v.length > 0) ||
-                                                        `${settings.labels.worker} is required`,
-                                                }}
-                                                render={({ field }) => (
-                                                    <Selector
-                                                        {...field}
-                                                        isMulti
-                                                        options={labourOptions}
-                                                        disabled={isView}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.labourName && (
-                                                <div className="text-danger">
-                                                    {errors.radiatorsManagement.labourName.message}
-                                                </div>
+                                        />
+                                    </Field>
+                                    <Field label="Phone number" htmlFor="phone" error={E?.phoneNumber?.message}>
+                                        <Controller
+                                            name="radiatorsManagement.phoneNumber"
+                                            control={control}
+                                            rules={{
+                                                pattern: {
+                                                    value: /^[0-9]{10}$/,
+                                                    message: "Enter valid 10 digit Mobile Number",
+                                                },
+                                            }}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="phone" type="tel" placeholder="Enter Phone Number" disabled={isView} />
                                             )}
-                                        </div>
-                                    </div>
+                                        />
+                                    </Field>
+                                </div>
+                            )}
+                        </div>
+                    </section>
 
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Phone Number</label>
-                                            <Controller
-                                                name="radiatorsManagement.phoneNumber"
-                                                control={control}
-                                                rules={{
-                                                    pattern: {
-                                                        value: /^[0-9]{10}$/,
-                                                        message: "Enter valid 10 digit Mobile Number",
-                                                    },
-                                                }}
-                                                render={({ field }) => (
-                                                    <InputText
-                                                        {...field}
-                                                        placeholder="Enter Phone Number"
-                                                        disabled={isView}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.radiatorsManagement?.phoneNumber && (
-                                                <span className="text-danger">
-                                                    {errors.radiatorsManagement.phoneNumber.message}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="col-md-12 d-flex align-items-center mt-5 mb-4 gap-3">
-                                        <label className="font-s16 mb-1 font-w500">Services</label>
-                                        <div className="session-custom-border flex-grow-1" />
-                                    </div>
-
-                                    {!isView && (
-                                        <div className="d-flex justify-content-end mb-3">
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-gradient"
-                                                onClick={() => append({ subject: null, price: "", comments: "" })}
-                                            >
-                                                <Icons iconName="addcircle" className="icon-15 icon-white" />{" "}
-                                                Add New Service
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {fields.map((fieldItem, index) => {
-                                        const selectedSubjects = groups
-                                            .map((g: any, i: number) => (i !== index ? g?.subject?.value : null))
-                                            .filter(Boolean);
-
-                                        const availableOptions = serviceOptions.filter(
-                                            (s) => !selectedSubjects.includes(s.value)
-                                        );
-
-                                        return (
-                                            <div key={fieldItem.id} className="mb-4 p-3 border rounded">
-                                                <div className="row align-items-start">
-                                                    <div className="col-xl-5">
-                                                        <label className="form-label label-required">
-                                                            Service Type
-                                                        </label>
+                    <section className="card">
+                        <div className="card-body">
+                            <CardHead
+                                title="Services"
+                                actions={!isView && (
+                                    <button type="button" className="btn btn-secondary btn-sm"
+                                        onClick={() => append({ subject: null, price: "", comments: "" })}>
+                                        <Icons iconName="add" />Add New Service
+                                    </button>
+                                )}
+                            />
+                            <div className="d-grid gap-3 mt-4">
+                                {fields.map((fieldItem, index) => {
+                                    const selectedSubjects = groups
+                                        .map((g: any, i: number) => (i !== index ? g?.subject?.value : null))
+                                        .filter(Boolean);
+                                    const availableOptions = serviceOptions.filter((s) => !selectedSubjects.includes(s.value));
+                                    const G = E?.radiatorGroups?.[index];
+                                    return (
+                                        <div key={fieldItem.id} className="nested-card">
+                                            <div className="row g-3 align-items-start">
+                                                <div className="col-md">
+                                                    <Field label="Service type" htmlFor={`svc-${index}`} required error={G?.subject?.message}>
                                                         <Controller
                                                             name={`radiatorsManagement.radiatorGroups.${index}.subject`}
                                                             control={control}
@@ -425,143 +337,85 @@ const CreateRadiators = () => {
                                                             render={({ field }) => (
                                                                 <Selector
                                                                     {...field}
+                                                                    inputId={`svc-${index}`}
                                                                     options={availableOptions}
                                                                     disabled={isView}
+                                                                    aria-invalid={!!G?.subject}
                                                                     onChange={(val: any) => {
                                                                         field.onChange(val);
-
                                                                         if (requiresComment(val)) {
-                                                                            setValue(
-                                                                                `radiatorsManagement.radiatorGroups.${index}.price`,
-                                                                                ""
-                                                                            );
+                                                                            setValue(`radiatorsManagement.radiatorGroups.${index}.price`, "");
                                                                         } else if (selectedRadiatorType && val?.value) {
-                                                                            const model =
-                                                                                selectedRadiatorType.value || selectedRadiatorType;
-                                                                            const price =
-                                                                                priceMatrix[model]?.[val.value] ?? "";
-                                                                            setValue(
-                                                                                `radiatorsManagement.radiatorGroups.${index}.price`,
-                                                                                price
-                                                                            );
+                                                                            const model = selectedRadiatorType.value || selectedRadiatorType;
+                                                                            const price = priceMatrix[model]?.[val.value] ?? "";
+                                                                            setValue(`radiatorsManagement.radiatorGroups.${index}.price`, price);
                                                                         }
                                                                     }}
                                                                 />
                                                             )}
                                                         />
-                                                        {errors.radiatorsManagement?.radiatorGroups?.[index]?.subject && (
-                                                            <span className="text-danger">
-                                                                {errors.radiatorsManagement.radiatorGroups[index].subject.message}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="col-xl-5">
-                                                        <label className="form-label label-required">Price (₹)</label>
+                                                    </Field>
+                                                </div>
+                                                <div className="col-md">
+                                                    <Field label="Price (₹)" htmlFor={`price-${index}`} required error={G?.price?.message}>
                                                         <Controller
                                                             name={`radiatorsManagement.radiatorGroups.${index}.price`}
                                                             control={control}
                                                             rules={{
                                                                 required: "Price is required",
-                                                                min: {
-                                                                    value: 1,
-                                                                    message: "Price must be greater than 0",
-                                                                },
+                                                                min: { value: 1, message: "Price must be greater than 0" },
                                                             }}
                                                             render={({ field }) => (
-                                                                <InputText
-                                                                    {...field}
-                                                                    type="number"
-                                                                    placeholder="Enter price"
-                                                                    disabled={isView}
-                                                                />
+                                                                <AffixInput {...field} id={`price-${index}`} prefix="₹" type="number" inputMode="decimal"
+                                                                    className="tabular text-end" placeholder="Enter price" disabled={isView} invalid={!!G?.price} />
                                                             )}
                                                         />
-                                                        {errors.radiatorsManagement?.radiatorGroups?.[index]?.price && (
-                                                            <span className="text-danger">
-                                                                {errors.radiatorsManagement.radiatorGroups[index].price.message}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="col-xl-2">
-                                                        {!isView && fields.length > 1 && (
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-outline-danger btn-sm d-inline-flex align-items-center mt-4"
-                                                                onClick={() => remove(index)}
-                                                            >
-                                                                <Icons iconName="delete" className="icon-15 me-1" />
-                                                                Remove
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                                    </Field>
                                                 </div>
-
+                                                {!isView && fields.length > 1 && (
+                                                    <div className="col-md-auto pt-md-4 mt-md-2">
+                                                        <button type="button" className="btn btn-outline-danger" onClick={() => remove(index)}>
+                                                            <Icons iconName="delete" />Remove
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 {/* Comment box for service types that require it (e.g. "Other") */}
                                                 {requiresComment(groups[index]?.subject) && (
-                                                    <div className="row mt-3">
-                                                        <div className="col-12">
-                                                            <label className="form-label label-required">Comment</label>
+                                                    <div className="col-12">
+                                                        <Field label="Comment" htmlFor={`comment-${index}`} required error={G?.comments?.message}>
                                                             <Controller
                                                                 name={`radiatorsManagement.radiatorGroups.${index}.comments`}
                                                                 control={control}
-                                                                rules={{
-                                                                    required: "Please describe the service",
-                                                                }}
+                                                                rules={{ required: "Please describe the service" }}
                                                                 render={({ field }) => (
-                                                                    <textarea
-                                                                        {...field}
-                                                                        className="form-control"
-                                                                        rows={2}
-                                                                        placeholder="Describe the service"
-                                                                        disabled={isView}
-                                                                    />
+                                                                    <textarea {...field} id={`comment-${index}`} className="form-control" rows={2}
+                                                                        placeholder="Describe the service" disabled={isView} aria-invalid={!!G?.comments || undefined} />
                                                                 )}
                                                             />
-                                                            {errors.radiatorsManagement?.radiatorGroups?.[index]?.comments && (
-                                                                <span className="text-danger">
-                                                                    {errors.radiatorsManagement.radiatorGroups[index].comments.message}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        </Field>
                                                     </div>
                                                 )}
                                             </div>
-                                        );
-                                    })}
-
-                                    {fields.length > 0 && (
-                                        <div className="d-flex justify-content-end align-items-baseline gap-3 mt-2 pe-1">
-                                            <span className="font-s14" style={{ color: "var(--ink-500)" }}>Bill total</span>
-                                            <span className="font-s20 fw-semibold" style={{ color: "var(--ink-900)" }}>
-                                                ₹{(groups || []).reduce((sum: number, g: any) => sum + Number(g?.price || 0), 0).toLocaleString("en-IN")}
-                                            </span>
                                         </div>
-                                    )}
-                                </motion.div>
-                            </AnimatePresence>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    </section>
+                </div>
 
-                    <div className="row mt-3 me-3">
-                        <div className="col-xl-12 d-flex justify-content-end gap-2">
-                            <button
-                                type="button"
-                                className="btn btn-cancel"
-                                onClick={() => navigate(-1)}
-                            >
-                                {isView ? "Back" : "Cancel"}
-                            </button>
-                            {!isView && (
-                                <button type="submit" className="btn btn-primary" disabled={loading}>
-                                    {loading ? "Saving..." : isEdit ? "Update" : "Save"}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </form>
-            </div>
+                <FormFooter totalLabel="Bill total" total={money(billTotal)}>
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+                        {isView ? "Back" : "Cancel"}
+                    </button>
+                    {!isView && (
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading && <span className="spinner" aria-hidden="true" />}
+                            {loading ? "Saving..." : isEdit ? "Update" : "Save"}
+                        </button>
+                    )}
+                </FormFooter>
+            </motion.form>
         </>
     );
 };

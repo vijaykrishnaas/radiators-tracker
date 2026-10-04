@@ -1,43 +1,27 @@
 import React from "react";
 
-interface InputTextProps {
-    type?: string;
-    value?: string | number | undefined;
-    id?: string;
-    name?: string;
-    className?: string;
-    placeholder?: string;
-    onChange?: React.ChangeEventHandler<HTMLInputElement>;
-    onBlur?: React.FocusEventHandler<HTMLInputElement>;
-    disabled?: boolean;
-    readOnly?: boolean;
+type InputTextProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "prefix"> & {
     prefix?: string;
     suffix?: string;
-    max?: string;
-}
+    ref?: React.Ref<HTMLInputElement>;
+};
 
-
-const InputText = (props: InputTextProps) => {
-
-
+/** Text input on the form-control recipe, with an optional ₹ prefix / unit suffix (spec §4.5). */
+const InputText = ({ prefix, suffix, className, type, ...rest }: InputTextProps) => {
+    const input = (
+        <input
+            type={type || "text"}
+            className={`form-control${className ? ` ${className}` : ""}`}
+            onWheel={type === "number" ? (e) => (e.target as HTMLInputElement).blur() : undefined}
+            {...rest}
+        />
+    );
+    if (!prefix && !suffix) return input;
     return (
         <div className="input-group">
-            {props.prefix && <span className="input-group-text">{props.prefix}</span>}
-            <input
-                type={props.type || "text"}
-                value={props.value}
-                id={props.id}
-                name={props.name}
-                className={'form-control ' + props.className}
-                placeholder={props.placeholder}
-                onChange={props.onChange}
-                onBlur={props.onBlur}
-                onWheel={props.type == 'number' ? (e) => (e.target as HTMLInputElement).blur() : undefined}
-                disabled={props.disabled}
-                readOnly={props.readOnly}
-                max={props.max}
-            />
-            {props.suffix && <span className="input-group-text">{props.suffix}</span>}
+            {prefix && <span className="input-group-text">{prefix}</span>}
+            {input}
+            {suffix && <span className="input-group-text">{suffix}</span>}
         </div>
     );
 };

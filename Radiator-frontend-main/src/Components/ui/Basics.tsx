@@ -210,7 +210,7 @@ export const BusyOverlay = ({ show, label = "Preparing…" }: { show: boolean; l
 
 /* ---------------- Segmented control (§4.18) ---------------- */
 export function SegmentedControl<T extends string>({
-    options, value, onChange, label, full = false, className = "",
+    options, value, onChange, label, full = false, className = "", radio = false,
 }: {
     options: { value: T; label: string }[];
     value: T | null;
@@ -218,8 +218,11 @@ export function SegmentedControl<T extends string>({
     label: string;
     full?: boolean;
     className?: string;
+    /** A form value (payment mode, attendance mode): radiogroup semantics instead of tabs. */
+    radio?: boolean;
 }) {
     const ref = useRef<HTMLDivElement>(null);
+    const itemRole = radio ? "radio" : "tab";
     const onKey = (e: React.KeyboardEvent, i: number) => {
         let next = -1;
         if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % options.length;
@@ -229,18 +232,19 @@ export function SegmentedControl<T extends string>({
         if (next < 0) return;
         e.preventDefault();
         onChange(options[next].value);
-        ref.current?.querySelectorAll<HTMLButtonElement>("[role='tab']")[next]?.focus();
+        ref.current?.querySelectorAll<HTMLButtonElement>(`[role='${itemRole}']`)[next]?.focus();
     };
     const activeIndex = options.findIndex((o) => o.value === value);
     return (
-        <div ref={ref} className={`segmented${full ? " is-full" : ""} ${className}`} role="tablist" aria-label={label}>
+        <div ref={ref} className={`segmented${full ? " is-full" : ""} ${className}`} role={radio ? "radiogroup" : "tablist"} aria-label={label}>
             {options.map((o, i) => (
                 <button
                     key={o.value}
                     type="button"
-                    role="tab"
+                    role={itemRole}
                     className="segmented-btn"
-                    aria-selected={o.value === value}
+                    aria-selected={radio ? undefined : o.value === value}
+                    aria-checked={radio ? o.value === value : undefined}
                     tabIndex={o.value === value || (activeIndex < 0 && i === 0) ? 0 : -1}
                     onClick={() => onChange(o.value)}
                     onKeyDown={(e) => onKey(e, i)}
@@ -276,3 +280,19 @@ export const ProgressBar = ({ value, label }: { value: number; label: string }) 
 
 /* ---------------- Spinner button content ---------------- */
 export const BtnSpinner = ({ show }: { show: boolean }) => (show ? <span className="spinner" aria-hidden="true" /> : null);
+
+/* ---------------- Horizontally scrolling tab strip; fades edges only when it overflows (§4.18) ---------------- */
+export function TabsScroll({ children }: { children: React.ReactNode }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [overflowing, setOverflowing] = React.useState(false);
+    React.useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const check = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+        check();
+        const ro = new ResizeObserver(check);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    return <div ref={ref} className={`tabs-scroll${overflowing ? " is-overflowing" : ""}`}>{children}</div>;
+}

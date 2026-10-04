@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import Icons from "../../Components/Icons";
+import { inSelectPortal, trapTab } from "./hooks";
 
 export type MenuItem =
     | { divider: true }
@@ -41,6 +42,7 @@ export function Popover({
     onOpenChange,
     className = "",
     offset = 6,
+    label,
 }: {
     trigger: (p: TriggerProps) => React.ReactNode;
     children: (close: () => void) => React.ReactNode;
@@ -50,6 +52,8 @@ export function Popover({
     onOpenChange?: (open: boolean) => void;
     className?: string;
     offset?: number;
+    /** Accessible name of the panel. */
+    label?: string;
 }) {
     const [open, setOpenState] = useState(false);
     const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -64,11 +68,12 @@ export function Popover({
         if (refocus) btnRef.current?.focus();
     }, [setOpen]);
 
-    useLayoutEffect(() => {
-        if (!open) return;
+    const place = useCallback(() => {
         const b = btnRef.current?.getBoundingClientRect();
         const p = panelRef.current;
-        if (!b || !p) return;
+        if (!b || !p) return false;
+        // Trigger scrolled out of view: the menu has nothing to anchor to.
+        if (b.bottom < 0 || b.top > window.innerHeight || b.right < 0 || b.left > window.innerWidth) return false;
         const w = p.offsetWidth;
         const h = p.offsetHeight;
         let left = align === "end" ? b.right - w : b.left;
@@ -77,32 +82,47 @@ export function Popover({
         if (top + h > window.innerHeight - 8 && b.top - h - offset > 8) top = b.top - h - offset;
         top = Math.max(8, top);
         setPos({ top, left });
-    }, [open, align, offset]);
+        return true;
+    }, [align, offset]);
+
+    useLayoutEffect(() => { if (open) place(); }, [open, place]);
 
     useEffect(() => {
         if (!open) return;
         const onDown = (e: Event) => {
             const t = e.target as Node;
             if (panelRef.current?.contains(t) || btnRef.current?.contains(t)) return;
-            // Clicks inside a react-select menu portal that belongs to this panel must not close it.
-            if ((t as HTMLElement).closest?.("[class*='-menu'], [class*='-option']")) return;
+            // Clicks inside a react-select menu portal (opened from this panel) must not close it.
+            if (inSelectPortal(t)) return;
             close(false);
         };
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(true); } };
-        const onMove = (e: Event) => { if (panelRef.current?.contains(e.target as Node)) return; close(false); };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            // A react-select inside the panel with its menu open handles Esc itself.
+            if ((document.activeElement as HTMLElement | null)?.getAttribute("aria-expanded") === "true" && panelRef.current?.contains(document.activeElement)) return;
+            e.stopPropagation();
+            close(true);
+        };
+        // Follow the trigger when the page or a table scrolls; close only once it leaves the viewport.
+        const onScroll = (e: Event) => {
+            if (panelRef.current?.contains(e.target as Node) || inSelectPortal(e.target)) return;
+            if (!place()) close(false);
+        };
+        let lastW = window.innerWidth;
+        const onResize = () => { if (window.innerWidth !== lastW) { lastW = window.innerWidth; close(false); } };
         document.addEventListener("mousedown", onDown);
         document.addEventListener("touchstart", onDown);
         document.addEventListener("keydown", onKey, true);
-        window.addEventListener("scroll", onMove, true);
-        window.addEventListener("resize", onMove);
+        window.addEventListener("scroll", onScroll, true);
+        window.addEventListener("resize", onResize);
         return () => {
             document.removeEventListener("mousedown", onDown);
             document.removeEventListener("touchstart", onDown);
             document.removeEventListener("keydown", onKey, true);
-            window.removeEventListener("scroll", onMove, true);
-            window.removeEventListener("resize", onMove);
+            window.removeEventListener("scroll", onScroll, true);
+            window.removeEventListener("resize", onResize);
         };
-    }, [open, close]);
+    }, [open, close, place]);
 
     // Move focus into the panel once it is positioned.
     useEffect(() => {
@@ -116,7 +136,13 @@ export function Popover({
     };
 
     const onPanelKey = (e: React.KeyboardEvent) => {
-        if (e.key === "Tab") { close(false); return; }
+        if (e.key === "Tab") {
+            // Tab must not reach a parent dialog's focus trap: the panel lives in a portal.
+            e.stopPropagation();
+            if (role === "menu") { e.preventDefault(); close(true); }
+            else trapTab(e, panelRef.current);
+            return;
+        }
         if (role !== "menu") return;
         const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("[data-menu-item]:not([aria-disabled='true'])") || []);
         if (!items.length) return;
@@ -142,6 +168,8 @@ export function Popover({
                     ref={panelRef}
                     id={idRef.current}
                     role={role}
+                    aria-label={label}
+                    tabIndex={-1}
                     className={`menu-panel ${className}`}
                     style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, width, visibility: pos ? "visible" : "hidden" }}
                     onKeyDown={onPanelKey}
@@ -220,6 +248,7 @@ export function ActionMenu({
     return (
         <Popover
             role="menu"
+            label={label}
             trigger={(p) => (
                 <button type="button" className={buttonClassName} aria-label={text ? undefined : label} title={text ? undefined : label} {...p}>
                     <Icons iconName={icon} />

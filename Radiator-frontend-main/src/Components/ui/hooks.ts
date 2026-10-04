@@ -31,8 +31,9 @@ export function trapTab(e: KeyboardEvent | React.KeyboardEvent, root: HTMLElemen
     const first = els[0];
     const last = els[els.length - 1];
     const activeEl = document.activeElement as HTMLElement | null;
-    if (e.shiftKey && (activeEl === first || !root.contains(activeEl))) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && (activeEl === last || !root.contains(activeEl))) { e.preventDefault(); first.focus(); }
+    const outside = !activeEl || activeEl === root || !root.contains(activeEl);
+    if (e.shiftKey && (activeEl === first || outside)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (activeEl === last || outside)) { e.preventDefault(); first.focus(); }
 }
 
 let lockCount = 0;
@@ -71,3 +72,18 @@ export const storage = {
         try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
     },
 };
+
+/** True when the event target sits inside a react-select menu portal (class prefix "rs"). */
+export const inSelectPortal = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest?.("[class*='rs__menu']");
+
+/** Document-level keydown while `active` (works even when focus fell back to <body>). */
+export function useDocumentKeydown(active: boolean, handler: (e: KeyboardEvent) => void) {
+    const ref = useRef(handler);
+    ref.current = handler;
+    useEffect(() => {
+        if (!active) return;
+        const on = (e: KeyboardEvent) => ref.current(e);
+        document.addEventListener("keydown", on);
+        return () => document.removeEventListener("keydown", on);
+    }, [active]);
+}

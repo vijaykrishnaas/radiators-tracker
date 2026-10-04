@@ -5,7 +5,6 @@ type Value = Date | null | [Date | null, Date | null];
 import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
 import 'react-clock/dist/Clock.css';
-import '../Assets/css/components/datePicker.css';
 
 interface DateCalendarProps {
     name?: string;
@@ -51,7 +50,12 @@ const DateCalendar: React.FC<DateCalendarProps> = (props) => {
                 returnValue={props.returnValue}
                 disableCalendar={props.disableCalendar}
                 disabled={props.disabled}
-                format={props.format}
+                format={props.format ?? "dd/MM/y"}
+                dayPlaceholder="dd"
+                monthPlaceholder="mm"
+                yearPlaceholder="yyyy"
+                calendarAriaLabel="Open calendar"
+                clearAriaLabel="Clear date"
                 id={props.id}
                 maxDate={props.maxDate}
                 minDate={props.minDate}

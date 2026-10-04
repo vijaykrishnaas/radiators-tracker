@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import Icons from "../../Components/Icons";
-import { focusables, trapTab, useReturnFocus, useScrollLock } from "./hooks";
+import { focusables, trapTab, useDocumentKeydown, useReturnFocus, useScrollLock } from "./hooks";
 
 type Size = "sm" | "md" | "lg";
 
@@ -66,6 +66,14 @@ export default function Modal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
+    // Focus fell back to <body> (e.g. after clicking blank space): still trap Tab and honour Esc.
+    useDocumentKeydown(open, (e) => {
+        const root = panelRef.current;
+        if (!root || root.contains(document.activeElement)) return;
+        if (e.key === "Escape" && !busy) { onClose(); return; }
+        trapTab(e, root);
+    });
+
     if (!open) return null;
 
     const onKeyDown = (e: React.KeyboardEvent) => {
@@ -109,7 +117,7 @@ export default function Modal({
                         <Icons iconName="x" />
                     </button>
                 </div>
-                {children !== undefined && <div className="ui-modal-body">{children}</div>}
+                {children !== undefined && children !== null && children !== false && <div className="ui-modal-body">{children}</div>}
                 {footer && <div className="ui-modal-foot">{footer}</div>}
             </Panel>
         </div>,
@@ -148,6 +156,7 @@ export function ConfirmDialog({
             open={open}
             onClose={onCancel}
             title={title}
+            description={message}
             size="sm"
             danger={danger}
             busy={busy}
@@ -162,7 +171,6 @@ export function ConfirmDialog({
                 </>
             }
         >
-            {message && <p className="t-sm t-muted mb-0">{message}</p>}
             {children}
         </Modal>
     );

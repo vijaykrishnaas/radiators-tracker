@@ -1,0 +1,39 @@
+/* react-date-picker / react-calendar on the design tokens (spec §4.5 "Date input"). */
+.react-date-picker.form-control { display: flex; align-items: center; padding: 0 12px 0 16px; }
+.react-date-picker__wrapper { flex: 1 1 auto; border: 0; align-items: center; }
+.react-date-picker__inputGroup { min-width: 0; font-size: var(--text-sm); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.react-date-picker__inputGroup__input { color: var(--text-strong); outline: 0; border-radius: 4px; }
+.react-date-picker__inputGroup__input:invalid { background: transparent; }
+.react-date-picker__inputGroup__input:focus { background: var(--brand-50); }
+.react-date-picker__button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: var(--radius-md); }
+.react-date-picker__button:enabled:hover { background: var(--gray-100); }
+.react-date-picker__button svg { stroke: var(--gray-500); width: 18px; height: 18px; }
+.react-date-picker__button:enabled:hover svg { stroke: var(--gray-700); }
+.react-date-picker--disabled.form-control { background: var(--gray-50); color: var(--gray-700); }
+.react-date-picker--disabled .react-date-picker__inputGroup__input { color: var(--gray-700); }
+.react-date-picker--disabled .react-date-picker__button { display: none; }
+.react-date-picker__calendar { z-index: var(--z-popover); }
+.react-date-picker__calendar .react-calendar {
+  width: 300px;
+  margin-top: 6px;
+  padding: 12px;
+  font-family: var(--font-sans);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-theme-lg);
+}
+.react-calendar__navigation { margin-bottom: 8px; height: 40px; }
+.react-calendar__navigation button { min-width: 40px; border-radius: var(--radius-md); color: var(--gray-700); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.react-calendar__navigation button:enabled:hover, .react-calendar__navigation button:enabled:focus { background: var(--gray-100); }
+.react-calendar__month-view__weekdays__weekday { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-muted); text-transform: none; }
+.react-calendar__month-view__weekdays__weekday abbr { text-decoration: none; }
+.react-calendar__tile { height: 40px; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--gray-700); }
+.react-calendar__tile:enabled:hover, .react-calendar__tile:enabled:focus { background: var(--gray-100); }
+.react-calendar__month-view__days__day--neighboringMonth { color: var(--gray-400); }
+.react-calendar__month-view__days__day--weekend { color: var(--gray-700); }
+.react-calendar__tile--now { background: transparent; box-shadow: inset 0 0 0 1px var(--brand-300); }
+.react-calendar__tile--now:enabled:hover { background: var(--gray-100); }
+.react-calendar__tile--active, .react-calendar__tile--active:enabled:hover, .react-calendar__tile--active:enabled:focus { background: var(--brand-solid); color: var(--on-brand); }
+.react-calendar__tile--hasActive { background: var(--brand-50); color: var(--brand-text); }
+.react-calendar__tile:disabled { background: transparent; color: var(--gray-300); }

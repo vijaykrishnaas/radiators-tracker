@@ -15,9 +15,15 @@ const emit = () => listeners.forEach((l) => l());
 export const toast = {
     show(tone: ToastTone, message: string, title = TITLES[tone]) {
         if (!message) return;
-        // Same message already showing: don't stack duplicates.
-        if (items.some((t) => t.tone === tone && t.message === message)) return;
-        items = [...items, { id: ++seq, tone, title, message }].slice(-4);
+        // Same message already showing: replace it (re-arms its timer) instead of stacking duplicates.
+        let next = items.filter((t) => !(t.tone === tone && t.message === message));
+        next = [...next, { id: ++seq, tone, title, message }];
+        // Cap at 4: evict the oldest auto-dismissing toast first; errors/warnings stay until closed.
+        while (next.length > 4) {
+            const i = next.findIndex((t) => t.tone === "success" || t.tone === "info");
+            next.splice(i >= 0 ? i : 0, 1);
+        }
+        items = next;
         emit();
     },
     dismiss(id: number) {
@@ -35,7 +41,9 @@ export const toneFrom = (category: string): ToastTone =>
     category === "success" || category === "warning" || category === "info" ? category : "error";
 
 function ToastView({ t }: { t: ToastItem }) {
-    const [paused, setPaused] = useState(false);
+    const [hovered, setHovered] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const paused = hovered || focused;
     const remaining = useRef(5000);
     const started = useRef(Date.now());
     const autoDismiss = t.tone === "success" || t.tone === "info";
@@ -54,10 +62,10 @@ function ToastView({ t }: { t: ToastItem }) {
         <div
             className={`ui-toast tone-${t.tone}`}
             role={t.tone === "error" ? "alert" : "status"}
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-            onFocus={() => setPaused(true)}
-            onBlur={() => setPaused(false)}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
         >
             <Icons iconName={ICONS[t.tone]} />
             <div className="callout-body">

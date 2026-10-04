@@ -73,7 +73,7 @@ export const SeriesLegend = ({ items }: { items: { label: string; color: string 
  * in the legend (defaults to valueKey). `colorFor` overrides categorical colours (payment status).
  */
 export function DonutWithLegend<T extends Record<string, unknown>>({
-    data, nameKey, valueKey, amountKey, centerLabel, colorFor, asMoney = true, size = 220,
+    data, nameKey, valueKey, amountKey, centerLabel, colorFor, asMoney = true, size = 240,
 }: {
     data: T[];
     nameKey: keyof T & string;
@@ -92,7 +92,7 @@ export function DonutWithLegend<T extends Record<string, unknown>>({
     const fmt = (v: number) => (asMoney ? money(v) : String(v));
     return (
         <div className="chart-donut">
-            <div className="chart-donut-figure" style={{ height: size }}>
+            <div className="chart-donut-figure" style={{ width: size, height: size }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie data={rows} dataKey={valueKey} nameKey={nameKey} innerRadius="70%" outerRadius="100%"
@@ -103,7 +103,7 @@ export function DonutWithLegend<T extends Record<string, unknown>>({
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="chart-donut-center">
-                    <strong>{fmt(amountTotal)}</strong>
+                    <strong className={fmt(amountTotal).length > 11 ? "is-long" : undefined}>{fmt(amountTotal)}</strong>
                     <span>{centerLabel}</span>
                 </div>
             </div>

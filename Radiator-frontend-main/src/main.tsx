@@ -11,6 +11,13 @@ import "./styles/theme.css";
 import "./styles/bootstrap-bridge.css";
 import "./styles/components/shell.css";
 import "./styles/components/ui.css";
+import "./styles/components/datepicker.css";
+import "./styles/components/auth.css";
+import "./styles/components/settings.css";
+import "./styles/components/bonus.css";
+import "./styles/components/salary.css";
+import "./styles/components/engineering.css";
+import "./styles/components/admin-console.css";
 
 import App from "./App";
 

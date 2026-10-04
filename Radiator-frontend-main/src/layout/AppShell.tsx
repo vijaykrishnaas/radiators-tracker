@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icons from "../Components/Icons";
 import { Popover, MenuItems, type MenuItem } from "../Components/ui/Menu";
-import { storage, trapTab, useDesktopShell, useScrollLock } from "../Components/ui/hooks";
+import { storage, trapTab, useDesktopShell, useDocumentKeydown, useScrollLock } from "../Components/ui/hooks";
 import { isParent, parentActive, type NavGroup, type NavItem } from "./navConfig";
 
 const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
@@ -122,6 +122,12 @@ export default function AppShell({ nav, brand, user, children }: {
         return () => { setTimeout(() => toggleRef.current?.focus(), 0); };
     }, [mobileOpen]);
 
+    // Drawer keyboard handling at document level, so it works even when focus fell back to <body>.
+    useDocumentKeydown(mobileOpen && !desktop, (e) => {
+        if (e.key === "Escape") { setMobileOpen(false); return; }
+        trapTab(e, sidebarRef.current);
+    });
+
     const toggle = () => {
         if (desktop) {
             const next = !desktopCollapsed;
@@ -141,12 +147,8 @@ export default function AppShell({ nav, brand, user, children }: {
                 ref={sidebarRef}
                 className={`app-sidebar${mobileOpen ? " is-open" : ""}`}
                 aria-label="Main navigation"
+                tabIndex={-1}
                 {...(drawer ? { role: "dialog", "aria-modal": mobileOpen ? true : undefined } : {})}
-                onKeyDown={(e) => {
-                    if (!drawer || !mobileOpen) return;
-                    if (e.key === "Escape") { e.stopPropagation(); setMobileOpen(false); }
-                    trapTab(e, sidebarRef.current);
-                }}
             >
                 <div className="d-flex align-items-center">
                     <Brand brand={brand} />
@@ -193,6 +195,7 @@ function UserMenu({ user }: { user: ShellUser }) {
     return (
         <Popover
             role="menu"
+            label="Account"
             width={260}
             offset={17}
             trigger={(p) => (
@@ -205,7 +208,7 @@ function UserMenu({ user }: { user: ShellUser }) {
         >
             {(close) => (
                 <>
-                    <div className="user-menu-head">
+                    <div className="user-menu-head" role="presentation">
                         <strong>{user.name}</strong>
                         <span>{user.meta}</span>
                     </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import debounce from "lodash.debounce";
 import Icons from "../../Components/Icons";
-import { trapTab, useMediaQuery, usePhone, useReturnFocus, useScrollLock } from "./hooks";
+import { trapTab, useDocumentKeydown, useMediaQuery, usePhone, useReturnFocus, useScrollLock } from "./hooks";
 
 /* ---------------- Search (§4.9: debounce 200ms, fires at ≥3 chars or when cleared) ---------------- */
 export function SearchInput({
@@ -29,7 +29,7 @@ export function SearchInput({
     return (
         <div className="filter-search">
             <label className="form-label" htmlFor={id}>{label || "Search"}</label>
-            <div className="input-icon">
+            <div className="input-icon search-box">
                 <Icons iconName="search" className="is-left" />
                 <input
                     id={id}
@@ -40,8 +40,8 @@ export function SearchInput({
                     aria-describedby={hint ? `${id}-hint` : undefined}
                     onChange={(e) => { setText(e.target.value); fire(e.target.value.trim()); }}
                 />
+                {hint && <span className="search-hint" id={`${id}-hint`}>Type at least 3 characters</span>}
             </div>
-            {hint && <span className="search-hint" id={`${id}-hint`}>Type at least 3 characters</span>}
         </div>
     );
 }
@@ -158,12 +158,18 @@ function FilterSheet({ open, onClose, onClear, activeCount, children }: {
     useEffect(() => {
         if (open) setTimeout(() => ref.current?.querySelector<HTMLElement>(".sheet-head .btn-icon")?.focus(), 0);
     }, [open]);
+    useDocumentKeydown(open, (e) => {
+        if (ref.current?.contains(document.activeElement)) return;
+        if (e.key === "Escape") { onClose(); return; }
+        trapTab(e, ref.current);
+    });
     if (!open) return null;
     return createPortal(
         <div className="sheet-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div
                 ref={ref}
                 className="sheet"
+                tabIndex={-1}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="filter-sheet-title"

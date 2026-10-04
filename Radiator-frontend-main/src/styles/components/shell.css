@@ -22,6 +22,8 @@
 .app-sidebar::-webkit-scrollbar { display: none; }
 
 .sidebar-brand {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -210,16 +212,16 @@
   .app-header .btn-icon.app-toggle { border: 1px solid var(--border); }
   .app-shell.is-collapsed .app-main { margin-left: var(--sidebar-w-collapsed); }
 
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) { width: var(--sidebar-w-collapsed); }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) { width: var(--sidebar-w-collapsed); }
   .app-shell.is-collapsed .app-sidebar:hover,
-  .app-shell.is-collapsed .app-sidebar:focus-within { box-shadow: var(--shadow-theme-lg); }
+  .app-shell.is-collapsed .app-sidebar:has(:focus-visible) { box-shadow: var(--shadow-theme-lg); }
 
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-brand { justify-content: center; }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-brand-logo,
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-brand-text,
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-group-text,
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-chevron,
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-sub {
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-brand { justify-content: center; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-brand-logo,
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-brand-text,
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-text,
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-chevron,
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-sub {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -227,8 +229,8 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-brand .initials-tile { display: inline-grid; }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-label {
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-brand .initials-tile { display: inline-grid; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -236,14 +238,14 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-item { justify-content: center; }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-group-title { justify-content: center; }
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-group-dots { display: block; width: 24px; height: 24px; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-item { justify-content: center; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-title { justify-content: center; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-group-dots { display: block; width: 24px; height: 24px; }
 }
 /* With a logo, the brand row shows the logo; the initials tile only appears in the rail. */
 .sidebar-brand.has-logo .initials-tile { display: none; }
 @media (min-width: 1280px) {
-  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:focus-within) .sidebar-brand.has-logo .initials-tile { display: inline-grid; }
+  .app-shell.is-collapsed .app-sidebar:not(:hover):not(:has(:focus-visible)) .sidebar-brand.has-logo .initials-tile { display: inline-grid; }
 }
 
 /* ---------- Screens without the shell (auth) ---------- */

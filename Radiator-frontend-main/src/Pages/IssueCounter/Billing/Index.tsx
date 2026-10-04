@@ -1,19 +1,24 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../../Components/Icons";
 import RowActions from "../../../Components/RowActions";
-import Loader from "../../../Components/Loader";
-import Pagination from "../../../Components/Pagination";
-import Search from "../../../Components/Search";
 import Selector from "../../../Components/Selector";
+import RecordPaymentModal from "../../../Components/RecordPaymentModal";
 import { useAlertMsg } from "../../../Services/AllServices";
-import AlertComponent from "../../../Components/AlertComponent";
 import { getData, postData, deleteData } from "../../../Services/ApiServices";
+import { getUser } from "../../../Services/Auth";
 import { useSettings } from "../../../Context/SettingsContext";
 import { printInvoice, printReport } from "../../../Components/PrintInvoice";
 import { money } from "../../../Utils/format";
 import { RadiatorRecord, serviceDisplay } from "../Dashboard/Index";
+import { PageHeader, PaymentBadge, BusyOverlay } from "../../../Components/ui/Basics";
+import { ConfirmDialog } from "../../../Components/ui/Modal";
+import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../../Components/ui/DataList";
+import { Popover } from "../../../Components/ui/Menu";
+import { useRemoteList } from "../../../Components/ui/useRemoteList";
+import { storage } from "../../../Components/ui/hooks";
 
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -28,136 +33,142 @@ const STATUS_OPTIONS = [
     { value: "Received", label: "Received" },
 ];
 
+const DEFAULT_COLUMNS = {
+    date: true,
+    truckNumber: true,
+    transportName: true,
+    radiatorType: true,
+    mechanicName: true,
+    services: true,
+    totalAmount: true,
+    receivedAmount: true,
+    pendingAmount: true,
+    phoneNumber: true,
+    status: true,
+};
+type ColKey = keyof typeof DEFAULT_COLUMNS;
+
+const opt = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v) || null;
+const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("en-IN") : "—");
+
 const Billing = () => {
     const navigate = useNavigate();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
+    const L = settings.labels;
 
-    const [loading, setLoading] = useState(false);
-    const [exportLoading, setExportLoading] = useState(false);
-    const [recordData, setRecordData] = useState<RadiatorRecord[]>([]);
-
+    const [busyLabel, setBusyLabel] = useState("");
+    const [saving, setSaving] = useState(false);
     const [limit, setLimit] = useState(10);
-    const [selectedDataList, setSelectedDataList] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPage, settotalPage] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
 
     const [searchText, setSearchText] = useState("");
-    const [mechanicNameList, setmechanicName] = useState<string[]>([]);
-    const [searchMechanicName, setsearchMechanicName] = useState("");
+    const [mechanic, setMechanic] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
-    const [searchStatus, setSearchStatus] = useState("");
-    const [searchRadiatorType, setSearchRadiatorType] = useState("");
-    const [searchServiceType, setSearchServiceType] = useState("");
-    const [filtersKey, setFiltersKey] = useState(0); // bump to remount/clear the filter inputs
+    const [status, setStatus] = useState("");
+    const [product, setProduct] = useState("");
+    const [service, setService] = useState("");
+    const [filtersKey, setFiltersKey] = useState(0);
+    const [mechanics, setMechanics] = useState<string[]>([]);
 
     const [paymentItem, setPaymentItem] = useState<RadiatorRecord | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentDiscount, setPaymentDiscount] = useState("");
     const [deleteItem, setDeleteItem] = useState<RadiatorRecord | null>(null);
 
-    const [visibleColumns, setVisibleColumns] = useState({
-        date: true,
-        truckNumber: true,
-        transportName: true,
-        radiatorType: true,
-        mechanicName: true,
-        services: true,
-        totalAmount: true,
-        receivedAmount: true,
-        pendingAmount: true,
-        phoneNumber: true,
-        status: true,
+    // Column visibility, persisted per tenant (spec §4.7).
+    const colsKey = `billCols:${getUser()?.code || "default"}`;
+    const [visible, setVisible] = useState<Record<ColKey, boolean>>(() => {
+        try { return { ...DEFAULT_COLUMNS, ...JSON.parse(storage.get(colsKey) || "{}") }; } catch { return DEFAULT_COLUMNS; }
     });
-
-    const toggleColumn = (key: keyof typeof visibleColumns) => {
-        setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
+    const setCols = (next: Record<ColKey, boolean>) => { setVisible(next); storage.set(colsKey, JSON.stringify(next)); };
 
     const buildParams = () => ({
         truckNumber: searchText,
-        mechanicName: searchMechanicName,
+        mechanicName: mechanic,
         fromDate,
         toDate,
-        status: searchStatus,
-        radiatorType: searchRadiatorType,
-        serviceType: searchServiceType,
+        status,
+        radiatorType: product,
+        serviceType: service,
     });
 
-    const radiatorOptions = (settings.catalog.productTypes || []).map((p) => ({ label: p.label, value: p.label }));
-    const serviceOptions = (settings.catalog.serviceTypes || []).map((s) => ({ label: s.label, value: s.label }));
+    const list = useRemoteList<RadiatorRecord>(async () => {
+        const res = await getData("radiators", { params: { page: currentPage, limit, ...buildParams() } });
+        return { rows: res.radiatorData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service]);
 
+    useEffect(() => { getData("mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
+
+    const activeCount = [mechanic, product, service, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setsearchMechanicName(""); setSearchStatus("");
-        setSearchRadiatorType(""); setSearchServiceType("");
+        setSearchText(""); setMechanic(""); setStatus(""); setProduct(""); setService("");
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
-
-    const getTableData = async () => {
-        try {
-            setLoading(true);
-            const res = await getData("radiators", {
-                params: { page: currentPage, limit, ...buildParams() },
-            });
-            setRecordData(res.radiatorData || []);
-            settotalPage(res.totalPages || 1);
-            setTotalRecords(res.totalRecords || 0);
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Failed to load records", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getMechanicName = async () => {
-        try {
-            const res = await getData("mechanic");
-            setmechanicName(res.mechdata || []);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    useEffect(() => {
-        getTableData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchRadiatorType, searchServiceType]);
-
-    useEffect(() => {
-        sessionStorage.removeItem("search");
-        getMechanicName();
-    }, []);
-
-    const handleSearchData = () => {
-        setSearchText(sessionStorage.getItem("search") || "");
-        setCurrentPage(1);
-    };
-
-    const handleLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value) || 10;
-        setLimit(value);
-        setCurrentPage(1);
-    };
+    const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     const fetchAllForExport = async (): Promise<RadiatorRecord[]> => {
         const res = await getData("radiators/export", { params: buildParams() });
         return res.radiatorData || [];
     };
 
-    // ---- Payment ----
-    const openPaymentModal = (item: RadiatorRecord) => {
-        setPaymentAmount("");
-        setPaymentDiscount("");
-        setPaymentItem(item);
+    const withBusy = async (label: string, fn: () => Promise<void>, failMsg: string) => {
+        setBusyLabel(label);
+        try { await fn(); } catch (err: any) { callAlertMsg(err?.message || failMsg, "error"); } finally { setBusyLabel(""); }
     };
 
-    const handleRecordPayment = async () => {
+    const exportExcel = () => withBusy("Preparing Excel…", async () => {
+        const all = await fetchAllForExport();
+        const exportData = all.map((x) => ({
+            "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
+            [L.vehicleNo]: x.truckNumber,
+            [L.party]: x.transportName,
+            [L.product]: x.radiatorType,
+            "Mechanic": x.mechanicName,
+            "Services": servicesText(x),
+            "Total (₹)": x.totalAmount,
+            "Discount (₹)": x.discount ?? 0,
+            "Received (₹)": x.receivedAmount,
+            "Pending (₹)": x.pendingAmount,
+            "Phone": x.phoneNumber,
+            "Status": x.status,
+        }));
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Records");
+        XLSX.writeFile(wb, `billing-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }, "Export failed");
+
+    const exportPDF = () => withBusy("Preparing PDF…", async () => {
+        const all = await fetchAllForExport();
+        const doc = new jsPDF({ orientation: "landscape" });
+        doc.setFontSize(14);
+        doc.text(`${settings.company.name} — Billing`, 14, 14);
+        doc.setFontSize(9);
+        doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, 14, 20);
+        autoTable(doc, {
+            startY: 26,
+            head: [["Date", L.vehicleNo, L.party, "Mechanic", "Services", "Total", "Discount", "Received", "Pending", "Status"]],
+            body: all.map((x) => [
+                x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
+                x.truckNumber, x.transportName, x.mechanicName,
+                servicesText(x), x.totalAmount, x.discount ?? 0, x.receivedAmount, x.pendingAmount, x.status,
+            ]),
+            headStyles: { fillColor: settings.branding.primaryColor },
+            styles: { fontSize: 8 },
+        });
+        doc.save(`billing-${new Date().toISOString().slice(0, 10)}.pdf`);
+    }, "Export failed");
+
+    const handleReport = () => withBusy("Preparing report…", async () => {
+        const all = await fetchAllForExport();
+        printReport(all, { from: fromDate, to: toDate }, settings);
+    }, "Report failed");
+
+    const handleRecordPayment = async ({ amount: a, discount: dsc }: { amount: string; discount: string }) => {
         if (!paymentItem) return;
-        const amount = Number(paymentAmount) || 0;
-        const discount = Number(paymentDiscount) || 0;
+        const amount = Number(a) || 0;
+        const discount = Number(dsc) || 0;
         if (amount <= 0 && discount <= 0) {
             callAlertMsg("Enter a payment amount and/or a discount", "error");
             return;
@@ -167,7 +178,7 @@ const Billing = () => {
             return;
         }
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await postData(`radiators/${paymentItem._id}/payment`, {
                 amount,
                 // The API sets the bill's total discount (a missing value becomes 0), so always send
@@ -176,113 +187,44 @@ const Billing = () => {
             });
             callAlertMsg(res.message || "Payment recorded", "success");
             setPaymentItem(null);
-            await getTableData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to record payment", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    // ---- Delete ----
     const handleDelete = async () => {
         if (!deleteItem) return;
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await deleteData(`radiators/${deleteItem._id}`);
             callAlertMsg(res.message || "Record deleted", "success");
             setDeleteItem(null);
-            await getTableData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to delete record", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    // ---- Exports (fetch ALL filtered records) ----
-    const exportExcel = async () => {
-        setExportLoading(true);
-        try {
-            const all = await fetchAllForExport();
-            const exportData = all.map((x) => ({
-                "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
-                [settings.labels.vehicleNo]: x.truckNumber,
-                [settings.labels.party]: x.transportName,
-                [settings.labels.product]: x.radiatorType,
-                "Mechanic": x.mechanicName,
-                "Services": servicesText(x),
-                "Total (₹)": x.totalAmount,
-                "Discount (₹)": x.discount ?? 0,
-                "Received (₹)": x.receivedAmount,
-                "Pending (₹)": x.pendingAmount,
-                "Phone": x.phoneNumber,
-                "Status": x.status,
-            }));
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Records");
-            XLSX.writeFile(wb, `billing-${new Date().toISOString().slice(0, 10)}.xlsx`);
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Export failed", "error");
-        } finally {
-            setExportLoading(false);
-        }
-    };
+    const rowMenu = (o: RadiatorRecord) => (
+        <RowActions ariaLabel={`Actions for ${o.truckNumber}`} items={[
+            { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/issueCounter/dashboard/view/${o._id}`) },
+            { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/issueCounter/dashboard/edit/${o._id}`) },
+            { label: "Print", icon: <Icons iconName="print" />, onClick: () => printInvoice(o, settings) },
+            { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.pendingAmount <= 0, reason: "Fully paid" },
+            { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
+        ]} />
+    );
 
-    const exportPDF = async () => {
-        setExportLoading(true);
-        try {
-            const all = await fetchAllForExport();
-            const doc = new jsPDF({ orientation: "landscape" });
-            doc.setFontSize(14);
-            doc.text(`${settings.company.name} — Billing`, 14, 14);
-            doc.setFontSize(9);
-            doc.text(`Generated: ${new Date().toLocaleDateString("en-IN")}`, 14, 20);
-            autoTable(doc, {
-                startY: 26,
-                head: [[
-                    "Date", settings.labels.vehicleNo, settings.labels.party,
-                    "Mechanic", "Services", "Total", "Discount", "Received", "Pending", "Status",
-                ]],
-                body: all.map((x) => [
-                    x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
-                    x.truckNumber, x.transportName, x.mechanicName,
-                    servicesText(x), x.totalAmount, x.discount ?? 0, x.receivedAmount, x.pendingAmount, x.status,
-                ]),
-                headStyles: { fillColor: settings.branding.primaryColor },
-                styles: { fontSize: 8 },
-            });
-            doc.save(`billing-${new Date().toISOString().slice(0, 10)}.pdf`);
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Export failed", "error");
-        } finally {
-            setExportLoading(false);
-        }
-    };
-
-    const handleReport = async () => {
-        setExportLoading(true);
-        try {
-            const all = await fetchAllForExport();
-            printReport(all, { from: fromDate, to: toDate }, settings);
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Report failed", "error");
-        } finally {
-            setExportLoading(false);
-        }
-    };
-
-    const badge = (s: RadiatorRecord["status"]) =>
-        s === "Received" ? "status-badge-success" : s === "Partial" ? "status-badge-warning" : "status-badge-danger";
-
-    const mechanicOptions = mechanicNameList.map((m) => ({ value: m, label: m }));
-
-    const columnLabels: Record<keyof typeof visibleColumns, string> = {
+    const columnLabels: Record<ColKey, string> = {
         date: "Date",
-        truckNumber: settings.labels.vehicleNo,
-        transportName: settings.labels.party,
-        radiatorType: settings.labels.product,
+        truckNumber: L.vehicleNo,
+        transportName: L.party,
+        radiatorType: L.product,
         mechanicName: "Mechanic",
         services: "Services",
         totalAmount: "Total",
@@ -292,275 +234,149 @@ const Billing = () => {
         status: "Status",
     };
 
+    const allColumns: (Column<RadiatorRecord> & { col?: ColKey })[] = [
+        { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
+        { key: "date", col: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "truck", col: "truckNumber", header: L.vehicleNo, className: "key nowrap", cell: (o) => o.truckNumber },
+        { key: "party", col: "transportName", header: L.party, className: "text", cell: (o) => o.transportName },
+        { key: "product", col: "radiatorType", header: L.product, cell: (o) => o.radiatorType },
+        { key: "mech", col: "mechanicName", header: "Mechanic", className: "text", cell: (o) => o.mechanicName },
+        { key: "svc", col: "services", header: "Services", className: "text-wide", cell: (o) => servicesText(o) },
+        { key: "total", col: "totalAmount", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
+        { key: "rec", col: "receivedAmount", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
+        { key: "pend", col: "pendingAmount", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
+        { key: "phone", col: "phoneNumber", header: "Phone", className: "nowrap tabular", cell: (o) => o.phoneNumber || "—" },
+        { key: "status", col: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
+    ];
+    const columns = allColumns.filter((c) => !c.col || visible[c.col]);
+
+    const mechanicOptions = mechanics.map((m) => ({ value: m, label: m }));
+    const productOptions = (settings.catalog.productTypes || []).map((p) => ({ label: p.label, value: p.label }));
+    const serviceOptions = (settings.catalog.serviceTypes || []).map((s) => ({ label: s.label, value: s.label }));
+
+    const colsPicker = (
+        <Popover
+            role="dialog"
+            width={240}
+            trigger={(p) => (
+                <button type="button" className="btn btn-secondary btn-sm" aria-label="Choose columns" {...p}>
+                    <Icons iconName="columns" />Cols
+                </button>
+            )}
+        >
+            {() => (
+                <div aria-label="Visible columns">
+                    {(Object.keys(DEFAULT_COLUMNS) as ColKey[]).map((key) => (
+                        <label key={key} className="menu-check" htmlFor={`col-${key}`}>
+                            <input className="form-check-input" type="checkbox" id={`col-${key}`} checked={visible[key]}
+                                onChange={() => setCols({ ...visible, [key]: !visible[key] })} />
+                            {columnLabels[key]}
+                        </label>
+                    ))}
+                    <div className="menu-divider" />
+                    <button type="button" className="btn btn-link btn-sm w-100 justify-content-start px-3" onClick={() => setCols(DEFAULT_COLUMNS)}>Reset</button>
+                </div>
+            )}
+        </Popover>
+    );
+
+    const filterBar = (
+        <FilterBar
+            activeCount={activeCount}
+            onClear={clearFilters}
+            tools={colsPicker}
+            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${L.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            filters={[
+                { id: "f-mech", label: "Mechanic", primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
+                { id: "f-product", label: L.product, node: <Selector inputId="f-product" isClearable options={productOptions} placeholder="-- All --" value={opt(productOptions, product)} onChange={(o: any) => setFilter(setProduct)(o ? o.value : "")} /> },
+                { id: "f-service", label: "Service Type", node: <Selector inputId="f-service" isClearable options={serviceOptions} placeholder="-- All --" value={opt(serviceOptions, service)} onChange={(o: any) => setFilter(setService)(o ? o.value : "")} /> },
+                { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },
+                { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
+                { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
+            ]}
+        />
+    );
+
+    const filtered = activeCount > 0;
     return (
-        <div className="row">
-            <Loader loading={loading || exportLoading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <BusyOverlay show={!!busyLabel} label={busyLabel} />
+            <PageHeader
+                title="Bills"
+                actions={[
+                    { label: "Excel", icon: "exporticon", onClick: exportExcel, disabled: !!busyLabel, collapse: true },
+                    { label: "PDF", icon: "entrolment_download", onClick: exportPDF, disabled: !!busyLabel, collapse: true },
+                    { label: "Report", icon: "DTM_reports", onClick: handleReport, disabled: !!busyLabel, collapse: true },
+                ]}
+                primary={
+                    <button type="button" className="btn btn-primary" onClick={() => navigate("/issueCounter/dashboard/create")}>
+                        <Icons iconName="add" />Add New
+                    </button>
+                }
+            />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between my-4">
-                    <h4 className="fw-semibold">Billing</h4>
-                    <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"
-                            onClick={exportExcel} disabled={exportLoading}>
-                            <Icons iconName="exporticon" className="icon-15 me-2" />
-                            {exportLoading ? "Exporting..." : "Excel"}
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"
-                            onClick={exportPDF} disabled={exportLoading}>
-                            <Icons iconName="entrolment_download" className="icon-15 me-2" />
-                            PDF
-                        </button>
-                        <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center"
-                            onClick={handleReport} disabled={exportLoading}>
-                            <Icons iconName="DTM_reports" className="icon-15 icon-white me-2" />
-                            Report
-                        </button>
-                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center"
-                            onClick={() => navigate("/issueCounter/dashboard/create")}
-                            style={{ whiteSpace: "nowrap" }}>
-                            <Icons iconName="add" className="icon-12 icon-white me-2" />
-                            Add New
-                        </button>
-                    </div>
-                </div>
-
-                <div className="card card-shadow mt-4">
-                    <div className="card-body p-0">
-                        <div className="table-header">
-                            <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-4 col-xl-3" key={`search-${filtersKey}`}>
-                                    <Search getData={handleSearchData}
-                                        placeholder={`Search ${settings.labels.vehicleNo}...`} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Mechanic</label>
-                                    <Selector key={`mech-${filtersKey}`} isClearable options={mechanicOptions}
-                                        placeholder="-- All --"
-                                        onChange={(option: any) => { setsearchMechanicName(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">{settings.labels.product}</label>
-                                    <Selector key={`model-${filtersKey}`} isClearable options={radiatorOptions}
-                                        placeholder="-- All --"
-                                        onChange={(option: any) => { setSearchRadiatorType(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Service Type</label>
-                                    <Selector key={`svc-${filtersKey}`} isClearable options={serviceOptions}
-                                        placeholder="-- All --"
-                                        onChange={(option: any) => { setSearchServiceType(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Status</label>
-                                    <Selector key={`status-${filtersKey}`} isClearable options={STATUS_OPTIONS}
-                                        placeholder="-- All Status --"
-                                        onChange={(option: any) => { setSearchStatus(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="from-date" className="form-label font-w500 mb-1">From</label>
-                                    <input id="from-date" type="date" className="form-control"
-                                        value={fromDate} max={toDate || undefined}
-                                        onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="to-date" className="form-label font-w500 mb-1">To</label>
-                                    <input id="to-date" type="date" className="form-control"
-                                        min={fromDate || undefined} value={toDate}
-                                        onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-1 d-flex align-items-end">
-                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearFilters}>Clear</button>
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-1 d-flex justify-content-end align-items-end">
-                                    <div className="dropdown">
-                                        <button className="btn btn-cancel btn-sm dropdown-toggle d-flex align-items-center"
-                                            type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                                            <Icons iconName="table_view" className="icon-15 me-2" />
-                                            Cols
-                                        </button>
-                                        <ul className="dropdown-menu dropdown-menu-end p-2" style={{ minWidth: "200px" }}>
-                                            {(Object.keys(visibleColumns) as Array<keyof typeof visibleColumns>).map((key) => (
-                                                <li key={key} className="form-check ms-2">
-                                                    <input className="form-check-input" type="checkbox" id={`col-${key}`}
-                                                        checked={visibleColumns[key]} onChange={() => toggleColumn(key)} />
-                                                    <label className="form-check-label" htmlFor={`col-${key}`}>
-                                                        {columnLabels[key]}
-                                                    </label>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14">
-                                <thead>
-                                    <tr>
-                                        <th className="cell-nowrap">SI No</th>
-                                        {visibleColumns.date && <th className="cell-nowrap">Date</th>}
-                                        {visibleColumns.truckNumber && <th className="cell-nowrap">{settings.labels.vehicleNo}</th>}
-                                        {visibleColumns.transportName && <th>{settings.labels.party}</th>}
-                                        {visibleColumns.radiatorType && <th>{settings.labels.product}</th>}
-                                        {visibleColumns.mechanicName && <th>Mechanic</th>}
-                                        {visibleColumns.services && <th>Services</th>}
-                                        {visibleColumns.totalAmount && <th className="cell-nowrap">Total</th>}
-                                        {visibleColumns.receivedAmount && <th className="cell-nowrap">Received</th>}
-                                        {visibleColumns.pendingAmount && <th className="cell-nowrap">Pending</th>}
-                                        {visibleColumns.phoneNumber && <th className="cell-nowrap">Phone</th>}
-                                        {visibleColumns.status && <th className="cell-nowrap">Status</th>}
-                                        <th className="cell-nowrap">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {recordData.length ? (
-                                        recordData.map((o, i) => (
-                                            <tr key={o._id}>
-                                                <td className="cell-nowrap">{(currentPage - 1) * limit + i + 1}</td>
-                                                {visibleColumns.date && (
-                                                    <td className="cell-nowrap">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
-                                                )}
-                                                {visibleColumns.truckNumber && <td className="cell-nowrap">{o.truckNumber}</td>}
-                                                {visibleColumns.transportName && <td>{o.transportName}</td>}
-                                                {visibleColumns.radiatorType && <td>{o.radiatorType}</td>}
-                                                {visibleColumns.mechanicName && <td>{o.mechanicName}</td>}
-                                                {visibleColumns.services && <td>{servicesText(o)}</td>}
-                                                {visibleColumns.totalAmount && <td className="cell-nowrap">{money(o.totalAmount)}</td>}
-                                                {visibleColumns.receivedAmount && <td className="cell-nowrap">{money(o.receivedAmount)}</td>}
-                                                {visibleColumns.pendingAmount && (
-                                                    <td className={`cell-nowrap ${o.pendingAmount > 0 ? "text-danger font-w600" : ""}`}>
-                                                        {money(o.pendingAmount)}
-                                                    </td>
-                                                )}
-                                                {visibleColumns.phoneNumber && <td className="cell-nowrap">{o.phoneNumber || "—"}</td>}
-                                                {visibleColumns.status && (
-                                                    <td className="cell-nowrap"><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
-                                                )}
-                                                <td className="cell-nowrap">
-                                                    <RowActions ariaLabel={`Actions for ${o.truckNumber}`} items={[
-                                                        { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/issueCounter/dashboard/view/${o._id}`) },
-                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/issueCounter/dashboard/edit/${o._id}`) },
-                                                        { label: "Print", icon: <Icons iconName="print" />, onClick: () => printInvoice(o, settings) },
-                                                        { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => openPaymentModal(o) },
-                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
-                                                    ]} />
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={13} className="text-center py-3">No Records Found</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPage}
-                        selectedDataList={selectedDataList}
-                        setSelectedDataList={setSelectedDataList}
-                        paginationDataLimit={{ limit }}
-                        response={{ totalRecords }}
-                        handleInputChange={handleLimitChange}
-                        handlePreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        handleNextPage={() => setCurrentPage((p) => Math.min(totalPage, p + 1))}
+            <DataList<RadiatorRecord>
+                caption="Bills"
+                toolbar={filterBar}
+                rows={list.rows}
+                rowKey={(o) => o._id}
+                columns={columns}
+                status={list.status}
+                refetching={list.refetching}
+                onRetry={list.reload}
+                errorTitle="Couldn't load bills"
+                empty={emptyCopy({
+                    filtered,
+                    noun: "bills",
+                    noDataText: "Create your first bill and it will show up here.",
+                    noMatchText: `Try a different ${L.vehicleNo}, ${L.agent} or date range.`,
+                    onClear: clearFilters,
+                    action: <button type="button" className="btn btn-primary" onClick={() => navigate("/issueCounter/dashboard/create")}><Icons iconName="add" />Add New</button>,
+                })}
+                mobileCard={(o) => (
+                    <MobileCard
+                        title={o.truckNumber}
+                        to={`/issueCounter/dashboard/view/${o._id}`}
+                        badge={<PaymentBadge status={o.status} />}
+                        menu={rowMenu(o)}
+                        meta={[fmtDate(o.billDate), o.radiatorType, o.mechanicName]}
+                        meta2={servicesText(o)}
+                        amounts={[
+                            { label: "Total", value: money(o.totalAmount) },
+                            { label: "Received", value: money(o.receivedAmount) },
+                            { label: "Pending", value: money(o.pendingAmount), tone: o.pendingAmount > 0 ? "error" : undefined },
+                        ]}
                     />
-                </div>
-            </div>
+                )}
+                pagination={
+                    <Pagination page={currentPage} totalPages={list.totalPages} total={list.total} limit={limit}
+                        onPage={setCurrentPage} onLimit={(n) => { setLimit(n); setCurrentPage(1); }} />
+                }
+            />
 
-            {/* Record Payment Modal */}
-            {paymentItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Record Payment — {paymentItem.truckNumber}</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setPaymentItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Total</span><span className="font-w600">{money(paymentItem.totalAmount)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Received so far</span>
-                                    <span className="font-w600 text-success">{money(paymentItem.receivedAmount)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-3">
-                                    <span>Pending</span>
-                                    <span className="font-w600 text-danger">{money(paymentItem.pendingAmount)}</span>
-                                </div>
-                                <div className="form-group mb-3">
-                                    <label className="form-label" htmlFor="payment-discount">
-                                        Discount (₹) <span className="text-muted font-s12">— optional, reduces the amount owed</span>
-                                    </label>
-                                    <input id="payment-discount" type="number" className="form-control"
-                                        min={0} max={paymentItem.pendingAmount} value={paymentDiscount}
-                                        onChange={(e) => setPaymentDiscount(e.target.value)}
-                                        placeholder="0" />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="payment-amount">
-                                        Amount received now (₹)
-                                    </label>
-                                    <input id="payment-amount" type="number" className="form-control"
-                                        min={0} max={Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)} value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        placeholder={`Up to ${Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)}`} autoFocus />
-                                </div>
-                                {(Number(paymentDiscount) || 0) > 0 && (
-                                    <div className="d-flex justify-content-between font-s14 mt-3 pt-2 border-top">
-                                        <span>Pending after discount</span>
-                                        <span className="font-w600">
-                                            {money(Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0) - (Number(paymentAmount) || 0), 0))}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setPaymentItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm"
-                                    onClick={handleRecordPayment}
-                                    disabled={loading || paymentItem.pendingAmount <= 0}>
-                                    {loading ? "Saving..." : "Record Payment"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <RecordPaymentModal
+                open={!!paymentItem}
+                title={`Record Payment — ${paymentItem?.truckNumber ?? ""}`}
+                total={paymentItem?.totalAmount || 0}
+                received={paymentItem?.receivedAmount || 0}
+                pending={paymentItem?.pendingAmount || 0}
+                busy={saving}
+                onClose={() => setPaymentItem(null)}
+                onSubmit={handleRecordPayment}
+            />
 
-            {/* Delete Confirm Modal */}
-            {deleteItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Delete Record</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setDeleteItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s14 mb-0">
-                                    Delete bill for{" "}
-                                    <span className="font-w600">{deleteItem.truckNumber}</span>
-                                    {deleteItem.billDate ? ` dated ${new Date(deleteItem.billDate).toLocaleDateString("en-IN")}` : ""}? This cannot be undone.
-                                </p>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setDeleteItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={handleDelete} disabled={loading}>
-                                    {loading ? "Deleting..." : "Delete"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            <ConfirmDialog
+                open={!!deleteItem}
+                title="Delete Record"
+                message={deleteItem && <>Delete bill for <span className="t-strong t-semibold">{deleteItem.truckNumber}</span>{deleteItem.billDate ? ` dated ${fmtDate(deleteItem.billDate)}` : ""}? This cannot be undone.</>}
+                confirmLabel="Delete"
+                busyLabel="Deleting..."
+                busy={saving}
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteItem(null)}
+            />
+        </>
     );
 };
 

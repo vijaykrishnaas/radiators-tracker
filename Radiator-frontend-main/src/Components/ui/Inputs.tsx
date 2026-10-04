@@ -24,7 +24,7 @@ export function AffixInput({ id, prefix, suffix, className = "", invalid, ...res
             {prefix && <span className="input-group-text">{prefix}</span>}
             <input
                 id={id}
-                className={`form-control ${className}`}
+                className={`form-control${invalid ? " is-invalid" : ""} ${className}`}
                 aria-invalid={invalid || undefined}
                 onWheel={rest.type === "number" ? (e) => (e.target as HTMLInputElement).blur() : undefined}
                 {...rest}

@@ -18,7 +18,7 @@ export function Pagination({ page, totalPages, total, limit, onPage, onLimit }: 
         <nav className="pager" aria-label="Pagination">
             <div className="pager-left">
                 {onLimit && (
-                    <span className="pager-rows d-flex align-items-center gap-2">
+                    <span className="pager-rows">
                         <label htmlFor={id} className="mb-0">Rows per page</label>
                         <select id={id} className="form-select" value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
                             {limits.map((n) => <option key={n} value={n}>{n}</option>)}

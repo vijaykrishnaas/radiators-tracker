@@ -44,7 +44,7 @@ const Selector = <SelectOption, IsMulti extends boolean = false>(
       name={props.name}
       options={props.options}
       className={props.className}
-      classNamePrefix={props.prefixClassName}
+      classNamePrefix={props.prefixClassName || "rs"}
       styles={selectStyles as unknown as StylesConfig<SelectOption, IsMulti>}
       id={props.id}
       inputId={props.inputId}
