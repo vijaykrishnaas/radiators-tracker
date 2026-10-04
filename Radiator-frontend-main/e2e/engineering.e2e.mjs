@@ -482,6 +482,8 @@ async function run(type) {
   await page.getByRole("menuitem", { name: /Record Payment/i }).click();
   await page.locator(".eng-modal").first().waitFor({ timeout: 10000 });
   await page.locator(".eng-modal input.form-control").first().waitFor({ timeout: 10000 });
+  const dlg = page.getByRole("dialog", { name: /Record Payment/ });
+  ok("eng: payment dialog is a named modal dialog (role + aria-modal + accessible name)", (await dlg.count()) === 1 && (await dlg.getAttribute("aria-modal")) === "true", `named dialogs=${await dlg.count()}`);
   const pm = await page.evaluate(() => {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
     return { inputs: [...document.querySelectorAll(".eng-modal input.form-control")].map(g), btns: [...document.querySelectorAll(".eng-modal .modal-footer .btn")].map(g),
