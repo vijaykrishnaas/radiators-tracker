@@ -107,7 +107,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - [x] **TailAdmin v2 — step 2 (PR #52 open): Dashboard** metric cards + chart cards + range control to recipes.
 - [x] **TailAdmin v2 — step 3 (PR #53 open): Billing** table + status badges + filter card.
 - [x] **TailAdmin v2 — step 4 (DONE across form, Billing, dialog, Dashboard — Dashboard dates PR open): buttons/inputs** inside Engineering.
-- [ ] **TailAdmin v2 — step 5: Settings catalog, form cards, modals.**
+- [x] **TailAdmin v2 — step 5 (engineering Settings catalog tab done, PR open; Company/Bonus/Invoice are shared = Needs user): Settings catalog, form cards, modals.**
 - [x] Dashboard: KPI cards, chart panels, token colours, empty states — PR #39 (merged).
 - [x] Dashboard: date-range segmented control + phone layout — PR #39 (merged).
 - [x] Dashboard follow-ups: hoisted `Seg`, fixed `compact()` rounding — PR #40 (merged).
@@ -147,6 +147,7 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - Any change to shared header, shared Settings tabs, shared CSS or other verticals.
 
 ## Run log (newest first)
+- 2026-10-04 02:56 UTC — Merged #64 (squash e9f28ff; tsc clean, eng 136, others no FAIL). Opened PR for eng-ui-refine-21 (step 5, Settings): measured all 5 engineering Settings tabs; the catalog rail/table/switches already meet the recipe; fixed the Bill numbering input vs Financial year select mismatch (40px/12px/grey select -> 44px/8px/white); 137 eng checks. NEEDS USER (shared file): Company/Bonus/Invoice tabs render via shared Settings/Index.tsx (also radiator/automobile) with 12px-radius inputs; matching them needs an approved touch of the shared Settings page. Next: fold #64 nits (primary colour read from document, range separator padding), then the accessibility sweep.
 - 2026-10-04 01:56 UTC — Step 1a only: independent review of #64 (eng-ui-refine-20, dashboard dates) posted, VERDICT: NO-BLOCKERS (head ae48695). Merge next run. Nits to fold into the next PR: read `--primary` from the document in the focus-ring check instead of hard-coding rgb(34,100,229); `.eng-range-sep` padding-bottom 8px -> ~12px (arrow sits ~3px low beside the 44px inputs); drop the unneeded 250ms wait. Next: step 5 Settings screens, then a11y sweep.
 - 2026-10-04 00:56 UTC — Merged #63 (squash 9c38468; tsc clean, eng 134, others no FAIL). Opened PR for eng-ui-refine-20: Dashboard From/To inputs 38->44px and the shared 4px/12% brand ring (was 3px/18%); 136 eng checks; screenshots reviewed. Step 4 (buttons/inputs) is now done for form, Billing, dialog, Dashboard. Next: step 5 — Settings screens (catalog rail/rows, switches, tabs, Mechanics/Invoice/Bonus cards), then the accessibility sweep.
 - 2026-10-03 23:56 UTC — Step 1a only: independent review of #63 (eng-ui-refine-19) posted, VERDICT: NO-BLOCKERS (head 0712ea2). Merge next run. Nits for a later pass: drop `!important` on the `.eng-form` min-height/radius rules for consistency (specificity suffices, verify with the measured checks); assert the modal detaches instead of swallowing the wait timeout; replace the two remaining 300ms sleeps. Then: Dashboard date inputs, step 5 Settings, a11y sweep.
