@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (eighth lap)
+Next area: **2** (eighth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-04 22:37 UTC — Area 1 (Engineering backend, 8th lap): no new bug; staging unchanged since 256ac9f (#69). backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6. No code changed since the last lap, so nothing new to review. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-04 18:37 UTC — Area 6 (cross-cutting): no new bug. Staging unchanged since 256ac9f (#69): backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6. Seventh lap complete with no findings; all Engineering feature work + UI/a11y backlog is merged. Suggest (again) the user slows this routine to daily or pauses it — repeated laps find nothing without code changes. No PR, no notification.
 - 2026-10-04 14:37 UTC — Area 5 (Radiator, live): no new bug. Staging at 78fb36e: backend 53/53, tsc clean, e2e radiator 6, engineering 141, automobile 10, salary 6. No radiator-owned file (radiator.dao/routes, bonus.dao, Pages/IssueCounter, PrintInvoice) changed since 2026-10-03; the only shared change touching radiator users is the Header logout now going to /t/<code>/login (user-approved; covered by the radiator e2e). PROMOTION REMINDERS still open: (1) read-only check of live radiator bills for discounts lost before #29, (2) logout redirect change affects radiator users. No PR, no notification.
 - 2026-10-04 10:37 UTC — Area 4 (Salary): no new bug. Staging at 4d6c07d: backend 53/53 (salary.dao 4 tests), tsc clean, e2e salary 6, engineering 139, radiator 6, automobile 10. No salary source file changed in the last day (git log empty for salary.dao/routes/Pages/Salary). Known open item unchanged: manual present-days above working days is unvalidated (needs a product decision). No PR, no notification.
