@@ -209,3 +209,4 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - 2026-10-02 10:56 UTC — Step 1a only: independent review of #39 posted, VERDICT: NO-BLOCKERS (head dcd5761). Merge next run. Follow-ups from the review (do in a later small PR, not #39): hoist `Seg` out of `EngDashboard` (remounts each render, loses keyboard focus); `compact(999999)` shows "1000k".
 - 2026-10-02 10:00 UTC (first fired run) — Backlog items 1+2 (Dashboard). Before/after screenshots at 1300/390; fixed phone date-input overflow; recharts donut animates ~2s, wait >=3s before screenshots. Opened PR #39; engineering e2e 56/56, radiator 6, automobile 10, salary 6 no FAIL. Next run: review #39.
 - 2026-10-04 23:57 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (8th consecutive idle run.)
+- 2026-10-05 00:57 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (9th consecutive idle run.)
