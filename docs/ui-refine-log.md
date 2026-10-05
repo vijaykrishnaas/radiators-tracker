@@ -226,3 +226,4 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - 2026-10-05 14:56 UTC — No UI PR (held; staging unchanged e50e7a5; no open UI PR). Browser-suite failures seen at 12:56 were an env gap (missing @fontsource deps), fixed by npm install; all suites pass on e50e7a5. Awaiting the user's decision on pausing this routine.
 - 2026-10-05 15:56 UTC — No UI PR (held; staging unchanged e50e7a5; no open UI PR). Quiet.
 - 2026-10-05 16:56 UTC — No UI PR (held; staging unchanged e50e7a5; no open UI PR). Quiet.
+- 2026-10-05 17:56 UTC — No UI PR (held; staging unchanged e50e7a5; no open UI PR). Quiet.
