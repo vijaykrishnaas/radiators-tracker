@@ -67,7 +67,7 @@ const Login: React.FC = () => {
                 document.documentElement.style.setProperty("--login-text-color", readableLoginText(c.branding?.loginTextColor));
                 document.title = (c.companyName || c.name || "Radiator Management");
             })
-            .catch(() => { /* unknown code → generic page */ });
+            .catch(() => { /* unknown code: generic page */ });
     }, [codeFromUrl]);
     const {
         control,

@@ -5,9 +5,9 @@ Reference screens: `Pages/IssueCounter/Billing/Index.tsx` (list), `Pages/IssueCo
 `Pages/IssueCounter/Dashboard/Index.tsx` (dashboard). Copy their structure.
 
 ## Rules
-- **No legacy classes.** The old global CSS (`Assets/css/*`, `Pages/Engineering/engineering.css`) is no longer loaded. Do not use
+- **No legacy classes.** The old global CSS was deleted in the cleanup phase. Do not use
   `font-s14`, `font-w600`, `card-shadow`, `table-header`, `table-accordion-header`, `status-badge*`, `btn-cancel`, `btn-gradient`,
-  `icon-15`, `session-custom-border`, `resp-bar`, `base-title`, `eng-*` etc. Do not import any file from `Assets/css/`.
+  `icon-15`, `session-custom-border`, `resp-bar`, `base-title`, `eng-*` etc. 
 - **Tokens only.** No hex colours, no `!important`, no raw px font sizes outside the scale in TSX/CSS. Use the classes below or
   `var(--…)` tokens from `styles/theme.css`. Page-specific CSS goes in the area file `styles/components/<area>.css`.
 - **Copy rules (spec §4.2):** button, menu and nav labels keep their exact current text and casing ("Add New", "Record Payment",

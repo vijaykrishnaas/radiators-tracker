@@ -53,6 +53,8 @@ export type FilterDef = {
     node: React.ReactNode;
     /** Shown inline at 768–1279 (first two are used if none are marked). */
     primary?: boolean;
+    /** Required control (e.g. the person on review pages): stays visible on phones instead of moving into the sheet. */
+    inline?: boolean;
 };
 
 function FilterField({ f }: { f: FilterDef }) {
@@ -103,19 +105,22 @@ export function FilterBar({
     }
 
     if (phone) {
+        const pinned = filters.filter((f) => f.inline);
+        const sheetFilters = filters.filter((f) => !f.inline);
         return (
             <div className="filter-bar">
-                <div className="filter-phone">
+                {pinned.length > 0 && <div className="d-grid gap-3 mb-3">{pinned.map((f) => <FilterField key={f.id} f={f} />)}</div>}
+                {sheetFilters.length > 0 && <div className="filter-phone">
                     {search}
                     <div className={search ? "pt-4" : "w-100"}>
                         <button type="button" className={`btn btn-secondary${search ? " mt-1" : " w-100"}`} aria-haspopup="dialog" onClick={() => setSheetOpen(true)}>
                             <Icons iconName="filter" />Filters {countBadge}
                         </button>
                     </div>
-                </div>
+                </div>}
                 {helper && <p className="field-help mb-0 mt-2">{helper}</p>}
                 <FilterSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onClear={onClear} activeCount={activeCount}>
-                    {filters.map((f) => <FilterField key={f.id} f={f} />)}
+                    {sheetFilters.map((f) => <FilterField key={f.id} f={f} />)}
                     {tools && <div className="filter-tools">{tools}</div>}
                 </FilterSheet>
             </div>

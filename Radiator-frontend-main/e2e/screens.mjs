@@ -63,13 +63,12 @@ for (const [vertical, name, route] of SCREENS) {
     else if (vertical !== "public") await loginAs(page, BASE, "admin");
     await page.goto(BASE + route);
     await page.waitForTimeout(1200);
-    if (name === "review") {
-      const sel = page.locator("[class*='-control']").first();
-      if (await sel.count()) { await sel.click(); await page.keyboard.press("Enter"); await page.waitForTimeout(900); }
-    }
-    if (name === "settle") {
-      const sel = page.locator("[class*='-control']").first();
-      if (await sel.count()) { await sel.click(); await page.keyboard.press("Enter"); await page.waitForTimeout(900); }
+    // Pick the first person so review / settle pages render with data.
+    const personInput = name === "review" ? "#review-person" : name === "settle" ? "#settle-employee" : null;
+    if (personInput && (await page.locator(personInput).count())) {
+      await page.locator(personInput).click();
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(900);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (overflow > 1) errors.push(`${id}@${w}: horizontal page overflow ${overflow}px`);

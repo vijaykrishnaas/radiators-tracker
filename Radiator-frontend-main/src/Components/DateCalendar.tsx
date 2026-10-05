@@ -4,7 +4,6 @@ import DatePicker from 'react-date-picker';
 type Value = Date | null | [Date | null, Date | null];
 import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
-import 'react-clock/dist/Clock.css';
 
 interface DateCalendarProps {
     name?: string;

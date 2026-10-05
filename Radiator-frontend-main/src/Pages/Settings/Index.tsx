@@ -731,8 +731,8 @@ const SettingsPage = () => {
                         </div>
                         <span className="field-help">
                             Each bill earns its mechanic this percentage of the bill's net (post-discount) total, payable in proportion to
-                            the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog →
-                            Financial year. After changing the percentage, open Bonus → Sync to re-price existing bills.
+                            the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog<Icons iconName="chevron-right" className="icon-14 mx-1" />
+                            Financial year. After changing the percentage, open Bonus<Icons iconName="chevron-right" className="icon-14 mx-1" />Sync to re-price existing bills.
                         </span>
                     </SectionCard>
                 )}

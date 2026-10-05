@@ -162,7 +162,7 @@ const MechanicReview = () => {
                         activeCount={activeCount}
                         onClear={clearFilters}
                         filters={[
-                            { id: "review-person", label: "Mechanic", primary: true, node: <Selector inputId="review-person" options={personOptions} value={selectedMechanic} placeholder="-- Select Mechanic --" onChange={(opt: any) => setSelectedMechanic(opt)} /> },
+                            { id: "review-person", inline: true, label: "Mechanic", primary: true, node: <Selector inputId="review-person" options={personOptions} value={selectedMechanic} placeholder="-- Select Mechanic --" onChange={(opt: any) => setSelectedMechanic(opt)} /> },
                             { id: "review-from", label: "From", primary: true, node: <input id="review-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /> },
                             { id: "review-to", label: "To", node: <input id="review-to" type="date" className="form-control" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value)} /> },
                         ]}

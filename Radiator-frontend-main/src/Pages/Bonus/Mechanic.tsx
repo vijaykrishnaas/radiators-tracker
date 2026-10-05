@@ -426,7 +426,7 @@ export function BonusPage({
                 title={title}
                 subtitle={
                     <>
-                        Every bill earns a bonus based on the rates you set in <strong>Settings → Bonus</strong>.
+                        Every bill earns a bonus based on the rates you set in <strong>Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Bonus</strong>.
                         This lists what's pending from bills dated <strong>{from}</strong> to <strong>{to}</strong>.
                         Open a row to see the bills behind it, then <strong>Issue</strong> a person their bonus —
                         or tick several and use <strong>Issue selected</strong>.
@@ -445,7 +445,7 @@ export function BonusPage({
                 <div className="mb-3">
                     <Callout tone="warning">
                         No bonus is accruing for these jobs yet — set a bonus&nbsp;% for these services in{" "}
-                        <button type="button" className="btn btn-link p-0 t-sm" style={{ minHeight: 0 }} onClick={() => navigate("/settings")}>Settings → Bonus</button>,
+                        <button type="button" className="btn btn-link p-0 t-sm" style={{ minHeight: 0 }} onClick={() => navigate("/settings")}>Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Bonus</button>,
                         then click <strong>Recalculate</strong>.
                     </Callout>
                 </div>
