@@ -568,6 +568,7 @@ body.is-scroll-locked { overflow: hidden; }
 }
 .form-footer-total span { display: block; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--text-muted); }
 .form-footer-total strong { display: block; font-size: var(--text-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-bold); color: var(--brand-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.form-footer-note { display: block; margin-top: 2px; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .form-footer-actions { display: flex; gap: 12px; margin-left: auto; }
 @media (max-width: 767.98px) {
   .form-footer { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; border-radius: 0; }

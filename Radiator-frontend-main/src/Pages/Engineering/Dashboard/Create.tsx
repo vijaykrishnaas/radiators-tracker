@@ -88,6 +88,9 @@ const EngCreate = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
+    const clearErr = (...keys: string[]) =>
+        setErrors((e) => (keys.some((k) => e[k]) ? Object.fromEntries(Object.entries(e).filter(([k]) => !keys.includes(k))) : e));
+
     const findType = (t: string) => serviceTypes.find((x) => x.value === t);
 
     const updateCard = (key: number, fn: (c: Card) => Card) =>
@@ -128,6 +131,11 @@ const EngCreate = () => {
                 });
             return { ...c, rows: [...kept, ...added] };
         });
+    const addItem = (key: number, value: string) => {
+        const c = cards.find((x) => x.key === key);
+        if (c) setItems(key, [...c.rows.map((x) => x.item), value]);
+        clearErr("services");
+    };
 
     const setRow = (key: number, item: string, patch: Partial<Row>) => {
         updateCard(key, (c) => ({ ...c, rows: c.rows.map((r) => (r.item === item ? { ...r, ...patch } : r)) }));
@@ -140,6 +148,7 @@ const EngCreate = () => {
     };
 
     const quickAdd = (type: string, item: string) => {
+        clearErr("services");
         const it = findType(type)?.items.find((i) => i.value === item);
         setCards((cs) => {
             let list = cs;
@@ -262,9 +271,12 @@ const EngCreate = () => {
     const typeOpts = serviceTypes.map((t) => ({ label: t.label, value: t.value }));
     const bsOpts = bsModels.map((b) => ({ label: b.label, value: b.value }));
     const filledCards = cards.filter((c) => c.rows.length);
-    const memoBreakdown = filledCards.length > 1
-        ? filledCards.map((c) => `Memo ${cards.indexOf(c) + 1}: ${money(subtotal(c))}`).join(" + ")
-        : undefined;
+    const memoParts = filledCards.length > 1 ? filledCards.map((c) => `Memo ${cards.indexOf(c) + 1}: ${money(subtotal(c))}`) : [];
+    if (disc > 0 && filledCards.length) {
+        if (!memoParts.length) memoParts.push(`Subtotal ${money(total)}`);
+        memoParts.push(`− Discount ${money(disc)}`);
+    }
+    const memoBreakdown = memoParts.length ? memoParts.join(" + ").replace(" + −", " −") : undefined;
     // Serial numbers run across memos (1–14 in memo 1, 15– in memo 2), as on the paper bill.
     const serialStart = (ci: number) => cards.slice(0, ci).reduce((n, c) => n + c.rows.length, 0);
 
@@ -279,8 +291,8 @@ const EngCreate = () => {
                             <h2 className="bill-sheet-title">{isView ? "Service bill" : "Turbo & air compressor service"}</h2>
                             <p className="bill-sheet-sub">{bsModels.map((b) => b.label).join(" / ") || "BS"} service work record</p>
                         </div>
-                        <span className="bill-no" aria-label={billNo != null ? `Bill number ${billNo}` : "Bill number assigned on save"}>
-                            Bill No. {billNo != null ? billNo : "[AUTO]"}
+                        <span className="bill-no" title={billNo == null && !id ? "The number is assigned when the bill is saved" : undefined}>
+                            Bill No. {billNo != null ? billNo : id ? "…" : "[AUTO]"}
                         </span>
                     </div>
 
@@ -288,7 +300,7 @@ const EngCreate = () => {
                         <div className="bill-fields">
                             <Field label="Bill date" htmlFor="eng-bill-date" required error={errors.billDate}>
                                 <input id="eng-bill-date" type="date" className="form-control" value={billDate} disabled={isView}
-                                    onChange={(e) => setBillDate(e.target.value)} />
+                                    onChange={(e) => { setBillDate(e.target.value); clearErr("billDate"); }} />
                             </Field>
                             <Field label="Lorry address" htmlFor="eng-lorry-address">
                                 <InputText id="eng-lorry-address" value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
@@ -298,13 +310,13 @@ const EngCreate = () => {
                                 help={filledNote ? <span className="t-success" role="status">Filled from last bill</span> : undefined}>
                                 <div className="input-icon">
                                     <InputText id="eng-truck-no" value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
-                                        onChange={(e) => setVehicleNo(e.target.value.toUpperCase())} onBlur={lookupVehicle} />
+                                        onChange={(e) => { setVehicleNo(e.target.value.toUpperCase()); clearErr("vehicleNo"); }} onBlur={lookupVehicle} />
                                     {lookingUp && <span className="spinner input-spinner" role="status" aria-label="Looking up truck" />}
                                 </div>
                             </Field>
                             <Field label="Phone number" htmlFor="eng-phone" error={errors.phone}>
                                 <InputText id="eng-phone" type="tel" inputMode="numeric" value={phone} placeholder="Enter Phone Number" disabled={isView}
-                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
+                                    onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearErr("phone"); }} />
                             </Field>
                             <Field label="Mechanic name" htmlFor="eng-mechanic" required error={errors.mechanic}>
                                 <Selector
@@ -314,7 +326,7 @@ const EngCreate = () => {
                                     isDisabled={isView}
                                     placeholder="Select Mechanic Name"
                                     aria-invalid={!!errors.mechanic}
-                                    onChange={(o: any) => setMechanic(o ? o.value : "")}
+                                    onChange={(o: any) => { setMechanic(o ? o.value : ""); clearErr("mechanic"); }}
                                 />
                             </Field>
                             <Field label="BS model" htmlFor="eng-bs">
@@ -355,7 +367,7 @@ const EngCreate = () => {
                                                 onChange={(o: any) => setType(c.key, o ? o.value : "")} />
                                         </div>
                                         {!isView && (
-                                            <button type="button" className="btn btn-icon eng-svc-remove" aria-label="Remove service" title="Remove memo"
+                                            <button type="button" className="btn btn-icon eng-svc-remove" aria-label={`Remove memo ${ci + 1}`} title="Remove memo"
                                                 onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
                                                 <Icons iconName="delete" />
                                             </button>
@@ -368,7 +380,7 @@ const EngCreate = () => {
                                         </div>
                                     )}
                                     {c.rows.length > 0 && (
-                                        <ul className="memo-rows eng-lines" aria-label={`Items for service ${ci + 1}`}>
+                                        <ul className="memo-rows eng-lines" aria-label={`Items in memo ${ci + 1}`}>
                                             {c.rows.map((r, ri) => {
                                                 const ce = errors[`c${c.key}-${r.item}`];
                                                 const qe = errors[`q${c.key}-${r.item}`];
@@ -386,11 +398,13 @@ const EngCreate = () => {
                                                             )}
                                                         </div>
                                                         <div className={`memo-qty field${qe ? " has-error" : ""}`}>
+                                                            <span className="memo-mlabel" aria-hidden="true">Qty</span>
                                                             <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
                                                                 className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
                                                             {qe && <span className="field-error" role="alert">{qe}</span>}
                                                         </div>
                                                         <div className="memo-rate">
+                                                            <span className="memo-mlabel" aria-hidden="true">Rate</span>
                                                             <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
                                                                 className="tabular" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
                                                         </div>
@@ -415,9 +429,9 @@ const EngCreate = () => {
                                                     aria-label={`Add item to memo ${ci + 1}`}
                                                     options={addOpts}
                                                     value={null}
-                                                    isDisabled={!c.type}
-                                                    placeholder={c.type ? "+ Add item" : "Select type first"}
-                                                    onChange={(o: any) => { if (o) setItems(c.key, [...c.rows.map((x) => x.item), o.value]); }}
+                                                    isDisabled={!c.type || !addOpts.length}
+                                                    placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : "All items added"}
+                                                    onChange={(o: any) => { if (o) addItem(c.key, o.value); }}
                                                 />
                                             </div>
                                         ) : <span />}
@@ -435,7 +449,7 @@ const EngCreate = () => {
 
                     {!isView && (
                         <button type="button" className="btn btn-secondary memo-new" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
-                            <Icons iconName="add" />Add New Service
+                            <Icons iconName="add" />Add memo
                         </button>
                     )}
                 </div>

@@ -150,6 +150,7 @@ async function run(type) {
     await card.getByText("+ Add item").click({ force: true });
     await page.getByText(it, { exact: true }).last().click();
   }
+  await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${S}/eng-form-turbo.png`, fullPage: true });
   const rateInputs = card.locator('input[placeholder="Rate"]');
@@ -161,6 +162,7 @@ async function run(type) {
   // Other without description → error
   await page.getByRole("button", { name: "Create bill" }).click();
   ok("eng: Other requires description", (await page.getByText("Describe the work").count()) > 0);
+  await page.screenshot({ path: `${S}/eng-form-errors.png`, fullPage: true });
   await page.waitForTimeout(450); // border-color has a 150ms transition
   const errBorder = await page.locator(".eng-line-comment.has-error .form-control").first().evaluate((el) => getComputedStyle(el).borderTopColor);
   const okBorder = await page.locator("#eng-lorry-address").evaluate((el) => getComputedStyle(el).borderTopColor);
@@ -424,7 +426,7 @@ async function run(type) {
   ok("eng: footer buttons are 8px radius and at least 44px tall", bi.save.r === "8px" && bi.cancel.r === "8px" && bi.save.h >= 44 && bi.cancel.h >= 44, JSON.stringify({ save: bi.save, cancel: bi.cancel }));
   const ctlRadii = await page.evaluate(() => [...document.querySelectorAll('.card-stack div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map((e) => getComputedStyle(e).borderTopLeftRadius));
   ok("eng: every dropdown in the form (incl. the service-items picker) is 8px radius", ctlRadii.length >= 3 && ctlRadii.every((r) => r === "8px"), JSON.stringify(ctlRadii));
-  ok("eng: small form buttons (Add New Service / Remove service) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
+  ok("eng: small form buttons (Add memo / Remove memo) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
 
   // Phone: footer actions stay at least 44px tall and inside the viewport.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -625,6 +627,9 @@ async function run(type) {
   await page.goto(BASE + "/engineering/dashboard/view/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
+  await page.screenshot({ path: `${S}/eng-form-view.png`, fullPage: true });
+  const viewNote = await page.locator(".form-footer-note").innerText().catch(() => "");
+  ok("eng: view footer explains the discount (subtotal − discount = total)", /Subtotal .*4,850\.00 − Discount .*50\.00/.test(viewNote), viewNote);
   ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Create bill|Update bill/ }).count()) === 0);
   ok("eng: view mode has no remove-item / remove-service buttons", (await page.getByRole("button", { name: /Remove (item|service)/ }).count()) === 0);
 

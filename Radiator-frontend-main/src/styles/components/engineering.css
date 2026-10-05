@@ -41,20 +41,21 @@
 .memo-part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .memo-part-name { color: var(--text-strong); overflow-wrap: anywhere; }
 .memo-row .form-control { min-height: 42px; height: 42px; border-radius: var(--radius-sm); }
+.memo-mlabel { display: none; }
 .memo-amt { text-align: right; font-size: 15px; font-weight: var(--weight-semibold); color: var(--text-strong); white-space: nowrap; }
 
 .memo-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .memo-add { flex: 0 1 260px; min-width: 200px; }
-.memo-add .rs__control { border-style: dashed; box-shadow: none; }
+.memo-add .rs__control { border-style: dashed; }
+.memo-add .rs__control:not(.rs__control--is-focused) { box-shadow: none; }
 .memo-subtotal { display: flex; align-items: baseline; gap: 8px; margin-left: auto; font-size: var(--text-sm); color: var(--text-muted); }
 .memo-subtotal strong { font-size: var(--text-md); color: var(--text-strong); }
 .memo-new { align-self: flex-start; }
-.form-footer-note { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 @media (min-width: 768px) {
   .memo-cols { display: grid; }
 }
-/* Phones/tablets: stack each row (no-scroll), qty / rate / amount on their own line. */
+/* Phones: stack each row (no sideways scroll), qty / rate / amount on their own line. */
 @media (max-width: 767.98px) {
   .memo { padding: 12px; }
   .memo-row { grid-template-columns: 24px 84px minmax(0, 1fr) 36px; grid-template-areas: "sno part part x" ". qty rate rate" ". amt amt amt"; padding: 10px 12px; }
@@ -64,6 +65,7 @@
   .memo-qty { grid-area: qty; }
   .memo-rate { grid-area: rate; }
   .memo-amt { grid-area: amt; }
+  .memo-mlabel { display: block; margin-bottom: 2px; font-size: var(--text-xs); color: var(--text-muted); }
   .memo-add { flex-basis: 100%; }
 }
 

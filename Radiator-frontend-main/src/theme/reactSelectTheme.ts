@@ -40,7 +40,7 @@ export const selectStyles: StylesConfig<any, boolean> = {
         boxShadow: "var(--shadow-theme-lg)",
         overflow: "hidden",
     }),
-    menuList: (base) => ({ ...base, padding: 6, maxHeight: 260 }),
+    menuList: (base) => ({ ...base, padding: 6 }), // height comes from Selector maxMenuHeight (fits the viewport)
     option: (base, state) => ({
         ...base,
         borderRadius: 8,
