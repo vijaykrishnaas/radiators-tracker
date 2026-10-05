@@ -47,22 +47,27 @@ const LabourReview = () => {
 
     useEffect(() => {
         if (!selectedWorker) return;
+        let alive = true;
         const fetchData = async () => {
             setLoading(true);
+            setData(null);
+            setBonusAmount("");
             try {
                 const res = await getData("bonus/review", {
                     params: { type: "labour", name: selectedWorker.value, from, to },
                 });
+                if (!alive) return;
                 setData(res as ReviewData);
                 setBonusAmount(String((res.summary?.suggestedBonus || 0).toFixed(2)));
                 setNotes(""); // fresh context — don't carry a note from a prior review/payout
             } catch (err: any) {
-                callAlertMsg(err?.message || "Failed to load review data", "error");
+                if (alive) callAlertMsg(err?.message || "Failed to load review data", "error");
             } finally {
-                setLoading(false);
+                if (alive) setLoading(false);
             }
         };
         fetchData();
+        return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedWorker, from, to]);
 
@@ -249,7 +254,7 @@ const LabourReview = () => {
                                             This will lock all pending bonus entries for {selectedWorker.label} from {from} to {to}.
                                         </p>
                                         <button type="button" className="btn btn-primary"
-                                            onClick={handlePayout} disabled={payoutLoading || !bonusAmount}>
+                                            onClick={handlePayout} disabled={payoutLoading || loading || !bonusAmount}>
                                             <BtnSpinner show={payoutLoading} />
                                             {payoutLoading ? "Saving..." : "Confirm & Mark Paid"}
                                         </button>

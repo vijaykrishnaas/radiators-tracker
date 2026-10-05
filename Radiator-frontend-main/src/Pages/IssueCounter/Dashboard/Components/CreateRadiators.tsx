@@ -37,7 +37,7 @@ const CreateRadiators = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { id } = useParams();
-    const { settings } = useSettings();
+    const { settings, loading: settingsLoading } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const reduceMotion = useReducedMotion();
 
@@ -116,12 +116,13 @@ const CreateRadiators = () => {
     };
 
     useEffect(() => {
-        if (id && serviceOptions.length) {
+        // Wait for settings so option lookups resolve; a tenant with no service types still loads.
+        if (id && (serviceOptions.length || !settingsLoading)) {
             loadRecord();
         }
         // Re-run once settings arrive so option lookups resolve correctly
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, serviceOptions.length]);
+    }, [id, serviceOptions.length, settingsLoading]);
 
     const { fields, append, remove } = useFieldArray({
         control,

@@ -135,7 +135,7 @@ const Expenses = () => {
             totalPages: res.totalPages || 1,
             extra: { periodTotal: res.periodTotal || 0 },
         };
-    }, [currentPage, limit, searchText, fromDate, toDate, expenseType, minAmount, maxAmount]);
+    }, [currentPage, limit, searchText, fromDate, toDate, expenseType, minAmount, maxAmount], { page: currentPage, setPage: setCurrentPage });
 
     const activeCount =
         [expenseType, minAmount, maxAmount].filter(Boolean).length +
@@ -326,7 +326,7 @@ const Expenses = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearExpenseFilters}
-            search={<SearchInput key={filtersKey} id="expense-search" label="Search" placeholder="Search reason or product..." onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="expense-search" label="Search" placeholder="Search reason or product..." onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "exp-from", label: "From", primary: true, node: <input id="exp-from" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "exp-to", label: "To", primary: true, node: <input id="exp-to" type="date" className="form-control" value={toDate} min={fromDate || undefined} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },

@@ -35,7 +35,7 @@ const Audit: React.FC = () => {
             callAlertMsg(err?.message || "Failed to load audit log", "error");
             throw err;
         }
-    }, [currentPage, limit, clientCode, action, fromDate, toDate]);
+    }, [currentPage, limit, clientCode, action, fromDate, toDate], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => {
         listClients().then((r) => setClients(r.clients || [])).catch(() => {});

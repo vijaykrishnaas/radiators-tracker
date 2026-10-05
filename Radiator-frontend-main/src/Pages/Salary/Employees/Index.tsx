@@ -173,7 +173,7 @@ const Employees = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput key={filtersKey} id="emp-search" label="Search" placeholder="Search by name..." onSearch={setSearchText} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="emp-search" label="Search" placeholder="Search by name..." onSearch={setSearchText} />}
             filters={[
                 {
                     id: "emp-status", label: "Status", primary: true,

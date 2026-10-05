@@ -32,7 +32,7 @@ const ClientAudit: React.FC = () => {
             params: { page: currentPage, limit, action, from: fromDate, to: toDate },
         });
         return { rows: res.entries || [], total: res.total || 0, totalPages: res.totalPages || 1 };
-    }, [currentPage, limit, action, fromDate, toDate]);
+    }, [currentPage, limit, action, fromDate, toDate], { page: currentPage, setPage: setCurrentPage });
 
     const activeCount = [action, fromDate, toDate].filter(Boolean).length;
     const clearFilters = () => { setAction(""); setFromDate(""); setToDate(""); setCurrentPage(1); };

@@ -7,7 +7,14 @@ export type RemoteResult<T, X> = { rows: T[]; total?: number; totalPages?: numbe
  * Fetch state for a list screen (spec §4.17): first load → "loading" (skeleton); later loads keep
  * the rows visible with `refetching`; failure → "error" (Retry). Out-of-order responses are dropped.
  */
-export function useRemoteList<T, X = undefined>(load: () => Promise<RemoteResult<T, X>>, deps: unknown[]) {
+export function useRemoteList<T, X = undefined>(
+    load: () => Promise<RemoteResult<T, X>>,
+    deps: unknown[],
+    /** Paged lists: when the current page comes back empty (e.g. its last row was deleted), step back to the last page. */
+    paging?: { page: number; setPage: (p: number) => void },
+) {
+    const pagingRef = useRef(paging);
+    pagingRef.current = paging;
     const [state, setState] = useState<{
         rows: T[]; total: number; totalPages: number; extra?: X; status: ListStatus; refetching: boolean; error?: string;
     }>({ rows: [], total: 0, totalPages: 1, status: "loading", refetching: false });
@@ -21,6 +28,11 @@ export function useRemoteList<T, X = undefined>(load: () => Promise<RemoteResult
         try {
             const r = await loadRef.current();
             if (id !== seq.current) return;
+            const pg = pagingRef.current;
+            if (pg && pg.page > 1 && !(r.rows || []).length) {
+                pg.setPage(Math.max(1, Math.min(pg.page - 1, r.totalPages ?? 1)));
+                return;
+            }
             setState({
                 rows: r.rows || [],
                 total: r.total ?? (r.rows || []).length,

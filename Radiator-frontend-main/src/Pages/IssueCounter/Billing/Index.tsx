@@ -95,7 +95,7 @@ const Billing = () => {
     const list = useRemoteList<RadiatorRecord>(async () => {
         const res = await getData("radiators", { params: { page: currentPage, limit, ...buildParams() } });
         return { rows: res.radiatorData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service]);
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
@@ -286,7 +286,7 @@ const Billing = () => {
             activeCount={activeCount}
             onClear={clearFilters}
             tools={colsPicker}
-            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${L.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${L.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: "Mechanic", primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "f-product", label: L.product, node: <Selector inputId="f-product" isClearable options={productOptions} placeholder="-- All --" value={opt(productOptions, product)} onChange={(o: any) => setFilter(setProduct)(o ? o.value : "")} /> },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Icons from "../../../Components/Icons";
 import RowActions from "../../../Components/RowActions";
@@ -107,7 +107,7 @@ const SettlePeriod = () => {
             params: { employeeId: selectedEmployee.value, page: historyPage, limit: historyLimit },
         });
         return { rows: res.rows || [], total: res.total || 0, totalPages: res.totalPages || 1 };
-    }, [selectedEmployee, historyPage, historyLimit]);
+    }, [selectedEmployee, historyPage, historyLimit], { page: historyPage, setPage: setHistoryPage });
 
     // Jump to page 1 and make sure the list reloads even when already there.
     const refreshHistoryFirstPage = () => { if (historyPage === 1) history.reload(); else setHistoryPage(1); };
@@ -142,7 +142,10 @@ const SettlePeriod = () => {
         }
     };
 
+    // Out-of-order guard: typing in the manual present-days field fires one request per change.
+    const previewSeq = useRef(0);
     const loadPreview = async () => {
+        const reqId = ++previewSeq.current;
         if (!selectedEmployee) { setPreview(null); return; }
         try {
             const res = await getData("salary/preview", {
@@ -153,8 +156,10 @@ const SettlePeriod = () => {
                     presentDaysManual: presentDaysMode === "manual" && presentDaysManual !== "" ? presentDaysManual : undefined,
                 },
             });
+            if (reqId !== previewSeq.current) return;
             setPreview(res as Preview);
         } catch (err: any) {
+            if (reqId !== previewSeq.current) return;
             setPreview(null);
             callAlertMsg(err?.message || "Failed to load settlement preview", "error");
         }

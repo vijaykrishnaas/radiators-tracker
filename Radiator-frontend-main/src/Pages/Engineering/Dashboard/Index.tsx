@@ -85,12 +85,12 @@ const EngDashboard = () => {
                     <div className="eng-range-dates">
                         <div className="field">
                             <label className="form-label" htmlFor="eng-from">From</label>
-                            <input id="eng-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFromPick(e.target.value)} />
+                            <input id="eng-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFromPick(e.target.value || null)} />
                         </div>
                         <Icons iconName="arrow-right" className="eng-range-sep" />
                         <div className="field">
                             <label className="form-label" htmlFor="eng-to">To</label>
-                            <input id="eng-to" type="date" className="form-control" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+                            <input id="eng-to" type="date" className="form-control" value={to} min={from} onChange={(e) => setTo(e.target.value || today())} />
                         </div>
                     </div>
                 </section>

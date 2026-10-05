@@ -11,14 +11,21 @@ export function SearchInput({
     onSearch,
     label,
     defaultValue = "",
+    value,
 }: {
     id: string;
     placeholder: string;
     onSearch: (term: string) => void;
     label?: string;
     defaultValue?: string;
+    /** The applied search term. Seeds the box (e.g. after a layout change remounts it) and clears it when reset. */
+    value?: string;
 }) {
-    const [text, setText] = useState(defaultValue);
+    const [text, setText] = useState(value ?? defaultValue);
+    useEffect(() => {
+        if (value !== undefined && value !== text.trim() && (value === "" || value.length > 2)) setText(value);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
     const cb = useRef(onSearch);
     cb.current = onSearch;
     const fire = useMemo(() => debounce((v: string) => {

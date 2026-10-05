@@ -373,7 +373,7 @@ const Clients: React.FC = () => {
                     <FilterBar
                         activeCount={filterCount}
                         onClear={() => { setSearch(""); setStatusFilter(""); setClearKey((k) => k + 1); }}
-                        search={<SearchInput key={clearKey} id="client-search" placeholder="Search name, code, or username…" onSearch={setSearch} />}
+                        search={<SearchInput value={search} key={clearKey} id="client-search" placeholder="Search name, code, or username…" onSearch={setSearch} />}
                         filters={[
                             {
                                 id: "client-status", label: "Status", primary: true,

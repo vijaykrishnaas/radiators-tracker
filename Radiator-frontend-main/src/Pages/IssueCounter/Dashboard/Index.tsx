@@ -145,8 +145,8 @@ const Analytics = () => {
                     onClear={clear}
                     helper="Mechanic / Product / Status filters apply to billing only. Expense stats always use the date range above."
                     filters={[
-                        { id: "d-from", label: "From", primary: true, node: <input id="d-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /> },
-                        { id: "d-to", label: "To", primary: true, node: <input id="d-to" type="date" className="form-control" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value)} /> },
+                        { id: "d-from", label: "From", primary: true, node: <input id="d-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value || defaultFrom)} /> },
+                        { id: "d-to", label: "To", primary: true, node: <input id="d-to" type="date" className="form-control" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value || today())} /> },
                         { id: "d-mech", label: "Mechanic", node: <Selector inputId="d-mech" isClearable options={mechanicOptions} placeholder="-- All Mechanics --" value={opt(mechanicOptions, mechanicName)} onChange={(o: any) => setMechanicName(o ? o.value : "")} /> },
                         { id: "d-product", label: settings.labels.product, node: <Selector inputId="d-product" isClearable options={productOptions} placeholder="-- All Products --" value={opt(productOptions, radiatorType)} onChange={(o: any) => setRadiatorType(o ? o.value : "")} /> },
                         { id: "d-status", label: "Status", node: <Selector inputId="d-status" isClearable options={STATUS_OPTIONS} placeholder="-- All --" value={opt(STATUS_OPTIONS, statusFilter)} onChange={(o: any) => setStatusFilter(o ? o.value : "")} /> },

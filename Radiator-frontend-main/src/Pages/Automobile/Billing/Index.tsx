@@ -61,7 +61,7 @@ const AutoBilling = () => {
     const list = useRemoteList<AutoBillRecord>(async () => {
         const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams() } });
         return { rows: res.autoBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status]);
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("auto-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
@@ -183,7 +183,7 @@ const AutoBilling = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },

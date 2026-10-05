@@ -63,7 +63,7 @@ const EngBilling = () => {
     const list = useRemoteList<EngBill>(async () => {
         const res = await getData("engbills", { params: { page: currentPage, limit, ...buildParams() } });
         return { rows: res.bills || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs]);
+    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs], { page: currentPage, setPage: setCurrentPage });
 
     const activeCount = [searchMechanicName, searchStatus, searchType, searchBs, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
     const hasFilters = activeCount > 0;
@@ -193,7 +193,7 @@ const EngBilling = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, searchMechanicName)} onChange={(o: any) => setFilter(setsearchMechanicName)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={ENG_STATUS} placeholder="-- All Status --" value={opt(ENG_STATUS, searchStatus)} onChange={(o: any) => setFilter(setSearchStatus)(o ? o.value : "")} /> },
