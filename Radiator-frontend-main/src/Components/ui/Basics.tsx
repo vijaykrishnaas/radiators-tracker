@@ -257,13 +257,14 @@ export function SegmentedControl<T extends string>({
 }
 
 /* ---------------- Sticky form footer (§4.18) ---------------- */
-export function FormFooter({ totalLabel, total, children }: { totalLabel?: string; total?: React.ReactNode; children: React.ReactNode }) {
+export function FormFooter({ totalLabel, total, totalNote, children }: { totalLabel?: string; total?: React.ReactNode; totalNote?: React.ReactNode; children: React.ReactNode }) {
     return (
         <div className="form-footer">
             {total !== undefined && (
                 <div className="form-footer-total" aria-live="polite">
                     <span>{totalLabel || "Total amount"}</span>
                     <strong>{total}</strong>
+                    {totalNote && <small className="form-footer-note">{totalNote}</small>}
                 </div>
             )}
             <div className="form-footer-actions">{children}</div>
