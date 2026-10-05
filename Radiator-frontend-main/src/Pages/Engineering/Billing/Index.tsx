@@ -392,11 +392,11 @@ const EngBilling = () => {
 
             {/* Record Payment Modal */}
             {paymentItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+                <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="eng-payment-title">
                     <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
-                                <span className="modal-title">Record Payment — {paymentItem.vehicleNo} (Bill {paymentItem.billNo})</span>
+                                <span className="modal-title" id="eng-payment-title">Record Payment — {paymentItem.vehicleNo} (Bill {paymentItem.billNo})</span>
                                 <button type="button" className="btn-close" aria-label="Close" onClick={() => setPaymentItem(null)} />
                             </div>
                             <div className="modal-body">
@@ -456,11 +456,11 @@ const EngBilling = () => {
 
             {/* Delete Confirm Modal */}
             {deleteItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
+                <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="eng-delete-title">
                     <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
-                                <span className="modal-title">Delete Record</span>
+                                <span className="modal-title" id="eng-delete-title">Delete Record</span>
                                 <button type="button" className="btn-close" aria-label="Close" onClick={() => setDeleteItem(null)} />
                             </div>
                             <div className="modal-body">

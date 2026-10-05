@@ -482,6 +482,8 @@ async function run(type) {
   await page.getByRole("menuitem", { name: /Record Payment/i }).click();
   await page.locator(".eng-modal").first().waitFor({ timeout: 10000 });
   await page.locator(".eng-modal input.form-control").first().waitFor({ timeout: 10000 });
+  const dlg = page.getByRole("dialog", { name: /Record Payment/ });
+  ok("eng: payment dialog is a named modal dialog (role + aria-modal + accessible name)", (await dlg.count()) === 1 && (await dlg.getAttribute("aria-modal")) === "true", `named dialogs=${await dlg.count()}`);
   const pm = await page.evaluate(() => {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
     return { inputs: [...document.querySelectorAll(".eng-modal input.form-control")].map(g), btns: [...document.querySelectorAll(".eng-modal .modal-footer .btn")].map(g),
@@ -508,7 +510,41 @@ async function run(type) {
   await page.locator(".eng-date").first().focus();
   await page.waitForTimeout(250);
   const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { shadow: c.boxShadow, border: c.borderTopColor }; });
-  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === "rgb(34, 100, 229)", JSON.stringify(ring));
+  const brandRgb = await page.evaluate(() => { const p = document.createElement("span"); p.style.color = "var(--primary)"; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; });
+  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === brandRgb, JSON.stringify({ ring, brandRgb }));
+
+  // The arrow between From and To is vertically centred on the 44px date inputs.
+  // Measure the glyph's own text box (a Range on the text), not the padded element box: padding moves the box but not the arrow.
+  const sepDelta = await page.evaluate(() => { const i = document.querySelector(".eng-date").getBoundingClientRect(); const r = document.createRange(); r.selectNodeContents(document.querySelector(".eng-range-sep")); const g = r.getBoundingClientRect(); return Math.round(Math.abs((i.top + i.height / 2) - (g.top + g.height / 2))); });
+  ok("eng: the From/To arrow is centred on the date inputs (<= 2px)", sepDelta <= 2, `delta=${sepDelta}px`);
+  // Settings numbering/financial-year controls keep 16px on phones (no iOS zoom on focus).
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + "/settings");
+  await page.getByRole("tab", { name: "Service Catalog" }).click();
+  await page.locator(".eng-number-input").first().waitFor({ timeout: 10000 });
+  const phoneFs = await page.evaluate(() => [...document.querySelectorAll(".eng-number-input")].map((e) => getComputedStyle(e).fontSize));
+  ok("eng: phone numbering/financial-year controls use 16px text", phoneFs.length === 2 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
+  await page.setViewportSize({ width: 1300, height: 1000 });
+
+  // Accessibility: the service form's text fields are programmatically labelled (visible label <-> input), not placeholder-only.
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  const labelled = {};
+  for (const l of ["Create date", "Truck number", "Lorry address", "Phone number"]) labelled[l] = await page.getByLabel(l, { exact: true }).count();
+  ok("eng: service form date/truck/address/phone inputs are labelled for assistive tech", Object.values(labelled).every((n) => n === 1), JSON.stringify(labelled));
+
+  // Reduced motion: Engineering elements run no transitions or animations when the user asks for less motion.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const motionOffenders = [];
+  for (const [label, url, tab] of [["dashboard", "/engineering/dashboard", null], ["billing", "/engineering/billing", null], ["catalog", "/settings", "Service Catalog"]]) {
+    await page.goto(BASE + url);
+    await page.locator(label === "dashboard" ? ".eng-kpi" : label === "billing" ? ".eng-table" : ".settings-tabs").first().waitFor({ timeout: 10000 });
+    if (tab) { await page.getByRole("tab", { name: tab }).click(); await page.locator(".eng-item").first().waitFor({ timeout: 10000 }); }
+    const bad = await page.evaluate(() => [...document.querySelectorAll('[class*="eng-"]')].filter((e) => { const c = getComputedStyle(e); const td = c.transitionDuration.split(",").some((d) => parseFloat(d) > 0.001); const an = c.animationName !== "none" && parseFloat(c.animationDuration) > 0.001; return td || an; }).map((e) => (e.className + "").split(" ").filter((c) => c.startsWith("eng-")).join(".")));
+    motionOffenders.push(...[...new Set(bad)].map((b) => `${label}:${b}`));
+  }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  ok("eng: no Engineering element animates when the user prefers reduced motion", motionOffenders.length === 0, motionOffenders.join(" | "));
 
   // Long money values must not be clipped by the nowrap/ellipsis KPI value on narrower desktops (1024 / 1100).
   const longKpi = async (route) => {
