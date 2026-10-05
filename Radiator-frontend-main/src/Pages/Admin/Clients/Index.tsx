@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import Icons from "../../../Components/Icons";
 import RowActions from "../../../Components/RowActions";
-import Loader from "../../../Components/Loader";
-import AlertComponent from "../../../Components/AlertComponent";
+import { PageHeader, KpiCard, KpiGrid, Badge, Callout, Field, BusyOverlay } from "../../../Components/ui/Basics";
+import Modal from "../../../Components/ui/Modal";
+import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, type Column, type ListStatus } from "../../../Components/ui/DataList";
 import { useAlertMsg } from "../../../Services/AllServices";
 import * as XLSX from "xlsx";
 import {
@@ -43,8 +45,10 @@ const flattenSettings = (obj: any, prefix = ""): { Setting: string; Value: any }
 };
 
 const Clients: React.FC = () => {
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
     const [loading, setLoading] = useState(false);
+    const [listStatus, setListStatus] = useState<ListStatus>("loading");
+    const [busyLabel, setBusyLabel] = useState("");
     const [clients, setClients] = useState<ClientRow[]>([]);
 
     // Add modal
@@ -79,17 +83,17 @@ const Clients: React.FC = () => {
     // View-settings modal + table search/filter
     const [viewSettingsTarget, setViewSettingsTarget] = useState<ClientRow | null>(null);
     const [search, setSearch] = useState("");
+    const [clearKey, setClearKey] = useState(0);
     const [statusFilter, setStatusFilter] = useState("");
 
     const load = async () => {
-        setLoading(true);
         try {
             const res = await listClients();
             setClients(res.clients || []);
+            setListStatus("ready");
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to load clients", "error");
-        } finally {
-            setLoading(false);
+            setListStatus((s) => (s === "ready" ? s : "error"));
         }
     };
 
@@ -186,6 +190,7 @@ const Clients: React.FC = () => {
     // Builds a multi-sheet Excel workbook from the client's full data export.
     const downloadExport = async (c: ClientRow) => {
         setLoading(true);
+        setBusyLabel("Preparing Excel…");
         try {
             const data: any = await exportClient(c._id);
             const wb = XLSX.utils.book_new();
@@ -216,6 +221,7 @@ const Clients: React.FC = () => {
             callAlertMsg(err?.message || "Export failed", "error");
         } finally {
             setLoading(false);
+            setBusyLabel("");
         }
     };
 
@@ -232,6 +238,7 @@ const Clients: React.FC = () => {
         const file = e.target.files?.[0];
         if (!file) return;
         setLoading(true);
+        setBusyLabel("Importing clients…");
         try {
             const buf = await file.arrayBuffer();
             const wb = XLSX.read(buf, { type: "array" });
@@ -261,6 +268,7 @@ const Clients: React.FC = () => {
             callAlertMsg(err?.message || "Import failed", "error");
         } finally {
             setLoading(false);
+            setBusyLabel("");
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -306,258 +314,202 @@ const Clients: React.FC = () => {
     const activeCount = clients.filter((c) => c.status === "active").length;
     const suspendedCount = clients.length - activeCount;
 
+    const typeName = (t?: BusinessType) => (t === "automobile" ? "Automobile" : t === "engineering" ? "Engineering" : "Radiator");
+    const statusBadge = (c: ClientRow) => <Badge tone={c.status === "active" ? "success" : "neutral"} dot>{c.status === "active" ? "Active" : "Suspended"}</Badge>;
+    const rowMenu = (c: ClientRow) => (
+        <RowActions ariaLabel={`Actions for ${c.name}`} items={[
+            { label: "View Settings", icon: <Icons iconName="settings" />, onClick: () => setViewSettingsTarget(c) },
+            { label: "Open Login Page", icon: <Icons iconName="external-link" />, onClick: () => window.open(`/t/${c.code}/login`, "_blank", "noopener") },
+            { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(c) },
+            { label: "Reset Password", icon: <Icons iconName="key" />, onClick: () => { setResetTarget(c); setResetPwd(""); } },
+            { label: "Export Data", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
+            { label: c.status === "active" ? "Suspend" : "Reactivate", icon: <Icons iconName={c.status === "active" ? "pause" : "play"} />, onClick: () => toggleStatus(c) },
+            { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); } },
+        ]} />
+    );
+
+    const columns: Column<ClientRow>[] = [
+        { key: "si", header: "SI No", className: "nowrap tabular", cell: (_c, i) => i + 1 },
+        { key: "name", header: "Business Name", className: "key text", cell: (c) => c.name },
+        { key: "code", header: "Code", className: "nowrap", cell: (c) => <span className="t-mono">{c.code}</span> },
+        { key: "type", header: "Type", className: "nowrap", cell: (c) => <Badge>{typeName(c.businessType)}</Badge> },
+        { key: "admin", header: "Admin Login", cell: (c) => c.adminUserId },
+        { key: "status", header: "Status", className: "nowrap", cell: statusBadge },
+        { key: "last", header: "Last Login", className: "nowrap tabular", cell: (c) => fmtDate(c.lastLoginAt) },
+        { key: "created", header: "Created", className: "nowrap tabular", cell: (c) => fmtDate(c.createdAt) },
+        { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: rowMenu },
+    ];
+    const statusOptions = [{ value: "", label: "All statuses" }, { value: "active", label: "Active" }, { value: "suspended", label: "Suspended" }];
+    const filterCount = (q ? 1 : 0) + (statusFilter ? 1 : 0);
+
     return (
-        <div className="row">
-            <Loader loading={loading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <BusyOverlay show={!!busyLabel} label={busyLabel} />
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={onImportFile} aria-hidden="true" tabIndex={-1} />
+            <PageHeader
+                title="Clients"
+                actions={[
+                    { label: "Template", icon: "entrolment_download", onClick: downloadTemplate },
+                    { label: "Import Excel", icon: "exporticon", onClick: () => fileInputRef.current?.click(), disabled: loading },
+                ]}
+                primary={
+                    <button type="button" className="btn btn-primary" onClick={() => { resetAdd(); setShowAdd(true); }}>
+                        <Icons iconName="add" />Add Client
+                    </button>
+                }
+            />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between align-items-center my-4">
-                    <h4 className="fw-semibold mb-0">Clients</h4>
-                    <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={downloadTemplate}>
-                            <Icons iconName="entrolment_download" className="icon-15 me-2" />Template
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"
-                            onClick={() => fileInputRef.current?.click()}>
-                            <Icons iconName="exporticon" className="icon-15 me-2" />Import Excel
-                        </button>
-                        <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={onImportFile} />
-                        <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center"
-                            onClick={() => { resetAdd(); setShowAdd(true); }}>
-                            <Icons iconName="add" className="icon-12 icon-white me-2" />Add Client
-                        </button>
-                    </div>
-                </div>
-
-                <div className="admin-summary">
-                    <div className="admin-stat">
-                        <div className="admin-stat-label">Total Clients</div>
-                        <div className="admin-stat-value">{clients.length}</div>
-                    </div>
-                    <div className="admin-stat admin-stat--accent">
-                        <div className="admin-stat-label">Active</div>
-                        <div className="admin-stat-value">{activeCount}</div>
-                    </div>
-                    <div className="admin-stat admin-stat--muted">
-                        <div className="admin-stat-label">Suspended</div>
-                        <div className="admin-stat-value">{suspendedCount}</div>
-                    </div>
-                </div>
-
-                <div className="card card-shadow mt-2">
-                    <div className="card-body p-0">
-                        <div className="table-header p-3 d-flex flex-wrap gap-2 align-items-center">
-                            <input
-                                type="text"
-                                className="form-control"
-                                style={{ maxWidth: 320 }}
-                                placeholder="Search name, code, or username…"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                            <select
-                                className="form-select"
-                                style={{ maxWidth: 180 }}
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option value="">All statuses</option>
-                                <option value="active">Active</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                            {(search || statusFilter) && (
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => { setSearch(""); setStatusFilter(""); }}>Clear</button>
-                            )}
-                        </div>
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14">
-                                <thead>
-                                    <tr>
-                                        <th>SI No</th>
-                                        <th>Business Name</th>
-                                        <th>Code</th>
-                                        <th>Type</th>
-                                        <th>Admin Login</th>
-                                        <th>Status</th>
-                                        <th>Last Login</th>
-                                        <th>Created</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.length ? filtered.map((c, i) => (
-                                        <tr key={c._id}>
-                                            <td>{i + 1}</td>
-                                            <td className="font-w600">{c.name}</td>
-                                            <td><code>{c.code}</code></td>
-                                            <td>
-                                                <span className={`status-badge ${c.businessType === "automobile" || c.businessType === "engineering" ? "status-badge-primary" : ""}`}>
-                                                    {c.businessType === "automobile" ? "Automobile" : c.businessType === "engineering" ? "Engineering" : "Radiator"}
-                                                </span>
-                                            </td>
-                                            <td>{c.adminUserId}</td>
-                                            <td>
-                                                <span className={`status-badge ${c.status === "active" ? "status-badge-success" : "status-badge-warning"}`}>
-                                                    {c.status === "active" ? "Active" : "Suspended"}
-                                                </span>
-                                            </td>
-                                            <td>{fmtDate(c.lastLoginAt)}</td>
-                                            <td>{fmtDate(c.createdAt)}</td>
-                                            <td>
-                                                <RowActions ariaLabel={`Actions for ${c.name}`} items={[
-                                                    { label: "View Settings", icon: <Icons iconName="settings" />, onClick: () => setViewSettingsTarget(c) },
-                                                    { label: "Open Login Page", icon: <Icons iconName="external-link" />, onClick: () => window.open(`/t/${c.code}/login`, "_blank", "noopener") },
-                                                    { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(c) },
-                                                    { label: c.status === "active" ? "Suspend" : "Reactivate", icon: <Icons iconName={c.status === "active" ? "pause" : "play"} />, onClick: () => toggleStatus(c) },
-                                                    { label: "Reset Password", icon: <Icons iconName="key" />, onClick: () => { setResetTarget(c); setResetPwd(""); } },
-                                                    { label: "Export Data", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
-                                                    { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); } },
-                                                ]} />
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={9} className="text-center py-3 text-muted">{clients.length ? "No clients match your search" : "No clients yet"}</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <div className="mb-4">
+                <KpiGrid count={3}>
+                    <KpiCard label="Total Clients" value={String(clients.length)} icon="users" loading={listStatus === "loading"} />
+                    <KpiCard label="Active" value={String(activeCount)} icon="check-circle" tone="success" loading={listStatus === "loading"} />
+                    <KpiCard label="Suspended" value={String(suspendedCount)} icon="pause" loading={listStatus === "loading"} />
+                </KpiGrid>
             </div>
 
-            {/* Add modal */}
-            {showAdd && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Add Client</span>
-                                <button type="button" className="btn-close" onClick={() => setShowAdd(false)} />
-                            </div>
-                            <div className="modal-body">
-                                <div className="mb-3">
-                                    <label className="form-label font-w500">Business Name *</label>
-                                    <input className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Acme Radiators" />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label font-w500">Business Code * <span className="text-muted font-s12">(login code, locked after creation)</span></label>
-                                    <input className="form-control" value={addCode}
-                                        onChange={(e) => { setCodeEdited(true); setAddCode(slugify(e.target.value)); }}
-                                        placeholder="e.g. acme-radiators" />
-                                </div>
-                                <div className="row g-3">
-                                    <div className="col-md-6">
-                                        <label className="form-label font-w500">Admin Username *</label>
-                                        <input className="form-control" value={addUserId} onChange={(e) => setAddUserId(e.target.value)} placeholder="e.g. admin" />
-                                    </div>
-                                    <div className="col-md-6">
-                                        <label className="form-label font-w500">Admin Password *</label>
-                                        <input className="form-control" type="text" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="min 6 characters" />
-                                    </div>
-                                </div>
-                                <div className="mt-3">
-                                    <label className="form-label font-w500">Business Type <span className="text-muted font-s12">(fixed after creation)</span></label>
-                                    <select className="form-select" value={addBusinessType} onChange={(e) => setAddBusinessType(e.target.value as BusinessType)}>
-                                        <option value="radiator">Radiator</option>
-                                        <option value="automobile">Automobile</option>
-                                        <option value="engineering">Engineering Works</option>
+            <DataList<ClientRow>
+                caption="Clients"
+                toolbar={
+                    <FilterBar
+                        activeCount={filterCount}
+                        onClear={() => { setSearch(""); setStatusFilter(""); setClearKey((k) => k + 1); }}
+                        search={<SearchInput key={clearKey} id="client-search" placeholder="Search name, code, or username…" onSearch={setSearch} />}
+                        filters={[
+                            {
+                                id: "client-status", label: "Status", primary: true,
+                                node: (
+                                    <select id="client-status" className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                                        {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                                     </select>
-                                </div>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={submitAdd} disabled={loading}>Create</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                                ),
+                            },
+                        ]}
+                    />
+                }
+                rows={filtered}
+                rowKey={(c) => c._id}
+                columns={columns}
+                status={listStatus}
+                onRetry={() => { setListStatus("loading"); load(); }}
+                errorTitle="Couldn't load clients"
+                empty={clients.length
+                    ? { icon: "users", title: "No clients match your search", text: "Try a different name, code or username.", action: <button type="button" className="btn btn-link" onClick={() => { setSearch(""); setStatusFilter(""); setClearKey((k) => k + 1); }}>Clear filters</button> }
+                    : { icon: "users", title: "No clients yet", text: "Add your first client and their login details will be shown for handover.", action: <button type="button" className="btn btn-primary" onClick={() => { resetAdd(); setShowAdd(true); }}><Icons iconName="add" />Add Client</button> }}
+                mobileCard={(c) => (
+                    <MobileCard
+                        title={c.name}
+                        onOpen={() => setViewSettingsTarget(c)}
+                        badge={statusBadge(c)}
+                        menu={rowMenu(c)}
+                        meta={[<span key="c" className="t-mono">{c.code}</span>, typeName(c.businessType), c.adminUserId]}
+                        meta2={`Last login ${fmtDate(c.lastLoginAt)} · Created ${fmtDate(c.createdAt)}`}
+                    />
+                )}
+            />
 
-            {/* Handover modal */}
-            {handover && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Client Created — Handover Details</span>
-                                <button type="button" className="btn-close" onClick={() => setHandover(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s13 text-muted">Share these with the client. The password must be changed on their first login.</p>
-                                <table className="table table-sm table-bordered font-s14 mb-0">
-                                    <tbody>
-                                        <tr><td className="font-w600">Login URL</td><td><code>{window.location.origin}{handover.loginUrl}</code></td></tr>
-                                        <tr><td className="font-w600">Business Code</td><td><code>{handover.code}</code></td></tr>
-                                        <tr><td className="font-w600">Username</td><td>{handover.adminUserId}</td></tr>
-                                        <tr><td className="font-w600">Temp Password</td><td>{handover.tempPassword}</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={copyHandover}>
-                                    <Icons iconName="exporticon" className="icon-15 me-1" />Copy
-                                </button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => setHandover(null)}>Done</button>
-                            </div>
-                        </div>
+            {/* Add */}
+            <Modal
+                open={showAdd}
+                onClose={() => setShowAdd(false)}
+                title="Add Client"
+                busy={loading}
+                as="form"
+                onSubmit={(e) => { e.preventDefault(); submitAdd(); }}
+                footer={<>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowAdd(false)} disabled={loading}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading && <span className="spinner" aria-hidden="true" />}Create</button>
+                </>}
+            >
+                <div className="d-grid gap-3">
+                    <Field label="Business name" htmlFor="add-name" required>
+                        <input id="add-name" className="form-control" value={addName} onChange={(e) => onAddNameChange(e.target.value)} placeholder="e.g. Acme Radiators" />
+                    </Field>
+                    <Field label="Business code" htmlFor="add-code" required help="Login code, locked after creation">
+                        <input id="add-code" className="form-control t-mono" value={addCode}
+                            onChange={(e) => { setCodeEdited(true); setAddCode(slugify(e.target.value)); }} placeholder="e.g. acme-radiators" />
+                    </Field>
+                    <div className="form-grid">
+                        <Field label="Admin username" htmlFor="add-user" required>
+                            <input id="add-user" className="form-control" value={addUserId} onChange={(e) => setAddUserId(e.target.value)} placeholder="e.g. admin" />
+                        </Field>
+                        <Field label="Admin password" htmlFor="add-pwd" required>
+                            <input id="add-pwd" className="form-control" type="text" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder="min 6 characters" />
+                        </Field>
                     </div>
+                    <Field label="Business type" htmlFor="add-type" help="Fixed after creation">
+                        <select id="add-type" className="form-select" value={addBusinessType} onChange={(e) => setAddBusinessType(e.target.value as BusinessType)}>
+                            <option value="radiator">Radiator</option>
+                            <option value="automobile">Automobile</option>
+                            <option value="engineering">Engineering Works</option>
+                        </select>
+                    </Field>
                 </div>
-            )}
+            </Modal>
 
-            {/* Edit modal */}
-            {editTarget && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Edit Client</span>
-                                <button type="button" className="btn-close" onClick={() => setEditTarget(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <div className="mb-3">
-                                    <label className="form-label font-w500">Business Name</label>
-                                    <input className="form-control" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                                </div>
-                                <div className="mb-0">
-                                    <label className="form-label font-w500">Business Code</label>
-                                    <input className="form-control" value={editTarget.code} readOnly disabled />
-                                    <small className="text-muted font-s12">Code is locked to keep handover links valid.</small>
-                                </div>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setEditTarget(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={submitEdit} disabled={loading}>Save</button>
-                            </div>
-                        </div>
-                    </div>
+            {/* Handover */}
+            <Modal
+                open={!!handover}
+                onClose={() => setHandover(null)}
+                title="Client Created — Handover Details"
+                description="Share these with the client. The password must be changed on their first login."
+                initialFocus="confirm"
+                footer={<>
+                    <button type="button" className="btn btn-secondary" onClick={copyHandover}><Icons iconName="copy" />Copy</button>
+                    <button type="button" className="btn btn-primary" onClick={() => setHandover(null)}>Done</button>
+                </>}
+            >
+                {handover && (
+                    <dl className="kv-list">
+                        <div><dt>Login URL</dt><dd className="t-mono">{window.location.origin}{handover.loginUrl}</dd></div>
+                        <div><dt>Business code</dt><dd className="t-mono">{handover.code}</dd></div>
+                        <div><dt>Username</dt><dd className="t-mono">{handover.adminUserId}</dd></div>
+                        <div><dt>Temp password</dt><dd className="t-mono">{handover.tempPassword}</dd></div>
+                    </dl>
+                )}
+            </Modal>
+
+            {/* Edit */}
+            <Modal
+                open={!!editTarget}
+                onClose={() => setEditTarget(null)}
+                title="Edit Client"
+                busy={loading}
+                as="form"
+                onSubmit={(e) => { e.preventDefault(); submitEdit(); }}
+                footer={<>
+                    <button type="button" className="btn btn-secondary" onClick={() => setEditTarget(null)} disabled={loading}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading && <span className="spinner" aria-hidden="true" />}Save</button>
+                </>}
+            >
+                <div className="d-grid gap-3">
+                    <Field label="Business name" htmlFor="edit-name">
+                        <input id="edit-name" className="form-control" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                    </Field>
+                    <Field label="Business code" htmlFor="edit-code" help="Code is locked to keep handover links valid.">
+                        <input id="edit-code" className="form-control t-mono" value={editTarget?.code || ""} readOnly disabled />
+                    </Field>
                 </div>
-            )}
+            </Modal>
 
-            {/* Reset password modal */}
-            {resetTarget && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Reset Password — {resetTarget.name}</span>
-                                <button type="button" className="btn-close" onClick={() => setResetTarget(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s13 text-muted">Sets a new password for <code>{resetTarget.adminUserId}</code>. The client will be required to change it on next login.</p>
-                                <label className="form-label font-w500">New Password *</label>
-                                <input className="form-control" type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min 6 characters" />
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setResetTarget(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={submitReset} disabled={loading}>Reset</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Reset password */}
+            <Modal
+                open={!!resetTarget}
+                onClose={() => setResetTarget(null)}
+                title={`Reset Password — ${resetTarget?.name ?? ""}`}
+                description={resetTarget && <>Sets a new password for <span className="t-mono">{resetTarget.adminUserId}</span>. The client will be required to change it on next login.</>}
+                busy={loading}
+                as="form"
+                onSubmit={(e) => { e.preventDefault(); submitReset(); }}
+                footer={<>
+                    <button type="button" className="btn btn-secondary" onClick={() => setResetTarget(null)} disabled={loading}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading && <span className="spinner" aria-hidden="true" />}Reset</button>
+                </>}
+            >
+                <Field label="New password" htmlFor="reset-pwd" required>
+                    <input id="reset-pwd" className="form-control" type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min 6 characters" />
+                </Field>
+            </Modal>
 
-            {/* View settings modal */}
             {viewSettingsTarget && (
                 <ClientSettingsModal
                     clientId={viewSettingsTarget._id}
@@ -566,78 +518,68 @@ const Clients: React.FC = () => {
                 />
             )}
 
-            {/* Delete modal */}
-            {deleteTarget && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title text-danger">Delete Client</span>
-                                <button type="button" className="btn-close" onClick={() => setDeleteTarget(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s14 mb-2">
-                                    This permanently deletes <span className="font-w600">{deleteTarget.name}</span> and ALL its data —
-                                    bills, bonuses, expenses, settings, and the admin login. This cannot be undone.
-                                </p>
-                                <div className="alert alert-warning py-2 font-s13 d-flex align-items-center justify-content-between">
-                                    <span>{exported ? "✓ Data exported" : "Download a backup first (recommended)"}</span>
-                                    <button type="button" className="btn btn-cancel btn-sm" onClick={() => downloadExport(deleteTarget)}>
-                                        <Icons iconName="exporticon" className="icon-15 me-1" />Download Data
-                                    </button>
-                                </div>
-                                <label className="form-label font-w500">Type the code <code>{deleteTarget.code}</code> to confirm:</label>
-                                <input className="form-control" value={deleteConfirmCode} onChange={(e) => setDeleteConfirmCode(e.target.value)} />
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setDeleteTarget(null)}>Cancel</button>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={submitDelete}
-                                    disabled={loading || deleteConfirmCode !== deleteTarget.code}>
-                                    Delete Permanently
+            {/* Delete */}
+            <Modal
+                open={!!deleteTarget}
+                onClose={() => setDeleteTarget(null)}
+                title="Delete Client"
+                danger
+                busy={loading}
+                description={deleteTarget && <>This permanently deletes <span className="t-strong t-semibold">{deleteTarget.name}</span> and ALL its data — bills, bonuses, expenses, settings, and the admin login. This cannot be undone.</>}
+                footer={<>
+                    <button type="button" className="btn btn-secondary" onClick={() => setDeleteTarget(null)} disabled={loading}>Cancel</button>
+                    <button type="button" className="btn btn-danger" onClick={submitDelete}
+                        disabled={loading || !deleteTarget || deleteConfirmCode !== deleteTarget.code}>
+                        {loading && <span className="spinner" aria-hidden="true" />}Delete Permanently
+                    </button>
+                </>}
+            >
+                {deleteTarget && (
+                    <div className="d-grid gap-3">
+                        <Callout tone="warning">
+                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <span>{exported ? "Data exported" : "Download a backup first (recommended)"}</span>
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadExport(deleteTarget)}>
+                                    <Icons iconName={exported ? "tick" : "entrolment_download"} />Download Data
                                 </button>
                             </div>
-                        </div>
+                        </Callout>
+                        <Field label={<>Type the code <span className="t-mono">{deleteTarget.code}</span> to confirm:</>} htmlFor="delete-code">
+                            <input id="delete-code" className="form-control t-mono" value={deleteConfirmCode} autoComplete="off" onChange={(e) => setDeleteConfirmCode(e.target.value)} />
+                        </Field>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
 
-            {/* Import results modal */}
-            {importResults && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Import Results</span>
-                                <button type="button" className="btn-close" onClick={() => setImportResults(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <table className="table table-sm table-bordered font-s13 mb-0">
-                                    <thead><tr><th>Business</th><th>Code</th><th>Result</th><th>Note</th></tr></thead>
-                                    <tbody>
-                                        {importResults.map((r, i) => (
-                                            <tr key={i}>
-                                                <td>{r.name}</td>
-                                                <td><code>{r.code}</code></td>
-                                                <td>
-                                                    <span className={`status-badge ${r.status === "created" ? "status-badge-success" : r.status === "skipped" ? "status-badge-warning" : "status-badge-danger"}`}>
-                                                        {r.status}
-                                                    </span>
-                                                </td>
-                                                <td className="text-muted">{r.message || (r.status === "created" ? "Use Reset Password to view/set the login" : "")}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <p className="text-muted font-s12 mt-2 mb-0">Created clients use the password from the sheet (clients must change it on first login).</p>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-primary btn-sm" onClick={() => setImportResults(null)}>Done</button>
-                            </div>
-                        </div>
+            {/* Import results */}
+            <Modal
+                open={!!importResults}
+                onClose={() => setImportResults(null)}
+                title="Import Results"
+                size="lg"
+                initialFocus="confirm"
+                footer={<button type="button" className="btn btn-primary" onClick={() => setImportResults(null)}>Done</button>}
+            >
+                <div className="mini-table">
+                    <div className="table-wrap">
+                        <table className="table">
+                            <thead><tr><th>Business</th><th>Code</th><th>Result</th><th>Note</th></tr></thead>
+                            <tbody>
+                                {(importResults || []).map((r, i) => (
+                                    <tr key={i}>
+                                        <td className="key">{r.name}</td>
+                                        <td><span className="t-mono">{r.code}</span></td>
+                                        <td><Badge tone={r.status === "created" ? "success" : r.status === "skipped" ? "neutral" : "error"}>{r.status}</Badge></td>
+                                        <td>{r.message || (r.status === "created" ? "Use Reset Password to view/set the login" : "")}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            )}
-        </div>
+                <p className="field-help mb-0">Created clients use the password from the sheet (clients must change it on first login).</p>
+            </Modal>
+        </>
     );
 };
 

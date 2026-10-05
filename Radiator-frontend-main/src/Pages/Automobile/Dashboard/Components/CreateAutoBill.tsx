@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
-import AlertComponent from "../../../../Components/AlertComponent";
-import Loader from "../../../../Components/Loader";
 import Icons from "../../../../Components/Icons";
 import InputText from "../../../../Components/InputText";
 import Selector from "../../../../Components/Selector";
@@ -12,6 +10,8 @@ import DateCalendar from "../../../../Components/DateCalendar";
 import { getData, postData, putData } from "../../../../Services/ApiServices";
 import { useAlertMsg } from "../../../../Services/AllServices";
 import { useSettings } from "../../../../Context/SettingsContext";
+import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../../Components/ui/Basics";
+import { AffixInput } from "../../../../Components/ui/Inputs";
 import { money } from "../../../../Utils/format";
 
 type ItemRow = {
@@ -47,11 +47,13 @@ const CreateAutoBill = () => {
     const location = useLocation();
     const { id } = useParams();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
+    const reduceMotion = useReducedMotion();
 
     const isView = location.pathname.includes("/view/");
     const isEdit = !!id && !isView;
     const [loading, setLoading] = useState(false);
+    const [loadingRecord, setLoadingRecord] = useState(!!id);
     const [mechanicList, setMechanicList] = useState<string[]>([]);
 
     const parts = settings.automobile.parts || [];
@@ -99,7 +101,7 @@ const CreateAutoBill = () => {
     }, []);
 
     const loadRecord = async () => {
-        setLoading(true);
+        setLoadingRecord(true);
         try {
             const data = await getData(`autobills/${id}`);
             const loadedItems: ItemRow[] = (data.items || []).map((i: any) => ({
@@ -127,7 +129,7 @@ const CreateAutoBill = () => {
         } catch (err: any) {
             callAlertMsg(err?.message || "Error loading record", "error");
         } finally {
-            setLoading(false);
+            setLoadingRecord(false);
         }
     };
 
@@ -210,310 +212,281 @@ const CreateAutoBill = () => {
         }
     };
 
-    const pageTitle = isView ? "View Bill" : isEdit ? "Edit Bill" : "Create Bill";
+    const pageTitle = isView ? "View bill" : isEdit ? "Edit bill" : "Create bill";
+    const E = errors.autoBill;
 
     return (
         <>
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
-            <Loader loading={loading} />
-
-            <div className="mt-2 overflow-hidden">
-                <div className="base-title">
-                    <div className="d-flex justify-content-start align-items-center">
-                        <div className="resp-bar" />
-                        <span className="card-sub-title">{pageTitle}</span>
-                    </div>
-                </div>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="row bg-white py-4">
-                        <div className="col-12 pt-4 px-3 px-md-5">
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={pageTitle}
-                                    initial={{ opacity: 0, x: 100 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">Bill Date</label>
-                                            <Controller
-                                                name="autoBill.date"
-                                                control={control}
-                                                rules={{ required: "Date is required" }}
-                                                render={({ field }) => <DateCalendar {...field} disabled={isView} />}
-                                            />
-                                            {errors.autoBill?.date && (
-                                                <div className="text-danger">{errors.autoBill.date.message}</div>
+            <PageHeader title={pageTitle} back={{ onClick: () => navigate(-1), label: "Bills" }} />
+            <motion.form
+                key={pageTitle}
+                onSubmit={handleSubmit(onSubmit)}
+                noValidate
+                initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            >
+                <div className="card-stack">
+                    <section className="card">
+                        <div className="card-body">
+                            <CardHead title="Bill details" />
+                            {loadingRecord ? <SkeletonRows rows={3} /> : (
+                                <div className="form-grid mt-4">
+                                    <Field label="Bill date" htmlFor="bill-date" required error={E?.date?.message}>
+                                        <Controller
+                                            name="autoBill.date"
+                                            control={control}
+                                            rules={{ required: "Date is required" }}
+                                            render={({ field }) => <DateCalendar {...field} id="bill-date" disabled={isView} />}
+                                        />
+                                    </Field>
+                                    <Field label="Bill No" htmlFor="bill-no">
+                                        <InputText id="bill-no" value={watch("autoBill.billNo") ?? "auto-assigned"} disabled readOnly />
+                                    </Field>
+                                    <Field label={labels.vehicleNo} htmlFor="vehicle-number" required error={E?.vehicleNumber?.message}>
+                                        <Controller
+                                            name="autoBill.vehicleNumber"
+                                            control={control}
+                                            rules={{ required: `${labels.vehicleNo} is required` }}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="vehicle-number" placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} />
                                             )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Bill No</label>
-                                            <InputText value={watch("autoBill.billNo") ?? "auto-assigned"} disabled readOnly />
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">{labels.vehicleNo}</label>
-                                            <Controller
-                                                name="autoBill.vehicleNumber"
-                                                control={control}
-                                                rules={{ required: `${labels.vehicleNo} is required` }}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} />
-                                                )}
-                                            />
-                                            {errors.autoBill?.vehicleNumber && (
-                                                <span className="text-danger">{errors.autoBill.vehicleNumber.message}</span>
+                                        />
+                                    </Field>
+                                    <Field label={labels.customer} htmlFor="customer">
+                                        <Controller
+                                            name="autoBill.customerName"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="customer" placeholder={`Enter ${labels.customer}`} disabled={isView} />
                                             )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">{labels.customer}</label>
-                                            <Controller
-                                                name="autoBill.customerName"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder={`Enter ${labels.customer}`} disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">{labels.agent}</label>
-                                            <Controller
-                                                name="autoBill.mechanicName"
-                                                control={control}
-                                                rules={{ required: `${labels.agent} is required` }}
-                                                render={({ field }) => (
-                                                    <Selector
-                                                        options={mechanicList.map((m) => ({ label: m, value: m }))}
-                                                        value={field.value ? { label: field.value, value: field.value } : null}
-                                                        isDisabled={isView}
-                                                        placeholder={`Select ${labels.agent}`}
-                                                        onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.autoBill?.mechanicName && (
-                                                <span className="text-danger">{errors.autoBill.mechanicName.message}</span>
+                                        />
+                                    </Field>
+                                    <Field label={labels.agent} htmlFor="agent" required error={E?.mechanicName?.message}>
+                                        <Controller
+                                            name="autoBill.mechanicName"
+                                            control={control}
+                                            rules={{ required: `${labels.agent} is required` }}
+                                            render={({ field }) => (
+                                                <Selector
+                                                    inputId="agent"
+                                                    options={mechanicList.map((m) => ({ label: m, value: m }))}
+                                                    value={field.value ? { label: field.value, value: field.value } : null}
+                                                    isDisabled={isView}
+                                                    placeholder={`Select ${labels.agent}`}
+                                                    aria-invalid={!!E?.mechanicName}
+                                                    onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
+                                                />
                                             )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">{labels.worker}</label>
-                                            <Controller
-                                                name="autoBill.labourName"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <Selector {...field} isMulti options={labourOptions} disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Phone Number</label>
-                                            <Controller
-                                                name="autoBill.phoneNumber"
-                                                control={control}
-                                                rules={{ pattern: { value: /^[0-9]{10}$/, message: "Enter valid 10 digit Mobile Number" } }}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder="Enter Phone Number" disabled={isView} />
-                                                )}
-                                            />
-                                            {errors.autoBill?.phoneNumber && (
-                                                <span className="text-danger">{errors.autoBill.phoneNumber.message}</span>
+                                        />
+                                    </Field>
+                                    <Field label={labels.worker} htmlFor="worker">
+                                        <Controller
+                                            name="autoBill.labourName"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <Selector {...field} inputId="worker" isMulti options={labourOptions} disabled={isView} />
                                             )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Notes</label>
-                                            <Controller
-                                                name="autoBill.notes"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder="Optional notes" disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="col-md-12 d-flex align-items-center mt-5 mb-4 gap-3">
-                                        <label className="font-s16 mb-1 font-w500">Items</label>
-                                        <div className="session-custom-border flex-grow-1" />
-                                    </div>
-
-                                    {!isView && (
-                                        <div className="d-flex justify-content-end mb-3">
-                                            <button type="button" className="btn btn-sm btn-gradient"
-                                                onClick={() => append({ ...emptyItem })}>
-                                                <Icons iconName="addcircle" className="icon-15 icon-white" /> Add Item
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {fields.map((fieldItem, index) => (
-                                        <div key={fieldItem.id} className="mb-4 p-3 border rounded">
-                                            <div className="row align-items-start g-3">
-                                                <div className="col-xl-4">
-                                                    <label className="form-label label-required">Particulars</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.partRef`}
-                                                        control={control}
-                                                        render={() => (
-                                                            <Selector
-                                                                options={partOptions}
-                                                                isClearable
-                                                                isDisabled={isView}
-                                                                value={
-                                                                    items[index]?.partRef
-                                                                        ? { label: items[index]?.particulars, value: items[index]?.partRef }
-                                                                        : null
-                                                                }
-                                                                placeholder="Pick a part, or type free text below"
-                                                                onChange={(opt: any) => onPartChange(index, opt)}
-                                                            />
-                                                        )}
-                                                    />
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.particulars`}
-                                                        control={control}
-                                                        rules={{ required: "Particulars is required" }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                className="mt-2"
-                                                                placeholder="Or type item name freely"
-                                                                disabled={isView}
-                                                                onChange={(e) => {
-                                                                    field.onChange(e);
-                                                                    setValue(`autoBill.items.${index}.partRef`, null);
-                                                                }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.particulars && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].particulars.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Qty</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.qty`}
-                                                        control={control}
-                                                        rules={{ required: "Qty is required", min: { value: 0.01, message: "Must be > 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Qty"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.qty && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].qty.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label">Unit</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.unit`}
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <Selector
-                                                                options={units.map((u) => ({ label: u, value: u }))}
-                                                                value={field.value ? { label: field.value, value: field.value } : null}
-                                                                isDisabled={isView}
-                                                                isClearable
-                                                                placeholder="Unit"
-                                                                onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Rate (₹)</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.rate`}
-                                                        control={control}
-                                                        rules={{ required: "Rate is required", min: { value: 0, message: "Must be ≥ 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Rate"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onRateChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.rate && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].rate.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Amount (₹)</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.amount`}
-                                                        control={control}
-                                                        rules={{ required: "Amount is required", min: { value: 0, message: "Must be ≥ 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Amount"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onAmountChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.amount && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].amount.message}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {!isView && fields.length > 1 && (
-                                                <div className="d-flex justify-content-end mt-2">
-                                                    <button type="button" className="btn btn-outline-danger btn-sm d-inline-flex align-items-center"
-                                                        onClick={() => remove(index)}>
-                                                        <Icons iconName="delete" className="icon-15 me-1" /> Remove
-                                                    </button>
-                                                </div>
+                                        />
+                                    </Field>
+                                    <Field label="Phone number" htmlFor="phone" error={E?.phoneNumber?.message}>
+                                        <Controller
+                                            name="autoBill.phoneNumber"
+                                            control={control}
+                                            rules={{ pattern: { value: /^[0-9]{10}$/, message: "Enter valid 10 digit Mobile Number" } }}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="phone" type="tel" placeholder="Enter Phone Number" disabled={isView} />
                                             )}
-                                        </div>
-                                    ))}
-
-                                    {fields.length > 0 && (
-                                        <div className="d-flex justify-content-end align-items-baseline gap-3 mt-2 pe-1">
-                                            <span className="font-s14" style={{ color: "var(--ink-500)" }}>Bill total</span>
-                                            <span className="font-s20 fw-semibold" style={{ color: "var(--ink-900)" }}>
-                                                {money(total)}
-                                            </span>
-                                        </div>
-                                    )}
-                                </motion.div>
-                            </AnimatePresence>
-                        </div>
-                    </div>
-
-                    <div className="row mt-3 me-3">
-                        <div className="col-xl-12 d-flex justify-content-end gap-2">
-                            <button type="button" className="btn btn-cancel" onClick={() => navigate(-1)}>
-                                {isView ? "Back" : "Cancel"}
-                            </button>
-                            {!isView && (
-                                <button type="submit" className="btn btn-primary" disabled={loading}>
-                                    {loading ? "Saving..." : isEdit ? "Update" : "Save"}
-                                </button>
+                                        />
+                                    </Field>
+                                    <Field label="Notes" htmlFor="notes" className="span-2">
+                                        <Controller
+                                            name="autoBill.notes"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <InputText {...field} id="notes" placeholder="Optional notes" disabled={isView} />
+                                            )}
+                                        />
+                                    </Field>
+                                </div>
                             )}
                         </div>
-                    </div>
-                </form>
-            </div>
+                    </section>
+
+                    <section className="card">
+                        <div className="card-body">
+                            <CardHead
+                                title="Items"
+                                actions={!isView && (
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => append({ ...emptyItem })}>
+                                        <Icons iconName="add" />Add Item
+                                    </button>
+                                )}
+                            />
+                            <div className="d-grid gap-3 mt-4">
+                                {fields.map((fieldItem, index) => {
+                                    const G = E?.items?.[index];
+                                    return (
+                                        <div key={fieldItem.id} className="nested-card">
+                                            <div className="row g-3 align-items-start">
+                                                <div className="col-12">
+                                                    <Field label="Particulars" htmlFor={`part-${index}`} required error={G?.particulars?.message} help="Or type item name freely">
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.partRef`}
+                                                            control={control}
+                                                            render={() => (
+                                                                <Selector
+                                                                    inputId={`part-${index}`}
+                                                                    options={partOptions}
+                                                                    isClearable
+                                                                    isDisabled={isView}
+                                                                    value={
+                                                                        items[index]?.partRef
+                                                                            ? { label: items[index]?.particulars, value: items[index]?.partRef }
+                                                                            : null
+                                                                    }
+                                                                    placeholder="Pick a part, or type free text below"
+                                                                    onChange={(opt: any) => onPartChange(index, opt)}
+                                                                />
+                                                            )}
+                                                        />
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.particulars`}
+                                                            control={control}
+                                                            rules={{ required: "Particulars is required" }}
+                                                            render={({ field }) => (
+                                                                <InputText
+                                                                    {...field}
+                                                                    id={`particulars-${index}`}
+                                                                    aria-label="Item name"
+                                                                    className="mt-2"
+                                                                    placeholder="Item name"
+                                                                    disabled={isView}
+                                                                    aria-invalid={!!G?.particulars || undefined}
+                                                                    onChange={(e) => {
+                                                                        field.onChange(e);
+                                                                        setValue(`autoBill.items.${index}.partRef`, null);
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                                <div className="col-6 col-md">
+                                                    <Field label="Qty" htmlFor={`qty-${index}`} required error={G?.qty?.message}>
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.qty`}
+                                                            control={control}
+                                                            rules={{ required: "Qty is required", min: { value: 0.01, message: "Must be > 0" } }}
+                                                            render={({ field }) => (
+                                                                <InputText
+                                                                    {...field}
+                                                                    id={`qty-${index}`}
+                                                                    type="number"
+                                                                    inputMode="decimal"
+                                                                    className="tabular text-end"
+                                                                    placeholder="Qty"
+                                                                    disabled={isView}
+                                                                    aria-invalid={!!G?.qty || undefined}
+                                                                    onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                                <div className="col-6 col-md">
+                                                    <Field label="Unit" htmlFor={`unit-${index}`}>
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.unit`}
+                                                            control={control}
+                                                            render={({ field }) => (
+                                                                <Selector
+                                                                    inputId={`unit-${index}`}
+                                                                    options={units.map((u) => ({ label: u, value: u }))}
+                                                                    value={field.value ? { label: field.value, value: field.value } : null}
+                                                                    isDisabled={isView}
+                                                                    isClearable
+                                                                    placeholder="Unit"
+                                                                    onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                                <div className="col-6 col-md">
+                                                    <Field label="Rate (₹)" htmlFor={`rate-${index}`} required error={G?.rate?.message}>
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.rate`}
+                                                            control={control}
+                                                            rules={{ required: "Rate is required", min: { value: 0, message: "Must be ≥ 0" } }}
+                                                            render={({ field }) => (
+                                                                <AffixInput
+                                                                    {...field}
+                                                                    id={`rate-${index}`}
+                                                                    prefix="₹"
+                                                                    type="number"
+                                                                    inputMode="decimal"
+                                                                    className="tabular text-end"
+                                                                    placeholder="Rate"
+                                                                    disabled={isView}
+                                                                    invalid={!!G?.rate}
+                                                                    onChange={(e) => { field.onChange(e); onRateChange(index, e.target.value); }}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                                <div className="col-6 col-md">
+                                                    <Field label="Amount (₹)" htmlFor={`amount-${index}`} required error={G?.amount?.message}>
+                                                        <Controller
+                                                            name={`autoBill.items.${index}.amount`}
+                                                            control={control}
+                                                            rules={{ required: "Amount is required", min: { value: 0, message: "Must be ≥ 0" } }}
+                                                            render={({ field }) => (
+                                                                <AffixInput
+                                                                    {...field}
+                                                                    id={`amount-${index}`}
+                                                                    prefix="₹"
+                                                                    type="number"
+                                                                    inputMode="decimal"
+                                                                    className="tabular text-end"
+                                                                    placeholder="Amount"
+                                                                    disabled={isView}
+                                                                    invalid={!!G?.amount}
+                                                                    onChange={(e) => { field.onChange(e); onAmountChange(index, e.target.value); }}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                                {!isView && fields.length > 1 && (
+                                                    <div className="col-12 col-md-auto pt-md-4 mt-md-2 d-flex justify-content-end">
+                                                        <button type="button" className="btn btn-outline-danger btn-icon" aria-label={`Remove item ${index + 1}`} onClick={() => remove(index)}>
+                                                            <Icons iconName="delete" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <FormFooter totalLabel="Bill total" total={money(total)}>
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+                        {isView ? "Back" : "Cancel"}
+                    </button>
+                    {!isView && (
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading && <span className="spinner" aria-hidden="true" />}
+                            {loading ? "Saving..." : isEdit ? "Update" : "Save"}
+                        </button>
+                    )}
+                </FormFooter>
+            </motion.form>
         </>
     );
 };

@@ -1,27 +1,21 @@
 import React, { useState } from "react";
+import { Field } from "../../../Components/ui/Basics";
+import { PasswordInput } from "../../../Components/ui/Inputs";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import InputText from "../../../Components/InputText";
-import Icons from "../../../Components/Icons";
 import { setSession } from "../../../Services/Auth";
 import { adminLogin } from "../../../Services/AdminApi";
 
 type Values = { userId: string; password: string };
 
-const ShieldMark = () => (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
-        <path d="M9 12l2 2 4-4" />
-    </svg>
-);
+import Icons from "../../../Components/Icons";
 
 const AdminLogin: React.FC = () => {
     const navigate = useNavigate();
     const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({
         defaultValues: { userId: "", password: "" },
     });
-    const [showPassword, setShowPassword] = useState(false);
     const [loginError, setLoginError] = useState("");
 
     const onSubmit = async (data: Values) => {
@@ -36,68 +30,44 @@ const AdminLogin: React.FC = () => {
     };
 
     return (
-        <div className="admin-login-shell">
-            <div className="admin-login-card">
+        <main className="auth-page">
+            <div className="auth-card" style={{ maxWidth: 420 }}>
                 <div className="text-center mb-4">
-                    <div className="admin-emblem"><ShieldMark /></div>
-                    <div className="admin-eyebrow">Super Admin</div>
-                    <h4 className="fw-semibold mb-0 mt-1">Console sign-in</h4>
-                    <p className="text-muted font-s13 mb-0">Manage clients &amp; platform access</p>
+                    <span className="auth-tile" aria-hidden="true"><Icons iconName="shield" /></span>
+                    <p className="auth-eyebrow">Super Admin</p>
+                    <h1 className="auth-title mt-1">Console sign-in</h1>
+                    <p className="auth-sub mb-0">Manage clients &amp; platform access</p>
                 </div>
-                <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                    <div className="mb-3">
-                        <label className="u-label d-block mb-1">User ID</label>
+                <form onSubmit={handleSubmit(onSubmit)} noValidate className="d-grid gap-3">
+                    <Field label="User ID" htmlFor="admin-user" error={errors.userId?.message}>
                         <Controller
                             name="userId"
                             control={control}
                             rules={{ required: "User ID is required" }}
                             render={({ field }) => (
-                                <InputText {...field} className="form-control login-input-height" placeholder="Enter user ID" />
+                                <InputText {...field} id="admin-user" autoComplete="username" placeholder="Enter user ID" aria-invalid={!!errors.userId || undefined} />
                             )}
                         />
-                        <div className="error-holder">
-                            {errors.userId && <small className="text-danger">{errors.userId.message}</small>}
-                        </div>
-                    </div>
-                    <div className="mb-2">
-                        <label className="u-label d-block mb-1">Password</label>
-                        <div className="position-relative">
-                            <Controller
-                                name="password"
-                                control={control}
-                                rules={{ required: "Password is required" }}
-                                render={({ field }) => (
-                                    <InputText
-                                        {...field}
-                                        type={showPassword ? "text" : "password"}
-                                        className="form-control login-input-height pe-5"
-                                        placeholder="Enter password"
-                                    />
-                                )}
-                            />
-                            <span className="password-toggle" style={{ position: "absolute", top: "50%", right: 6, transform: "translateY(-50%)", cursor: "pointer" }}
-                                onClick={() => setShowPassword(!showPassword)}>
-                                <Icons iconName={showPassword ? "eye_closed" : "eye_open"} className="icon-18 bill-date-icon me-2" />
-                            </span>
-                        </div>
-                        <div className="error-holder">
-                            {errors.password && <small className="text-danger">{errors.password.message}</small>}
-                        </div>
-                    </div>
-                    <div className="error-holder text-center mb-2">
-                        {loginError && <small className="text-danger">{loginError}</small>}
-                    </div>
-                    <button
-                        type="submit"
-                        className="btn w-100 rounded-pill py-2"
-                        disabled={isSubmitting}
-                        style={{ backgroundColor: "var(--accentColor)", color: "#fff", fontWeight: 600, letterSpacing: "0.04em" }}
-                    >
+                    </Field>
+                    <Field label="Password" htmlFor="admin-password" error={errors.password?.message}>
+                        <Controller
+                            name="password"
+                            control={control}
+                            rules={{ required: "Password is required" }}
+                            render={({ field }) => (
+                                <PasswordInput id="admin-password" value={field.value} onChange={field.onChange} autoComplete="current-password"
+                                    placeholder="Enter password" invalid={!!errors.password} />
+                            )}
+                        />
+                    </Field>
+                    {loginError && <p className="field-error text-center m-0" role="alert">{loginError}</p>}
+                    <button type="submit" className="btn btn-accent w-100 mt-1" disabled={isSubmitting}>
+                        {isSubmitting && <span className="spinner" aria-hidden="true" />}
                         {isSubmitting ? "Signing in..." : "SIGN IN"}
                     </button>
                 </form>
             </div>
-        </div>
+        </main>
     );
 };
 

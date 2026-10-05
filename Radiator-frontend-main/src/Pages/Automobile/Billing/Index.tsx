@@ -1,19 +1,21 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../../Components/Icons";
 import RowActions from "../../../Components/RowActions";
-import Loader from "../../../Components/Loader";
-import Pagination from "../../../Components/Pagination";
-import Search from "../../../Components/Search";
 import Selector from "../../../Components/Selector";
+import RecordPaymentModal from "../../../Components/RecordPaymentModal";
 import { useAlertMsg } from "../../../Services/AllServices";
-import AlertComponent from "../../../Components/AlertComponent";
 import { getData, postData, deleteData } from "../../../Services/ApiServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { printAutoInvoice } from "../../../Components/PrintInvoice";
 import { money } from "../../../Utils/format";
 import { AutoBillRecord, itemsText } from "../types";
+import { PageHeader, PaymentBadge, BusyOverlay } from "../../../Components/ui/Basics";
+import { ConfirmDialog } from "../../../Components/ui/Modal";
+import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../../Components/ui/DataList";
+import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 import * as XLSX from "xlsx";
 
@@ -23,152 +25,61 @@ const STATUS_OPTIONS = [
     { value: "Received", label: "Received" },
 ];
 
+const opt = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v) || null;
+const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("en-IN") : "—");
+
 const AutoBilling = () => {
     const navigate = useNavigate();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
+    const labels = settings.automobile.labels;
 
-    const [loading, setLoading] = useState(false);
-    const [exportLoading, setExportLoading] = useState(false);
-    const [recordData, setRecordData] = useState<AutoBillRecord[]>([]);
-
+    const [busyLabel, setBusyLabel] = useState("");
+    const [saving, setSaving] = useState(false);
     const [limit, setLimit] = useState(10);
-    const [selectedDataList, setSelectedDataList] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPage, settotalPage] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
 
     const [searchText, setSearchText] = useState("");
-    const [mechanicNameList, setmechanicName] = useState<string[]>([]);
-    const [searchMechanicName, setsearchMechanicName] = useState("");
+    const [mechanic, setMechanic] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
-    const [searchStatus, setSearchStatus] = useState("");
+    const [status, setStatus] = useState("");
     const [filtersKey, setFiltersKey] = useState(0);
+    const [mechanics, setMechanics] = useState<string[]>([]);
 
     const [paymentItem, setPaymentItem] = useState<AutoBillRecord | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentDiscount, setPaymentDiscount] = useState("");
     const [deleteItem, setDeleteItem] = useState<AutoBillRecord | null>(null);
-
-    const labels = settings.automobile.labels;
 
     const buildParams = () => ({
         vehicleNumber: searchText,
-        mechanicName: searchMechanicName,
+        mechanicName: mechanic,
         fromDate,
         toDate,
-        status: searchStatus,
+        status,
     });
 
+    const list = useRemoteList<AutoBillRecord>(async () => {
+        const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams() } });
+        return { rows: res.autoBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status]);
+
+    useEffect(() => { getData("auto-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
+
+    const activeCount = [mechanic, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setsearchMechanicName(""); setSearchStatus("");
+        setSearchText(""); setMechanic(""); setStatus("");
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
-
-    const getTableData = async () => {
-        try {
-            setLoading(true);
-            const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams() } });
-            setRecordData(res.autoBillData || []);
-            settotalPage(res.totalPages || 1);
-            setTotalRecords(res.totalRecords || 0);
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Failed to load records", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getMechanicName = async () => {
-        try {
-            const res = await getData("auto-mechanic");
-            setmechanicName(res.mechdata || []);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    useEffect(() => {
-        getTableData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus]);
-
-    useEffect(() => {
-        sessionStorage.removeItem("search");
-        getMechanicName();
-    }, []);
-
-    const handleSearchData = () => {
-        setSearchText(sessionStorage.getItem("search") || "");
-        setCurrentPage(1);
-    };
-
-    const handleLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value) || 10;
-        setLimit(value);
-        setCurrentPage(1);
-    };
+    const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     const fetchAllForExport = async (): Promise<AutoBillRecord[]> => {
         const res = await getData("autobills/export", { params: buildParams() });
         return res.autoBillData || [];
     };
 
-    const openPaymentModal = (item: AutoBillRecord) => {
-        setPaymentAmount("");
-        setPaymentDiscount("");
-        setPaymentItem(item);
-    };
-
-    const handleRecordPayment = async () => {
-        if (!paymentItem) return;
-        const amount = Number(paymentAmount) || 0;
-        const discount = Number(paymentDiscount) || 0;
-        if (amount <= 0 && discount <= 0) {
-            callAlertMsg("Enter a payment amount and/or a discount", "error");
-            return;
-        }
-        if (amount < 0 || discount < 0) {
-            callAlertMsg("Amount and discount must not be negative", "error");
-            return;
-        }
-        try {
-            setLoading(true);
-            const res = await postData(`autobills/${paymentItem._id}/payment`, {
-                amount,
-                // The API sets the bill's total discount (a missing value becomes 0), so always send
-                // the existing discount plus the extra one entered in this modal.
-                discount: (Number(paymentItem.discount) || 0) + discount,
-            });
-            callAlertMsg(res.message || "Payment recorded", "success");
-            setPaymentItem(null);
-            await getTableData();
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Failed to record payment", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!deleteItem) return;
-        try {
-            setLoading(true);
-            const res = await deleteData(`autobills/${deleteItem._id}`);
-            callAlertMsg(res.message || "Record deleted", "success");
-            setDeleteItem(null);
-            await getTableData();
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Failed to delete record", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const exportExcel = async () => {
-        setExportLoading(true);
+        setBusyLabel("Preparing Excel…");
         try {
             const all = await fetchAllForExport();
             const exportData = all.map((x) => ({
@@ -192,231 +103,173 @@ const AutoBilling = () => {
         } catch (err: any) {
             callAlertMsg(err?.message || "Export failed", "error");
         } finally {
-            setExportLoading(false);
+            setBusyLabel("");
         }
     };
 
-    const badge = (s: AutoBillRecord["status"]) =>
-        s === "Received" ? "status-badge-success" : s === "Partial" ? "status-badge-warning" : "status-badge-danger";
+    const handleRecordPayment = async ({ amount: a, discount: dsc }: { amount: string; discount: string }) => {
+        if (!paymentItem) return;
+        const amount = Number(a) || 0;
+        const discount = Number(dsc) || 0;
+        if (amount <= 0 && discount <= 0) {
+            callAlertMsg("Enter a payment amount and/or a discount", "error");
+            return;
+        }
+        if (amount < 0 || discount < 0) {
+            callAlertMsg("Amount and discount must not be negative", "error");
+            return;
+        }
+        try {
+            setSaving(true);
+            const res = await postData(`autobills/${paymentItem._id}/payment`, {
+                amount,
+                // The API sets the bill's total discount (a missing value becomes 0), so always send
+                // the existing discount plus the extra one entered in this modal.
+                discount: (Number(paymentItem.discount) || 0) + discount,
+            });
+            callAlertMsg(res.message || "Payment recorded", "success");
+            setPaymentItem(null);
+            await list.reload();
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Failed to record payment", "error");
+        } finally {
+            setSaving(false);
+        }
+    };
 
-    const mechanicOptions = mechanicNameList.map((m) => ({ value: m, label: m }));
+    const handleDelete = async () => {
+        if (!deleteItem) return;
+        try {
+            setSaving(true);
+            const res = await deleteData(`autobills/${deleteItem._id}`);
+            callAlertMsg(res.message || "Record deleted", "success");
+            setDeleteItem(null);
+            await list.reload();
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Failed to delete record", "error");
+        } finally {
+            setSaving(false);
+        }
+    };
 
+    const rowMenu = (o: AutoBillRecord) => (
+        <RowActions ariaLabel={`Actions for ${o.vehicleNumber}`} items={[
+            { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/automobile/dashboard/view/${o._id}`) },
+            { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/automobile/dashboard/edit/${o._id}`) },
+            { label: "Print", icon: <Icons iconName="print" />, onClick: () => printAutoInvoice(o, settings) },
+            { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.pendingAmount <= 0, reason: "Fully paid" },
+            { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
+        ]} />
+    );
+
+    const columns: Column<AutoBillRecord>[] = [
+        { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
+        { key: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "billNo", header: "Bill No", className: "num", cell: (o) => o.billNo },
+        { key: "vehicle", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNumber },
+        { key: "customer", header: labels.customer, className: "text", cell: (o) => o.customerName || "—" },
+        { key: "agent", header: labels.agent, className: "text", cell: (o) => o.mechanicName },
+        { key: "items", header: "Items", className: "text-wide", cell: (o) => itemsText(o) },
+        { key: "total", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
+        { key: "rec", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
+        { key: "pend", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
+        { key: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
+    ];
+
+    const mechanicOptions = mechanics.map((m) => ({ value: m, label: m }));
+
+    const filterBar = (
+        <FilterBar
+            activeCount={activeCount}
+            onClear={clearFilters}
+            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            filters={[
+                { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
+                { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },
+                { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
+                { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
+            ]}
+        />
+    );
+
+    const filtered = activeCount > 0;
     return (
-        <div className="row">
-            <Loader loading={loading || exportLoading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <BusyOverlay show={!!busyLabel} label={busyLabel} />
+            <PageHeader
+                title="Bills"
+                actions={[
+                    { label: "Excel", icon: "exporticon", onClick: exportExcel, disabled: !!busyLabel, collapse: true },
+                ]}
+                primary={
+                    <button type="button" className="btn btn-primary" onClick={() => navigate("/automobile/dashboard/create")}>
+                        <Icons iconName="add" />Add New
+                    </button>
+                }
+            />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between my-4">
-                    <h4 className="fw-semibold">Billing</h4>
-                    <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center"
-                            onClick={exportExcel} disabled={exportLoading}>
-                            <Icons iconName="exporticon" className="icon-15 me-2" />
-                            {exportLoading ? "Exporting..." : "Excel"}
-                        </button>
-                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center"
-                            onClick={() => navigate("/automobile/dashboard/create")}
-                            style={{ whiteSpace: "nowrap" }}>
-                            <Icons iconName="add" className="icon-12 icon-white me-2" />
-                            Add New
-                        </button>
-                    </div>
-                </div>
-
-                <div className="card card-shadow mt-4">
-                    <div className="card-body p-0">
-                        <div className="table-header">
-                            <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-4 col-xl-3" key={`search-${filtersKey}`}>
-                                    <Search getData={handleSearchData} placeholder={`Search ${labels.vehicleNo}...`} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-3">
-                                    <label className="form-label font-w500 mb-1">{labels.agent}</label>
-                                    <Selector key={`mech-${filtersKey}`} isClearable options={mechanicOptions}
-                                        placeholder="-- All --"
-                                        onChange={(option: any) => { setsearchMechanicName(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Status</label>
-                                    <Selector key={`status-${filtersKey}`} isClearable options={STATUS_OPTIONS}
-                                        placeholder="-- All Status --"
-                                        onChange={(option: any) => { setSearchStatus(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="from-date" className="form-label font-w500 mb-1">From</label>
-                                    <input id="from-date" type="date" className="form-control"
-                                        value={fromDate} max={toDate || undefined}
-                                        onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="to-date" className="form-label font-w500 mb-1">To</label>
-                                    <input id="to-date" type="date" className="form-control"
-                                        min={fromDate || undefined} value={toDate}
-                                        onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-1 d-flex align-items-end">
-                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearFilters}>Clear</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14">
-                                <thead>
-                                    <tr>
-                                        <th className="cell-nowrap">SI No</th>
-                                        <th className="cell-nowrap">Date</th>
-                                        <th className="cell-nowrap">Bill No</th>
-                                        <th className="cell-nowrap">{labels.vehicleNo}</th>
-                                        <th>{labels.customer}</th>
-                                        <th>{labels.agent}</th>
-                                        <th>Items</th>
-                                        <th className="cell-nowrap">Total</th>
-                                        <th className="cell-nowrap">Received</th>
-                                        <th className="cell-nowrap">Pending</th>
-                                        <th className="cell-nowrap">Status</th>
-                                        <th className="cell-nowrap">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {recordData.length ? (
-                                        recordData.map((o, i) => (
-                                            <tr key={o._id}>
-                                                <td className="cell-nowrap">{(currentPage - 1) * limit + i + 1}</td>
-                                                <td className="cell-nowrap">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
-                                                <td className="cell-nowrap">{o.billNo}</td>
-                                                <td className="cell-nowrap">{o.vehicleNumber}</td>
-                                                <td>{o.customerName || "—"}</td>
-                                                <td>{o.mechanicName}</td>
-                                                <td>{itemsText(o)}</td>
-                                                <td className="cell-nowrap">{money(o.totalAmount)}</td>
-                                                <td className="cell-nowrap">{money(o.receivedAmount)}</td>
-                                                <td className={`cell-nowrap ${o.pendingAmount > 0 ? "text-danger font-w600" : ""}`}>
-                                                    {money(o.pendingAmount)}
-                                                </td>
-                                                <td className="cell-nowrap"><span className={`status-badge ${badge(o.status)}`}>{o.status}</span></td>
-                                                <td className="cell-nowrap">
-                                                    <RowActions ariaLabel={`Actions for ${o.vehicleNumber}`} items={[
-                                                        { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/automobile/dashboard/view/${o._id}`) },
-                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/automobile/dashboard/edit/${o._id}`) },
-                                                        { label: "Print", icon: <Icons iconName="print" />, onClick: () => printAutoInvoice(o, settings) },
-                                                        { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => openPaymentModal(o) },
-                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
-                                                    ]} />
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={12} className="text-center py-3">No Records Found</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPage}
-                        selectedDataList={selectedDataList}
-                        setSelectedDataList={setSelectedDataList}
-                        paginationDataLimit={{ limit }}
-                        response={{ totalRecords }}
-                        handleInputChange={handleLimitChange}
-                        handlePreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        handleNextPage={() => setCurrentPage((p) => Math.min(totalPage, p + 1))}
+            <DataList<AutoBillRecord>
+                caption="Bills"
+                toolbar={filterBar}
+                rows={list.rows}
+                rowKey={(o) => o._id}
+                columns={columns}
+                status={list.status}
+                refetching={list.refetching}
+                onRetry={list.reload}
+                errorTitle="Couldn't load bills"
+                empty={emptyCopy({
+                    filtered,
+                    noun: "bills",
+                    noDataText: "Create your first bill and it will show up here.",
+                    noMatchText: `Try a different ${labels.vehicleNo}, ${labels.agent} or date range.`,
+                    onClear: clearFilters,
+                    action: <button type="button" className="btn btn-primary" onClick={() => navigate("/automobile/dashboard/create")}><Icons iconName="add" />Add New</button>,
+                })}
+                mobileCard={(o) => (
+                    <MobileCard
+                        title={o.vehicleNumber}
+                        to={`/automobile/dashboard/view/${o._id}`}
+                        badge={<PaymentBadge status={o.status} />}
+                        menu={rowMenu(o)}
+                        meta={[fmtDate(o.billDate), `Bill ${o.billNo}`, o.mechanicName]}
+                        meta2={o.customerName || undefined}
+                        amounts={[
+                            { label: "Total", value: money(o.totalAmount) },
+                            { label: "Received", value: money(o.receivedAmount) },
+                            { label: "Pending", value: money(o.pendingAmount), tone: o.pendingAmount > 0 ? "error" : undefined },
+                        ]}
                     />
-                </div>
-            </div>
+                )}
+                pagination={
+                    <Pagination page={currentPage} totalPages={list.totalPages} total={list.total} limit={limit}
+                        onPage={setCurrentPage} onLimit={(n) => { setLimit(n); setCurrentPage(1); }} />
+                }
+            />
 
-            {/* Record Payment Modal */}
-            {paymentItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Record Payment — {paymentItem.vehicleNumber}</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setPaymentItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Total</span><span className="font-w600">{money(paymentItem.totalAmount)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Received so far</span>
-                                    <span className="font-w600 text-success">{money(paymentItem.receivedAmount)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-3">
-                                    <span>Pending</span>
-                                    <span className="font-w600 text-danger">{money(paymentItem.pendingAmount)}</span>
-                                </div>
-                                <div className="form-group mb-3">
-                                    <label className="form-label" htmlFor="payment-discount">
-                                        Discount (₹) <span className="text-muted font-s12">— optional, reduces the amount owed</span>
-                                    </label>
-                                    <input id="payment-discount" type="number" className="form-control"
-                                        min={0} max={paymentItem.pendingAmount} value={paymentDiscount}
-                                        onChange={(e) => setPaymentDiscount(e.target.value)}
-                                        placeholder="0" />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="payment-amount">Amount received now (₹)</label>
-                                    <input id="payment-amount" type="number" className="form-control"
-                                        min={0} max={Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)} value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        placeholder={`Up to ${Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0), 0)}`} autoFocus />
-                                </div>
-                                {(Number(paymentDiscount) || 0) > 0 && (
-                                    <div className="d-flex justify-content-between font-s14 mt-3 pt-2 border-top">
-                                        <span>Pending after discount</span>
-                                        <span className="font-w600">
-                                            {money(Math.max(paymentItem.pendingAmount - (Number(paymentDiscount) || 0) - (Number(paymentAmount) || 0), 0))}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setPaymentItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm"
-                                    onClick={handleRecordPayment}
-                                    disabled={loading || paymentItem.pendingAmount <= 0}>
-                                    {loading ? "Saving..." : "Record Payment"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <RecordPaymentModal
+                open={!!paymentItem}
+                title={`Record Payment — ${paymentItem?.vehicleNumber ?? ""}`}
+                total={paymentItem?.totalAmount || 0}
+                received={paymentItem?.receivedAmount || 0}
+                pending={paymentItem?.pendingAmount || 0}
+                busy={saving}
+                onClose={() => setPaymentItem(null)}
+                onSubmit={handleRecordPayment}
+            />
 
-            {/* Delete Confirm Modal */}
-            {deleteItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Delete Record</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setDeleteItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s14 mb-0">
-                                    Delete bill for{" "}
-                                    <span className="font-w600">{deleteItem.vehicleNumber}</span>
-                                    {deleteItem.billDate ? ` dated ${new Date(deleteItem.billDate).toLocaleDateString("en-IN")}` : ""}? This cannot be undone.
-                                </p>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setDeleteItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={handleDelete} disabled={loading}>
-                                    {loading ? "Deleting..." : "Delete"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            <ConfirmDialog
+                open={!!deleteItem}
+                title="Delete Record"
+                message={deleteItem && <>Delete bill for <span className="t-strong t-semibold">{deleteItem.vehicleNumber}</span>{deleteItem.billDate ? ` dated ${fmtDate(deleteItem.billDate)}` : ""}? This cannot be undone.</>}
+                confirmLabel="Delete"
+                busyLabel="Deleting..."
+                busy={saving}
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteItem(null)}
+            />
+        </>
     );
 };
 

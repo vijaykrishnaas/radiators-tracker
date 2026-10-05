@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import Loader from "../../../Components/Loader";
+import Modal from "../../../Components/ui/Modal";
+import { Badge, SkeletonRows } from "../../../Components/ui/Basics";
 import { getClientSettings, type ClientMeta } from "../../../Services/AdminApi";
 
 type Props = { clientId: string; clientName: string; onClose: () => void };
@@ -8,29 +9,29 @@ const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleString("en-IN") : "—";
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="settings-view-section">
-        <div className="settings-view-heading">{title}</div>
+    <section className="view-section">
+        <h3 className="view-section-title">{title}</h3>
         {children}
-    </div>
+    </section>
 );
 
 const KV: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => {
     const empty = value === undefined || value === null || value === "";
     return (
-        <div className="kv-row">
-            <div className="kv-label">{label}</div>
-            <div className={`kv-value${empty ? " kv-value--empty" : ""}`}>{empty ? "—" : value}</div>
+        <div>
+            <dt>{label}</dt>
+            <dd className={empty ? "t-muted" : undefined}>{empty ? "—" : value}</dd>
         </div>
     );
 };
 
 const Chips: React.FC<{ items: any[] }> = ({ items }) => {
     const list = (items || []).filter((x) => x !== undefined && x !== null && x !== "");
-    if (!list.length) return <span className="kv-value kv-value--empty">—</span>;
+    if (!list.length) return <span className="t-muted">—</span>;
     return (
-        <div className="kv-chips">
+        <div className="d-flex flex-wrap gap-2">
             {list.map((x, i) => (
-                <span className="kv-chip" key={i}>{typeof x === "object" ? x.label ?? JSON.stringify(x) : String(x)}</span>
+                <span className="badge badge-neutral" key={i}>{typeof x === "object" ? x.label ?? JSON.stringify(x) : String(x)}</span>
             ))}
         </div>
     );
@@ -38,20 +39,20 @@ const Chips: React.FC<{ items: any[] }> = ({ items }) => {
 
 const Swatch: React.FC<{ color?: string }> = ({ color }) =>
     color ? (
-        <span className="kv-swatch">
-            <span className="kv-swatch-dot" style={{ background: color }} />
-            <code>{color}</code>
+        <span className="d-inline-flex align-items-center">
+            <span className="swatch" style={{ background: color }} aria-hidden="true" />
+            <span className="t-mono">{color}</span>
         </span>
     ) : (
-        <span className="kv-value kv-value--empty">—</span>
+        <span className="t-muted">—</span>
     );
 
 // products: [{label,value}] ; services: [{label,value}] ; matrix: { [productValue]: { [serviceValue]: number } }
 const MatrixTable: React.FC<{ products: any[]; services: any[]; matrix: any; money?: boolean }> = ({ products, services, matrix, money }) => {
-    if (!products?.length || !services?.length) return <span className="kv-value kv-value--empty">—</span>;
+    if (!products?.length || !services?.length) return <span className="t-muted">—</span>;
     return (
-        <div style={{ overflowX: "auto" }}>
-            <table className="settings-price-table">
+        <div className="mini-table"><div className="table-wrap">
+            <table className="table">
                 <thead>
                     <tr>
                         <th>Model \ Service</th>
@@ -61,16 +62,16 @@ const MatrixTable: React.FC<{ products: any[]; services: any[]; matrix: any; mon
                 <tbody>
                     {products.map((p) => (
                         <tr key={p.value}>
-                            <td className="font-w600">{p.label}</td>
+                            <td className="key">{p.label}</td>
                             {services.map((s) => {
                                 const v = matrix?.[p.value]?.[s.value];
-                                return <td key={s.value}>{v === undefined || v === null ? "—" : (money ? `₹${Number(v).toLocaleString("en-IN")}` : v)}</td>;
+                                return <td key={s.value} className="num">{v === undefined || v === null ? "—" : (money ? `₹${Number(v).toLocaleString("en-IN")}` : v)}</td>;
                             })}
                         </tr>
                     ))}
                 </tbody>
             </table>
-        </div>
+        </div></div>
     );
 };
 
@@ -99,36 +100,36 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
     const priceableServices = (catalog.serviceTypes || []).filter((x: any) => !x.requiresComment);
 
     return (
-        <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-            <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
-                <div className="modal-content">
-                    <div className="modal-header">
-                        <span className="modal-title">Client Settings — {clientName}</span>
-                        <button type="button" className="btn-close" onClick={onClose} />
-                    </div>
-                    <div className="modal-body" style={{ maxHeight: "75vh" }}>
-                        <Loader loading={loading} />
-                        {error && <p className="text-danger font-s14">{error}</p>}
+        <Modal
+            open
+            onClose={onClose}
+            title={`Client Settings — ${clientName}`}
+            size="lg"
+            initialFocus="confirm"
+            footer={<button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>}
+        >
+                        {loading && <SkeletonRows rows={4} />}
+                        {error && <p className="field-error" role="alert">{error}</p>}
 
                         {!loading && !error && (
                             <>
                                 <Section title="Provisioning (set up by super-admin)">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Business Name" value={meta?.name} />
-                                        <KV label="Business Code" value={meta?.code ? <code>{meta.code}</code> : undefined} />
+                                        <KV label="Business Code" value={meta?.code ? <span className="t-mono">{meta.code}</span> : undefined} />
                                         <KV label="Admin Username" value={meta?.adminUserId} />
                                         <KV label="Status" value={
-                                            <span className={`status-badge ${meta?.status === "active" ? "status-badge-success" : "status-badge-warning"}`}>
+                                            <Badge tone={meta?.status === "active" ? "success" : "neutral"} dot>
                                                 {meta?.status === "active" ? "Active" : "Suspended"}
-                                            </span>
+                                            </Badge>
                                         } />
                                         <KV label="Last Login" value={fmtDate(meta?.lastLoginAt ?? null)} />
                                         <KV label="Created" value={fmtDate(meta?.createdAt ?? null)} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Company Profile">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Company Name" value={company.name} />
                                         <KV label="Address" value={company.address} />
                                         <KV label="Phone 1" value={company.phone1} />
@@ -138,48 +139,48 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
                                         <KV label="Logo" value={company.logoUrl ? "Uploaded" : "Not set"} />
                                         <KV label="Payment QR" value={company.qrUrl ? "Uploaded" : "Not set"} />
                                         <KV label="Login Background" value={company.loginBgUrl ? "Uploaded" : "Default (gradient)"} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Branding">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Primary Color" value={<Swatch color={branding.primaryColor} />} />
                                         <KV label="Accent Color" value={<Swatch color={branding.accentColor} />} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Field Labels">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Vehicle Number" value={labels.vehicleNo} />
                                         <KV label="Party / Customer" value={labels.party} />
                                         <KV label="Agent / Mechanic" value={labels.agent} />
                                         <KV label="Product" value={labels.product} />
                                         <KV label="Worker" value={labels.worker} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Workforce">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Mechanics" value={<Chips items={s?.mechanics} />} />
                                         <KV label="Labour" value={<Chips items={s?.labour} />} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Catalog & Prices">
-                                    <div className="kv-grid" style={{ marginBottom: 12 }}>
+                                    <dl className="kv-list mb-3">
                                         <KV label="Product Types" value={<Chips items={catalog.productTypes} />} />
                                         <KV label="Service Types" value={<Chips items={catalog.serviceTypes} />} />
-                                    </div>
-                                    <div className="kv-label" style={{ marginBottom: 4 }}>Price Matrix</div>
+                                    </dl>
+                                    <p className="t-xs t-muted mb-1">Price Matrix</p>
                                     <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={catalog.priceMatrix} money />
                                 </Section>
 
                                 <Section title="Invoice">
-                                    <div className="kv-grid">
+                                    <dl className="kv-list">
                                         <KV label="Bill Title" value={invoice.billTitle} />
                                         <KV label="Footer Note" value={invoice.footerNote} />
                                         <KV label="Show QR on Invoice" value={invoice.showQr ? "Yes" : "No"} />
-                                    </div>
+                                    </dl>
                                 </Section>
 
                                 <Section title="Login Highlights">
@@ -187,27 +188,21 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
                                 </Section>
 
                                 <Section title="Bonus Configuration">
-                                    <div className="kv-grid" style={{ marginBottom: 12 }}>
+                                    <dl className="kv-list mb-3">
                                         <KV label="Mechanic — Default %" value={bonus?.mechanic?.defaultPercent} />
                                         <KV label="Mechanic — Year Starts (month)" value={bonus?.mechanic?.yearStartMonth} />
                                         <KV label="Labour — Default %" value={bonus?.labour?.defaultPercent} />
-                                    </div>
-                                    <div className="kv-label" style={{ marginBottom: 4 }}>Mechanic Bonus % Matrix</div>
-                                    <div style={{ marginBottom: 12 }}>
+                                    </dl>
+                                    <p className="t-xs t-muted mb-1">Mechanic Bonus % Matrix</p>
+                                    <div className="mb-3">
                                         <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.mechanic?.matrix} />
                                     </div>
-                                    <div className="kv-label" style={{ marginBottom: 4 }}>Labour Bonus % Matrix</div>
+                                    <p className="t-xs t-muted mb-1">Labour Bonus % Matrix</p>
                                     <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.labour?.matrix} />
                                 </Section>
                             </>
                         )}
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-cancel btn-sm" onClick={onClose}>Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </Modal>
     );
 };
 

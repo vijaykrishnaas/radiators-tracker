@@ -1,1 +1,26 @@
 /* salary screens (redesign). Tokens only: no hex, no !important. */
+
+/* Collapsible form section (employee bank details) */
+.collapsible-toggle {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 10px 0; background: none; border: 0; border-top: 1px solid var(--border);
+  font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-semibold); color: var(--text-strong);
+  cursor: pointer;
+}
+.collapsible-toggle svg { transition: transform 0.15s ease; }
+.collapsible-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.collapsible-body { padding-top: 8px; }
+
+/* Settle salary */
+.att-badges { display: flex; flex-wrap: wrap; gap: 8px; max-height: 144px; overflow-y: auto; }
+.att-mark-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: end; }
+@media (min-width: 576px) { .att-mark-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } }
+.adv-add-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: end; }
+@media (min-width: 576px) { .adv-add-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1536px) { .adv-add-row { grid-template-columns: 1.2fr 1fr 1.4fr auto; } }
+.ded-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+@media (min-width: 576px) { .ded-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; } }
+.settle-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.list-toolbar-title { padding: 20px 24px 12px; }
+.list-toolbar-title .card-head { margin-bottom: 0; }
+.salary-card .card-body > .card-head { margin-bottom: 16px; }

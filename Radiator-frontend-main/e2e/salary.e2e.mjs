@@ -57,17 +57,18 @@ await page.evaluate(() => {
 await page.goto(BASE + "/salary/settle");
 await page.waitForTimeout(1500);
 // Pick the employee in the first react-select on the page.
-await page.locator("[class*='control']").first().click({ force: true });
+await page.locator("#settle-employee").click({ force: true });
 await page.getByText("Ramesh", { exact: true }).last().click();
 await page.getByText("Advances deducted").waitFor({ timeout: 10000 });
 
-const previewText = await page.locator("table").filter({ hasText: "Advances deducted" }).first().innerText();
+const previewText = await page.locator("dl.key-values").filter({ hasText: "Advances deducted" }).first().innerText();
 ok("salary: preview shows ₹3,000 advances deducted", /Advances deducted\s*-\s*₹3,000\.00/.test(previewText), previewText.replace(/\s+/g, " "));
 ok("salary: preview shows ₹2,000 carried forward", /carried forward to next settlement\s*₹2,000\.00/.test(previewText), previewText.replace(/\s+/g, " "));
 ok("salary: preview net payable ₹0", /Net Payable\s*₹0\.00/.test(previewText));
 
 const dl = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
-await page.getByRole("button", { name: "View Payslip" }).first().click();
+await page.getByRole("button", { name: "Actions for 2026-09" }).first().click();
+await page.getByRole("menuitem", { name: "View Payslip" }).click();
 const download = await dl;
 ok("salary: payslip downloads a PDF", !!download && /Payslip-2026-09-Ramesh\.pdf$/.test(download.suggestedFilename()), download ? download.suggestedFilename() : "no download");
 if (download) {

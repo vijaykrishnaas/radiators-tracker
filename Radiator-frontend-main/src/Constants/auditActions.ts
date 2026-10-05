@@ -126,6 +126,10 @@ export const detailText = (e: AuditEntry): string => {
         case "salary.adjust":
             return join(d.amount ? rs(d.amount) : "", d.reason);
         default:
-            return "";
+            // Super-admin client actions and anything new: name + record counts when present.
+            return [
+                d.name ? `name: ${d.name}` : "",
+                d.counts ? `(${Object.entries(d.counts).map(([k, v]) => `${k}:${v}`).join(", ")})` : "",
+            ].filter(Boolean).join(" ");
     }
 };

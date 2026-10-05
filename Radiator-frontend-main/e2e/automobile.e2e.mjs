@@ -56,12 +56,12 @@ await page.evaluate(() => {
   localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" }));
 });
 
-// Gating: automobile tenant sent to its own pages; header keeps Expenses/Bonus/Salary.
+// Gating: automobile tenant sent to its own pages; sidebar keeps Expenses/Bonus/Salary.
 await page.goto(BASE + "/issueCounter/dashboard");
 await page.waitForURL(/\/automobile\//, { timeout: 10000 }).catch(() => {});
 ok("auto: radiator dashboard redirects to automobile", page.url().includes("/automobile/"), page.url());
-const nav = await page.locator(".navbar-nav-header").innerText();
-ok("auto: header has Expenses/Bonus/Salary", /Expenses/.test(nav) && /Bonus/.test(nav) && /Salary/.test(nav), nav.replace(/\s+/g, " "));
+const nav = await page.locator(".sidebar-nav").innerText();
+ok("auto: sidebar has Expenses/Bonus/Salary", /Expenses/.test(nav) && /Bonus/.test(nav) && /Salary/.test(nav), nav.replace(/\s+/g, " "));
 await page.goto(BASE + "/engineering/dashboard");
 await page.waitForTimeout(1500);
 ok("auto: engineering route redirects away", !page.url().includes("/engineering/"), page.url());
@@ -77,7 +77,7 @@ const recordPayment = async (discount, amount) => {
   if (discount != null) await page.locator("#payment-discount").fill(String(discount));
   if (amount != null) await page.locator("#payment-amount").fill(String(amount));
   const before = payments.length;
-  await page.locator(".modal-footer").getByRole("button", { name: "Record Payment" }).click();
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Record Payment" }).click();
   for (let i = 0; i < 50 && payments.length === before; i++) await page.waitForTimeout(100);
   return payments[payments.length - 1];
 };
@@ -89,21 +89,21 @@ ok("auto: extra ₹100 discount is added to existing (150)", p2?.discount === 15
 
 // Create bill: qty × rate auto-computes amount; payload shape.
 await page.goto(BASE + "/automobile/dashboard/create");
-await page.getByPlaceholder(/Enter Vehicle Number/).waitFor({ timeout: 10000 });
-await page.getByPlaceholder(/Enter Vehicle Number/).fill("TN01X9999");
-await page.getByText("Select Mechanic").click({ force: true });
+await page.locator("#vehicle-number").waitFor({ timeout: 10000 });
+await page.locator("#vehicle-number").fill("TN01X9999");
+await page.locator("#agent").click({ force: true });
 await page.getByText("Ramesh", { exact: true }).last().click();
-await page.getByPlaceholder("Or type item name freely").fill("Brake pads");
-await page.getByPlaceholder("Qty").fill("2");
-await page.getByPlaceholder("Rate").fill("750");
-ok("auto: amount auto = qty × rate (1500)", (await page.getByPlaceholder("Amount").inputValue()) === "1500", await page.getByPlaceholder("Amount").inputValue());
-await page.getByRole("button", { name: "Save" }).click();
+await page.locator("#particulars-0").fill("Brake pads");
+await page.locator("#qty-0").fill("2");
+await page.locator("#rate-0").fill("750");
+ok("auto: amount auto = qty × rate (1500)", (await page.locator("#amount-0").inputValue()) === "1500", await page.locator("#amount-0").inputValue());
+await page.getByRole("button", { name: "Save", exact: true }).click();
 await page.waitForTimeout(500);
 ok("auto: bill date is required", (await page.getByText("Date is required").count()) > 0 && !created);
 await page.locator('input[name="day"]').fill("20");
 await page.locator('input[name="month"]').fill("09");
 await page.locator('input[name="year"]').fill("2026");
-await page.getByRole("button", { name: "Save" }).click();
+await page.getByRole("button", { name: "Save", exact: true }).click();
 for (let i = 0; i < 50 && !created; i++) await page.waitForTimeout(100);
 ok("auto: create payload items", created?.items?.[0]?.amount === 1500 && created?.items?.[0]?.particulars === "Brake pads", JSON.stringify(created?.items));
 await page.screenshot({ path: `${OUT}/auto-create.png`, fullPage: true });

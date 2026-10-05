@@ -1,197 +1,100 @@
-import React, { useEffect, useState, type ChangeEvent } from "react";
-import { NavLink } from "react-router-dom";
-import Loader from "../../../Components/Loader";
+import React, { useEffect, useState } from "react";
 import Selector from "../../../Components/Selector";
-import Pagination from "../../../Components/Pagination";
-import AlertComponent from "../../../Components/AlertComponent";
 import { useAlertMsg } from "../../../Services/AllServices";
-import { listAudit, listClients, type AuditEntry, type ClientRow } from "../../../Services/AdminApi";
+import { listAudit, listClients, type ClientRow } from "../../../Services/AdminApi";
+import { actionLabel, adminActionOptions, detailText, type AuditEntry } from "../../../Constants/auditActions";
+import { PageHeader, Badge } from "../../../Components/ui/Basics";
+import { FilterBar } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, Pagination, type Column } from "../../../Components/ui/DataList";
+import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
-const ACTION_LABEL: Record<string, string> = {
-    // Super-admin actions
-    "client.create": "Created client",
-    "client.rename": "Renamed client",
-    "client.suspend": "Suspended client",
-    "client.reactivate": "Reactivated client",
-    "client.reset_password": "Reset password",
-    "client.delete": "Deleted client",
-    // Client-side actions (so client logs read clearly here too)
-    "radiator.create": "Created bill",
-    "radiator.update": "Updated bill",
-    "radiator.delete": "Deleted bill",
-    "radiator.payment": "Recorded payment",
-    "expense.create": "Added expense",
-    "expense.update": "Updated expense",
-    "expense.delete": "Deleted expense",
-    "settings.update": "Updated settings",
-    "settings.upload": "Uploaded asset",
-    "bonus.payout": "Issued bonus",
-    "bonus.manual": "Manual bonus",
-    "bonus.adjust": "Corrected bonus",
-    "auth.login": "Logged in",
-};
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN");
+const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+const opt = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v) || null;
 
-const fmt = (d: string) => new Date(d).toLocaleString("en-IN");
-
-// Condense any audit entry's details (super-admin OR client) into a short string.
-const detailText = (e: AuditEntry): string => {
-    const d = e.details || {};
-    switch (e.action) {
-        case "radiator.create":
-        case "radiator.update":
-        case "radiator.delete":
-            return d.truckNumber ? String(d.truckNumber) : "";
-        case "radiator.payment":
-            return [d.truckNumber, d.amount ? `paid ₹${d.amount}` : "", d.discount ? `discount ₹${d.discount}` : ""].filter(Boolean).join(" · ");
-        case "expense.create":
-        case "expense.update":
-            return [d.expenseType, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
-        case "bonus.payout":
-            return [d.type, d.beneficiary, d.count != null ? `${d.count} entr${d.count === 1 ? "y" : "ies"}` : "", d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
-        case "bonus.manual":
-        case "bonus.adjust":
-            return [d.type, d.beneficiary, d.amount ? `₹${d.amount}` : ""].filter(Boolean).join(" · ");
-        case "settings.upload":
-            return d.asset ? String(d.asset) : "";
-        default:
-            return [
-                d.name ? `name: ${d.name}` : "",
-                d.counts ? `(${Object.entries(d.counts).map(([k, v]) => `${k}:${v}`).join(", ")})` : "",
-            ].filter(Boolean).join(" ");
-    }
+const ActionBadge = ({ action }: { action: string }) => {
+    const label = actionLabel(action, true);
+    return label ? <Badge>{label}</Badge> : <span className="t-mono">{action}</span>;
 };
 
 const Audit: React.FC = () => {
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
-    const [loading, setLoading] = useState(false);
-    const [entries, setEntries] = useState<AuditEntry[]>([]);
+    const { callAlertMsg } = useAlertMsg();
     const [clients, setClients] = useState<ClientRow[]>([]);
-
     const [clientCode, setClientCode] = useState("");
     const [action, setAction] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
-    const [filtersKey, setFiltersKey] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(20);
-    const [totalPage, setTotalPage] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
-    const [selectedDataList, setSelectedDataList] = useState(20);
 
-    const load = async () => {
-        setLoading(true);
+    const list = useRemoteList<AuditEntry>(async () => {
         try {
             const res = await listAudit({ page: currentPage, limit, clientCode, action, from: fromDate, to: toDate });
-            setEntries(res.entries || []);
-            setTotalPage(res.totalPages || 1);
-            setTotalRecords(res.total || 0);
+            return { rows: res.entries || [], total: res.total || 0, totalPages: res.totalPages || 1 };
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to load audit log", "error");
-        } finally {
-            setLoading(false);
+            throw err;
         }
-    };
-
-    useEffect(() => {
-        load();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentPage, limit, clientCode, action, fromDate, toDate]);
 
     useEffect(() => {
         listClients().then((r) => setClients(r.clients || [])).catch(() => {});
     }, []);
 
-    const handleLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
-        setLimit(Number(e.target.value) || 20);
-        setCurrentPage(1);
-    };
-
     const clientOptions = clients.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` }));
-    const actionOptions = Object.entries(ACTION_LABEL).map(([value, label]) => ({ value, label }));
-    const clearAuditFilters = () => {
-        setClientCode(""); setAction(""); setFromDate(""); setToDate(""); setCurrentPage(1);
-        setFiltersKey((k) => k + 1);
-    };
+    const actionOptions = adminActionOptions();
+    const activeCount = [clientCode, action, fromDate, toDate].filter(Boolean).length;
+    const clear = () => { setClientCode(""); setAction(""); setFromDate(""); setToDate(""); setCurrentPage(1); };
+    const set = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
+
+    const columns: Column<AuditEntry>[] = [
+        { key: "when", header: "When", className: "nowrap tabular", cell: (e) => <>{fmtDate(e.at)}<span className="d-block t-xs t-muted">{fmtTime(e.at)}</span></> },
+        { key: "action", header: "Action", className: "nowrap", cell: (e) => <ActionBadge action={e.action} /> },
+        { key: "client", header: "Client", className: "nowrap", cell: (e) => (e.clientCode ? <span className="t-mono">{e.clientCode}</span> : "—") },
+        { key: "by", header: "By", cell: (e) => e.actorUserId || "—" },
+        { key: "details", header: "Details", className: "text-wide", cell: (e) => detailText(e) || "—" },
+    ];
 
     return (
-        <div className="row">
-            <Loader loading={loading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between align-items-center my-4">
-                    <h4 className="fw-semibold mb-0">Audit Log</h4>
-                    <NavLink to="/admin/clients" className="btn btn-cancel btn-sm">← Clients</NavLink>
-                </div>
-                <div className="card card-shadow mt-2">
-                    <div className="card-body p-0">
-                        <div className="table-header">
-                            <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-6 col-xl-3">
-                                    <label className="form-label font-w500 mb-1">Filter by client</label>
-                                    <Selector key={`au-client-${filtersKey}`} isClearable options={clientOptions} placeholder="-- All Clients --"
-                                        onChange={(opt: any) => { setClientCode(opt ? opt.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-6 col-xl-3">
-                                    <label className="form-label font-w500 mb-1">Action</label>
-                                    <Selector key={`au-action-${filtersKey}`} isClearable options={actionOptions} placeholder="-- All Actions --"
-                                        onChange={(opt: any) => { setAction(opt ? opt.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">From</label>
-                                    <input type="date" className="form-control" value={fromDate} max={toDate || undefined}
-                                        onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-6 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">To</label>
-                                    <input type="date" className="form-control" value={toDate} min={fromDate || undefined}
-                                        onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2 d-flex align-items-end">
-                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearAuditFilters}>Clear</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14">
-                                <thead>
-                                    <tr>
-                                        <th>When</th>
-                                        <th>Action</th>
-                                        <th>Client</th>
-                                        <th>By</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entries.length ? entries.map((e, i) => (
-                                        <tr key={i}>
-                                            <td className="font-s13">{fmt(e.at)}</td>
-                                            <td>{ACTION_LABEL[e.action] || e.action}</td>
-                                            <td>{e.clientCode ? <code>{e.clientCode}</code> : "—"}</td>
-                                            <td>{e.actorUserId || "—"}</td>
-                                            <td className="font-s12 text-muted">{detailText(e) || "—"}</td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan={5} className="text-center py-3 text-muted">No audit entries</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPage}
-                        selectedDataList={selectedDataList}
-                        setSelectedDataList={setSelectedDataList}
-                        paginationDataLimit={{ limit }}
-                        response={{ totalRecords }}
-                        handleInputChange={handleLimitChange}
-                        handlePreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        handleNextPage={() => setCurrentPage((p) => Math.min(totalPage, p + 1))}
+        <>
+            <PageHeader title="Audit Log" back={{ to: "/admin/clients", label: "Clients" }} />
+            <DataList<AuditEntry>
+                caption="Audit log"
+                toolbar={
+                    <FilterBar
+                        activeCount={activeCount}
+                        onClear={clear}
+                        filters={[
+                            { id: "au-client", label: "Filter by client", primary: true, node: <Selector inputId="au-client" isClearable options={clientOptions} placeholder="-- All Clients --" value={opt(clientOptions, clientCode)} onChange={(o: any) => set(setClientCode)(o ? o.value : "")} /> },
+                            { id: "au-action", label: "Action", primary: true, node: <Selector inputId="au-action" isClearable options={actionOptions} placeholder="-- All Actions --" value={opt(actionOptions, action)} onChange={(o: any) => set(setAction)(o ? o.value : "")} /> },
+                            { id: "au-from", label: "From", node: <input id="au-from" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => set(setFromDate)(e.target.value)} /> },
+                            { id: "au-to", label: "To", node: <input id="au-to" type="date" className="form-control" value={toDate} min={fromDate || undefined} onChange={(e) => set(setToDate)(e.target.value)} /> },
+                        ]}
                     />
-                </div>
-            </div>
-        </div>
+                }
+                rows={list.rows}
+                rowKey={(e, i) => `${e.at}-${i}`}
+                columns={columns}
+                status={list.status}
+                refetching={list.refetching}
+                onRetry={list.reload}
+                errorTitle="Couldn't load the audit log"
+                empty={activeCount
+                    ? { icon: "history", title: "No records match these filters", text: "Try a different client, action or date range.", action: <button type="button" className="btn btn-link" onClick={clear}>Clear filters</button> }
+                    : { icon: "history", title: "No audit entries yet" }}
+                mobileCard={(e) => (
+                    <MobileCard
+                        title={actionLabel(e.action, true) || <span className="t-mono">{e.action}</span>}
+                        meta={[`${fmtDate(e.at)} ${fmtTime(e.at)}`, e.clientCode, e.actorUserId]}
+                        meta2={detailText(e) || undefined}
+                    />
+                )}
+                pagination={
+                    <Pagination page={currentPage} totalPages={list.totalPages} total={list.total} limit={limit}
+                        onPage={setCurrentPage} onLimit={(n) => { setLimit(n); setCurrentPage(1); }} />
+                }
+            />
+        </>
     );
 };
 
