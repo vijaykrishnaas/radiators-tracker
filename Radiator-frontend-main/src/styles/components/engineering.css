@@ -1,1 +1,49 @@
 /* engineering screens (redesign). Tokens only: no hex, no !important. */
+
+/* ---- Dashboard: range bar ---- */
+.eng-range { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.eng-range-dates { display: flex; flex-direction: column; gap: 12px; }
+.eng-range-dates .field { flex: 1 1 0; }
+.eng-range-sep { display: none; width: 20px; height: 20px; color: var(--gray-400); flex: 0 0 auto; }
+@media (min-width: 768px) {
+  .eng-range { flex-direction: row; align-items: flex-end; justify-content: space-between; padding: 20px 24px; }
+  .eng-range-dates { flex-direction: row; align-items: flex-end; gap: 12px; }
+  .eng-range-dates .field { flex: 0 0 180px; }
+  .eng-range-sep { display: block; margin-bottom: 12px; }
+}
+
+/* ---- Service form ---- */
+.eng-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.eng-svc-head { display: flex; align-items: flex-end; gap: 12px; }
+.eng-svc-remove { flex: 0 0 auto; }
+
+.eng-lines { margin: 16px 0 0; padding: 0; list-style: none; }
+.eng-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.eng-line-name { grid-column: 1 / 3; overflow-wrap: anywhere; }
+.eng-line-comment { grid-column: 1 / -1; }
+.eng-line-calc { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; }
+.eng-line-qty { width: 88px; }
+.eng-line-rate { width: 150px; }
+.eng-line-calc > .t-muted { padding-top: 10px; }
+.eng-line-amt { grid-column: 1 / 3; text-align: right; white-space: nowrap; }
+.eng-line-x { grid-column: 3; grid-row: 1; }
+.eng-subtotal { display: flex; justify-content: flex-end; align-items: baseline; gap: 12px; margin-top: 4px; padding: 10px 12px; background: var(--surface-muted); border-radius: var(--radius-md); }
+
+@media (min-width: 768px) {
+  .eng-line { grid-template-columns: minmax(120px, 1fr) auto 110px 36px; }
+  .eng-line-name { grid-column: 1; }
+  .eng-line-comment { grid-column: 1 / -1; grid-row: 2; }
+  .eng-line-calc { grid-column: 2; grid-row: 1; align-items: center; }
+  .eng-line-calc > .t-muted { padding-top: 0; }
+  .eng-line-amt { grid-column: 3; grid-row: 1; }
+  .eng-line-x { grid-column: 4; grid-row: 1; }
+}
+
+/* Reduced motion: react-select's emotion styles carry a built-in control transition that the theme tokens do not reach. */

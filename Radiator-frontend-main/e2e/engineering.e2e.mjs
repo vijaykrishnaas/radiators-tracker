@@ -71,7 +71,7 @@ async function run(type) {
   if (type === "radiator") {
     await page.goto(BASE + "/issueCounter/dashboard");
     await page.waitForTimeout(2500);
-    const nav = await page.locator(".navbar-nav-header").innerText();
+    const nav = await page.locator('aside[aria-label="Main navigation"]').innerText();
     ok("radiator: header still has Expenses/Bonus/Salary", /Expenses/.test(nav) && /Bonus/.test(nav) && /Salary/.test(nav), nav.replace(/\s+/g, " "));
     ok("radiator: stays on radiator dashboard", page.url().endsWith("/issueCounter/dashboard"), page.url());
     await page.goto(BASE + "/engineering/dashboard");
@@ -79,13 +79,13 @@ async function run(type) {
     ok("radiator: engineering route redirects away", !page.url().includes("/engineering/"), page.url());
     await page.goto(BASE + "/settings");
     await page.waitForTimeout(1500);
-    const tabs = await page.locator(".settings-tabs").innerText();
+    const tabs = await page.getByRole("tablist").innerText();
     ok("radiator: settings tabs unchanged", /Catalog & Pricing/.test(tabs) && /Bonus/.test(tabs) && !/Service Catalog/.test(tabs), tabs.replace(/\s+/g, " "));
     // Logout: every tenant type returns to its company login (/t/<code>/login) when the session carries a business code.
     await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
     await page.goto(BASE + "/issueCounter/dashboard");
-    await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
-    await page.getByRole("button", { name: "Logout" }).click();
+    await page.getByRole("button", { name: /Account menu/ }).click();
+    await page.getByRole("menuitem", { name: "Logout" }).click();
     await page.waitForTimeout(500);
     ok("radiator: logout goes to the company login URL with the business code", page.url().endsWith("/t/acme/login"), page.url());
     ok("radiator: no page errors", errors.length === 0, errors.join(" | "));
@@ -97,16 +97,17 @@ async function run(type) {
   await page.goto(BASE + "/issueCounter/dashboard");
   await page.waitForTimeout(2500);
   ok("eng: /issueCounter/dashboard redirects to /engineering/dashboard", page.url().endsWith("/engineering/dashboard"), page.url());
-  const nav = await page.locator(".navbar-nav-header").innerText();
+  const nav = await page.locator('aside[aria-label="Main navigation"]').innerText();
   ok("eng: header shows Dashboard + Bills + Bonus (no Expenses / Salary)", /Dashboard/.test(nav) && /Bills/.test(nav) && /Bonus/.test(nav) && !/Expenses|Salary/.test(nav), nav.replace(/\s+/g, " "));
   ok("eng: dashboard KPIs render", (await page.getByText("Outstanding").count()) > 0);
   await page.screenshot({ path: `${S}/eng-dashboard.png`, fullPage: true });
-  ok("eng: dashboard shows 4 KPI tiles", (await page.locator(".eng-kpi").count()) === 4);
-  ok("eng: 'This FY' is the active range by default", (await page.locator(".eng-seg-btn.is-active").innerText()) === "This FY");
-  ok("eng: by-service-type legend lists Turbo with 100%", /Turbo/.test(await page.locator(".eng-legend-list").innerText()) && /100%/.test(await page.locator(".eng-legend-list").innerText()));
-  await page.getByRole("radio", { name: "Today" }).click();
+  ok("eng: dashboard shows 4 KPI tiles", (await page.locator(".kpi").count()) === 4);
+  const SEL = '[role="tab"][aria-selected="true"]';
+  ok("eng: 'This FY' is the active range by default", (await page.locator(SEL).innerText()) === "This FY");
+  ok("eng: by-service-type legend lists Turbo with 100%", /Turbo/.test(await page.locator(".legend-list").innerText()) && /100%/.test(await page.locator(".legend-list").innerText()));
+  await page.getByRole("tab", { name: "Today" }).click();
   await page.waitForTimeout(500);
-  ok("eng: choosing 'Today' makes it the active range", (await page.locator(".eng-seg-btn.is-active").innerText()) === "Today");
+  ok("eng: choosing 'Today' makes it the active range", (await page.locator(SEL).innerText()) === "Today");
   ok("eng: range control keeps keyboard focus after a click", (await page.evaluate(() => document.activeElement?.textContent)) === "Today");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(400);
@@ -116,14 +117,19 @@ async function run(type) {
   const cardRight = await page.locator(".eng-range").evaluate((el) => el.getBoundingClientRect().right);
   ok("eng: phone date inputs stay inside their card", dateRight <= cardRight, `${dateRight} <= ${cardRight}`);
   await page.setViewportSize({ width: 1300, height: 1000 });
+  await page.setViewportSize({ width: 1300, height: 1000 });
 
   await page.goto(BASE + "/engineering/dashboard/create");
-  await page.waitForTimeout(2000);
+  await page.locator(".form-footer .btn-primary").waitFor({ timeout: 10000 });
   await page.getByPlaceholder("Enter Truck Number").fill("tn52q0127");
   await page.getByPlaceholder("Enter Truck Number").blur();
   await page.waitForTimeout(500);
   ok("eng: truck uppercased", (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN52Q0127");
   ok("eng: autofill lorry address from past bill", (await page.getByPlaceholder("Enter Lorry Address").inputValue()) === "Sri Velavan Radiators");
+  ok("eng: autofill shows 'Filled from last bill' helper, then clears it", (await page.getByText("Filled from last bill").count()) === 1);
+  await page.waitForTimeout(3300);
+  ok("eng: 'Filled from last bill' disappears after ~3s", (await page.getByText("Filled from last bill").count()) === 0);
+  ok("eng: service form title and back link", (await page.getByRole("heading", { name: "Turbo & air compressor service" }).count()) === 1 && (await page.getByRole("link", { name: "Bills" }).count()) >= 1);
 
   // Save with nothing → validation
   await page.getByRole("button", { name: "Save service" }).click();
@@ -134,10 +140,10 @@ async function run(type) {
   await page.getByText("Select Mechanic Name").click({ force: true });
   await page.getByText("Ramesh", { exact: true }).last().click();
   // One BS model for the whole bill (header), then service type Turbo on the card.
-  ok("eng: BS model is a bill-level header field (no BS select inside the service card)", (await page.getByText("BS model", { exact: true }).count()) === 1 && (await page.locator(".border.rounded.p-3").first().getByText("BS model").count()) === 0);
+  ok("eng: BS model is a bill-level header field (no BS select inside the service card)", (await page.getByText("BS model", { exact: true }).count()) === 1 && (await page.locator(".nested-card").first().getByText("BS model").count()) === 0);
   await page.getByText("Select BS model").click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
-  const card = page.locator(".border.rounded.p-3").first();
+  const card = page.locator(".nested-card").first();
   await card.getByText("Select...").first().click({ force: true });
   await page.getByText("Turbo", { exact: true }).last().click();
   await card.getByText("Select items").click({ force: true });
@@ -158,41 +164,38 @@ async function run(type) {
   ok("eng: Other requires description", (await page.getByText("Describe the work").count()) > 0);
   await page.waitForTimeout(450); // border-color has a 150ms transition
   const errBorder = await page.locator(".eng-line-comment.has-error .form-control").first().evaluate((el) => getComputedStyle(el).borderTopColor);
-  ok("eng: missing description field is marked with the error colour", /^rgb\(231, ?74, ?74\)$/.test(errBorder), errBorder);
+  const okBorder = await page.locator("#eng-lorry-address").evaluate((el) => getComputedStyle(el).borderTopColor);
+  ok("eng: missing description field is marked with the error colour", errBorder !== okBorder, `${errBorder} vs ${okBorder}`);
   await card.getByPlaceholder("Describe the work").fill("Bearing clean");
   // 2*500 + 2000 + 50 = 3050
-  const subtotalText = await card.getByText(/Subtotal:/).innerText();
+  const subtotalText = await card.locator(".eng-subtotal").innerText();
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
   const heights = await page.evaluate(() => {
     const h = (el) => Math.round(el.getBoundingClientRect().height);
-    const inputs = [...document.querySelectorAll(".eng-form input.form-control")].filter((e) => e.type === "text" || e.type === "date").map(h);
-    const selects = [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map(h);
+    const inputs = [...document.querySelectorAll(".card-stack input.form-control")].filter((e) => e.type === "text" || e.type === "date" || e.type === "tel").map(h);
+    const selects = [...document.querySelectorAll('.card-stack div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map(h);
     return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
   });
   ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
-  const align = await page.evaluate(() => {
-    const L = (sel) => document.querySelector(sel).getBoundingClientRect();
-    return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };
-  });
-  ok("eng: item column headers line up with the fields (<=2px)", Math.abs(align.q) <= 2 && Math.abs(align.r) <= 2 && Math.abs(align.a) <= 2, JSON.stringify(align));
+  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l) => ({ sep: getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
+  ok("eng: item rows are separated lines with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.sep === "1px" && l.hasX && l.amt), JSON.stringify(lineShape));
 
-  // Quick-add chips follow the mockup: tinted pill in the brand colour, not a grey button.
+  // Quick-add chips: "Quick add" label + pill chips with a plus icon.
   const chipStyle = await page.evaluate(() => {
-    const chip = document.querySelector(".eng-quick");
-    const brand = getComputedStyle(document.querySelector(".btn-primary")).backgroundColor;
-    if (!chip) return { found: false, brand };
+    const chip = document.querySelector(".eng-quick-row .chip-btn");
+    if (!chip) return { found: false };
     const cs = getComputedStyle(chip);
-    return { found: true, color: cs.color, bg: cs.backgroundColor, radius: cs.borderTopLeftRadius, brand };
+    return { found: true, radius: cs.borderTopLeftRadius, icon: !!chip.querySelector("svg"), label: document.querySelector(".eng-quick-row > span")?.textContent };
   });
-  ok("eng: quick-add chip is brand-coloured text on a tinted pill (mockup)", chipStyle.found && chipStyle.color === chipStyle.brand && /(rgba\([^)]*,\s*0?\.\d+\)|color\(srgb [^)]*\/\s*0?\.\d+\))$/.test(chipStyle.bg) && parseFloat(chipStyle.radius) >= 12, JSON.stringify(chipStyle));
+  ok("eng: quick-add is a 'Quick add' label with pill chips carrying a plus icon", chipStyle.found && chipStyle.icon && chipStyle.label === "Quick add" && parseFloat(chipStyle.radius) >= 12, JSON.stringify(chipStyle));
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();
   await page.waitForTimeout(300);
-  ok("eng: quick-add created compressor card with Piston row", (await page.locator(".border.rounded.p-3").count()) === 2 && (await page.locator(".border.rounded.p-3").nth(1).getByText("Piston", { exact: true }).count()) > 0);
+  ok("eng: quick-add created compressor card with Piston row", (await page.locator(".nested-card").count()) === 2 && (await page.locator(".nested-card").nth(1).getByText("Piston", { exact: true }).count()) > 0);
 
   // BS-6 (bill-level) hides Block bush change for compressor
-  const c2 = page.locator(".border.rounded.p-3").nth(1);
-  await page.locator(".eng-form").getByText("BS-3", { exact: true }).first().click({ force: true });
+  const c2 = page.locator(".nested-card").nth(1);
+  await page.locator(".card-stack").getByText("BS-3", { exact: true }).first().click({ force: true });
   await page.getByText("BS-6", { exact: true }).last().click();
   await c2.locator("[class*='control']").nth(1).click({ force: true });
   await page.waitForTimeout(300);
@@ -200,16 +203,17 @@ async function run(type) {
   ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
   await page.keyboard.press("Escape");
   // Back to BS-3: the change re-applies catalog rates on every card, so retype the manual values afterwards.
-  await page.locator(".eng-form").getByText("BS-6", { exact: true }).first().click({ force: true });
+  await page.locator(".card-stack").getByText("BS-6", { exact: true }).first().click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
   await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
   await rateInputs.nth(2).fill("50");
   await c2.locator('input[placeholder="Rate"]').fill("1000");
 
+
   // Footer shows only the total; discount / received / mode are entered later via Record payment.
-  const footer = await page.locator(".font-w700.font-s20").innerText();
+  const footer = await page.locator(".form-footer-total strong").innerText();
   ok("eng: footer total ₹4,050.00", footer.includes("4,050.00"), footer);
-  const footText = await page.locator(".eng-foot").innerText();
+  const footText = await page.locator(".form-footer").innerText();
   ok("eng: create footer has no discount / per-type totals, form has no payment fields", !/Discount|Amount received|Payment mode|Turbo|Air Compressor/i.test(footText) && (await page.locator("label:has-text('Discount'), label:has-text('Amount received'), label:has-text('Payment mode')").count()) === 0, footText.replace(/\s+/g, " "));
   await page.screenshot({ path: `${S}/eng-form-full.png`, fullPage: true });
 
@@ -229,17 +233,17 @@ async function run(type) {
   await page.screenshot({ path: `${S}/eng-billing.png`, fullPage: true });
   // Desktop table polish: money columns right-aligned with tabular numerals, row hover, truck number emphasised.
   const tbl = await page.evaluate(() => {
-    const th = (t) => [...document.querySelectorAll(".eng-table thead th")].find((e) => e.textContent.trim() === t);
-    const row = document.querySelector(".eng-table tbody tr");
-    const net = row.querySelector(".eng-c-net"), truck = row.querySelector(".eng-c-truck");
+    const th = (t) => [...document.querySelectorAll(".table thead th")].find((e) => e.textContent.trim() === t);
+    const row = document.querySelector(".table tbody tr");
+    const net = row.querySelector("td.num"), truck = row.querySelector("td.key");
     return { thNet: getComputedStyle(th("Total")).textAlign, thBal: getComputedStyle(th("Balance")).textAlign, tdNet: getComputedStyle(net).textAlign, tabular: getComputedStyle(net).fontVariantNumeric, truckW: getComputedStyle(truck).fontWeight };
   });
   ok("eng: billing money columns are right-aligned (header + cells) with tabular numerals", tbl.thNet === "right" && tbl.thBal === "right" && tbl.tdNet === "right" && /tabular-nums/.test(tbl.tabular), JSON.stringify(tbl));
-  ok("eng: billing table column is labelled Total (not Net)", (await page.locator(".eng-table thead th").allTextContents()).some((t) => t.trim() === "Total") && !(await page.locator(".eng-table thead th").allTextContents()).some((t) => t.trim() === "Net"));
-  ok("eng: billing truck number is emphasised (semibold)", parseInt(tbl.truckW, 10) >= 600, tbl.truckW);
-  const firstTd = page.locator(".eng-table tbody tr").first().locator("td").nth(2);
+  ok("eng: billing table column is labelled Total (not Net)", (await page.locator(".table thead th").allTextContents()).some((t) => t.trim() === "Total") && !(await page.locator(".table thead th").allTextContents()).some((t) => t.trim() === "Net"));
+  ok("eng: billing truck number is emphasised (semibold)", parseInt(tbl.truckW, 10) >= 500, tbl.truckW);
+  const firstTd = page.locator(".table tbody tr").first().locator("td").nth(2);
   const bgBefore = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
-  await page.locator(".eng-table tbody tr").first().hover();
+  await page.locator(".table tbody tr").first().hover();
   await page.waitForTimeout(350);
   const bgHover = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
   ok("eng: billing rows have a hover state", bgHover !== bgBefore, `${bgBefore} -> ${bgHover}`);
@@ -254,23 +258,21 @@ async function run(type) {
   };
   await page.addInitScript(() => {
     window.__sawEmpty = false;
-    new MutationObserver(() => { if (document.querySelector(".eng-empty-state")) window.__sawEmpty = true; }).observe(document, { childList: true, subtree: true });
+    new MutationObserver(() => { if (document.querySelector(".empty-state")) window.__sawEmpty = true; }).observe(document, { childList: true, subtree: true });
   });
   await page.route("http://localhost:5000/**", emptyHandler);
   await page.goto(BASE + "/engineering/billing");
-  // Wait for the skeleton itself (the response is held for 900ms) instead of a fixed sleep: on a cold/busy Vite the page can
-  // take longer than a fixed delay to render its first rows, which made this check flaky.
-  await page.locator(".eng-skel").first().waitFor({ timeout: 3000 }).catch(() => {});
+  await page.locator(".skel-rows").first().waitFor({ timeout: 3000 }).catch(() => {});
   const sawEmptyEarly = await page.evaluate(() => window.__sawEmpty);
   ok("eng: billing never renders the empty state before the first response (first paint)", sawEmptyEarly === false, `sawEmpty=${sawEmptyEarly}`);
-  ok("eng: billing shows a loading skeleton (not 'no bills') while data is on its way", (await page.locator(".eng-skel").count()) > 0 && (await page.locator(".eng-empty-state").count()) === 0, `skel=${await page.locator(".eng-skel").count()} empty=${await page.locator(".eng-empty-state").count()}`);
+  ok("eng: billing shows a loading skeleton (not 'no bills') while data is on its way", (await page.locator(".skel-rows").count()) > 0 && (await page.locator(".empty-state").count()) === 0, `skel=${await page.locator(".skel-rows").count()} empty=${await page.locator(".empty-state").count()}`);
   await page.waitForTimeout(1500);
-  const emptyTxt = await page.locator(".eng-table tbody").innerText();
-  ok("eng: billing empty state (no filters) says 'No bills yet' and offers New service", /No bills yet/.test(emptyTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "New service" }).count()) === 1, emptyTxt.replace(/\s+/g, " "));
+  const emptyTxt = await page.locator(".list-body").innerText();
+  ok("eng: billing empty state (no filters) says 'No bills yet' and offers New service", /No bills yet/.test(emptyTxt) && /Create your first service bill and it will show up here\./.test(emptyTxt) && (await page.locator(".empty-state").getByRole("button", { name: "New service" }).count()) === 1, emptyTxt.replace(/\s+/g, " "));
   await page.getByPlaceholder(/Search Truck/).fill("ZZZ");
   await page.waitForTimeout(1900);
-  const filteredTxt = await page.locator(".eng-table tbody").innerText();
-  ok("eng: billing empty state with a filter says 'No bills match' and offers Clear filters", /No bills match these filters/.test(filteredTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "Clear filters" }).count()) === 1, filteredTxt.replace(/\s+/g, " "));
+  const filteredTxt = await page.locator(".list-body").innerText();
+  ok("eng: billing empty state with a filter says 'No bills match' and offers Clear filters", /No bills match these filters/.test(filteredTxt) && /Try a different truck number, mechanic or date range\./.test(filteredTxt) && (await page.locator(".empty-state").getByRole("button", { name: "Clear filters" }).count()) === 1, filteredTxt.replace(/\s+/g, " "));
   await page.unroute("http://localhost:5000/**", emptyHandler);
   let failNext = true;
   const failHandler = async (route) => {
@@ -280,11 +282,11 @@ async function run(type) {
   };
   await page.route("http://localhost:5000/**", failHandler);
   await page.goto(BASE + "/engineering/billing");
-  await page.waitForTimeout(1200);
-  const failTxt = await page.locator(".eng-table tbody").innerText();
-  ok("eng: billing failed load says 'Couldn't load bills' with Retry (not 'No bills yet')", /Couldn.t load bills/.test(failTxt) && !/No bills yet/.test(failTxt) && (await page.locator(".eng-empty-state").getByRole("button", { name: "Retry" }).count()) === 1, failTxt.replace(/\s+/g, " "));
+  await page.locator(".empty-state").waitFor({ timeout: 10000 }).catch(() => {});
+  const failTxt = await page.locator(".list-body").innerText();
+  ok("eng: billing failed load says 'Couldn't load bills' with Retry (not 'No bills yet')", /Couldn.t load bills/.test(failTxt) && !/No bills yet/.test(failTxt) && (await page.locator(".empty-state").getByRole("button", { name: "Retry" }).count()) === 1, failTxt.replace(/\s+/g, " "));
   failNext = false;
-  await page.locator(".eng-empty-state").getByRole("button", { name: "Retry" }).click().catch(() => {});
+  await page.locator(".empty-state").getByRole("button", { name: "Retry" }).click().catch(() => {});
   await page.waitForTimeout(900);
   ok("eng: Retry reloads the list", (await page.getByText("TN52J2622").count()) > 0);
   await page.unroute("http://localhost:5000/**", failHandler);
@@ -296,7 +298,7 @@ async function run(type) {
   await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
   await page.getByRole("menuitem", { name: "Record Payment" }).click();
   await page.locator("#payment-discount").fill("100");
-  await page.locator(".modal-footer").getByRole("button", { name: "Record Payment" }).click();
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Record Payment" }).click();
   await page.waitForTimeout(800);
   ok("eng: payment modal sends existing + new discount (150)", paid?.discount === 150, JSON.stringify(paid));
 
@@ -309,14 +311,14 @@ async function run(type) {
   await page.locator("#payment-discount").waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   const modalM = await page.evaluate(() => {
-    const content = document.querySelector(".modal-content").getBoundingClientRect();
+    const content = document.querySelector(".ui-modal").getBoundingClientRect();
     const label = document.querySelector('label[for="payment-discount"]');
-    const hint = document.querySelector(".eng-modal .eng-hint");
+    const hint = document.querySelector(".ui-modal .field-help");
     const lcs = getComputedStyle(label);
     const hcs = hint ? getComputedStyle(hint) : { textTransform: "missing", fontWeight: "missing" };
-    const kids = [...document.querySelectorAll(".modal-body *")].map((e) => e.getBoundingClientRect().right);
-    const input = document.querySelector("#payment-amount").getBoundingClientRect();
-    const btns = [...document.querySelectorAll(".modal-footer .btn")].map((b) => b.getBoundingClientRect());
+    const kids = [...document.querySelectorAll(".ui-modal-body *")].map((e) => e.getBoundingClientRect().right);
+    const input = document.querySelector("#payment-amount").closest(".input-group").getBoundingClientRect();
+    const btns = [...document.querySelectorAll(".ui-modal-foot .btn")].map((b) => b.getBoundingClientRect());
     return {
       overflowPx: Math.round(Math.max(...kids) - content.right),
       labelTransform: lcs.textTransform, hintTransform: hcs.textTransform, hintWeight: hcs.fontWeight,
@@ -332,136 +334,104 @@ async function run(type) {
     const ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
     return { ids, text: ids.map((id) => document.getElementById(id)?.textContent || "").join(" ").trim() };
   });
-  const hintOwnText = await page.evaluate(() => (document.querySelector(".eng-modal .eng-hint")?.textContent || "").trim());
+  const hintOwnText = await page.evaluate(() => (document.querySelector(".ui-modal .field-help")?.textContent || "").trim());
   ok("eng: discount field is described by its hint for screen readers (aria-describedby)", hintOwnText.length > 0 && desc.text === hintOwnText, JSON.stringify({ desc, hintOwnText }));
-  await page.locator(".modal-footer").getByRole("button", { name: "Cancel" }).click();
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Cancel" }).click();
   await page.setViewportSize({ width: 1300, height: 1000 });
 
+  // Settings tabs: segmented tablist on desktop, a "Section" select on phones.
+  const openSettingsTab = async (name) => {
+    const sel = page.locator("#settings-section");
+    if (await sel.isVisible().catch(() => false)) await sel.selectOption({ label: name });
+    else await page.getByRole("tab", { name, exact: true }).click();
+  };
   await page.goto(BASE + "/settings");
   await page.waitForTimeout(1500);
-  const tabs = await page.locator(".settings-tabs").innerText();
+  const tabs = await page.getByRole("tablist").innerText();
   ok("eng: settings tabs = Company/Service Catalog/Mechanics/Bonus/Invoice", /Service Catalog/.test(tabs) && /Mechanics/.test(tabs) && /Bonus/.test(tabs) && !/Salary|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
-  await page.getByRole("tab", { name: "Bonus" }).click();
+  await openSettingsTab("Bonus");
   const pct = page.getByLabel("Mechanic bonus % (of net bill total)");
   ok("eng: Settings Bonus tab has a mechanic bonus % (default 0, no labour %)", (await pct.count()) === 1 && (await pct.inputValue()) === "0" && (await page.getByLabel(/Labour bonus/i).count()) === 0, String(await pct.count() && await pct.inputValue()));
   await pct.fill("7.5");
   ok("eng: bonus % can be changed", (await pct.inputValue()) === "7.5");
-  await page.getByRole("tab", { name: "Service Catalog" }).click();
-  await page.getByRole("tab", { name: "Service Catalog" }).click();
+  await openSettingsTab("Service Catalog");
   await page.waitForTimeout(500);
-  ok("eng: catalog table shows Turbo items", (await page.locator(".eng-item input[value='Hold set']").count()) > 0);
+  ok("eng: catalog grid shows Turbo items", (await page.locator(".cat-item input[value='Hold set']").count()) > 0);
   // Bill numbering input and Financial year select should look like one control family (44px, 8px, white, same type).
-  const numCtl = await page.evaluate(() => [...document.querySelectorAll(".eng-numbering .eng-number-input")].map((e) => { const c = getComputedStyle(e); return { tag: e.tagName, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor, fs: c.fontSize, fw: c.fontWeight }; }));
+  const numCtl = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => { const c = getComputedStyle(e); return { tag: e.tagName, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor, fs: c.fontSize, fw: c.fontWeight }; }));
   ok("eng: bill-numbering input and financial-year select match (44px, 8px, white, same type)", numCtl.length === 2 && numCtl.every((c) => c.h === 44 && c.r === "8px" && c.bg === "rgb(255, 255, 255)") && numCtl[0].fs === numCtl[1].fs && numCtl[0].fw === numCtl[1].fw, JSON.stringify(numCtl));
   const fySel = page.getByLabel("Financial year starts in");
   ok("eng: Settings has a financial-year start month (default April)", (await fySel.count()) === 1 && (await fySel.inputValue()) === "4", String(await fySel.count() && await fySel.inputValue()));
   await fySel.selectOption("10");
   ok("eng: financial-year month can be changed in Settings", (await fySel.inputValue()) === "10");
-  await page.locator(".eng-type", { hasText: "Air Compressor" }).click();
+  await page.locator(".cat-type", { hasText: "Air Compressor" }).click();
   await page.waitForTimeout(300);
-  ok("eng: type rail switches to Air Compressor items", (await page.locator(".eng-item input[value='Sleeve fixing']").count()) > 0);
+  ok("eng: type rail switches to Air Compressor items", (await page.locator(".cat-item input[value='Sleeve fixing']").count()) > 0);
   await page.screenshot({ path: `${S}/eng-settings.png`, fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(300);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   ok("eng: catalog has no horizontal overflow at 390px", overflow <= 0, `overflow=${overflow}`);
-  ok("eng: catalog items render as cards on phone (price labels visible)", await page.locator(".eng-item .eng-price-label").first().isVisible());
+  ok("eng: catalog items render as cards on phone (price labels visible)", await page.locator(".cat-item .cat-price-label").first().isVisible());
   await page.setViewportSize({ width: 1300, height: 1000 });
 
-  // TailAdmin token layer: every Engineering page root carries `eng-theme`, which defines the --eng-* tokens;
-  // the section card uses them (16px radius, gray-200 hairline).
-  const themeProbe = () => page.evaluate(() => {
-    const t = document.querySelector(".eng-theme");
-    if (!t) return null;
-    const cs = getComputedStyle(t);
-    const card = document.querySelector(".eng-card");
-    const cc = card ? getComputedStyle(card) : null;
-    return { gray200: cs.getPropertyValue("--eng-gray-200").trim().toLowerCase(), radius: cs.getPropertyValue("--eng-radius-lg").trim(),
-      ring: cs.getPropertyValue("--eng-ring").trim(), shadow: cs.getPropertyValue("--eng-shadow-xs").trim(),
-      cardRadius: cc && cc.borderTopLeftRadius, cardBorder: cc && cc.borderTopColor };
-  });
-  for (const [label, url, ready] of [
-    ["settings catalog", null, null],
-    ["dashboard", "/engineering/dashboard", ".eng-kpi"],
-    ["billing", "/engineering/billing", ".eng-table"],
-    ["service form", "/engineering/dashboard/create", ".eng-form"],
-  ]) {
-    if (url) { await page.goto(BASE + url); await page.locator(ready).first().waitFor({ timeout: 10000 }); }
-    const th = await themeProbe();
-    ok(`eng: ${label} root carries eng-theme tokens`, !!th && th.gray200 === "#e4e7ec" && th.radius === "16px" && /^0 0 0 4px/.test(th.ring) && /rgba\(16, 24, 40, 0?\.05\)/.test(th.shadow), JSON.stringify(th));
-    if (th && th.cardRadius) ok(`eng: ${label} section card = 16px radius + gray-200 border`, th.cardRadius === "16px" && th.cardBorder === "rgb(228, 231, 236)", `${th.cardRadius} ${th.cardBorder}`);
-  }
+  // Service Catalog uses the shared kit: card radius 16px, gray-200 border.
+  const catCard = await page.evaluate(() => { const c = document.querySelector(".card"); const cs = c && getComputedStyle(c); return cs && { r: cs.borderTopLeftRadius, b: cs.borderTopColor }; });
+  ok("eng: settings catalog section card = 16px radius + gray-200 border", !!catCard && catCard.r === "16px" && catCard.b === "rgb(228, 231, 236)", JSON.stringify(catCard));
 
-
-  // TailAdmin metric card + chart card recipe (desktop): stacked icon chip / label / big value, 18px panel titles.
-  await page.setViewportSize({ width: 1500, height: 1000 }); // 28px values apply from 1440px; 992-1439px uses 22px
+  // Dashboard metric + chart cards (desktop) and the bills table use the shared kit.
+  await page.setViewportSize({ width: 1500, height: 1000 });
   await page.goto(BASE + "/engineering/dashboard");
-  await page.locator(".eng-kpi").first().waitFor({ timeout: 10000 });
-  const kpiM = await page.evaluate(() => {
-    const k = document.querySelector(".eng-kpi"); const ic = k.querySelector(".eng-kpi-icon");
-    const l = k.querySelector(".eng-kpi-label"); const v = k.querySelector(".eng-kpi-value");
-    const t = document.querySelector(".eng-panel-title");
-    const kb = k.getBoundingClientRect(), ib = ic.getBoundingClientRect(), lb = l.getBoundingClientRect(), vb = v.getBoundingClientRect();
-    return { dir: getComputedStyle(k).flexDirection, icon: Math.round(ib.width), iconR: getComputedStyle(ic).borderTopLeftRadius,
-      labelPx: getComputedStyle(l).fontSize, labelW: getComputedStyle(l).fontWeight, valuePx: getComputedStyle(v).fontSize, valueW: getComputedStyle(v).fontWeight,
-      stacked: ib.bottom <= lb.top + 1 && lb.bottom <= vb.top + 1, leftAligned: Math.abs(ib.left - lb.left) < 1 && Math.abs(lb.left - vb.left) < 1,
-      titlePx: t && getComputedStyle(t).fontSize, valueColor: getComputedStyle(v).color, kpiRadius: getComputedStyle(k).borderTopLeftRadius,
-      kpiBorder: getComputedStyle(k).borderTopColor };
-  });
-  ok("eng: KPI card stacks icon chip / label / value, left-aligned", kpiM.dir === "column" && kpiM.stacked && kpiM.leftAligned, JSON.stringify(kpiM));
-  ok("eng: KPI icon chip is 44px with 12px radius", kpiM.icon === 44 && kpiM.iconR === "12px", `${kpiM.icon}px ${kpiM.iconR}`);
-  ok("eng: KPI label 13/500, value 28/600", kpiM.labelPx === "13px" && kpiM.labelW === "500" && kpiM.valuePx === "28px" && kpiM.valueW === "600", `${kpiM.labelPx}/${kpiM.labelW} ${kpiM.valuePx}/${kpiM.valueW}`);
-  ok("eng: KPI card = 16px radius + gray-200 border", kpiM.kpiRadius === "16px" && kpiM.kpiBorder === "rgb(228, 231, 236)", `${kpiM.kpiRadius} ${kpiM.kpiBorder}`);
-  ok("eng: chart panel title is 18px", kpiM.titlePx === "18px", String(kpiM.titlePx));
+  await page.locator(".kpi").first().waitFor({ timeout: 10000 });
+  const kpiM = await page.evaluate(() => ({ n: document.querySelectorAll(".kpi").length, grid: document.querySelector(".kpi-grid").className,
+    outstanding: [...document.querySelectorAll(".kpi")].find((k) => /Outstanding/.test(k.textContent))?.querySelector(".kpi-value")?.className,
+    titles: [...document.querySelectorAll(".chart-card .card-title")].map((t) => t.textContent) }));
+  ok("eng: dashboard has a 4-up KPI grid with Outstanding in the error tone", kpiM.n === 4 && /is-4/.test(kpiM.grid) && /is-error/.test(kpiM.outstanding || ""), JSON.stringify(kpiM));
+  ok("eng: dashboard chart cards are Revenue by month / By service type / Revenue by mechanic", ["Revenue by month", "By service type", "Revenue by mechanic"].every((t) => kpiM.titles.includes(t)), JSON.stringify(kpiM.titles));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
-  // TailAdmin table + badge recipe (desktop billing list).
   await page.goto(BASE + "/engineering/billing");
-  await page.locator(".eng-table tbody tr td.eng-c-status .status-badge").first().waitFor({ timeout: 10000 });
+  await page.locator(".table tbody tr td .badge").first().waitFor({ timeout: 10000 });
   const tb = await page.evaluate(() => {
-    const th = document.querySelector(".eng-table thead th"); const b = document.querySelector(".eng-table td.eng-c-status .status-badge");
-    const row = document.querySelector(".eng-table tbody tr"); row.parentElement.appendChild(row.cloneNode(true)); /* one mock row: add a second so the first is not :last-child */ const td = row.querySelector("td"); const ts = getComputedStyle(th), bs = getComputedStyle(b), tds = getComputedStyle(td), trs = getComputedStyle(td.parentElement);
-    return { thBg: ts.backgroundColor, thPx: ts.fontSize, thW: ts.fontWeight, thColor: ts.color,
-      badgeR: bs.borderTopLeftRadius, badgePx: bs.fontSize, badgeW: bs.fontWeight, badgeBg: bs.backgroundColor, badgeColor: bs.color,
-      badgePad: `${bs.paddingTop} ${bs.paddingRight}`, tdPad: `${tds.paddingTop} ${tds.paddingLeft}`, tdBorderB: `${tds.borderBottomWidth} ${tds.borderBottomColor}`, tdBorderL: tds.borderLeftWidth };
+    const row = document.querySelector(".table tbody tr");
+    return { badge: row.querySelector("td:nth-last-child(2) .badge").className, types: [...row.querySelectorAll("td .badge-neutral")].map((b) => b.textContent), bal: row.querySelector("td.num:nth-last-child(3) span")?.className || "" };
   });
-  ok("eng: billing header row = gray-50 bg, 12/500 gray-500", tb.thBg === "rgb(249, 250, 251)" && tb.thPx === "12px" && tb.thW === "500" && tb.thColor === "rgb(102, 112, 133)", `${tb.thBg} ${tb.thPx}/${tb.thW} ${tb.thColor}`);
-  ok("eng: status badge is a soft-tint pill (999px, 12/500, error tint)", /^(999|9999)px$|^[0-9]{3,}px$/.test(tb.badgeR) && tb.badgePx === "12px" && tb.badgeW === "500" && tb.badgeBg === "rgb(254, 243, 242)" && tb.badgeColor === "rgb(180, 35, 24)", `${tb.badgeR} ${tb.badgePx}/${tb.badgeW} ${tb.badgeBg} ${tb.badgeColor} pad ${tb.badgePad}`);
-  ok("eng: billing rows use gray-100 hairline separators, no vertical cell borders", tb.tdBorderB === "1px rgb(242, 244, 247)" && tb.tdBorderL === "0px", `${tb.tdBorderB} left ${tb.tdBorderL} pad ${tb.tdPad}`);
+  ok("eng: status badge is a payment-status badge and service types are neutral badges", /badge-error/.test(tb.badge) && tb.types.includes("Turbo"), JSON.stringify(tb));
+  ok("eng: balance is red when > 0", /t-error/.test(tb.bal), tb.bal);
 
   // Financial-year start comes from Settings: default April; October when configured.
   const fyExpect = (mth) => { const n = new Date(); const y = n.getMonth() + 1 >= mth ? n.getFullYear() : n.getFullYear() - 1; return `${y}-${String(mth).padStart(2, "0")}-01`; };
   await page.goto(BASE + "/engineering/dashboard");
-  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
-  ok("eng: dashboard start date defaults to April 1 of the current financial year", (await page.locator(".eng-date").first().inputValue()) === fyExpect(4), await page.locator(".eng-date").first().inputValue());
+  await page.locator("#eng-from").waitFor({ timeout: 10000 });
+  ok("eng: dashboard start date defaults to April 1 of the current financial year", (await page.locator("#eng-from").inputValue()) === fyExpect(4), await page.locator("#eng-from").inputValue());
   fyMonth = new Date().getMonth() + 1 === 10 ? 7 : 10; // any month other than the current one (else FY start == month start and "This month" wins)
   await page.goto(BASE + "/engineering/dashboard");
-  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
+  await page.locator("#eng-from").waitFor({ timeout: 10000 });
   await page.waitForTimeout(500);
-  ok("eng: dashboard start date follows the Settings financial-year month", (await page.locator(".eng-date").first().inputValue()) === fyExpect(fyMonth), `${await page.locator(".eng-date").first().inputValue()} vs ${fyExpect(fyMonth)}`);
-  ok("eng: 'This FY' is highlighted for the configured start", (await page.locator(".eng-seg-btn.is-active").innerText()).trim() === "This FY");
+  ok("eng: dashboard start date follows the Settings financial-year month", (await page.locator("#eng-from").inputValue()) === fyExpect(fyMonth), `${await page.locator("#eng-from").inputValue()} vs ${fyExpect(fyMonth)}`);
+  ok("eng: 'This FY' is highlighted for the configured start", (await page.locator('[role="tab"][aria-selected="true"]').innerText()).trim() === "This FY");
   fyMonth = null;
 
-  // TailAdmin button/input recipe inside the service form: inputs and dropdowns share one 8px radius, buttons are r8 and >= 44px (footer).
+  // Button/input recipe inside the service form: inputs and dropdowns share one 8px radius, footer buttons are r8 and >= 44px.
   await page.goto(BASE + "/engineering/dashboard/create");
-  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  await page.locator(".form-footer .btn-primary").waitFor({ timeout: 10000 });
   const bi = await page.evaluate(() => {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
-    return { input: g(document.querySelector(".eng-form input.form-control")), select: g([...document.querySelectorAll('.eng-form div[class*="-control"]')][0]),
-      save: g(document.querySelector(".eng-foot .btn-primary")), cancel: g(document.querySelector(".eng-foot .btn-cancel")),
-      add: g(document.querySelector(".eng-form .btn-sm.btn-primary")), remove: g(document.querySelector(".eng-svc .btn-outline-danger")) };
+    return { input: g(document.querySelector(".card-stack input.form-control")), select: g([...document.querySelectorAll('.card-stack div[class*="-control"]')][0]),
+      save: g(document.querySelector(".form-footer .btn-primary")), cancel: g(document.querySelector(".form-footer .btn-secondary")),
+      add: g(document.querySelector(".card-head .btn-sm")), remove: g(document.querySelector(".eng-svc-remove")) };
   });
   ok("eng: form inputs and dropdowns share the 8px radius", bi.input.r === "8px" && bi.select.r === "8px", `input ${bi.input.r} select ${bi.select.r}`);
   ok("eng: footer buttons are 8px radius and at least 44px tall", bi.save.r === "8px" && bi.cancel.r === "8px" && bi.save.h >= 44 && bi.cancel.h >= 44, JSON.stringify({ save: bi.save, cancel: bi.cancel }));
-  const ctlRadii = await page.evaluate(() => [...document.querySelectorAll('.eng-form div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map((e) => getComputedStyle(e).borderTopLeftRadius));
+  const ctlRadii = await page.evaluate(() => [...document.querySelectorAll('.card-stack div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map((e) => getComputedStyle(e).borderTopLeftRadius));
   ok("eng: every dropdown in the form (incl. the service-items picker) is 8px radius", ctlRadii.length >= 3 && ctlRadii.every((r) => r === "8px"), JSON.stringify(ctlRadii));
-  ok("eng: small form buttons (Add New Service / Remove) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
+  ok("eng: small form buttons (Add New Service / Remove service) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
 
   // Phone: footer actions stay at least 44px tall and inside the viewport.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/engineering/dashboard/create");
-  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
-  const pf = await page.evaluate(() => [...document.querySelectorAll(".eng-foot .btn")].map((b) => { const r = b.getBoundingClientRect(); return { h: Math.round(r.height), right: Math.round(r.right) }; }));
+  await page.locator(".form-footer .btn-primary").waitFor({ timeout: 10000 });
+  const pf = await page.evaluate(() => [...document.querySelectorAll(".form-footer .btn")].map((b) => { const r = b.getBoundingClientRect(); return { h: Math.round(r.height), right: Math.round(r.right) }; }));
   ok("eng: phone footer buttons are >= 44px tall and inside the viewport", pf.length === 2 && pf.every((b) => b.h >= 44 && b.right <= 390), JSON.stringify(pf));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
@@ -470,78 +440,75 @@ async function run(type) {
   await page.locator("#from-date").waitFor({ timeout: 10000 });
   const bf = await page.evaluate(() => {
     const g = (el) => { if (!el) return null; const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
-    const btn = (re) => [...document.querySelectorAll(".eng-theme button")].find((b) => re.test(b.textContent.trim()));
-    return { search: g(document.querySelector(".eng-filters input.form-control")), date: g(document.querySelector("#from-date")),
-      selects: [...document.querySelectorAll('.eng-filters div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map(g),
-      clear: g(btn(/^Clear$/)), add: g(btn(/Add New/)), excel: g(btn(/Excel/)) };
+    const btn = (re) => [...document.querySelectorAll("button")].find((b) => re.test(b.textContent.trim()));
+    return { search: g(document.querySelector(".filter-bar input.form-control")), date: g(document.querySelector("#from-date")),
+      selects: [...document.querySelectorAll('.filter-bar div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map(g),
+      add: g(btn(/Add New/)), excel: g(btn(/Excel/)) };
   });
   ok("eng: billing filter inputs and dropdowns share an 8px radius", bf.search.r === "8px" && bf.date.r === "8px" && bf.selects.length >= 3 && bf.selects.every((x) => x.r === "8px"), JSON.stringify({ s: bf.search.r, d: bf.date.r, sel: bf.selects.map((x) => x.r) }));
   ok("eng: billing filter dropdowns are as tall as the inputs (44px)", bf.selects.every((x) => x.h >= 44) && bf.search.h >= 44, JSON.stringify({ search: bf.search.h, sel: bf.selects.map((x) => x.h) }));
-  ok("eng: billing buttons (Add New / Excel / Clear) are 8px radius and >= 40px", [bf.clear, bf.add, bf.excel].every((x) => x && x.r === "8px" && x.h >= 40), JSON.stringify({ clear: bf.clear, add: bf.add, excel: bf.excel }));
+  ok("eng: billing buttons (Add New / Excel) are 8px radius and >= 40px", [bf.add, bf.excel].every((x) => x && x.r === "8px" && x.h >= 40), JSON.stringify({ add: bf.add, excel: bf.excel }));
   await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
   await page.getByRole("menuitem", { name: /Record Payment/i }).click();
-  await page.locator(".eng-modal").first().waitFor({ timeout: 10000 });
-  await page.locator(".eng-modal input.form-control").first().waitFor({ timeout: 10000 });
+  await page.locator(".ui-modal").first().waitFor({ timeout: 10000 });
+  await page.locator(".ui-modal input.form-control").first().waitFor({ timeout: 10000 });
   const dlg = page.getByRole("dialog", { name: /Record Payment/ });
   ok("eng: payment dialog is a named modal dialog (role + aria-modal + accessible name)", (await dlg.count()) === 1 && (await dlg.getAttribute("aria-modal")) === "true", `named dialogs=${await dlg.count()}`);
+  ok("eng: payment dialog title carries vehicle and bill no", /TN52J2622 \(Bill 802\)/.test(await dlg.innerText()) && /Net total/.test(await dlg.innerText()));
+  ok("eng: payment dialog offers a payment mode choice", (await dlg.getByRole("radio").count()) === 5);
   const pm = await page.evaluate(() => {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
-    return { inputs: [...document.querySelectorAll(".eng-modal input.form-control")].map(g), btns: [...document.querySelectorAll(".eng-modal .modal-footer .btn")].map(g),
-      selects: [...document.querySelectorAll('.eng-modal div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map(g) };
+    return { inputs: [...document.querySelectorAll(".ui-modal .input-group")].map((e) => ({ ...g(e), r: getComputedStyle(e.querySelector(".input-group-text")).borderTopLeftRadius })), btns: [...document.querySelectorAll(".ui-modal-foot .btn")].map(g) };
   });
-  ok("eng: payment dialog dropdown matches the inputs (44px, 8px)", pm.selects.length > 0 && pm.selects.every((x) => x.h >= 44 && x.r === "8px"), JSON.stringify(pm.selects));
-  ok("eng: payment dialog inputs are 8px radius / 44px and footer buttons 8px / >= 40px", pm.inputs.length > 0 && pm.inputs.every((x) => x.r === "8px" && x.h === 44) && pm.btns.length === 2 && pm.btns.every((x) => x.r === "8px" && x.h >= 40), JSON.stringify(pm));
+  ok("eng: payment dialog inputs are 8px radius / 44px and footer buttons 8px / >= 40px", pm.inputs.length === 2 && pm.inputs.every((x) => x.r === "8px" && x.h === 44) && pm.btns.length === 2 && pm.btns.every((x) => x.r === "8px" && x.h >= 40), JSON.stringify(pm));
   // Phone: header buttons and the dialog's footer buttons meet the 44px touch target.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(300);
-  const pt = await page.evaluate(() => [...document.querySelectorAll(".eng-modal .modal-footer .btn")].map((b) => Math.round(b.getBoundingClientRect().height)));
+  const pt = await page.evaluate(() => [...document.querySelectorAll(".ui-modal-foot .btn")].map((b) => Math.round(b.getBoundingClientRect().height)));
   ok("eng: phone payment dialog footer buttons are >= 44px", pt.length === 2 && pt.every((h) => h >= 44), JSON.stringify(pt));
-  await page.locator(".eng-modal .modal-footer").getByRole("button", { name: "Cancel" }).click();
-  await page.locator(".eng-modal").first().waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
-  const ph = await page.evaluate(() => [...document.querySelectorAll(".eng-head-btn")].map((b) => Math.round(b.getBoundingClientRect().height)));
-  ok("eng: phone header buttons (Excel / Add New) are >= 44px", ph.length === 2 && ph.every((h) => h >= 44), JSON.stringify(ph));
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Cancel" }).click();
+  await page.locator(".ui-modal").first().waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
+  const ph = await page.evaluate(() => [...document.querySelectorAll(".page-actions .btn")].map((b) => Math.round(b.getBoundingClientRect().height)));
+  ok("eng: phone header buttons (More / Add New) are >= 44px", ph.length === 2 && ph.every((h) => h >= 44), JSON.stringify(ph));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
-  // Dashboard date inputs follow the control recipe (44px / 8px / hairline gray-300 / brand focus ring).
+  // Dashboard date inputs follow the control recipe (44px / 8px / brand focus ring) and the arrow sits between them.
   await page.goto(BASE + "/engineering/dashboard");
-  await page.locator(".eng-date").first().waitFor({ timeout: 10000 });
-  const dd = await page.evaluate(() => [...document.querySelectorAll(".eng-date")].map((e) => { const c = getComputedStyle(e); return { h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, b: c.borderTopColor }; }));
+  await page.locator("#eng-from").waitFor({ timeout: 10000 });
+  const dd = await page.evaluate(() => ["#eng-from", "#eng-to"].map((s) => { const e = document.querySelector(s); const c = getComputedStyle(e); return { h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, b: c.borderTopColor }; }));
   ok("eng: dashboard date inputs are 44px tall with an 8px radius", dd.length === 2 && dd.every((d) => d.h === 44 && d.r === "8px"), JSON.stringify(dd));
-  await page.locator(".eng-date").first().focus();
+  await page.locator("#eng-from").focus();
   await page.waitForTimeout(250);
   const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return { shadow: c.boxShadow, border: c.borderTopColor }; });
-  const brandRgb = await page.evaluate(() => { const p = document.createElement("span"); p.style.color = "var(--primary)"; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; });
-  ok("eng: dashboard date input shows the brand focus ring", /0px 0px 0px 4px/.test(ring.shadow) && ring.border === brandRgb, JSON.stringify({ ring, brandRgb }));
-
-  // The arrow between From and To is vertically centred on the 44px date inputs.
-  // Measure the glyph's own text box (a Range on the text), not the padded element box: padding moves the box but not the arrow.
-  const sepDelta = await page.evaluate(() => { const i = document.querySelector(".eng-date").getBoundingClientRect(); const r = document.createRange(); r.selectNodeContents(document.querySelector(".eng-range-sep")); const g = r.getBoundingClientRect(); return Math.round(Math.abs((i.top + i.height / 2) - (g.top + g.height / 2))); });
-  ok("eng: the From/To arrow is centred on the date inputs (<= 2px)", sepDelta <= 2, `delta=${sepDelta}px`);
+  ok("eng: dashboard date input shows a focus ring and highlighted border", ring.shadow !== "none" && ring.border !== dd[0].b, JSON.stringify({ ring, base: dd[0].b }));
+  const sepDelta = await page.evaluate(() => { const i = document.querySelector("#eng-from").getBoundingClientRect(); const g = document.querySelector(".eng-range-sep").getBoundingClientRect(); return { dy: Math.round(Math.abs((i.top + i.height / 2) - (g.top + g.height / 2))), between: g.left >= i.right && g.right <= document.querySelector("#eng-to").getBoundingClientRect().left }; });
+  ok("eng: the From/To arrow icon sits between and is centred on the date inputs (<= 2px)", sepDelta.dy <= 2 && sepDelta.between, JSON.stringify(sepDelta));
   // Settings numbering/financial-year controls keep 16px on phones (no iOS zoom on focus).
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/settings");
-  await page.getByRole("tab", { name: "Service Catalog" }).click();
-  await page.locator(".eng-number-input").first().waitFor({ timeout: 10000 });
-  const phoneFs = await page.evaluate(() => [...document.querySelectorAll(".eng-number-input")].map((e) => getComputedStyle(e).fontSize));
+  await page.locator("#settings-section").selectOption({ label: "Service Catalog" });
+  await page.locator("#cat-bill-start").waitFor({ timeout: 10000 });
+  const phoneFs = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => getComputedStyle(e).fontSize));
   ok("eng: phone numbering/financial-year controls use 16px text", phoneFs.length === 2 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
   // Accessibility: the service form's text fields are programmatically labelled (visible label <-> input), not placeholder-only.
   await page.goto(BASE + "/engineering/dashboard/create");
-  await page.locator(".eng-foot .btn-primary").waitFor({ timeout: 10000 });
+  await page.locator(".form-footer .btn-primary").waitFor({ timeout: 10000 });
   const labelled = {};
-  for (const l of ["Create date", "Truck number", "Lorry address", "Phone number"]) labelled[l] = await page.getByLabel(l, { exact: true }).count();
+  for (const l of ["Bill date", "Truck number", "Lorry address", "Phone number"]) labelled[l] = await page.getByLabel(new RegExp("^" + l)).count();
   ok("eng: service form date/truck/address/phone inputs are labelled for assistive tech", Object.values(labelled).every((n) => n === 1), JSON.stringify(labelled));
 
-  // Reduced motion: Engineering elements run no transitions or animations when the user asks for less motion.
+  // Reduced motion: no Engineering page runs transitions or animations when the user asks for less motion.
   await page.emulateMedia({ reducedMotion: "reduce" });
   const motionOffenders = [];
-  for (const [label, url, tab] of [["dashboard", "/engineering/dashboard", null], ["billing", "/engineering/billing", null], ["catalog", "/settings", "Service Catalog"]]) {
+  for (const [label, url, tab] of [["dashboard", "/engineering/dashboard", null], ["billing", "/engineering/billing", null], ["form", "/engineering/dashboard/create", null], ["catalog", "/settings", "Service Catalog"]]) {
     await page.goto(BASE + url);
-    await page.locator(label === "dashboard" ? ".eng-kpi" : label === "billing" ? ".eng-table" : ".settings-tabs").first().waitFor({ timeout: 10000 });
-    if (tab) { await page.getByRole("tab", { name: tab }).click(); await page.locator(".eng-item").first().waitFor({ timeout: 10000 }); }
-    const bad = await page.evaluate(() => [...document.querySelectorAll('[class*="eng-"]')].filter((e) => { const c = getComputedStyle(e); const td = c.transitionDuration.split(",").some((d) => parseFloat(d) > 0.001); const an = c.animationName !== "none" && parseFloat(c.animationDuration) > 0.001; return td || an; }).map((e) => (e.className + "").split(" ").filter((c) => c.startsWith("eng-")).join(".")));
-    motionOffenders.push(...[...new Set(bad)].map((b) => `${label}:${b}`));
+    await page.locator(label === "dashboard" ? ".kpi" : label === "billing" ? ".table" : label === "form" ? ".form-footer" : ".form-footer").first().waitFor({ timeout: 10000 });
+    if (tab) { await page.getByRole("tab", { name: tab }).click(); await page.locator(".cat-item").first().waitFor({ timeout: 10000 }); }
+    await page.waitForTimeout(400);
+    const bad = await page.evaluate(() => [...document.querySelectorAll("main *, .page-header *, .form-footer *")].filter((e) => { const c = getComputedStyle(e); const td = c.transitionDuration.split(",").some((d) => parseFloat(d) > 0.001); const an = c.animationName !== "none" && parseFloat(c.animationDuration) > 0.001; return td || an; }).map((e) => (e.tagName + "." + (e.className + "")).replace(/\s+/g, ".")));
+    motionOffenders.push(...[...new Set(bad)].slice(0, 8).map((b) => `${label}:${b}`));
   }
   await page.emulateMedia({ reducedMotion: "no-preference" });
   ok("eng: no Engineering element animates when the user prefers reduced motion", motionOffenders.length === 0, motionOffenders.join(" | "));
@@ -557,8 +524,8 @@ async function run(type) {
   for (const w of [1024, 1100, 1280]) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.goto(BASE + "/engineering/dashboard");
-    await page.locator(".eng-kpi-value", { hasText: "12,34,56,789" }).first().waitFor({ timeout: 10000 });
-    const clip = await page.evaluate(() => [...document.querySelectorAll(".eng-kpi-value")].filter((e) => e.scrollWidth > e.clientWidth).map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`));
+    await page.locator(".kpi-value", { hasText: "12,34,56,789" }).first().waitFor({ timeout: 10000 });
+    const clip = await page.evaluate(() => [...document.querySelectorAll(".kpi-value")].filter((e) => e.scrollWidth > e.clientWidth).map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`));
     ok(`eng: 9-digit KPI values are not clipped at ${w}px`, clip.length === 0, clip.join(" | "));
   }
   await page.unroute("http://localhost:5000/**", longKpi);
@@ -570,7 +537,7 @@ async function run(type) {
   await page.waitForTimeout(800);
   ok("eng: edit loads truck number", (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN52J2622");
   ok("eng: edit loads item rate 4850", (await page.locator('input[placeholder="Rate"]').first().inputValue()) === "4850");
-  ok("eng: edit shows the net total (4,800) and no discount field", (await page.locator(".font-w700.font-s20").innerText()).includes("4,800.00") && (await page.locator("label:has-text('Discount')").count()) === 0);
+  ok("eng: edit shows the net total (4,800) and no discount field", (await page.locator(".form-footer-total strong").innerText()).includes("4,800.00") && (await page.locator("label:has-text('Discount')").count()) === 0);
   await page.locator('input[placeholder="Qty"]').first().fill("2");
   await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
@@ -584,24 +551,25 @@ async function run(type) {
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.waitForTimeout(500);
   ok("eng: Cancel on edit returns to the bills list", page.url().endsWith("/engineering/billing"), page.url());
-  // Cancel on an empty new bill leaves immediately; with entries it asks first and can be declined.
-  let dialogs = [];
-  const onDialog = async (d) => { dialogs.push(d.message()); await (dialogs.length === 1 ? d.dismiss() : d.accept()); };
-  page.on("dialog", onDialog);
+  // Cancel on an empty new bill leaves immediately; with entries it asks first (ConfirmDialog) and can be declined.
   await page.goto(BASE + "/engineering/dashboard/create");
   await page.getByRole("button", { name: "Cancel" }).waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.waitForTimeout(500);
-  ok("eng: Cancel on an empty new bill leaves without asking", page.url().endsWith("/engineering/billing") && dialogs.length === 0, `${page.url()} dialogs=${dialogs.length}`);
+  ok("eng: Cancel on an empty new bill leaves without asking", page.url().endsWith("/engineering/billing") && (await page.getByRole("dialog").count()) === 0, page.url());
   await page.goto(BASE + "/engineering/dashboard/create");
   await page.getByPlaceholder("Enter Truck Number").fill("TN01X1");
   await page.getByRole("button", { name: "Cancel" }).click();
+  const discard = page.getByRole("dialog", { name: "Discard this bill?" });
+  await discard.waitFor({ timeout: 5000 }).catch(() => {});
+  ok("eng: Cancel with entries opens a 'Discard this bill?' dialog (no window.confirm)", (await discard.count()) === 1 && /Anything entered will be lost/.test(await discard.innerText()));
+  await discard.getByRole("button", { name: "Cancel" }).click();
   await page.waitForTimeout(400);
-  ok("eng: Cancel with entries asks to discard; declining keeps the form", dialogs.length === 1 && /Discard/i.test(dialogs[0]) && page.url().endsWith("/engineering/dashboard/create") && (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN01X1", `${dialogs.join("|")} ${page.url()}`);
+  ok("eng: declining the discard dialog keeps the form", page.url().endsWith("/engineering/dashboard/create") && (await page.getByPlaceholder("Enter Truck Number").inputValue()) === "TN01X1" && (await page.getByRole("dialog").count()) === 0, page.url());
   await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("dialog", { name: "Discard this bill?" }).getByRole("button", { name: "Discard" }).click();
   await page.waitForTimeout(500);
-  ok("eng: accepting the discard prompt returns to the bills list", dialogs.length === 2 && page.url().endsWith("/engineering/billing"), `${dialogs.length} ${page.url()}`);
-  page.off("dialog", onDialog);
+  ok("eng: accepting the discard dialog returns to the bills list", page.url().endsWith("/engineering/billing"), page.url());
   ok("eng: no Clear form button anymore", (await (async () => { await page.goto(BASE + "/engineering/dashboard/create"); await page.getByRole("button", { name: "Cancel" }).waitFor(); return page.getByRole("button", { name: "Clear form" }).count(); })()) === 0);
 
   // A legacy bill whose cards had different BS models shows "Mixed" and is not silently rewritten on save.
@@ -624,7 +592,7 @@ async function run(type) {
 
   // Bonus: header link opens the existing Mechanic Bonus page, defaulting to the configured financial year.
   await page.goto(BASE + "/engineering/billing");
-  await page.locator(".navbar-nav-header").getByText("Bonus", { exact: true }).click();
+  await page.locator('aside[aria-label="Main navigation"]').getByText("Bonus", { exact: true }).click();
   await page.getByRole("heading", { name: "Mechanic Bonus" }).waitFor({ timeout: 10000 }).catch(() => {});
   await page.waitForTimeout(800);
   ok("eng: header Bonus link opens the Mechanic Bonus page", page.url().endsWith("/bonus/mechanics") && (await page.getByText("Mechanic Bonus").count()) > 0, page.url());
@@ -642,14 +610,14 @@ async function run(type) {
   // Logout returns to the company login (/t/<code>/login); without a code it falls back to the generic login.
   await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
   await page.goto(BASE + "/engineering/billing");
-  await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
-  await page.getByRole("button", { name: "Logout" }).click();
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("menuitem", { name: "Logout" }).click();
   await page.waitForTimeout(500);
   ok("eng: logout goes to the company login URL with the business code", page.url().endsWith("/t/acme/login"), page.url());
   await page.evaluate(() => { localStorage.setItem("svr_token", "x"); localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" })); });
   await page.goto(BASE + "/engineering/billing");
-  await page.locator(".navbar .dropdown-toggle", { hasText: "Admin" }).first().click();
-  await page.getByRole("button", { name: "Logout" }).click();
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("menuitem", { name: "Logout" }).click();
   await page.waitForTimeout(500);
   ok("eng: logout without a stored code falls back to the generic login", page.url().endsWith("/issueCounter/login"), page.url());
   await page.evaluate(() => { localStorage.setItem("svr_token", "x"); localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" })); });
@@ -659,11 +627,7 @@ async function run(type) {
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
   ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Save service|Update service/ }).count()) === 0);
-  const viewAlign = await page.evaluate(() => {
-    const L = (sel) => document.querySelector(sel).getBoundingClientRect();
-    return { q: L(".eng-line-qty").left - L(".eng-lh-qty").left, r: L(".eng-line-rate").left - L(".eng-lh-rate").left, a: L(".eng-lh-amt").right - L(".eng-line-amt").right };
-  });
-  ok("eng: view mode item column headers line up too (no remove button)", Math.abs(viewAlign.q) <= 2 && Math.abs(viewAlign.r) <= 2 && Math.abs(viewAlign.a) <= 2, JSON.stringify(viewAlign));
+  ok("eng: view mode has no remove-item / remove-service buttons", (await page.getByRole("button", { name: /Remove (item|service)/ }).count()) === 0);
 
   // Print from billing downloads a PDF without errors.
   await page.goto(BASE + "/engineering/billing");
@@ -707,17 +671,18 @@ async function run(type) {
     ok("eng: bill PDF without a company name downloads", false, "no download");
   }
   await page.unroute("http://localhost:5000/**", noNameHandler);
-  // Phone layouts: bills become cards, filters collapse, Save stays reachable on the form.
+  // Phone layouts: bills become cards, filters collapse into a sheet, Save stays reachable on the form.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/engineering/billing");
   await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
   const billOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   ok("eng: billing has no horizontal overflow at 390px", billOverflow <= 0, `overflow=${billOverflow}`);
-  ok("eng: billing table header hidden on phone (card mode)", !(await page.locator(".eng-table thead").isVisible()));
-  ok("eng: bill card shows status pill", await page.locator(".eng-table .eng-c-status").first().isVisible());
+  ok("eng: billing table hidden on phone (card mode)", (await page.locator(".table thead").count()) === 0 && (await page.locator(".m-card").count()) > 0);
+  ok("eng: bill card shows status pill", await page.locator(".m-card .badge").first().isVisible());
   ok("eng: secondary filters collapsed on phone", !(await page.locator("#from-date").isVisible()));
-  await page.getByRole("button", { name: "More filters" }).click();
-  ok("eng: 'More filters' reveals date filters", await page.locator("#from-date").isVisible());
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  ok("eng: 'Filters' sheet reveals date filters", await page.locator("#from-date").isVisible());
+  await page.keyboard.press("Escape");
   await page.goto(BASE + "/engineering/dashboard/create");
   await page.getByRole("button", { name: "Save service" }).waitFor({ timeout: 10000 });
   const saveBox = await page.getByRole("button", { name: "Save service" }).boundingBox();

@@ -600,3 +600,8 @@ html:has(.form-footer) { scroll-padding-bottom: 120px; }
 .m-card-extra { max-width: 100%; }
 .list-card .table th:has(> .form-check-input), .list-card .table td:has(> .form-check-input) { padding-right: 0; }
 .list-card .cell-actions > * + * { margin-left: 0; }
+
+/* react-select transitions honour reduced motion app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  .rs__control.rs__control, .rs__control.rs__control * { transition: none; animation: none; }
+}

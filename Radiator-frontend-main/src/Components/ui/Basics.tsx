@@ -115,7 +115,7 @@ export function Field({
                 </label>
             )}
             {children}
-            {error ? <span className="field-error" id={errId} role="alert">{error}</span> : help ? <span className="field-help">{help}</span> : null}
+            {error ? <span className="field-error" id={errId} role="alert">{error}</span> : help ? <span className="field-help" id={htmlFor ? `${htmlFor}-help` : undefined}>{help}</span> : null}
         </div>
     );
 }

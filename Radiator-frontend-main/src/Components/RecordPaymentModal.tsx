@@ -79,7 +79,7 @@ export default function RecordPaymentModal({
                     htmlFor="payment-discount"
                     help={!discountHelpInline ? "Optional. Reduces the amount owed." : undefined}
                 >
-                    <AffixInput id="payment-discount" prefix="₹" type="number" inputMode="decimal" min={0} max={pending}
+                    <AffixInput id="payment-discount" aria-describedby={!discountHelpInline ? "payment-discount-help" : undefined} prefix="₹" type="number" inputMode="decimal" min={0} max={pending}
                         value={discount} placeholder="0" onChange={(e) => setDiscount(e.target.value)} />
                     {disc > 0 && (
                         <p className="t-sm t-muted mt-2 mb-0 d-flex justify-content-between">

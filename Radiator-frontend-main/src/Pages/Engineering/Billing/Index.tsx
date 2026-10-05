@@ -1,40 +1,37 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../../Components/Icons";
 import RowActions from "../../../Components/RowActions";
-import Loader from "../../../Components/Loader";
-import Pagination from "../../../Components/Pagination";
-import Search from "../../../Components/Search";
 import Selector from "../../../Components/Selector";
+import RecordPaymentModal from "../../../Components/RecordPaymentModal";
 import { useAlertMsg } from "../../../Services/AllServices";
-import AlertComponent from "../../../Components/AlertComponent";
 import { getData, postData, deleteData } from "../../../Services/ApiServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { printEngInvoice } from "../../../Components/PrintEngInvoice";
-import "../engineering.css";
 import { money } from "../../../Utils/format";
-import { STATUS_OPTIONS as ENG_STATUS, PAYMENT_MODES, bsLabel, type EngBill } from "../types";
+import { STATUS_OPTIONS as ENG_STATUS, bsLabel, type EngBill } from "../types";
+import { PageHeader, PaymentBadge, Badge, BusyOverlay } from "../../../Components/ui/Basics";
+import { ConfirmDialog } from "../../../Components/ui/Modal";
+import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, Pagination, type Column } from "../../../Components/ui/DataList";
+import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 import * as XLSX from "xlsx";
+
+const opt = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v) || null;
+const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("en-IN") : "—");
+const typeNames = (x: EngBill) => Array.from(new Set((x.services || []).map((s) => s.typeLabel || s.type)));
 
 const EngBilling = () => {
     const navigate = useNavigate();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
 
-    const [loading, setLoading] = useState(false);
-    // Display-only flags for the empty/skeleton/error states (they never gate data):
-    const [loaded, setLoaded] = useState(false);   // true once the first fetch has settled
-    const [loadError, setLoadError] = useState(false); // last fetch failed
-    const [exportLoading, setExportLoading] = useState(false);
-    const [recordData, setRecordData] = useState<EngBill[]>([]);
-
+    const [busyLabel, setBusyLabel] = useState("");
+    const [saving, setSaving] = useState(false);
     const [limit, setLimit] = useState(10);
-    const [selectedDataList, setSelectedDataList] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPage, settotalPage] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
 
     const [searchText, setSearchText] = useState("");
     const [mechanicNameList, setmechanicName] = useState<string[]>([]);
@@ -42,19 +39,15 @@ const EngBilling = () => {
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [searchStatus, setSearchStatus] = useState("");
-    const [filtersKey, setFiltersKey] = useState(0);
-
-    const [showFilters, setShowFilters] = useState(false);
-    const [paymentItem, setPaymentItem] = useState<EngBill | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState("");
-    const [paymentDiscount, setPaymentDiscount] = useState("");
-    const [deleteItem, setDeleteItem] = useState<EngBill | null>(null);
-
-    const labels = { vehicleNo: "Truck Number", customer: "Lorry Address", agent: "Mechanic" };
     const [searchType, setSearchType] = useState("");
     const [searchBs, setSearchBs] = useState("");
-    const [paymentMode, setPaymentMode] = useState("cash");
-    const typesText = (x: EngBill) => Array.from(new Set((x.services || []).map((s) => s.typeLabel || s.type))).join(", ");
+    const [filtersKey, setFiltersKey] = useState(0);
+
+    const [paymentItem, setPaymentItem] = useState<EngBill | null>(null);
+    const [deleteItem, setDeleteItem] = useState<EngBill | null>(null);
+
+    const labels = { vehicleNo: "Truck Number", agent: "Mechanic" };
+    const typesText = (x: EngBill) => typeNames(x).join(", ");
     const itemsText = (x: EngBill) => (x.services || []).map((s) => `${s.typeLabel || s.type}${s.bsModel ? " " + bsLabel(settings, s.bsModel) : ""}: ${s.items.map((i) => (i.requiresComment && i.comment ? i.comment : i.label)).join(", ")}`).join(" | ");
 
     const buildParams = () => ({
@@ -67,78 +60,33 @@ const EngBilling = () => {
         status: searchStatus,
     });
 
+    const list = useRemoteList<EngBill>(async () => {
+        const res = await getData("engbills", { params: { page: currentPage, limit, ...buildParams() } });
+        return { rows: res.bills || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
+    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs]);
+
+    const activeCount = [searchMechanicName, searchStatus, searchType, searchBs, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
+    const hasFilters = activeCount > 0;
     const clearFilters = () => {
         setSearchText(""); setsearchMechanicName(""); setSearchStatus(""); setSearchType(""); setSearchBs("");
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
-
-    // Display-only: are any filters narrowing the list? Drives the empty-state wording.
-    const hasFilters = !!(searchText || searchMechanicName || searchStatus || searchType || searchBs || fromDate || toDate);
-
-    const getTableData = async () => {
-        try {
-            setLoading(true);
-            const res = await getData("engbills", { params: { page: currentPage, limit, ...buildParams() } });
-            setRecordData(res.bills || []);
-            settotalPage(res.totalPages || 1);
-            setTotalRecords(res.totalRecords || 0);
-            setLoadError(false);
-        } catch (err: any) {
-            setLoadError(true);
-            callAlertMsg(err?.message || "Failed to load records", "error");
-        } finally {
-            setLoading(false);
-            setLoaded(true);
-        }
-    };
-
-    const getMechanicName = async () => {
-        try {
-            const res = await getData("engbills/mechanics");
-            setmechanicName(res.mechanics || []);
-        } catch (err) {
-            console.error(err);
-        }
-    };
+    const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     useEffect(() => {
-        getTableData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs]);
-
-    useEffect(() => {
-        sessionStorage.removeItem("search");
-        getMechanicName();
+        getData("engbills/mechanics").then((res) => setmechanicName(res.mechanics || [])).catch((err) => console.error(err));
     }, []);
-
-    const handleSearchData = () => {
-        setSearchText(sessionStorage.getItem("search") || "");
-        setCurrentPage(1);
-    };
-
-    const handleLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = Number(e.target.value) || 10;
-        setLimit(value);
-        setCurrentPage(1);
-    };
 
     const fetchAllForExport = async (): Promise<EngBill[]> => {
         const res = await getData("engbills/export", { params: buildParams() });
         return res.bills || [];
     };
 
-    const openPaymentModal = (item: EngBill) => {
-        setPaymentAmount("");
-        setPaymentDiscount("");
-        setPaymentMode("cash");
-        setPaymentItem(item);
-    };
-
-    const handleRecordPayment = async () => {
+    const handleRecordPayment = async ({ amount: a, discount: d, mode }: { amount: string; discount: string; mode: string }) => {
         if (!paymentItem) return;
-        const amount = Number(paymentAmount) || 0;
-        const discount = Number(paymentDiscount) || 0;
+        const amount = Number(a) || 0;
+        const discount = Number(d) || 0;
         if (amount <= 0 && discount <= 0) {
             callAlertMsg("Enter a payment amount and/or a discount", "error");
             return;
@@ -148,40 +96,40 @@ const EngBilling = () => {
             return;
         }
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await postData(`engbills/${paymentItem._id}/payment`, {
                 amount,
                 // The API sets the bill's total discount; the modal's field is an extra discount on top of any existing one.
                 discount: discount > 0 ? (Number(paymentItem.discount) || 0) + discount : undefined,
-                mode: paymentMode,
+                mode,
             });
             callAlertMsg(res.message || "Payment recorded", "success");
             setPaymentItem(null);
-            await getTableData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to record payment", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
     const handleDelete = async () => {
         if (!deleteItem) return;
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await deleteData(`engbills/${deleteItem._id}`);
             callAlertMsg(res.message || "Record deleted", "success");
             setDeleteItem(null);
-            await getTableData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to delete record", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
     const exportExcel = async () => {
-        setExportLoading(true);
+        setBusyLabel("Preparing Excel…");
         try {
             const all = await fetchAllForExport();
             const exportData = all.map((x) => ({
@@ -207,280 +155,136 @@ const EngBilling = () => {
         } catch (err: any) {
             callAlertMsg(err?.message || "Export failed", "error");
         } finally {
-            setExportLoading(false);
+            setBusyLabel("");
         }
     };
 
-    const badge = (s: EngBill["paymentStatus"]) =>
-        s === "Received" ? "status-badge-success" : s === "Partial" ? "status-badge-warning" : "status-badge-danger";
+    const rowMenu = (o: EngBill) => (
+        <RowActions ariaLabel={`Actions for ${o.vehicleNo}`} items={[
+            { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/engineering/dashboard/view/${o._id}`) },
+            { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/engineering/dashboard/edit/${o._id}`) },
+            { label: "Print", icon: <Icons iconName="print" />, onClick: () => printEngInvoice(o, settings) },
+            { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.balance <= 0, reason: "Fully paid" },
+            { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
+        ]} />
+    );
+
+    const columns: Column<EngBill>[] = [
+        { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
+        { key: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "bill", header: "Bill No", className: "nowrap tabular", cell: (o) => o.billNo },
+        { key: "truck", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNo },
+        { key: "mech", header: labels.agent, className: "text", cell: (o) => o.mechanic },
+        { key: "types", header: "Types", cell: (o) => (
+            <span className="d-inline-flex flex-wrap gap-1">{typeNames(o).map((t) => <Badge key={t} tone="neutral">{t}</Badge>)}</span>
+        ) },
+        { key: "total", header: "Total", className: "num", cell: (o) => money(o.netTotal) },
+        { key: "rec", header: "Received", className: "num", cell: (o) => money(o.amountReceived) },
+        { key: "bal", header: "Balance", className: "num", cell: (o) => <span className={o.balance > 0 ? "t-error t-semibold" : undefined}>{money(o.balance)}</span> },
+        { key: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.paymentStatus} /> },
+        { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
+    ];
 
     const mechanicOptions = mechanicNameList.map((m) => ({ value: m, label: m }));
+    const typeOptions = (settings.engineering?.serviceTypes || []).map((t) => ({ value: t.value, label: t.label }));
+    const bsOptions = (settings.engineering?.bsModels || []).map((b) => ({ value: b.value, label: b.label }));
+
+    const filterBar = (
+        <FilterBar
+            activeCount={activeCount}
+            onClear={clearFilters}
+            search={<SearchInput key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            filters={[
+                { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, searchMechanicName)} onChange={(o: any) => setFilter(setsearchMechanicName)(o ? o.value : "")} /> },
+                { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={ENG_STATUS} placeholder="-- All Status --" value={opt(ENG_STATUS, searchStatus)} onChange={(o: any) => setFilter(setSearchStatus)(o ? o.value : "")} /> },
+                { id: "f-type", label: "Service type", node: <Selector inputId="f-type" isClearable options={typeOptions} placeholder="-- All --" value={opt(typeOptions, searchType)} onChange={(o: any) => setFilter(setSearchType)(o ? o.value : "")} /> },
+                { id: "f-bs", label: "BS model", node: <Selector inputId="f-bs" isClearable options={bsOptions} placeholder="-- All --" value={opt(bsOptions, searchBs)} onChange={(o: any) => setFilter(setSearchBs)(o ? o.value : "")} /> },
+                { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
+                { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
+            ]}
+        />
+    );
+
+    const newService = () => navigate("/engineering/dashboard/create");
 
     return (
-        <div className="row eng-theme">
-            <Loader loading={loading || exportLoading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <BusyOverlay show={!!busyLabel} label={busyLabel} />
+            <PageHeader
+                title="Bills"
+                actions={[{ label: "Excel", icon: "exporticon", onClick: exportExcel, disabled: !!busyLabel, collapse: true }]}
+                primary={
+                    <button type="button" className="btn btn-primary" onClick={newService}>
+                        <Icons iconName="add" />Add New
+                    </button>
+                }
+            />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between my-4">
-                    <h4 className="fw-semibold">Billing</h4>
-                    <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center eng-head-btn"
-                            onClick={exportExcel} disabled={exportLoading}>
-                            <Icons iconName="exporticon" className="icon-15 me-2" />
-                            {exportLoading ? "Exporting..." : "Excel"}
-                        </button>
-                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center eng-head-btn"
-                            onClick={() => navigate("/engineering/dashboard/create")}
-                            style={{ whiteSpace: "nowrap" }}>
-                            <Icons iconName="add" className="icon-12 icon-white me-2" />
-                            Add New
-                        </button>
-                    </div>
-                </div>
-
-                <div className="card card-shadow mt-4">
-                    <div className="card-body p-0">
-                        <div className={`table-header eng-filters${showFilters ? " is-open" : ""}`}>
-                            <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-12 col-md-4 col-xl-3" key={`search-${filtersKey}`}>
-                                    <Search getData={handleSearchData} placeholder={`Search ${labels.vehicleNo}...`} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-3">
-                                    <label className="form-label font-w500 mb-1">{labels.agent}</label>
-                                    <Selector key={`mech-${filtersKey}`} isClearable options={mechanicOptions}
-                                        placeholder="-- All --"
-                                        onChange={(option: any) => { setsearchMechanicName(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Status</label>
-                                    <Selector key={`status-${filtersKey}`} isClearable options={ENG_STATUS}
-                                        placeholder="-- All Status --"
-                                        onChange={(option: any) => { setSearchStatus(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="col-12 d-md-none">
-                                    <button type="button" className="eng-filter-toggle" aria-expanded={showFilters}
-                                        onClick={() => setShowFilters((v) => !v)}>
-                                        {showFilters ? "Hide filters" : "More filters"}
-                                    </button>
-                                </div>
-                                <div className="eng-more col-6 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Service type</label>
-                                    <Selector key={`type-${filtersKey}`} isClearable placeholder="-- All --"
-                                        options={(settings.engineering?.serviceTypes || []).map((t) => ({ value: t.value, label: t.label }))}
-                                        onChange={(option: any) => { setSearchType(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="eng-more col-6 col-md-4 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">BS model</label>
-                                    <Selector key={`bs-${filtersKey}`} isClearable placeholder="-- All --"
-                                        options={(settings.engineering?.bsModels || []).map((b) => ({ value: b.value, label: b.label }))}
-                                        onChange={(option: any) => { setSearchBs(option ? option.value : ""); setCurrentPage(1); }} />
-                                </div>
-                                <div className="eng-more col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="from-date" className="form-label font-w500 mb-1">From</label>
-                                    <input id="from-date" type="date" className="form-control"
-                                        value={fromDate} max={toDate || undefined}
-                                        onChange={(e) => { setFromDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="eng-more col-6 col-md-4 col-xl-2">
-                                    <label htmlFor="to-date" className="form-label font-w500 mb-1">To</label>
-                                    <input id="to-date" type="date" className="form-control"
-                                        min={fromDate || undefined} value={toDate}
-                                        onChange={(e) => { setToDate(e.target.value); setCurrentPage(1); }} />
-                                </div>
-                                <div className="eng-more col-6 col-md-4 col-xl-1 d-flex align-items-end">
-                                    <button type="button" className="btn btn-cancel btn-sm w-100" onClick={clearFilters}>Clear</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14 eng-table">
-                                <thead>
-                                    <tr>
-                                        <th className="cell-nowrap">SI No</th>
-                                        <th className="cell-nowrap">Date</th>
-                                        <th className="cell-nowrap">Bill No</th>
-                                        <th className="cell-nowrap">{labels.vehicleNo}</th>
-                                        <th>{labels.agent}</th>
-                                        <th>Types</th>
-                                        <th className="cell-nowrap eng-num">Total</th>
-                                        <th className="cell-nowrap eng-num">Received</th>
-                                        <th className="cell-nowrap eng-num">Balance</th>
-                                        <th className="cell-nowrap">Status</th>
-                                        <th className="cell-nowrap">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {recordData.length ? (
-                                        recordData.map((o, i) => (
-                                            <tr key={o._id}>
-                                                <td className="cell-nowrap eng-c-si" data-label="No">{(currentPage - 1) * limit + i + 1}</td>
-                                                <td className="cell-nowrap eng-c-date" data-label="Date">{o.billDate ? new Date(o.billDate).toLocaleDateString("en-IN") : "—"}</td>
-                                                <td className="cell-nowrap eng-c-bill" data-label="Bill no">{o.billNo}</td>
-                                                <td className="cell-nowrap eng-c-truck" data-label="">{o.vehicleNo}</td>
-                                                <td className="eng-c-mech" data-label="Mechanic">{o.mechanic}</td>
-                                                <td className="eng-c-types" data-label="">
-                                                    {Array.from(new Set((o.services || []).map((s) => s.typeLabel || s.type))).map((t) => (
-                                                        <span key={t} className="badge rounded-pill text-bg-light border me-1">{t}</span>
-                                                    ))}
-                                                </td>
-                                                <td className="cell-nowrap eng-c-net" data-label="Total">{money(o.netTotal)}</td>
-                                                <td className="cell-nowrap eng-c-rec" data-label="Received">{money(o.amountReceived)}</td>
-                                                <td className={`cell-nowrap eng-c-bal ${o.balance > 0 ? "text-danger font-w600" : ""}`} data-label="Balance">
-                                                    {money(o.balance)}
-                                                </td>
-                                                <td className="cell-nowrap eng-c-status" data-label=""><span className={`status-badge ${badge(o.paymentStatus)}`}>{o.paymentStatus}</span></td>
-                                                <td className="cell-nowrap eng-c-act" data-label="">
-                                                    <RowActions ariaLabel={`Actions for ${o.vehicleNo}`} items={[
-                                                        { label: "View", icon: <Icons iconName="view" />, onClick: () => navigate(`/engineering/dashboard/view/${o._id}`) },
-                                                        { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/engineering/dashboard/edit/${o._id}`) },
-                                                        { label: "Print", icon: <Icons iconName="print" />, onClick: () => printEngInvoice(o, settings) },
-                                                        { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => openPaymentModal(o) },
-                                                        { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
-                                                    ]} />
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={11} className="eng-empty-cell">
-                                                {!loaded || loading ? (
-                                                    <div className="eng-skel" aria-hidden="true"><i /><i /><i /></div>
-                                                ) : loadError ? (
-                                                    <div className="eng-empty-state" role="status">
-                                                        <span className="eng-empty-icon is-error"><Icons iconName="clock" className="icon-24" /></span>
-                                                        <p className="eng-empty-title">Couldn't load bills</p>
-                                                        <p className="eng-empty-hint">Check your connection and try again.</p>
-                                                        <button type="button" className="btn btn-primary btn-sm" onClick={getTableData}>Retry</button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="eng-empty-state" role="status">
-                                                        <span className="eng-empty-icon"><Icons iconName="receipt-text" className="icon-24" /></span>
-                                                        <p className="eng-empty-title">{hasFilters ? "No bills match these filters" : "No bills yet"}</p>
-                                                        <p className="eng-empty-hint">
-                                                            {hasFilters ? "Try a different truck number, mechanic or date range." : "Create your first service bill and it will show up here."}
-                                                        </p>
-                                                        {hasFilters ? (
-                                                            <button type="button" className="btn btn-cancel btn-sm" onClick={clearFilters}>Clear filters</button>
-                                                        ) : (
-                                                            <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate("/engineering/dashboard/create")}>New service</button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPage}
-                        selectedDataList={selectedDataList}
-                        setSelectedDataList={setSelectedDataList}
-                        paginationDataLimit={{ limit }}
-                        response={{ totalRecords }}
-                        handleInputChange={handleLimitChange}
-                        handlePreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        handleNextPage={() => setCurrentPage((p) => Math.min(totalPage, p + 1))}
+            <DataList<EngBill>
+                caption="Bills"
+                toolbar={filterBar}
+                rows={list.rows}
+                rowKey={(o) => o._id}
+                columns={columns}
+                status={list.status}
+                refetching={list.refetching}
+                onRetry={list.reload}
+                errorTitle="Couldn't load bills"
+                empty={hasFilters ? {
+                    title: "No bills match these filters",
+                    text: "Try a different truck number, mechanic or date range.",
+                    action: <button type="button" className="btn btn-link" onClick={clearFilters}>Clear filters</button>,
+                } : {
+                    title: "No bills yet",
+                    text: "Create your first service bill and it will show up here.",
+                    action: <button type="button" className="btn btn-primary" onClick={newService}><Icons iconName="add" />New service</button>,
+                }}
+                mobileCard={(o) => (
+                    <MobileCard
+                        title={o.vehicleNo}
+                        to={`/engineering/dashboard/view/${o._id}`}
+                        badge={<PaymentBadge status={o.paymentStatus} />}
+                        menu={rowMenu(o)}
+                        meta={[fmtDate(o.billDate), `Bill ${o.billNo}`, o.mechanic]}
+                        meta2={typeNames(o).join(", ")}
+                        amounts={[
+                            { label: "Total", value: money(o.netTotal) },
+                            { label: "Received", value: money(o.amountReceived) },
+                            { label: "Balance", value: money(o.balance), tone: o.balance > 0 ? "error" : undefined },
+                        ]}
                     />
-                </div>
-            </div>
+                )}
+                pagination={
+                    <Pagination page={currentPage} totalPages={list.totalPages} total={list.total} limit={limit}
+                        onPage={setCurrentPage} onLimit={(n) => { setLimit(n); setCurrentPage(1); }} />
+                }
+            />
 
-            {/* Record Payment Modal */}
-            {paymentItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="eng-payment-title">
-                    <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title" id="eng-payment-title">Record Payment — {paymentItem.vehicleNo} (Bill {paymentItem.billNo})</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setPaymentItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Net total</span><span className="font-w600">{money(paymentItem.netTotal)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-1">
-                                    <span>Received so far</span>
-                                    <span className="font-w600 text-success">{money(paymentItem.amountReceived)}</span>
-                                </div>
-                                <div className="d-flex justify-content-between font-s14 mb-3">
-                                    <span>Pending</span>
-                                    <span className="font-w600 text-danger">{money(paymentItem.balance)}</span>
-                                </div>
-                                <div className="form-group mb-3">
-                                    <label className="form-label mb-0" htmlFor="payment-discount">Discount (₹)</label>
-                                    <small className="eng-hint" id="payment-discount-hint">Optional. Reduces the amount owed.</small>
-                                    <input id="payment-discount" aria-describedby="payment-discount-hint" type="number" className="form-control"
-                                        min={0} max={paymentItem.balance} value={paymentDiscount}
-                                        onChange={(e) => setPaymentDiscount(e.target.value)}
-                                        placeholder="0" />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="payment-amount">Amount received now (₹)</label>
-                                    <input id="payment-amount" type="number" className="form-control"
-                                        min={0} max={Math.max(paymentItem.balance - (Number(paymentDiscount) || 0), 0)} value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        placeholder={`Up to ${Math.max(paymentItem.balance - (Number(paymentDiscount) || 0), 0)}`} autoFocus />
-                                </div>
-                                <div className="form-group mt-3">
-                                    <label className="form-label">Payment mode</label>
-                                    <Selector options={PAYMENT_MODES}
-                                        value={PAYMENT_MODES.find((m) => m.value === paymentMode) || null}
-                                        onChange={(opt: any) => setPaymentMode(opt ? opt.value : "cash")} />
-                                </div>
-                                {(Number(paymentDiscount) || 0) > 0 && (
-                                    <div className="d-flex justify-content-between font-s14 mt-3 pt-2 border-top">
-                                        <span>Pending after discount</span>
-                                        <span className="font-w600">
-                                            {money(Math.max(paymentItem.balance - (Number(paymentDiscount) || 0) - (Number(paymentAmount) || 0), 0))}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setPaymentItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm"
-                                    onClick={handleRecordPayment}
-                                    disabled={loading || paymentItem.balance <= 0}>
-                                    {loading ? "Saving..." : "Record Payment"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <RecordPaymentModal
+                open={!!paymentItem}
+                title={`Record Payment — ${paymentItem?.vehicleNo ?? ""} (Bill ${paymentItem?.billNo ?? ""})`}
+                totalLabel="Net total"
+                total={paymentItem?.netTotal || 0}
+                received={paymentItem?.amountReceived || 0}
+                pending={paymentItem?.balance || 0}
+                withMode
+                discountHelpInline={false}
+                busy={saving}
+                onClose={() => setPaymentItem(null)}
+                onSubmit={handleRecordPayment}
+            />
 
-            {/* Delete Confirm Modal */}
-            {deleteItem && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="eng-delete-title">
-                    <div className="modal-dialog modal-dialog-centered eng-modal" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title" id="eng-delete-title">Delete Record</span>
-                                <button type="button" className="btn-close" aria-label="Close" onClick={() => setDeleteItem(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s14 mb-0">
-                                    Delete bill for{" "}
-                                    <span className="font-w600">{deleteItem.vehicleNo} (Bill {deleteItem.billNo})</span>
-                                    {deleteItem.billDate ? ` dated ${new Date(deleteItem.billDate).toLocaleDateString("en-IN")}` : ""}? This cannot be undone.
-                                </p>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setDeleteItem(null)}>Cancel</button>
-                                <button type="button" className="btn btn-danger btn-sm" onClick={handleDelete} disabled={loading}>
-                                    {loading ? "Deleting..." : "Delete"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            <ConfirmDialog
+                open={!!deleteItem}
+                title="Delete Record"
+                message={deleteItem && <>Delete bill for <span className="t-strong t-semibold">{deleteItem.vehicleNo} (Bill {deleteItem.billNo})</span>{deleteItem.billDate ? ` dated ${fmtDate(deleteItem.billDate)}` : ""}? This cannot be undone.</>}
+                confirmLabel="Delete"
+                busyLabel="Deleting..."
+                busy={saving}
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteItem(null)}
+            />
+        </>
     );
 };
 
