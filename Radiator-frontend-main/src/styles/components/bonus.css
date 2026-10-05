@@ -3,6 +3,6 @@
 .review-bonus-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; background: var(--brand-25); border-bottom: 1px solid var(--border); }
 .review-bonus-head .t-xs { display: block; }
 .review-bonus-amount { font-size: var(--text-2xl); line-height: var(--lh-2xl); font-weight: var(--weight-bold); color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.collection-rate { display: grid; gap: 12px; align-content: center; min-height: 240px; }
+.collection-rate { display: grid; gap: 12px; align-content: start; }
 .collection-rate .collection-pct { font-size: var(--text-3xl); font-weight: var(--weight-bold); color: var(--text-strong); font-variant-numeric: tabular-nums; }
 @media (max-width: 767.98px) { .review-bonus-head { padding: 16px; } }

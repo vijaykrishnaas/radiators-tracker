@@ -310,7 +310,7 @@ const Expenses = () => {
             key: "si", header: "SI No", className: "nowrap tabular",
             cell: (e, i) => (
                 <>
-                    {e.expenseType === "materials" && expandBtn(e)}
+                    {e.expenseType === "materials" ? expandBtn(e) : <span className="expand-spacer" aria-hidden="true" />}
                     {(currentPage - 1) * limit + i + 1}
                 </>
             ),

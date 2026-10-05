@@ -402,7 +402,7 @@ const SettlePeriod = () => {
                                                     <tr key={a._id}>
                                                         <td className="nowrap tabular">{fmtDate(a.date)}</td>
                                                         <td className="num">{money(a.amount)}</td>
-                                                        <td className="text">{a.reason || "—"}</td>
+                                                        <td>{a.reason || "—"}</td>
                                                     </tr>
                                                 )) : (
                                                     <tr><td colSpan={3} className="t-muted">No unapplied advances</td></tr>

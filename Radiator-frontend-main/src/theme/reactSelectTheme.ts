@@ -17,7 +17,7 @@ export const selectStyles: StylesConfig<any, boolean> = {
         ":hover": { borderColor: state.isFocused ? "var(--brand-300)" : "var(--border-control)" },
     }),
     valueContainer: (base) => ({ ...base, padding: "2px 8px 2px 14px", gap: 4 }),
-    placeholder: (base) => ({ ...base, color: "var(--text-subtle)" }),
+    placeholder: (base) => ({ ...base, color: "var(--text-subtle)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
     singleValue: (base, state) => ({ ...base, color: state.isDisabled ? "var(--gray-700)" : "var(--text-strong)" }),
     input: (base) => ({ ...base, color: "var(--text-strong)", margin: 0 }),
     indicatorSeparator: () => ({ display: "none" }),

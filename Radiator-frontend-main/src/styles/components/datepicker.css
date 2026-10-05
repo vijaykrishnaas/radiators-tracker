@@ -1,6 +1,6 @@
 /* react-date-picker / react-calendar on the design tokens (spec §4.5 "Date input"). */
 .react-date-picker.form-control { display: flex; align-items: center; padding: 0 12px 0 16px; }
-.react-date-picker__wrapper { flex: 1 1 auto; border: 0; align-items: center; }
+.react-date-picker.form-control .react-date-picker__wrapper { flex: 1 1 auto; border: 0; align-items: center; }
 .react-date-picker__inputGroup { min-width: 0; font-size: var(--text-sm); color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .react-date-picker__inputGroup__input { color: var(--text-strong); outline: 0; border-radius: 4px; }
 .react-date-picker__inputGroup__input:invalid { background: transparent; }

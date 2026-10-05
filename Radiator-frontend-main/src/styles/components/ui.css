@@ -111,6 +111,7 @@ a { text-decoration: none; }
 .mini-table { overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); }
 .mini-table .table > :not(caption) > * > * { padding: 10px 16px; }
 .expand-btn { width: 24px; height: 24px; min-height: 24px; margin-right: 4px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--gray-500); display: inline-grid; place-items: center; vertical-align: middle; }
+.expand-spacer { display: inline-block; width: 28px; vertical-align: middle; }
 .expand-btn:hover { background: var(--gray-100); color: var(--gray-800); }
 .expand-btn .icons { width: 20px; height: 20px; transition: transform var(--duration-fast) var(--ease); }
 .expand-btn[aria-expanded="true"] .icons { transform: rotate(90deg); }
@@ -126,8 +127,8 @@ a { text-decoration: none; }
 /* ---------- Mobile data list (§4.8) ---------- */
 .m-list { display: grid; gap: 12px; padding: 12px; }
 .m-card { position: relative; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); }
-.m-card-top { display: flex; align-items: center; gap: 8px; }
-.m-card-key { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
+.m-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.m-card-key { flex: 1 1 140px; min-width: 0; margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
 .m-card-key a { color: inherit; text-decoration: none; }
 .m-card-key a:hover { text-decoration: none; }
 .m-card-top .badge, .m-card-top .btn-icon, .m-card-top .m-card-right { position: relative; z-index: 2; }
@@ -519,9 +520,10 @@ body.is-scroll-locked { overflow: hidden; }
 .form-check-label { font-size: var(--text-sm); color: var(--gray-700); }
 
 /* ---------- Upload (§4.18) ---------- */
-.upload { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.upload { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 16px; align-items: center; }
+.upload > .t-sm { font-size: var(--text-xs); }
 .upload-zone {
-  flex: 1 1 260px;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -605,3 +607,6 @@ html:has(.form-footer) { scroll-padding-bottom: 120px; }
 @media (prefers-reduced-motion: reduce) {
   .rs__control.rs__control, .rs__control.rs__control * { transition: none; animation: none; }
 }
+
+/* List cards clip their table (and totals row) to the rounded corners; menus render in portals. */
+.list-card { overflow: hidden; overflow: clip; }
