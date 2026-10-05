@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **3** (eighth lap)
+Next area: **4** (eighth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-05 06:37 UTC — Area 3 (Automobile, 8th lap): no new bug; staging unchanged since 256ac9f (#69), no code change to review. backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6, no FAIL. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-05 02:37 UTC — Area 2 (Engineering frontend, 8th lap): no new bug; staging unchanged since 256ac9f (#69), no code to review beyond prior laps. backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6, no FAIL. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-04 22:37 UTC — Area 1 (Engineering backend, 8th lap): no new bug; staging unchanged since 256ac9f (#69). backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6. No code changed since the last lap, so nothing new to review. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-04 18:37 UTC — Area 6 (cross-cutting): no new bug. Staging unchanged since 256ac9f (#69): backend 53/53, tsc clean, e2e engineering 142, radiator 6, automobile 10, salary 6. Seventh lap complete with no findings; all Engineering feature work + UI/a11y backlog is merged. Suggest (again) the user slows this routine to daily or pauses it — repeated laps find nothing without code changes. No PR, no notification.
