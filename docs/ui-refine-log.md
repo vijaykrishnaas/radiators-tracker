@@ -221,3 +221,4 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - 2026-10-05 09:57 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (18th consecutive idle run.)
 - 2026-10-05 10:57 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (19th consecutive idle run.)
 - 2026-10-05 11:56 UTC — Idle run (staging unchanged 256ac9f; no open UI PR). Quiet. (20th consecutive idle run.)
+- 2026-10-05 12:56 UTC — No UI PR opened. staging moved 256ac9f -> 11c0113 (a separate full 'Redesign' merged by another session; legacy CSS incl. Pages/Engineering/engineering.css removed; all four e2e suites now fail against it). Backlog premise (eng-* styles) is obsolete; paused pending the user's decision on the base. User also sent an HTML design for the engineering Create-bill page: decision = restyle only, but BUILD ON HOLD until the user confirms the redesign is the intended base.
