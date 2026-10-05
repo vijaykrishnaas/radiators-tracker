@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
-import { Tag } from "react-tag-input";
 
-import Loader from "../../Components/Loader";
-import AlertComponent from "../../Components/AlertComponent";
 import Icons from "../../Components/Icons";
 import InputText from "../../Components/InputText";
-import InputTag from "../../Components/InputTag";
-import Switch from "../../Components/Switch";
 import { putData, postData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
+import { Badge, BtnSpinner, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
+import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Inputs";
+import { usePhone } from "../../Components/ui/hooks";
+import { buildBrand, parseHex, toHex } from "../../theme/applyTenantBrand";
 
 const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
 const resolveLogo = (url?: string) => (url && url.startsWith("/") ? `${BACKEND}${url}` : url || "");
@@ -18,107 +17,71 @@ const resolveLogo = (url?: string) => (url && url.startsWith("/") ? `${BACKEND}$
 const slugify = (label: string) =>
     label.toLowerCase().replace(/[^a-z0-9]+/g, "").trim() || label.toLowerCase();
 
-const SectionTitle = ({ title }: { title: string }) => (
-    <div className="d-flex justify-content-start align-items-center mb-4">
-        <div className="resp-bar" />
-        <span className="card-sub-title">{title}</span>
-    </div>
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp";
+const DEFAULT_LOGIN_TEXT = toHex([255, 255, 255]);
+
+type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice";
+
+/** One card per sub-section: title + one-line description, then the body. */
+const SectionCard = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
+    <section className="card" aria-label={title}>
+        <div className="card-body">
+            <CardHead title={title} subtitle={subtitle} />
+            {children}
+        </div>
+    </section>
 );
 
+/** Colour picker + hex text input bound to the same value. */
+const ColorField = ({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) => {
+    const [text, setText] = useState(value);
+    useEffect(() => setText(value), [value]);
+    const norm = (t: string) => (parseHex(t) ? toHex(parseHex(t)!) : null);
+    return (
+        <Field label={label} htmlFor={id}>
+            <div className="color-field">
+                <input id={id} type="color" className="form-control form-control-color" value={value} onChange={(e) => onChange(e.target.value)} />
+                <input
+                    type="text"
+                    className="form-control t-mono"
+                    aria-label={`${label} hex value`}
+                    maxLength={7}
+                    spellCheck={false}
+                    value={text}
+                    onChange={(e) => {
+                        setText(e.target.value);
+                        const hex = /^#[0-9a-f]{6}$/i.test(e.target.value.trim()) ? norm(e.target.value.trim()) : null;
+                        if (hex) onChange(hex);
+                    }}
+                    onBlur={() => setText(value)}
+                />
+            </div>
+        </Field>
+    );
+};
+
 const SettingsPage = () => {
-    const { settings, loading: settingsLoading, refreshSettings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { settings, refreshSettings } = useSettings();
+    const { callAlertMsg } = useAlertMsg();
+    const phone = usePhone();
 
     const [draft, setDraft] = useState<AppSettings>(settings);
     const [saving, setSaving] = useState(false);
-    const [uploadingLogo, setUploadingLogo] = useState(false);
-    const [uploadingQr, setUploadingQr] = useState(false);
-    const [uploadingBg, setUploadingBg] = useState(false);
-    const [uploadingSignature, setUploadingSignature] = useState(false);
+    const [uploading, setUploading] = useState<Record<string, boolean>>({});
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
-    const [activeTab, setActiveTab] = useState<"company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice">("company");
+    const [activeTab, setActiveTab] = useState<TabId>("company");
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
-    const [newUnit, setNewUnit] = useState("");
 
     // Automobile tenants get a parallel set of settings tabs (parts catalog,
     // flat bonus %, automobile-specific labels/invoice) instead of the
-    // radiator catalog/price-matrix/bonus-matrix tabs. Radiator behavior below
-    // is untouched — every automobile branch is additive.
+    // radiator catalog/price-matrix/bonus-matrix tabs. Engineering tenants use their own tab ids.
     const isAutomobile = draft.businessType === "automobile";
     const auto = draft.automobile;
-    // Engineering tenants use their own tab ids, so no radiator/automobile tab renders for them.
     const isEngineering = draft.businessType === "engineering";
-
-    const uploadLogo = async (file: File | undefined) => {
-        if (!file) return;
-        setUploadingLogo(true);
-        try {
-            const fd = new FormData();
-            fd.append("logo", file);
-            const res = await postData("settings/logo", fd);
-            set("company.logoUrl", res.logoUrl);
-            await refreshSettings();
-            callAlertMsg(res.message || "Logo updated", "success");
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Logo upload failed", "error");
-        } finally {
-            setUploadingLogo(false);
-        }
-    };
-
-    const uploadQr = async (file: File | undefined) => {
-        if (!file) return;
-        setUploadingQr(true);
-        try {
-            const fd = new FormData();
-            fd.append("logo", file); // the upload field is named "logo" on the backend
-            const res = await postData("settings/qr", fd);
-            set("company.qrUrl", res.qrUrl);
-            await refreshSettings();
-            callAlertMsg(res.message || "Payment QR updated", "success");
-        } catch (err: any) {
-            callAlertMsg(err?.message || "QR upload failed", "error");
-        } finally {
-            setUploadingQr(false);
-        }
-    };
-
-    const uploadSignature = async (file: File | undefined) => {
-        if (!file) return;
-        setUploadingSignature(true);
-        try {
-            const fd = new FormData();
-            fd.append("logo", file); // the upload field is named "logo" on the backend
-            const res = await postData("settings/signature", fd);
-            set("company.signatureUrl", res.signatureUrl);
-            await refreshSettings();
-            callAlertMsg(res.message || "Signature updated", "success");
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Signature upload failed", "error");
-        } finally {
-            setUploadingSignature(false);
-        }
-    };
-
-    const uploadLoginBg = async (file: File | undefined) => {
-        if (!file) return;
-        setUploadingBg(true);
-        try {
-            const fd = new FormData();
-            fd.append("logo", file); // the upload field is named "logo" on the backend
-            const res = await postData("settings/login-bg", fd);
-            set("company.loginBgUrl", res.loginBgUrl);
-            await refreshSettings();
-            callAlertMsg(res.message || "Login background updated", "success");
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Background upload failed", "error");
-        } finally {
-            setUploadingBg(false);
-        }
-    };
 
     useEffect(() => {
         setDraft(settings);
@@ -134,6 +97,28 @@ const SettingsPage = () => {
             return next;
         });
     };
+
+    // ---- Uploads (each posts immediately, then the draft gets the returned url) ----
+    const runUpload = async (key: string, endpoint: string, urlField: string, path: string, okMsg: string, failMsg: string, file: File | undefined) => {
+        if (!file) return;
+        setUploading((u) => ({ ...u, [key]: true }));
+        try {
+            const fd = new FormData();
+            fd.append("logo", file); // the upload field is named "logo" on the backend for every kind
+            const res = await postData(endpoint, fd);
+            set(path, res[urlField]);
+            await refreshSettings();
+            callAlertMsg(res.message || okMsg, "success");
+        } catch (err: any) {
+            callAlertMsg(err?.message || failMsg, "error");
+        } finally {
+            setUploading((u) => ({ ...u, [key]: false }));
+        }
+    };
+    const uploadLogo = (f: File | undefined) => runUpload("logo", "settings/logo", "logoUrl", "company.logoUrl", "Logo updated", "Logo upload failed", f);
+    const uploadQr = (f: File | undefined) => runUpload("qr", "settings/qr", "qrUrl", "company.qrUrl", "Payment QR updated", "QR upload failed", f);
+    const uploadSignature = (f: File | undefined) => runUpload("signature", "settings/signature", "signatureUrl", "company.signatureUrl", "Signature updated", "Signature upload failed", f);
+    const uploadLoginBg = (f: File | undefined) => runUpload("bg", "settings/login-bg", "loginBgUrl", "company.loginBgUrl", "Login background updated", "Background upload failed", f);
 
     const handleSave = async () => {
         try {
@@ -197,25 +182,26 @@ const SettingsPage = () => {
 
     // Same grid pattern as the price matrix, but cells are percentages.
     const bonusMatrixGrid = (role: "mechanic" | "labour") => (
-        <div className="table-body">
-            <table className="table table-bordered align-middle font-s14">
+        <div className="matrix-wrap">
+            <table className="matrix">
                 <thead>
                     <tr>
-                        <th>{draft.labels.product}</th>
+                        <th scope="col">{draft.labels.product}</th>
                         {priceableServices.map((s) => (
-                            <th key={s.value}>{s.label} (%)</th>
+                            <th scope="col" key={s.value}>{s.label} (%)</th>
                         ))}
                     </tr>
                 </thead>
                 <tbody>
                     {draft.catalog.productTypes.map((p) => (
                         <tr key={p.value}>
-                            <td className="font-w500">{p.label}</td>
+                            <th scope="row">{p.label}</th>
                             {priceableServices.map((s) => (
                                 <td key={s.value}>
-                                    <input
+                                    <AffixInput
                                         type="number"
-                                        className="form-control form-control-sm"
+                                        className="num"
+                                        suffix="%"
                                         id={`bonus-${role}-${p.value}-${s.value}`}
                                         name={`bonus-${role}-${p.value}-${s.value}`}
                                         aria-label={`${role} bonus percent for ${p.label} ${s.label}`}
@@ -259,457 +245,306 @@ const SettingsPage = () => {
         );
     };
 
-    // ---- Automobile: units ----
-    const addUnit = () => {
-        const u = newUnit.trim();
-        if (!u || auto.units.includes(u)) return;
-        set("automobile.units", [...auto.units, u]);
-        setNewUnit("");
-    };
-
-    const removeUnit = (u: string) => {
-        set("automobile.units", auto.units.filter((x) => x !== u));
-    };
-
-    // ---- Labour tags ----
-    const labourTags: Tag[] = draft.labour.map((name) => ({ id: name, text: name, className: "" }));
-
-    const handleLabourDelete = (i: number) => {
-        set("labour", draft.labour.filter((_, index) => index !== i));
-    };
-
-    const handleLabourAddition = (tag: Tag) => {
-        const name = tag.text.trim();
-        if (!name || draft.labour.includes(name)) return;
-        set("labour", [...draft.labour, name]);
-    };
-
-    const handleLabourDrag = (tag: Tag, currPos: number, newPos: number) => {
-        const next = [...draft.labour];
-        next.splice(currPos, 1);
-        next.splice(newPos, 0, tag.text);
-        set("labour", next);
-    };
-
-    // ---- Mechanic tags (same pattern as labour) ----
     const mechanics = draft.mechanics ?? [];
-    const mechanicTags: Tag[] = mechanics.map((name) => ({ id: name, text: name, className: "" }));
-
-    const handleMechanicDelete = (i: number) => {
-        set("mechanics", mechanics.filter((_, index) => index !== i));
-    };
-
-    const handleMechanicAddition = (tag: Tag) => {
-        const name = tag.text.trim();
-        if (!name || mechanics.includes(name)) return;
-        set("mechanics", [...mechanics, name]);
-    };
-
-    const handleMechanicDrag = (tag: Tag, currPos: number, newPos: number) => {
-        const next = [...mechanics];
-        next.splice(currPos, 1);
-        next.splice(newPos, 0, tag.text);
-        set("mechanics", next);
-    };
-
-    // ---- Login highlight lines (rotating text on the login page) ----
     const loginHighlights = draft.loginHighlights ?? [];
-    const highlightTags: Tag[] = loginHighlights.map((line) => ({ id: line, text: line, className: "" }));
-
-    const handleHighlightDelete = (i: number) => {
-        set("loginHighlights", loginHighlights.filter((_, index) => index !== i));
-    };
-
-    const handleHighlightAddition = (tag: Tag) => {
-        const line = tag.text.trim();
-        if (!line || loginHighlights.includes(line)) return;
-        set("loginHighlights", [...loginHighlights, line]);
-    };
-
-    const handleHighlightDrag = (tag: Tag, currPos: number, newPos: number) => {
-        const next = [...loginHighlights];
-        next.splice(currPos, 1);
-        next.splice(newPos, 0, tag.text);
-        set("loginHighlights", next);
-    };
 
     const textField = (label: string, path: string, value: string, placeholder = "") => {
         const fieldId = `setting-${path.replace(/\./g, "-")}`;
         return (
-            <div className="col-xl-6">
-                <label className="form-label" htmlFor={fieldId}>{label}</label>
-                <InputText
-                    id={fieldId}
-                    name={fieldId}
-                    value={value}
-                    placeholder={placeholder}
-                    onChange={(e) => set(path, e.target.value)}
-                />
-            </div>
+            <Field label={label} htmlFor={fieldId}>
+                <InputText id={fieldId} name={fieldId} value={value} placeholder={placeholder} onChange={(e) => set(path, e.target.value)} />
+            </Field>
         );
     };
 
+    const monthSelect = (id: string, value: number, onChange: (n: number) => void) => (
+        <Field label="Bonus year starts in" htmlFor={id}>
+            <select id={id} name={id} className="form-select" value={value} onChange={(e) => onChange(Number(e.target.value))}>
+                {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                ))}
+            </select>
+        </Field>
+    );
+
+    const pctField = (id: string, label: string, value: number, onChange: (n: number) => void) => (
+        <Field label={label} htmlFor={id}>
+            <AffixInput id={id} name={id} type="number" className="num" suffix="%" min={0} max={100} step={0.5} value={value}
+                onChange={(e) => onChange(Number(e.target.value || 0))} />
+        </Field>
+    );
+
+    const invoiceSwitches = (prefix: string, base: string, inv: { showQr: boolean; showSignature: boolean }) => (
+        <div className="form-grid">
+            <Switch id={`${prefix}show-qr`} label="Show payment QR on invoice (requires UPI ID)" checked={!!inv.showQr}
+                onChange={(v) => set(`${base}.showQr`, v)} />
+            <Switch id={`${prefix}show-signature`} label="Show signature on invoice (requires a signature image)" checked={!!inv.showSignature}
+                onChange={(v) => set(`${base}.showSignature`, v)} />
+        </div>
+    );
+
+    // ---- Tabs ----
+    const tabs: ReadonlyArray<readonly [TabId, string]> = isEngineering ? [
+        ["company", "Company"],
+        ["engCatalog", "Service Catalog"],
+        ["engPeople", "Mechanics"],
+        ["engBonus", "Bonus"],
+        ["engInvoice", "Invoice"],
+    ] : isAutomobile ? [
+        ["company", "Company"],
+        ["catalog", "Parts Catalog"],
+        ["people", `${auto.labels.agent} & ${auto.labels.worker}`],
+        ["bonus", "Bonus"],
+        ["invoice", "Labels & Invoice"],
+        ["salary", "Salary"],
+    ] : [
+        ["company", "Company"],
+        ["catalog", "Catalog & Pricing"],
+        ["people", `${draft.labels.agent} & ${draft.labels.worker}`],
+        ["bonus", "Bonus"],
+        ["invoice", "Invoice"],
+        ["salary", "Salary"],
+    ];
+
+    // ---- Branding preview (rendered from the same buildBrand() the app uses) ----
+    const primary = draft.branding.primaryColor;
+    const brand = buildBrand(primary);
+    const adjusted = brand.solid.toUpperCase() !== (primary || "").toUpperCase();
+    const previewVars = {
+        "--brand-solid": brand.solid,
+        "--on-brand": brand.onBrand,
+        "--brand-hover": brand.hover,
+        "--brand-50": brand.scale[50],
+        "--brand-text": brand.brandText,
+        "--brand-solid-border": brand.solidBorder,
+    } as React.CSSProperties;
+
+    const agentLabel = isAutomobile ? auto.labels.agent : draft.labels.agent;
+    const workerLabel = isAutomobile ? auto.labels.worker : draft.labels.worker;
+
+    const saveButton = (
+        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            <BtnSpinner show={saving} />
+            {saving ? "Saving..." : "Save All Settings"}
+        </button>
+    );
+
     return (
-        <div className="row">
-            <Loader loading={settingsLoading || saving} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <PageHeader title="Settings" primary={saveButton} />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between my-4">
-                    <h4 className="fw-semibold">Settings</h4>
-                    <button
-                        type="button"
-                        className="btn btn-primary btn-sm d-flex align-items-center"
-                        onClick={handleSave}
-                        disabled={saving}
-                    >
-                        <Icons iconName="addcircle" className="icon-12 icon-white me-2" />
-                        {saving ? "Saving..." : "Save All Settings"}
-                    </button>
-                </div>
+            {/* Tabbed sections: Save All Settings persists every tab at once. */}
+            <div className="settings-nav">
+                {phone ? (
+                    <Field label="Section" htmlFor="settings-section">
+                        <select id="settings-section" className="form-select" value={activeTab} onChange={(e) => setActiveTab(e.target.value as TabId)}>
+                            {tabs.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                        </select>
+                    </Field>
+                ) : (
+                    <TabsScroll>
+                        <SegmentedControl<TabId>
+                            label="Settings sections"
+                            value={activeTab}
+                            onChange={setActiveTab}
+                            options={tabs.map(([value, label]) => ({ value, label }))}
+                        />
+                    </TabsScroll>
+                )}
+            </div>
 
-                {/* Tabbed sections — Save All Settings (above) persists every tab at once. */}
-                <div className="settings-tabs mb-4" role="tablist">
-                    {(isEngineering ? [
-                        ["company", "Company"],
-                        ["engCatalog", "Service Catalog"],
-                        ["engPeople", "Mechanics"],
-                        ["engBonus", "Bonus"],
-                        ["engInvoice", "Invoice"],
-                    ] as const : isAutomobile ? [
-                        ["company", "Company"],
-                        ["catalog", "Parts Catalog"],
-                        ["people", `${auto.labels.agent} & ${auto.labels.worker}`],
-                        ["bonus", "Bonus"],
-                        ["invoice", "Labels & Invoice"],
-                        ["salary", "Salary"],
-                    ] as const : [
-                        ["company", "Company"],
-                        ["catalog", "Catalog & Pricing"],
-                        ["people", `${draft.labels.agent} & ${draft.labels.worker}`],
-                        ["bonus", "Bonus"],
-                        ["invoice", "Invoice"],
-                        ["salary", "Salary"],
-                    ] as const).map(([id, label]) => (
-                        <button key={id} type="button" role="tab" aria-selected={activeTab === id}
-                            className={`settings-tab${activeTab === id ? " is-active" : ""}`}
-                            onClick={() => setActiveTab(id)}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
-
+            <div className="card-stack" role="tabpanel">
                 {/* ---- Company ---- */}
                 {activeTab === "company" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Company Profile" />
-                        <div className="row form-group g-3">
-                            {textField("Company Name", "company.name", draft.company.name)}
-                            {textField("Address", "company.address", draft.company.address)}
-                        </div>
-                        <div className="row form-group g-3">
-                            {textField("Phone 1", "company.phone1", draft.company.phone1)}
-                            {textField("Phone 2", "company.phone2", draft.company.phone2)}
-                        </div>
-                        <div className="row form-group g-3">
-                            {textField("UPI ID (for payment QR)", "company.upiId", draft.company.upiId, "e.g. 7708093151@ybl")}
-                            {textField("Payment display text", "company.upiDisplay", draft.company.upiDisplay, "e.g. PhonePe 77080 93151")}
-                        </div>
-                        <div className="row form-group g-3 align-items-center">
-                            <div className="col-md-6">
-                                <label className="form-label font-w500">Business Logo</label>
-                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                                    disabled={uploadingLogo}
-                                    onChange={(e) => uploadLogo(e.target.files?.[0])} />
-                                <small className="text-muted font-s12">PNG, JPG, SVG or WebP, up to 1 MB.</small>
+                    <>
+                        <SectionCard title="Company profile" subtitle="Shown on printed bills, the sign-in page and reports.">
+                            <div className="form-grid">
+                                {textField("Company name", "company.name", draft.company.name)}
+                                {textField("Address", "company.address", draft.company.address)}
+                                {textField("Phone 1", "company.phone1", draft.company.phone1)}
+                                {textField("Phone 2", "company.phone2", draft.company.phone2)}
+                                {textField("UPI ID (for payment QR)", "company.upiId", draft.company.upiId, "e.g. 7708093151@ybl")}
+                                {textField("Payment display text", "company.upiDisplay", draft.company.upiDisplay, "e.g. PhonePe 77080 93151")}
                             </div>
-                            <div className="col-md-6">
-                                {draft.company.logoUrl ? (
-                                    <img src={resolveLogo(draft.company.logoUrl)} alt="Logo preview"
-                                        style={{ maxHeight: 60, maxWidth: 180, objectFit: "contain" }} />
-                                ) : (
-                                    <span className="text-muted font-s13">{uploadingLogo ? "Uploading..." : "No logo uploaded"}</span>
-                                )}
+                            <div className="settings-uploads">
+                                <div>
+                                    <Upload id="upload-logo" label="Business logo" hint="PNG, JPG, SVG or WebP, up to 1 MB."
+                                        accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.logoUrl)} uploading={!!uploading.logo}
+                                        emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => set("company.logoUrl", "")} />
+                                </div>
+                                <div>
+                                    <Upload id="upload-qr" label="Payment QR (printed on the bill)" hint="PNG, JPG, SVG or WebP."
+                                        accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.qrUrl)} uploading={!!uploading.qr}
+                                        emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => set("company.qrUrl", "")} />
+                                    <span className="field-help">Upload your UPI/payment QR image. If set, it's printed on the invoice instead of the auto-generated one.</span>
+                                </div>
+                                <div>
+                                    <Upload id="upload-signature" label="Authorised signature (printed on the bill)" hint="PNG, JPG, SVG or WebP, up to 1 MB."
+                                        accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.signatureUrl)} uploading={!!uploading.signature}
+                                        emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => set("company.signatureUrl", "")} />
+                                    <span className="field-help">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</span>
+                                </div>
+                                <div>
+                                    <Upload id="upload-login-bg" label="Login background (shown on your login page)" hint="PNG, JPG or WebP, up to 4 MB."
+                                        accept="image/png,image/jpeg,image/webp" previewUrl={resolveLogo(draft.company.loginBgUrl)} uploading={!!uploading.bg}
+                                        cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => set("company.loginBgUrl", "")} />
+                                    <span className="field-help">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</span>
+                                </div>
                             </div>
-                        </div>
-                        <div className="row form-group g-3 align-items-center">
-                            <div className="col-md-6">
-                                <label className="form-label font-w500">Payment QR (printed on the bill)</label>
-                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                                    disabled={uploadingQr}
-                                    onChange={(e) => uploadQr(e.target.files?.[0])} />
-                                <small className="text-muted font-s12">Upload your UPI/payment QR image. If set, it's printed on the invoice instead of the auto-generated one.</small>
-                            </div>
-                            <div className="col-md-6">
-                                {draft.company.qrUrl ? (
-                                    <img src={resolveLogo(draft.company.qrUrl)} alt="Payment QR preview"
-                                        style={{ maxHeight: 90, maxWidth: 90, objectFit: "contain" }} />
-                                ) : (
-                                    <span className="text-muted font-s13">{uploadingQr ? "Uploading..." : "No QR uploaded"}</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="row form-group g-3 align-items-center">
-                            <div className="col-md-6">
-                                <label className="form-label font-w500">Authorised signature (printed on the bill)</label>
-                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                                    disabled={uploadingSignature}
-                                    onChange={(e) => uploadSignature(e.target.files?.[0])} />
-                                <small className="text-muted font-s12">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</small>
-                            </div>
-                            <div className="col-md-6">
-                                {draft.company.signatureUrl ? (
-                                    <img src={resolveLogo(draft.company.signatureUrl)} alt="Signature preview"
-                                        style={{ maxHeight: 60, maxWidth: 160, objectFit: "contain", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: 6, background: "#fff" }} />
-                                ) : (
-                                    <span className="text-muted font-s13">{uploadingSignature ? "Uploading..." : "No signature uploaded"}</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="row form-group g-3 align-items-center">
-                            <div className="col-md-6">
-                                <label className="form-label font-w500">Login Background (shown on your login page)</label>
-                                <input type="file" className="form-control" accept="image/png,image/jpeg,image/webp"
-                                    disabled={uploadingBg}
-                                    onChange={(e) => uploadLoginBg(e.target.files?.[0])} />
-                                <small className="text-muted font-s12">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</small>
-                            </div>
-                            <div className="col-md-6">
-                                {draft.company.loginBgUrl ? (
-                                    <img src={resolveLogo(draft.company.loginBgUrl)} alt="Login background preview"
-                                        style={{ maxHeight: 90, maxWidth: 160, objectFit: "cover", borderRadius: 8 }} />
-                                ) : (
-                                    <span className="text-muted font-s13">{uploadingBg ? "Uploading..." : "Using default background"}</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                        </SectionCard>
 
-                )}
+                        <SectionCard title="Branding" subtitle="Pick the colours used across the app, printed documents and your sign-in screen.">
+                            <div className="form-grid settings-colors">
+                                <ColorField id="primary-color" label="Primary color" value={draft.branding.primaryColor}
+                                    onChange={(v) => set("branding.primaryColor", v)} />
+                                <ColorField id="accent-color" label="Accent color" value={draft.branding.accentColor}
+                                    onChange={(v) => set("branding.accentColor", v)} />
+                                <ColorField id="login-text-color" label="Login text color" value={draft.branding.loginTextColor || DEFAULT_LOGIN_TEXT}
+                                    onChange={(v) => set("branding.loginTextColor", v)} />
+                            </div>
+                            <div className="brand-preview" style={previewVars} aria-label="Brand preview">
+                                <button type="button" className="btn btn-primary" tabIndex={-1}>Primary button</button>
+                                <span className="sidebar-item is-active brand-preview-nav"><Icons iconName="grid" className="sidebar-icon" />Active menu item</span>
+                                <Badge tone="brand">Badge</Badge>
+                            </div>
+                            {adjusted && <p className="t-xs t-muted mt-2 mb-0">Adjusted slightly for readability.</p>}
+                            <span className="field-help">
+                                Primary drives the app theme and printed documents; accent drives the login screen highlights; login text color sets your company name's color on the sign-in screen.
+                            </span>
+                        </SectionCard>
 
-                {/* ---- Branding ---- */}
-                {activeTab === "company" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Branding" />
-                        <div className="row form-group g-3">
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="primary-color">Primary Color</label>
-                                <input
-                                    id="primary-color"
-                                    type="color"
-                                    className="form-control form-control-color w-100"
-                                    value={draft.branding.primaryColor}
-                                    onChange={(e) => set("branding.primaryColor", e.target.value)}
-                                />
-                            </div>
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="accent-color">Accent Color</label>
-                                <input
-                                    id="accent-color"
-                                    type="color"
-                                    className="form-control form-control-color w-100"
-                                    value={draft.branding.accentColor}
-                                    onChange={(e) => set("branding.accentColor", e.target.value)}
-                                />
-                            </div>
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="login-text-color">Login Text Color</label>
-                                <input
-                                    id="login-text-color"
-                                    type="color"
-                                    className="form-control form-control-color w-100"
-                                    value={draft.branding.loginTextColor || "#FFFFFF"}
-                                    onChange={(e) => set("branding.loginTextColor", e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
-                            Primary drives the app theme and printed documents; accent drives the login screen highlights; login text color sets your company name's color on the sign-in screen.
-                        </small>
-                    </div>
-                </div>
-
+                        <SectionCard title="Login highlight lines" subtitle="Short lines that fade in and out over your login background.">
+                            <ChipInput id="login-highlights" label="Login highlight lines" values={loginHighlights}
+                                onChange={(v) => set("loginHighlights", v)} placeholder="Type a short line and press Enter" />
+                            <span className="field-help">Short lines that fade in and out over your login background. Leave empty to use the defaults.</span>
+                        </SectionCard>
+                    </>
                 )}
 
                 {/* ---- Automobile: Parts Catalog & Units ---- */}
                 {activeTab === "catalog" && isAutomobile && (
-                <>
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Parts Catalog" />
-                        <div className="row form-group g-3">
-                            <div className="col-xl-4">
-                                <label className="form-label" htmlFor="new-part-label">Part Name</label>
-                                <InputText id="new-part-label" value={newPartLabel} placeholder="e.g. Engine Oil 15W40"
-                                    onChange={(e) => setNewPartLabel(e.target.value)} />
-                            </div>
-                            <div className="col-xl-3">
-                                <label className="form-label" htmlFor="new-part-unit">Unit</label>
-                                <InputText id="new-part-unit" value={newPartUnit} placeholder="e.g. L"
-                                    onChange={(e) => setNewPartUnit(e.target.value)} />
-                            </div>
-                            <div className="col-xl-3">
-                                <label className="form-label" htmlFor="new-part-rate">Default Rate (₹)</label>
-                                <InputText id="new-part-rate" type="number" value={newPartRate} placeholder="e.g. 450"
-                                    onChange={(e) => setNewPartRate(e.target.value)} />
-                            </div>
-                            <div className="col-xl-2 d-flex align-items-end">
-                                <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center w-100" onClick={addPart}>
-                                    <Icons iconName="addcircle" className="icon-15 icon-white me-1" />Add
+                    <>
+                        <SectionCard title="Parts catalog" subtitle="Parts you sell, with a default unit and rate.">
+                            <div className="settings-add-row">
+                                <Field label="Part name" htmlFor="new-part-label">
+                                    <InputText id="new-part-label" value={newPartLabel} placeholder="e.g. Engine Oil 15W40"
+                                        onChange={(e) => setNewPartLabel(e.target.value)} />
+                                </Field>
+                                <Field label="Unit" htmlFor="new-part-unit">
+                                    <InputText id="new-part-unit" value={newPartUnit} placeholder="e.g. L"
+                                        onChange={(e) => setNewPartUnit(e.target.value)} />
+                                </Field>
+                                <Field label="Default rate (₹)" htmlFor="new-part-rate">
+                                    <InputText id="new-part-rate" type="number" className="num" value={newPartRate} placeholder="e.g. 450"
+                                        onChange={(e) => setNewPartRate(e.target.value)} />
+                                </Field>
+                                <button type="button" className="btn btn-primary" onClick={addPart}>
+                                    <Icons iconName="plus-circle" />Add
                                 </button>
                             </div>
-                        </div>
 
-                        <div className="table-body mt-3">
-                            <table className="table table-bordered font-s14 align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Part Name</th>
-                                        <th style={{ width: "140px" }}>Unit</th>
-                                        <th style={{ width: "160px" }}>Rate (₹)</th>
-                                        <th style={{ width: "60px" }} aria-label="Actions"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {auto.parts.map((p) => (
-                                        <tr key={p.value}>
-                                            <td>
-                                                <input type="text" className="form-control form-control-sm"
-                                                    aria-label={`${p.label} name`}
-                                                    value={p.label}
-                                                    onChange={(e) => updatePartField(p.value, "label", e.target.value)} />
-                                            </td>
-                                            <td>
-                                                <input type="text" className="form-control form-control-sm"
-                                                    aria-label={`${p.label} unit`}
-                                                    value={p.unit}
-                                                    onChange={(e) => updatePartField(p.value, "unit", e.target.value)} />
-                                            </td>
-                                            <td>
-                                                <input type="number" className="form-control form-control-sm"
-                                                    aria-label={`${p.label} rate`}
-                                                    value={p.rate}
-                                                    onChange={(e) => updatePartField(p.value, "rate", e.target.value)} />
-                                            </td>
-                                            <td className="text-center">
-                                                <span role="button" aria-label={`Remove ${p.label}`} title={`Remove ${p.label}`}
-                                                    onClick={() => removePart(p.value)}>
-                                                    <Icons iconName="delete" className="icon-15" />
-                                                </span>
-                                            </td>
+                            <div className="matrix-wrap mt-3">
+                                <table className="matrix matrix-parts">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Part name</th>
+                                            <th scope="col">Unit</th>
+                                            <th scope="col">Rate (₹)</th>
+                                            <th scope="col"><span className="visually-hidden">Actions</span></th>
                                         </tr>
-                                    ))}
-                                    {!auto.parts.length && (
-                                        <tr><td colSpan={4} className="text-center text-muted py-3">No parts yet</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
-                            Picking a part on the bill form auto-fills its unit and rate; one-off items can still be typed freely.
-                        </small>
-                    </div>
-                </div>
+                                    </thead>
+                                    <tbody>
+                                        {auto.parts.map((p) => (
+                                            <tr key={p.value}>
+                                                <th scope="row">
+                                                    <input type="text" className="form-control" aria-label={`${p.label} name`} value={p.label}
+                                                        onChange={(e) => updatePartField(p.value, "label", e.target.value)} />
+                                                </th>
+                                                <td>
+                                                    <input type="text" className="form-control" aria-label={`${p.label} unit`} value={p.unit}
+                                                        onChange={(e) => updatePartField(p.value, "unit", e.target.value)} />
+                                                </td>
+                                                <td>
+                                                    <AffixInput prefix="₹" type="number" className="num" aria-label={`${p.label} rate`} value={p.rate}
+                                                        onChange={(e) => updatePartField(p.value, "rate", e.target.value)} />
+                                                </td>
+                                                <td className="matrix-actions">
+                                                    <button type="button" className="btn btn-icon is-danger" aria-label={`Remove ${p.label}`} onClick={() => removePart(p.value)}>
+                                                        <Icons iconName="delete" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {!auto.parts.length && (
+                                            <tr><td colSpan={4} className="t-muted text-center py-3">No parts yet</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <span className="field-help">
+                                Picking a part on the bill form auto-fills its unit and rate; one-off items can still be typed freely.
+                            </span>
+                        </SectionCard>
 
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Units" />
-                        <div className="d-flex gap-2 mb-3">
-                            <InputText value={newUnit} placeholder="e.g. pcs, set, L, kg, hrs"
-                                onChange={(e) => setNewUnit(e.target.value)} />
-                            <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center" onClick={addUnit}>
-                                <Icons iconName="addcircle" className="icon-15 icon-white me-1" />Add
-                            </button>
-                        </div>
-                        <div className="d-flex flex-wrap gap-2">
-                            {auto.units.map((u) => (
-                                <span key={u} className="status-badge d-flex align-items-center gap-2">
-                                    {u}
-                                    <span role="button" aria-label={`Remove ${u}`} onClick={() => removeUnit(u)}>
-                                        <Icons iconName="modelclose" className="icon-12" />
-                                    </span>
-                                </span>
-                            ))}
-                            {!auto.units.length && <span className="text-muted font-s13">No units yet</span>}
-                        </div>
-                    </div>
-                </div>
-                </>
+                        <SectionCard title="Units" subtitle="Units offered on the bill form.">
+                            <ChipInput id="auto-units" label="Units" values={auto.units} onChange={(v) => set("automobile.units", v)}
+                                placeholder="e.g. pcs, set, L, kg, hrs" />
+                        </SectionCard>
+                    </>
                 )}
 
                 {/* ---- Catalog & Prices ---- */}
                 {activeTab === "catalog" && !isAutomobile && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Catalog & Price Matrix" />
-                        <div className="row form-group g-3">
-                            <div className="col-xl-6">
-                                <label className="form-label" htmlFor="new-product">Add {draft.labels.product}</label>
+                    <SectionCard title="Catalog and price matrix" subtitle="Products, service types and the price of each combination.">
+                        <div className="form-grid">
+                            <Field label={`Add ${draft.labels.product}`} htmlFor="new-product">
                                 <div className="d-flex gap-2">
-                                    <InputText
-                                        id="new-product"
-                                        value={newProduct}
-                                        placeholder="e.g. BS-VII"
-                                        onChange={(e) => setNewProduct(e.target.value)}
-                                    />
-                                    <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center" onClick={addProduct}>
-                                        <Icons iconName="addcircle" className="icon-15 icon-white me-1" />
-                                        Add
+                                    <InputText id="new-product" value={newProduct} placeholder="e.g. BS-VII"
+                                        onChange={(e) => setNewProduct(e.target.value)} />
+                                    <button type="button" className="btn btn-primary" onClick={addProduct}>
+                                        <Icons iconName="plus-circle" />Add
                                     </button>
                                 </div>
-                            </div>
-                            <div className="col-xl-6">
-                                <label className="form-label" htmlFor="new-service">Add Service Type</label>
+                            </Field>
+                            <Field label="Add service type" htmlFor="new-service">
                                 <div className="d-flex gap-2">
-                                    <InputText
-                                        id="new-service"
-                                        value={newService}
-                                        placeholder="e.g. Pressure Test"
-                                        onChange={(e) => setNewService(e.target.value)}
-                                    />
-                                    <button type="button" className="btn btn-gradient btn-sm d-flex align-items-center" onClick={addService}>
-                                        <Icons iconName="addcircle" className="icon-15 icon-white me-1" />
-                                        Add
+                                    <InputText id="new-service" value={newService} placeholder="e.g. Pressure Test"
+                                        onChange={(e) => setNewService(e.target.value)} />
+                                    <button type="button" className="btn btn-primary" onClick={addService}>
+                                        <Icons iconName="plus-circle" />Add
                                     </button>
                                 </div>
-                            </div>
+                            </Field>
                         </div>
 
-                        <div className="table-body mt-3">
-                            <table className="table table-bordered font-s14 align-middle">
+                        <div className="matrix-wrap mt-3">
+                            <table className="matrix">
                                 <thead>
                                     <tr>
-                                        <th>{draft.labels.product}</th>
+                                        <th scope="col">{draft.labels.product}</th>
                                         {priceableServices.map((s: CatalogOption) => (
-                                            <th key={s.value}>
-                                                <div className="d-flex justify-content-between align-items-center">
-                                                    {s.label}
-                                                    <span
-                                                        role="button"
-                                                        aria-label={`Remove ${s.label}`}
-                                                        title={`Remove ${s.label}`}
-                                                        onClick={() => removeService(s.value)}
-                                                    >
-                                                        <Icons iconName="modelclose" className="icon-12 ms-2" />
-                                                    </span>
+                                            <th scope="col" key={s.value}>
+                                                <div className="matrix-th">
+                                                    <span>{s.label}</span>
+                                                    <button type="button" className="btn btn-icon" aria-label={`Remove ${s.label}`} onClick={() => removeService(s.value)}>
+                                                        <Icons iconName="x" />
+                                                    </button>
                                                 </div>
                                             </th>
                                         ))}
-                                        <th style={{ width: "60px" }} aria-label="Actions"></th>
+                                        <th scope="col"><span className="visually-hidden">Actions</span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {draft.catalog.productTypes.map((p) => (
                                         <tr key={p.value}>
-                                            <td className="font-w500">{p.label}</td>
+                                            <th scope="row">{p.label}</th>
                                             {priceableServices.map((s) => (
                                                 <td key={s.value}>
-                                                    <input
+                                                    <AffixInput
+                                                        prefix="₹"
                                                         type="number"
-                                                        className="form-control form-control-sm"
+                                                        className="num"
                                                         id={`price-${p.value}-${s.value}`}
                                                         name={`price-${p.value}-${s.value}`}
                                                         aria-label={`${p.label} ${s.label} price`}
@@ -718,373 +553,160 @@ const SettingsPage = () => {
                                                     />
                                                 </td>
                                             ))}
-                                            <td className="text-center">
-                                                <span
-                                                    role="button"
-                                                    aria-label={`Remove ${p.label}`}
-                                                    title={`Remove ${p.label}`}
-                                                    onClick={() => removeProduct(p.value)}
-                                                >
-                                                    <Icons iconName="delete" className="icon-15" />
-                                                </span>
+                                            <td className="matrix-actions">
+                                                <button type="button" className="btn btn-icon is-danger" aria-label={`Remove ${p.label}`} onClick={() => removeProduct(p.value)}>
+                                                    <Icons iconName="delete" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                        <span className="field-help">
                             Service types with a comment box (e.g. "Other") are priced manually per bill and don't appear in the matrix.
-                        </small>
-                    </div>
-                </div>
-
+                        </span>
+                    </SectionCard>
                 )}
 
-                {/* ---- Mechanic ---- */}
+                {/* ---- People ---- */}
                 {activeTab === "people" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title={`${isAutomobile ? auto.labels.agent : draft.labels.agent} List`} />
-                        <InputTag
-                            tags={mechanicTags}
-                            handleDelete={handleMechanicDelete}
-                            handleAddition={handleMechanicAddition}
-                            handleDrag={handleMechanicDrag}
-                            inputFieldPosition="bottom"
-                            placeholder="Type a name and press Enter"
-                        />
-                        <small className="text-muted font-s12">Used as the source for the {(isAutomobile ? auto.labels.agent : draft.labels.agent).toLowerCase()} dropdown in the bill form and filters.</small>
-                    </div>
-                </div>
-
-                )}
-
-                {/* ---- Login highlight lines ---- */}
-                {activeTab === "company" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Login Highlight Lines" />
-                        <InputTag
-                            tags={highlightTags}
-                            handleDelete={handleHighlightDelete}
-                            handleAddition={handleHighlightAddition}
-                            handleDrag={handleHighlightDrag}
-                            inputFieldPosition="bottom"
-                            placeholder="Type a short line and press Enter"
-                        />
-                        <small className="text-muted font-s12">Short lines that fade in and out over your login background. Leave empty to use the defaults.</small>
-                    </div>
-                </div>
-
-                )}
-
-                {/* ---- Labour ---- */}
-                {activeTab === "people" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title={`${isAutomobile ? auto.labels.worker : draft.labels.worker} List`} />
-                        <InputTag
-                            tags={labourTags}
-                            handleDelete={handleLabourDelete}
-                            handleAddition={handleLabourAddition}
-                            handleDrag={handleLabourDrag}
-                            inputFieldPosition="bottom"
-                            placeholder="Type a name and press Enter"
-                        />
-                    </div>
-                </div>
-
+                    <>
+                        <SectionCard title={`${agentLabel} list`} subtitle={`Drag to reorder, or use the chip menu.`}>
+                            <ChipInput id="mechanic-list" label={`${agentLabel} list`} values={mechanics} onChange={(v) => set("mechanics", v)}
+                                placeholder="Type a name and press Enter" />
+                            <span className="field-help">Used as the source for the {agentLabel.toLowerCase()} dropdown in the bill form and filters.</span>
+                        </SectionCard>
+                        <SectionCard title={`${workerLabel} list`} subtitle="Drag to reorder, or use the chip menu.">
+                            <ChipInput id="labour-list" label={`${workerLabel} list`} values={draft.labour} onChange={(v) => set("labour", v)}
+                                placeholder="Type a name and press Enter" />
+                        </SectionCard>
+                    </>
                 )}
 
                 {/* ---- Automobile: flat-% Bonus ---- */}
                 {activeTab === "bonus" && isAutomobile && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Bonus Configuration" />
-                        <div className="row form-group g-3 mb-3">
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="auto-mech-pct">{auto.labels.agent} Bonus % (of net bill total)</label>
-                                <input id="auto-mech-pct" type="number" className="form-control" min={0} max={100} step={0.5}
-                                    value={auto.bonus.mechanicPercent}
-                                    onChange={(e) => set("automobile.bonus.mechanicPercent", Number(e.target.value || 0))} />
-                            </div>
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="auto-labour-pct">{auto.labels.worker} Bonus % (of net bill total)</label>
-                                <input id="auto-labour-pct" type="number" className="form-control" min={0} max={100} step={0.5}
-                                    value={auto.bonus.labourPercent}
-                                    onChange={(e) => set("automobile.bonus.labourPercent", Number(e.target.value || 0))} />
-                            </div>
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="auto-year-start-month">Bonus year starts in</label>
-                                <select id="auto-year-start-month" className="form-select"
-                                    value={auto.bonus.yearStartMonth}
-                                    onChange={(e) => set("automobile.bonus.yearStartMonth", Number(e.target.value))}>
-                                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
-                                        <option key={m} value={i + 1}>{m}</option>
-                                    ))}
-                                </select>
-                            </div>
+                    <SectionCard title="Bonus configuration" subtitle="Flat percentages of each bill's net total.">
+                        <div className="form-grid settings-three">
+                            {pctField("auto-mech-pct", `${auto.labels.agent} Bonus % (of net bill total)`, auto.bonus.mechanicPercent,
+                                (n) => set("automobile.bonus.mechanicPercent", n))}
+                            {pctField("auto-labour-pct", `${auto.labels.worker} Bonus % (of net bill total)`, auto.bonus.labourPercent,
+                                (n) => set("automobile.bonus.labourPercent", n))}
+                            {monthSelect("auto-year-start-month", auto.bonus.yearStartMonth, (n) => set("automobile.bonus.yearStartMonth", n))}
                         </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                        <span className="field-help">
                             {auto.labels.agent} bonus settles yearly; {auto.labels.worker.toLowerCase()} bonus settles daily and is split equally
                             among the workers listed on each bill. Both are a flat percentage of the bill's net (post-discount) total,
                             paid in proportion to the amount collected.
-                        </small>
-                    </div>
-                </div>
+                        </span>
+                    </SectionCard>
                 )}
 
-                {/* ---- Bonus ---- */}
+                {/* ---- Bonus (radiator) ---- */}
                 {activeTab === "bonus" && !isAutomobile && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Bonus Configuration" />
-
-                        <label className="font-s16 mb-2 font-w500 d-block">
-                            Mechanic Bonus (settled yearly)
-                        </label>
-                        {bonusMatrixGrid("mechanic")}
-                        <div className="row form-group g-3 mb-4">
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="mech-default-pct">Default % (Other / unmatched)</label>
-                                <input
-                                    id="mech-default-pct"
-                                    name="mech-default-pct"
-                                    type="number"
-                                    className="form-control"
-                                    min={0}
-                                    max={100}
-                                    step={0.5}
-                                    value={draft.bonus.mechanic.defaultPercent}
-                                    onChange={(e) => set("bonus.mechanic.defaultPercent", Number(e.target.value || 0))}
-                                />
+                    <>
+                        <SectionCard title="Mechanic bonus" subtitle="Settled yearly. Bonus = service price × percent, paid in proportion to the amount collected on the bill.">
+                            {bonusMatrixGrid("mechanic")}
+                            <div className="form-grid settings-three mt-3">
+                                {pctField("mech-default-pct", "Default % (Other / unmatched)", draft.bonus.mechanic.defaultPercent,
+                                    (n) => set("bonus.mechanic.defaultPercent", n))}
+                                {monthSelect("year-start-month", draft.bonus.mechanic.yearStartMonth, (n) => set("bonus.mechanic.yearStartMonth", n))}
                             </div>
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="year-start-month">Bonus year starts in</label>
-                                <select
-                                    id="year-start-month"
-                                    name="year-start-month"
-                                    className="form-select"
-                                    value={draft.bonus.mechanic.yearStartMonth}
-                                    onChange={(e) => set("bonus.mechanic.yearStartMonth", Number(e.target.value))}
-                                >
-                                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
-                                        <option key={m} value={i + 1}>{m}</option>
-                                    ))}
-                                </select>
+                        </SectionCard>
+                        <SectionCard title={`${draft.labels.worker} bonus`} subtitle="Settled daily, split equally per bill.">
+                            {bonusMatrixGrid("labour")}
+                            <div className="form-grid settings-three mt-3">
+                                {pctField("labour-default-pct", "Default % (Other / unmatched)", draft.bonus.labour.defaultPercent,
+                                    (n) => set("bonus.labour.defaultPercent", n))}
                             </div>
-                        </div>
-
-                        <div className="session-custom-border mb-4" />
-
-                        <label className="font-s16 mb-2 font-w500 d-block">
-                            {draft.labels.worker} Bonus (settled daily, split equally per bill)
-                        </label>
-                        {bonusMatrixGrid("labour")}
-                        <div className="row form-group g-3">
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="labour-default-pct">Default % (Other / unmatched)</label>
-                                <input
-                                    id="labour-default-pct"
-                                    name="labour-default-pct"
-                                    type="number"
-                                    className="form-control"
-                                    min={0}
-                                    max={100}
-                                    step={0.5}
-                                    value={draft.bonus.labour.defaultPercent}
-                                    onChange={(e) => set("bonus.labour.defaultPercent", Number(e.target.value || 0))}
-                                />
-                            </div>
-                        </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
-                            Bonus = service price × percent, paid in proportion to the amount collected on the bill.
-                            A per-line "Bonus %" on the bill form overrides the mechanic matrix for that line.
-                        </small>
-                    </div>
-                </div>
-
+                        </SectionCard>
+                    </>
                 )}
 
                 {/* ---- Automobile: Labels & Invoice ---- */}
                 {activeTab === "invoice" && isAutomobile && (
-                <>
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Field Labels" />
-                        <div className="row form-group g-3">
-                            {textField("Vehicle number label", "automobile.labels.vehicleNo", auto.labels.vehicleNo, "Vehicle Number")}
-                            {textField("Customer label", "automobile.labels.customer", auto.labels.customer, "Customer Name")}
-                        </div>
-                        <div className="row form-group g-3">
-                            {textField("Agent label", "automobile.labels.agent", auto.labels.agent, "Mechanic")}
-                            {textField("Worker label", "automobile.labels.worker", auto.labels.worker, "Labour")}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Invoice Options" />
-                        <div className="row form-group g-3">
-                            {textField("Bill title", "automobile.invoice.billTitle", auto.invoice.billTitle, "CASH / CREDIT BILL")}
-                            {textField("Footer note", "automobile.invoice.footerNote", auto.invoice.footerNote)}
-                        </div>
-                        <div className="row form-group g-3">
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`auto-qr-${settings.automobile.invoice.showQr}`}
-                                        id="auto-show-qr"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={auto.invoice.showQr}
-                                        onChange={(e) => set("automobile.invoice.showQr", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="auto-show-qr">
-                                        Show payment QR on invoice (requires UPI ID)
-                                    </label>
-                                </div>
+                    <>
+                        <SectionCard title="Field labels" subtitle="Rename the fields shown on bill forms and lists.">
+                            <div className="form-grid">
+                                {textField("Vehicle number label", "automobile.labels.vehicleNo", auto.labels.vehicleNo, "Vehicle Number")}
+                                {textField("Customer label", "automobile.labels.customer", auto.labels.customer, "Customer Name")}
+                                {textField("Agent label", "automobile.labels.agent", auto.labels.agent, "Mechanic")}
+                                {textField("Worker label", "automobile.labels.worker", auto.labels.worker, "Labour")}
                             </div>
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`auto-sig-${settings.automobile.invoice.showSignature}`}
-                                        id="auto-show-signature"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={auto.invoice.showSignature}
-                                        onChange={(e) => set("automobile.invoice.showSignature", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="auto-show-signature">
-                                        Show signature on invoice (requires a signature image)
-                                    </label>
-                                </div>
+                        </SectionCard>
+                        <SectionCard title="Invoice options" subtitle="Title, footer and extras printed on every invoice.">
+                            <div className="form-grid">
+                                {textField("Bill title", "automobile.invoice.billTitle", auto.invoice.billTitle, "CASH / CREDIT BILL")}
+                                {textField("Footer note", "automobile.invoice.footerNote", auto.invoice.footerNote)}
                             </div>
-                        </div>
-                    </div>
-                </div>
-                </>
+                            <div className="mt-3">{invoiceSwitches("auto-", "automobile.invoice", auto.invoice)}</div>
+                        </SectionCard>
+                    </>
                 )}
 
-                {/* ---- Labels ---- */}
+                {/* ---- Labels & Invoice (radiator) ---- */}
                 {activeTab === "invoice" && !isAutomobile && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Field Labels" />
-                        <div className="row form-group g-3">
-                            {textField("Vehicle number label", "labels.vehicleNo", draft.labels.vehicleNo, "Truck Number")}
-                            {textField("Party / customer label", "labels.party", draft.labels.party, "Lorry Address")}
-                        </div>
-                        <div className="row form-group g-3">
-                            {textField("Agent label", "labels.agent", draft.labels.agent, "Mechanic Name")}
-                            {textField("Product label", "labels.product", draft.labels.product, "Radiator Model")}
-                        </div>
-                        <div className="row form-group g-3">
-                            {textField("Worker label", "labels.worker", draft.labels.worker, "Labour Name")}
-                        </div>
-                    </div>
-                </div>
-
+                    <>
+                        <SectionCard title="Field labels" subtitle="Rename the fields shown on bill forms and lists.">
+                            <div className="form-grid">
+                                {textField("Vehicle number label", "labels.vehicleNo", draft.labels.vehicleNo, "Truck Number")}
+                                {textField("Party / customer label", "labels.party", draft.labels.party, "Lorry Address")}
+                                {textField("Agent label", "labels.agent", draft.labels.agent, "Mechanic Name")}
+                                {textField("Product label", "labels.product", draft.labels.product, "Radiator Model")}
+                                {textField("Worker label", "labels.worker", draft.labels.worker, "Labour Name")}
+                            </div>
+                        </SectionCard>
+                        <SectionCard title="Invoice options" subtitle="Title, footer and extras printed on every invoice.">
+                            <div className="form-grid">
+                                {textField("Bill title", "invoice.billTitle", draft.invoice.billTitle, "CASH / CREDIT BILL")}
+                                {textField("Footer note", "invoice.footerNote", draft.invoice.footerNote)}
+                            </div>
+                            <div className="mt-3">{invoiceSwitches("", "invoice", draft.invoice)}</div>
+                        </SectionCard>
+                    </>
                 )}
 
-                {/* ---- Invoice ---- */}
-                {activeTab === "invoice" && !isAutomobile && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Invoice Options" />
-                        <div className="row form-group g-3">
-                            {textField("Bill title", "invoice.billTitle", draft.invoice.billTitle, "CASH / CREDIT BILL")}
-                            {textField("Footer note", "invoice.footerNote", draft.invoice.footerNote)}
-                        </div>
-                        <div className="row form-group g-3">
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`qr-${settings.invoice.showQr}`}
-                                        id="show-qr"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={draft.invoice.showQr}
-                                        onChange={(e) => set("invoice.showQr", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="show-qr">
-                                        Show payment QR on invoice (requires UPI ID)
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`sig-${settings.invoice.showSignature}`}
-                                        id="show-signature"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={draft.invoice.showSignature}
-                                        onChange={(e) => set("invoice.showSignature", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="show-signature">
-                                        Show signature on invoice (requires a signature image)
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                )}
-
-                {/* ---- Salary Management (unconditional — applies to every tenant) ---- */}
+                {/* ---- Salary (applies to every non-engineering tenant) ---- */}
                 {activeTab === "salary" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Salary Defaults" />
-                        <div className="row form-group g-3">
-                            <div className="col-xl-4 col-md-6">
-                                <label className="form-label" htmlFor="salary-pay-cycle">Pay Cycle</label>
-                                <select id="salary-pay-cycle" className="form-select" value={draft.salary.payCycle}
-                                    onChange={(e) => set("salary.payCycle", e.target.value)}>
-                                    <option value="monthly">Monthly</option>
-                                </select>
-                            </div>
-                            <div className="col-xl-4 col-md-6">
-                                <label className="form-label" htmlFor="salary-working-day-rule">Working Day Rule</label>
-                                <select id="salary-working-day-rule" className="form-select" value={draft.salary.workingDayRule}
-                                    onChange={(e) => set("salary.workingDayRule", e.target.value)}>
-                                    <option value="allDays">Every calendar day</option>
-                                    <option value="excludeWeeklyOff">Exclude a weekly off day</option>
-                                </select>
-                            </div>
-                            {draft.salary.workingDayRule === "excludeWeeklyOff" && (
-                                <div className="col-xl-4 col-md-6">
-                                    <label className="form-label" htmlFor="salary-weekly-off-day">Weekly Off Day</label>
-                                    <select id="salary-weekly-off-day" className="form-select" value={draft.salary.weeklyOffDay}
-                                        onChange={(e) => set("salary.weeklyOffDay", Number(e.target.value))}>
-                                        {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
-                                            <option key={d} value={i}>{d}</option>
-                                        ))}
+                    <>
+                        <SectionCard title="Salary defaults" subtitle="How net salary is worked out for each pay period.">
+                            <div className="form-grid settings-three">
+                                <Field label="Pay cycle" htmlFor="salary-pay-cycle">
+                                    <select id="salary-pay-cycle" className="form-select" value={draft.salary.payCycle}
+                                        onChange={(e) => set("salary.payCycle", e.target.value)}>
+                                        <option value="monthly">Monthly</option>
                                     </select>
-                                </div>
-                            )}
-                        </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
-                            Working days control the salary formula: net = base salary × present days / working days
-                            in the settlement period. Applies identically to radiator and automobile tenants.
-                        </small>
-                    </div>
-                </div>
-                )}
-
-                {activeTab === "salary" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Payslip" />
-                        <div className="row form-group g-3">
-                            {textField("Payslip title", "salary.payslip.title", draft.salary.payslip.title, "SALARY SLIP")}
-                            {textField("Payslip footer note", "salary.payslip.footerNote", draft.salary.payslip.footerNote)}
-                        </div>
-                    </div>
-                </div>
+                                </Field>
+                                <Field label="Working day rule" htmlFor="salary-working-day-rule">
+                                    <select id="salary-working-day-rule" className="form-select" value={draft.salary.workingDayRule}
+                                        onChange={(e) => set("salary.workingDayRule", e.target.value)}>
+                                        <option value="allDays">Every calendar day</option>
+                                        <option value="excludeWeeklyOff">Exclude a weekly off day</option>
+                                    </select>
+                                </Field>
+                                {draft.salary.workingDayRule === "excludeWeeklyOff" && (
+                                    <Field label="Weekly off day" htmlFor="salary-weekly-off-day">
+                                        <select id="salary-weekly-off-day" className="form-select" value={draft.salary.weeklyOffDay}
+                                            onChange={(e) => set("salary.weeklyOffDay", Number(e.target.value))}>
+                                            {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
+                                                <option key={d} value={i}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                )}
+                            </div>
+                            <span className="field-help">
+                                Working days control the salary formula: net = base salary × present days / working days
+                                in the settlement period. Applies identically to radiator and automobile tenants.
+                            </span>
+                        </SectionCard>
+                        <SectionCard title="Payslip" subtitle="Heading and footer printed on each payslip.">
+                            <div className="form-grid">
+                                {textField("Payslip title", "salary.payslip.title", draft.salary.payslip.title, "SALARY SLIP")}
+                                {textField("Payslip footer note", "salary.payslip.footerNote", draft.salary.payslip.footerNote)}
+                            </div>
+                        </SectionCard>
+                    </>
                 )}
 
                 {/* ---- Engineering tenants only ---- */}
@@ -1093,99 +715,41 @@ const SettingsPage = () => {
                 )}
 
                 {isEngineering && activeTab === "engPeople" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Mechanic List" />
-                        <InputTag
-                            tags={mechanicTags}
-                            handleDelete={handleMechanicDelete}
-                            handleAddition={handleMechanicAddition}
-                            handleDrag={handleMechanicDrag}
-                            inputFieldPosition="bottom"
-                            placeholder="Type a name and press Enter"
-                        />
-                        <small className="text-muted font-s12">Used as the source for the mechanic dropdown in the service form.</small>
-                    </div>
-                </div>
+                    <SectionCard title="Mechanic list" subtitle="Drag to reorder, or use the chip menu.">
+                        <ChipInput id="mechanic-list" label="Mechanic list" values={mechanics} onChange={(v) => set("mechanics", v)}
+                            placeholder="Type a name and press Enter" />
+                        <span className="field-help">Used as the source for the mechanic dropdown in the service form.</span>
+                    </SectionCard>
                 )}
 
                 {isEngineering && draft.engineering && activeTab === "engBonus" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Mechanic Bonus" />
-                        <div className="row form-group g-3 mb-3">
-                            <div className="col-xl-3 col-md-6">
-                                <label className="form-label" htmlFor="eng-mech-pct">Mechanic bonus % (of net bill total)</label>
-                                <input id="eng-mech-pct" type="number" className="form-control" min={0} max={100} step={0.5}
-                                    value={draft.engineering.bonus?.mechanicPercent ?? 0}
-                                    onChange={(e) => set("engineering.bonus", { mechanicPercent: Number(e.target.value || 0) })} /* whole object: tenants created before this setting have no engineering.bonus yet */ />
-                            </div>
+                    <SectionCard title="Mechanic bonus" subtitle="One percentage of each bill's net total.">
+                        <div className="form-grid settings-three">
+                            {pctField("eng-mech-pct", "Mechanic bonus % (of net bill total)", draft.engineering.bonus?.mechanicPercent ?? 0,
+                                /* whole object: tenants created before this setting have no engineering.bonus yet */
+                                (n) => set("engineering.bonus", { mechanicPercent: n }))}
                         </div>
-                        <small className="font-s12" style={{ color: "var(--purple)" }}>
+                        <span className="field-help">
                             Each bill earns its mechanic this percentage of the bill's net (post-discount) total, payable in proportion to
                             the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog →
                             Financial year. After changing the percentage, open Bonus → Sync to re-price existing bills.
-                        </small>
-                    </div>
-                </div>
+                        </span>
+                    </SectionCard>
                 )}
 
                 {isEngineering && draft.engineering?.invoice && activeTab === "engInvoice" && (
-                <div className="card card-shadow mb-4">
-                    <div className="card-body">
-                        <SectionTitle title="Invoice Options" />
-                        <div className="row form-group g-3">
+                    <SectionCard title="Invoice options" subtitle="Title, footer and extras printed on every invoice.">
+                        <div className="form-grid">
                             {textField("Bill title", "engineering.invoice.billTitle", draft.engineering.invoice.billTitle, "CASH / CREDIT BILL")}
                             {textField("Footer note", "engineering.invoice.footerNote", draft.engineering.invoice.footerNote)}
                         </div>
-                        <div className="row form-group g-3">
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`eng-qr-${settings.engineering?.invoice?.showQr}`}
-                                        id="eng-show-qr"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={draft.engineering.invoice.showQr}
-                                        onChange={(e) => set("engineering.invoice.showQr", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="eng-show-qr">
-                                        Show payment QR on invoice (requires UPI ID)
-                                    </label>
-                                </div>
-                            </div>
-                            <div className="col-xl-6 d-flex align-items-end">
-                                <div className="d-flex align-items-center gap-2">
-                                    <Switch
-                                        key={`eng-sig-${settings.engineering?.invoice?.showSignature}`}
-                                        id="eng-show-signature"
-                                        className="switch"
-                                        switchClassName="blue"
-                                        defaultChecked={draft.engineering.invoice.showSignature}
-                                        onChange={(e) => set("engineering.invoice.showSignature", e.target.checked)}
-                                    />
-                                    <label className="form-label mb-0" htmlFor="eng-show-signature">
-                                        Show signature on invoice (requires a signature image)
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                        <div className="mt-3">{invoiceSwitches("eng-", "engineering.invoice", draft.engineering.invoice)}</div>
+                    </SectionCard>
                 )}
-
-                <div className="d-flex justify-content-end mb-5 gap-2">
-                    <button
-                        type="button"
-                        className="btn btn-primary d-flex align-items-center"
-                        onClick={handleSave}
-                        disabled={saving}
-                    >
-                        {saving ? "Saving..." : "Save All Settings"}
-                    </button>
-                </div>
             </div>
-        </div>
+
+            <FormFooter>{saveButton}</FormFooter>
+        </>
     );
 };
 
