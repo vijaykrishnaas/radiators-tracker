@@ -374,8 +374,8 @@ const CreateRadiators = () => {
                                                 </div>
                                                 {!isView && fields.length > 1 && (
                                                     <div className="col-md-auto pt-md-4 mt-md-2">
-                                                        <button type="button" className="btn btn-outline-danger" onClick={() => remove(index)}>
-                                                            <Icons iconName="delete" />Remove
+                                                        <button type="button" className="btn btn-outline-danger btn-icon" aria-label={`Remove service ${index + 1}`} title="Remove" onClick={() => remove(index)}>
+                                                            <Icons iconName="delete" />
                                                         </button>
                                                     </div>
                                                 )}

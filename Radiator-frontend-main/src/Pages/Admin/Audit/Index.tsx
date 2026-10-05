@@ -9,7 +9,7 @@ import { DataList, MobileCard, Pagination, type Column } from "../../../Componen
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN");
-const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN");
 const opt = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v) || null;
 
 const ActionBadge = ({ action }: { action: string }) => {

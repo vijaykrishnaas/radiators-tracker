@@ -10,7 +10,7 @@ import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN");
-const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d: string) => new Date(d).toLocaleTimeString("en-IN");
 
 const ActionBadge = ({ action }: { action: string }) => {
     const label = actionLabel(action);
