@@ -1,14 +1,20 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Icons from "../../Components/Icons";
-import Loader from "../../Components/Loader";
+import RowActions from "../../Components/RowActions";
 import Selector from "../../Components/Selector";
-import AlertComponent from "../../Components/AlertComponent";
 import { getData, postData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import { useSettings } from "../../Context/SettingsContext";
 import { money, today, fyStart } from "../../Utils/format";
+import { PageHeader, Badge, Callout, Field } from "../../Components/ui/Basics";
+import Modal from "../../Components/ui/Modal";
+import { FilterBar } from "../../Components/ui/Filters";
+import { DataList, MobileCard, type Column } from "../../Components/ui/DataList";
+import { AffixInput } from "../../Components/ui/Inputs";
+import { useRemoteList } from "../../Components/ui/useRemoteList";
+import { usePhone } from "../../Components/ui/hooks";
 
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -44,6 +50,48 @@ const STATUS_OPTIONS = [
 
 // Shared by Mechanic & Labour bonus pages. `type` switches the role; `defaultFrom`
 // sets the start of the default range (FY for mechanic, month for labour).
+const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("en-IN") : "—");
+const statusBadge = (paid: boolean) => <Badge tone={paid ? "success" : "warning"} dot>{paid ? "Paid" : "Pending"}</Badge>;
+
+const BillsBehind = ({ row }: { row: BonusRow }) => {
+    const phone = usePhone();
+    return (
+    <>
+        <p className="t-xs t-muted t-medium mb-2">Bills behind {row.beneficiary}'s bonus</p>
+        <div className="mini-table">
+            <div className={phone ? "table-wrap" : undefined}>
+                <table className="table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col" className="num">Work value</th>
+                            <th scope="col" className="num">Collected</th>
+                            <th scope="col" className="num">Bonus earned</th>
+                            <th scope="col" className="num">Ready to pay</th>
+                            <th scope="col" className="num">Paid</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {row.records.map((rec, i) => (
+                            <tr key={i}>
+                                <td className="nowrap tabular">{fmtDate(rec.billDate)}</td>
+                                <td className="num">{money(rec.billAmount)}</td>
+                                <td className="num">{money(rec.receivedAmount)}</td>
+                                <td className="num">{money(rec.accruedAmount)}</td>
+                                <td className="num">{money(rec.payableAmount)}</td>
+                                <td className="num">{rec.status === "paid" ? money(rec.paidAmount || 0) : "—"}</td>
+                                <td>{statusBadge(rec.status === "paid")}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </>
+    );
+};
+
 export function BonusPage({
     type,
     title,
@@ -61,10 +109,9 @@ export function BonusPage({
 }) {
     const navigate = useNavigate();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
 
-    const [loading, setLoading] = useState(false);
-    const [rows, setRows] = useState<BonusRow[]>([]);
+    const [saving, setSaving] = useState(false);
     const [from, setFrom] = useState(defaultFrom);
     const [to, setTo] = useState(today());
     const [name, setName] = useState("");
@@ -89,18 +136,14 @@ export function BonusPage({
     const [manualAmount, setManualAmount] = useState("");
     const [manualNote, setManualNote] = useState("");
 
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const res = await getData("bonus/pending", { params: { type, from, to, beneficiary: name, status } });
-            setRows(res.rows || []);
-            setSelected(new Set());
-        } catch (err: any) {
-            callAlertMsg(err?.message || "Failed to load bonus data", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const list = useRemoteList<BonusRow>(async () => {
+        const res = await getData("bonus/pending", { params: { type, from, to, beneficiary: name, status } });
+        return { rows: res.rows || [] };
+    }, [from, to, name, status]);
+    const rows = list.rows;
+
+    // A fresh load clears any ticked rows.
+    useEffect(() => { setSelected(new Set()); }, [list.rows]);
 
     const fetchNames = async () => {
         if (type === "labour") {
@@ -116,25 +159,20 @@ export function BonusPage({
     };
 
     useEffect(() => {
-        fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [from, to, name, status]);
-
-    useEffect(() => {
         fetchNames();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleRecalculate = async () => {
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await postData("bonus/sync", {});
             callAlertMsg(res.message || "Recalculated", "success");
-            await fetchData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Recalculate failed", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -147,7 +185,7 @@ export function BonusPage({
     const confirmIssue = async () => {
         if (!issueRow) return;
         try {
-            setLoading(true);
+            setSaving(true);
             const amt = Number(issueAmount);
             const res = await postData("bonus/payout", {
                 type, beneficiary: issueRow.beneficiary, from, to,
@@ -156,11 +194,11 @@ export function BonusPage({
             });
             callAlertMsg(res.message || "Bonus issued", "success");
             setIssueRow(null);
-            await fetchData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Issue failed", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -175,29 +213,30 @@ export function BonusPage({
         const amt = Number(editAmount);
         if (isNaN(amt) || amt < 0) { callAlertMsg("Enter a valid amount (0 or more)", "error"); return; }
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await postData("bonus/adjust", {
                 type, beneficiary: editRow.beneficiary, from, to, amount: amt, note: editNote,
             });
             callAlertMsg(res.message || "Bonus corrected", "success");
             setEditRow(null);
-            await fetchData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Correction failed", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
     // Bulk issue: settle each selected beneficiary at their own payable (no override).
     const pendingRows = rows.filter((r) => r.status === "Pending");
     const toggleSel = (b: string) =>
-        setSelected((prev) => { const n = new Set(prev); n.has(b) ? n.delete(b) : n.add(b); return n; });
+        setSelected((prev) => { const n = new Set(prev); if (n.has(b)) n.delete(b); else n.add(b); return n; });
     const toggleAll = () =>
         setSelected((prev) => prev.size === pendingRows.length ? new Set() : new Set(pendingRows.map((r) => r.beneficiary)));
+    const selectedPayable = rows.filter((r) => selected.has(r.beneficiary)).reduce((a, r) => a + r.payableBonus, 0);
     const confirmBulk = async () => {
         try {
-            setLoading(true);
+            setSaving(true);
             let ok = 0;
             for (const b of selected) {
                 const r = await postData("bonus/payout", { type, beneficiary: b, from, to });
@@ -205,11 +244,11 @@ export function BonusPage({
             }
             callAlertMsg(`Issued ${ok} bonus entr${ok === 1 ? "y" : "ies"} for ${selected.size} ${nameLabel.toLowerCase()}(s) ✅`, "success");
             setBulkOpen(false);
-            await fetchData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Bulk issue failed", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -220,15 +259,15 @@ export function BonusPage({
         if (!manualName) { callAlertMsg(`Choose a ${nameLabel.toLowerCase()}`, "error"); return; }
         if (!amt || amt <= 0) { callAlertMsg("Enter a positive amount", "error"); return; }
         try {
-            setLoading(true);
+            setSaving(true);
             const res = await postData("bonus/manual", { type, beneficiary: manualName, amount: amt, note: manualNote });
             callAlertMsg(res.message || "Manual bonus recorded", "success");
             setManualOpen(false);
-            await fetchData();
+            await list.reload();
         } catch (err: any) {
             callAlertMsg(err?.message || "Manual bonus failed", "error");
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -273,310 +312,313 @@ export function BonusPage({
     };
 
     const nameOptions = nameList.map((m) => ({ value: m, label: m }));
+    const statusOpt = STATUS_OPTIONS.find((o) => o.value === status) || null;
+    const nameOpt = nameOptions.find((o) => o.value === name) || null;
+
+    const activeCount = (name ? 1 : 0) + (status !== "pending" ? 1 : 0) + (from !== defaultFrom ? 1 : 0) + (to !== today() ? 1 : 0);
+    const clearFilters = () => { setFrom(defaultFrom); setTo(today()); setName(""); setStatus("pending"); };
+
+    const rowMenu = (r: BonusRow) => (
+        <RowActions ariaLabel={`Actions for ${r.beneficiary}`} items={[
+            { label: expanded === r.beneficiary ? "Hide" : "Details", icon: <Icons iconName="view" />, onClick: () => setExpanded(expanded === r.beneficiary ? null : r.beneficiary) },
+            ...(r.status === "Pending" ? [{ label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(r) }] : []),
+        ]} />
+    );
+
+    const allPendingSelected = pendingRows.length > 0 && selected.size === pendingRows.length;
+    const columns: Column<BonusRow>[] = [
+        {
+            key: "sel",
+            header: <input type="checkbox" className="form-check-input" checked={allPendingSelected} disabled={pendingRows.length === 0}
+                onChange={toggleAll} aria-label="Select all pending" />,
+            width: 1,
+            cell: (r) => (
+                <input type="checkbox" className="form-check-input" disabled={r.status === "Paid"}
+                    checked={selected.has(r.beneficiary)} onChange={() => toggleSel(r.beneficiary)}
+                    aria-label={`Select ${r.beneficiary}`} />
+            ),
+        },
+        {
+            key: "name", header: nameLabel, className: "key nowrap",
+            cell: (r) => (
+                <>
+                    <button type="button" className="expand-btn" aria-expanded={expanded === r.beneficiary}
+                        aria-label={`${expanded === r.beneficiary ? "Hide" : "Show"} bills for ${r.beneficiary}`}
+                        onClick={() => setExpanded(expanded === r.beneficiary ? null : r.beneficiary)}>
+                        <Icons iconName="chevron-right" />
+                    </button>
+                    {r.beneficiary}
+                </>
+            ),
+        },
+        { key: "jobs", header: "Jobs", className: "num", cell: (r) => r.operations },
+        { key: "work", header: "Work value", className: "num", cell: (r) => money(r.totalBusiness) },
+        { key: "coll", header: "Collected", className: "num", cell: (r) => money(r.totalCollected) },
+        { key: "earned", header: "Bonus earned", className: "num", cell: (r) => money(r.accruedBonus) },
+        { key: "ready", header: "Ready to pay", className: "num t-semibold t-strong", cell: (r) => money(r.payableBonus) },
+        { key: "paid", header: "Paid", className: "num", cell: (r) => (r.status === "Paid" ? money(r.paidBonus) : "—") },
+        { key: "status", header: "Status", className: "nowrap", cell: (r) => statusBadge(r.status === "Paid") },
+        {
+            key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num",
+            cell: (r) => (
+                <>
+                    {r.status === "Pending" && (
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openIssue(r)}>Issue</button>
+                    )}
+                    {rowMenu(r)}
+                </>
+            ),
+        },
+    ];
+
+    const filterBar = (
+        <FilterBar
+            activeCount={activeCount}
+            onClear={clearFilters}
+            filters={[
+                { id: "bonus-from", label: "From", primary: true, node: <input id="bonus-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /> },
+                { id: "bonus-to", label: "To", primary: true, node: <input id="bonus-to" type="date" className="form-control" value={to} min={from} onChange={(e) => setTo(e.target.value)} /> },
+                { id: "bonus-name", label: nameLabel, node: <Selector inputId="bonus-name" isClearable options={nameOptions} placeholder={`-- All ${nameLabel}s --`} value={nameOpt} onChange={(o: any) => setName(o ? o.value : "")} /> },
+                { id: "bonus-status", label: "Status", node: <Selector inputId="bonus-status" options={STATUS_OPTIONS} value={statusOpt as any} onChange={(o: any) => setStatus(o ? o.value : "")} /> },
+            ]}
+        />
+    );
+
+    const bulkBar = selected.size > 0 && (
+        <div className="bulk-bar" role="status">
+            <span><strong>{selected.size} selected</strong> · {money(selectedPayable)} ready to pay</span>
+            <div className="bulk-actions">
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setBulkOpen(true)}>Issue selected</button>
+                <button type="button" className="btn btn-link btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+            </div>
+        </div>
+    );
+
+    const totalsFooter = (
+        <tr>
+            <td colSpan={2}>Total</td>
+            <td className="num">{totals.operations}</td>
+            <td className="num">{money(totals.business)}</td>
+            <td className="num">{money(totals.collected)}</td>
+            <td className="num">{money(totals.accrued)}</td>
+            <td className="num">{money(totals.payable)}</td>
+            <td className="num">{money(totals.paid)}</td>
+            <td colSpan={2}></td>
+        </tr>
+    );
+
+    const mobileTotals = (
+        <dl className="key-values">
+            <div><dt>Jobs</dt><dd>{totals.operations}</dd></div>
+            <div><dt>Work value</dt><dd>{money(totals.business)}</dd></div>
+            <div><dt>Collected</dt><dd>{money(totals.collected)}</dd></div>
+            <div><dt>Bonus earned</dt><dd>{money(totals.accrued)}</dd></div>
+            <div><dt>Paid</dt><dd>{money(totals.paid)}</dd></div>
+            <div className="is-total"><dt>Ready to pay</dt><dd>{money(totals.payable)}</dd></div>
+        </dl>
+    );
+
+    const issueSubmit = (fn: () => void) => (e: React.FormEvent) => { e.preventDefault(); fn(); };
 
     return (
-        <div className="row">
-            <Loader loading={loading} />
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
+        <>
+            <PageHeader
+                title={title}
+                subtitle={
+                    <>
+                        Every bill earns a bonus based on the rates you set in <strong>Settings → Bonus</strong>.
+                        This lists what's pending from bills dated <strong>{from}</strong> to <strong>{to}</strong>.
+                        Open a row to see the bills behind it, then <strong>Issue</strong> a person their bonus —
+                        or tick several and use <strong>Issue selected</strong>.
+                    </>
+                }
+                actions={[
+                    { label: "Analytics", icon: "bar_chart", onClick: () => navigate(reviewPath) },
+                    { label: "Excel", icon: "exporticon", onClick: exportExcel, collapse: true },
+                    { label: "PDF", icon: "entrolment_download", onClick: exportPDF, collapse: true },
+                    { label: "Recalculate", icon: "refresh", onClick: handleRecalculate, disabled: saving },
+                    { label: "Manual bonus", icon: "add", onClick: openManual },
+                ]}
+            />
 
-            <div className="col">
-                <div className="w-100 d-flex justify-content-between align-items-center my-4 flex-wrap gap-2">
-                    <h4 className="fw-semibold mb-0">{title}</h4>
-                    <div className="d-flex gap-2 flex-wrap">
-                        {selected.size > 0 && (
-                            <button type="button" className="btn btn-primary btn-sm d-flex align-items-center" onClick={() => setBulkOpen(true)}>
-                                <Icons iconName="add" className="icon-12 icon-white me-2" />Issue selected ({selected.size})
-                            </button>
-                        )}
-                        <button type="button" className="btn btn-primary btn-sm d-flex align-items-center" onClick={openManual} title="Give a discretionary bonus to anyone, any amount">
-                            <Icons iconName="add" className="icon-12 icon-white me-2" />Manual bonus
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={handleRecalculate} title="Recompute bonuses (e.g. after changing bonus % in Settings)">
-                            <Icons iconName="refresh" className="icon-15 me-2" />Recalculate
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={exportExcel}>
-                            <Icons iconName="exporticon" className="icon-15 me-2" />Excel
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={exportPDF}>
-                            <Icons iconName="entrolment_download" className="icon-15 me-2" />PDF
-                        </button>
-                        <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" onClick={() => navigate(reviewPath)}>
-                            <Icons iconName="bar_chart" className="icon-15 me-2" />Analytics
-                        </button>
-                    </div>
-                </div>
-
-                {/* Plain-language explainer — what this screen does + how to act on it */}
-                <p className="font-s13 text-muted mb-2" style={{ maxWidth: 820 }}>
-                    Every bill earns a bonus based on the rates you set in <span className="fw-semibold">Settings → Bonus</span>.
-                    This lists what's pending from bills dated <span className="fw-semibold">{from}</span> to <span className="fw-semibold">{to}</span>.
-                    Open a row to see the bills behind it, then <span className="fw-semibold">Issue</span> a person their bonus —
-                    or tick several and use <span className="fw-semibold">Issue selected</span>.
-                </p>
-                {rows.length > 0 && totals.accrued === 0 && (
-                    <div className="font-s13 mb-3" role="status"
-                        style={{ background: "var(--surface-sunken)", border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "10px 14px", color: "var(--ink-700)" }}>
+            {list.status === "ready" && rows.length > 0 && totals.accrued === 0 && (
+                <div className="mb-3">
+                    <Callout tone="warning">
                         No bonus is accruing for these jobs yet — set a bonus&nbsp;% for these services in{" "}
-                        <span className="text-primary fw-semibold" style={{ cursor: "pointer" }} onClick={() => navigate("/settings")}>Settings → Bonus</span>,
-                        then click <span className="fw-semibold">Recalculate</span>.
-                    </div>
-                )}
-
-                <div className="card card-shadow mt-2">
-                    <div className="card-body p-0">
-                        <div className="table-header">
-                            <div className="row table-accordion-header align-items-end g-3">
-                                <div className="col-6 col-md-3 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">From</label>
-                                    <input type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
-                                </div>
-                                <div className="col-6 col-md-3 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">To</label>
-                                    <input type="date" className="form-control" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
-                                </div>
-                                <div className="col-12 col-md-3 col-xl-3">
-                                    <label className="form-label font-w500 mb-1">{nameLabel}</label>
-                                    <Selector isClearable options={nameOptions} placeholder={`-- All ${nameLabel}s --`}
-                                        onChange={(o: any) => setName(o ? o.value : "")} />
-                                </div>
-                                <div className="col-12 col-md-3 col-xl-2">
-                                    <label className="form-label font-w500 mb-1">Status</label>
-                                    <Selector options={STATUS_OPTIONS} value={STATUS_OPTIONS.find((o) => o.value === status) as any}
-                                        onChange={(o: any) => setStatus(o ? o.value : "")} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="table-body">
-                            <table className="table table-bordered font-s14">
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: 36 }}>
-                                            <input type="checkbox" checked={pendingRows.length > 0 && selected.size === pendingRows.length}
-                                                onChange={toggleAll} aria-label="Select all pending" />
-                                        </th>
-                                        <th>{nameLabel}</th>
-                                        <th>Jobs</th>
-                                        <th>Work value</th>
-                                        <th>Collected</th>
-                                        <th>Bonus earned</th>
-                                        <th>Ready to pay</th>
-                                        <th>Paid</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.length ? rows.map((r) => (
-                                        <Fragment key={r.beneficiary}>
-                                            <tr>
-                                                <td>
-                                                    <input type="checkbox" disabled={r.status === "Paid"}
-                                                        checked={selected.has(r.beneficiary)} onChange={() => toggleSel(r.beneficiary)}
-                                                        aria-label={`Select ${r.beneficiary}`} />
-                                                </td>
-                                                <td className="font-w600">{r.beneficiary}</td>
-                                                <td>{r.operations}</td>
-                                                <td>{money(r.totalBusiness)}</td>
-                                                <td>{money(r.totalCollected)}</td>
-                                                <td>{money(r.accruedBonus)}</td>
-                                                <td className="font-w600">{money(r.payableBonus)}</td>
-                                                <td>{r.status === "Paid" ? money(r.paidBonus) : "—"}</td>
-                                                <td>
-                                                    <span className={`status-badge ${r.status === "Paid" ? "status-badge-success" : "status-badge-warning"}`}>{r.status}</span>
-                                                </td>
-                                                <td>
-                                                    <div className="d-flex gap-2">
-                                                        <button type="button" className="btn btn-cancel btn-sm"
-                                                            onClick={() => setExpanded(expanded === r.beneficiary ? null : r.beneficiary)}>
-                                                            {expanded === r.beneficiary ? "Hide" : "Details"}
-                                                        </button>
-                                                        {r.status === "Pending" && (
-                                                            <>
-                                                                <button type="button" className="btn btn-cancel btn-sm d-flex align-items-center" title="Correct this person's ready-to-pay bonus" onClick={() => openEdit(r)}>
-                                                                    <Icons iconName="edit" className="icon-13 me-1" />Edit
-                                                                </button>
-                                                                <button type="button" className="btn btn-primary btn-sm" onClick={() => openIssue(r)}>Issue</button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {expanded === r.beneficiary && (
-                                                <tr>
-                                                    <td colSpan={10} style={{ padding: 0, background: "var(--surface-sunken)", borderBottom: "1px solid var(--line)" }}>
-                                                        <div style={{ padding: "14px 18px 16px" }}>
-                                                            <div className="font-s12 fw-semibold mb-2" style={{ color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: ".04em" }}>
-                                                                Bills behind {r.beneficiary}'s bonus
-                                                            </div>
-                                                            <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
-                                                                <table className="table font-s13 mb-0">
-                                                                    <thead>
-                                                                        <tr><th>Date</th><th>Work value</th><th>Collected</th><th>Bonus earned</th><th>Ready to pay</th><th>Paid</th><th>Status</th></tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        {r.records.map((rec, i) => (
-                                                                            <tr key={i}>
-                                                                                <td>{new Date(rec.billDate).toLocaleDateString("en-IN")}</td>
-                                                                                <td>{money(rec.billAmount)}</td>
-                                                                                <td>{money(rec.receivedAmount)}</td>
-                                                                                <td>{money(rec.accruedAmount)}</td>
-                                                                                <td>{money(rec.payableAmount)}</td>
-                                                                                <td>{rec.status === "paid" ? money(rec.paidAmount || 0) : "—"}</td>
-                                                                                <td><span className={`status-badge ${rec.status === "paid" ? "status-badge-success" : "status-badge-warning"}`}>{rec.status === "paid" ? "Paid" : "Pending"}</span></td>
-                                                                            </tr>
-                                                                        ))}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </Fragment>
-                                    )) : (
-                                        <tr><td colSpan={10} className="text-center py-3 text-muted">No bonuses in this range</td></tr>
-                                    )}
-                                </tbody>
-                                {rows.length > 0 && (
-                                    <tfoot>
-                                        <tr className="font-w600">
-                                            <td colSpan={2}>Total</td>
-                                            <td>{totals.operations}</td>
-                                            <td>{money(totals.business)}</td>
-                                            <td>{money(totals.collected)}</td>
-                                            <td>{money(totals.accrued)}</td>
-                                            <td>{money(totals.payable)}</td>
-                                            <td>{money(totals.paid)}</td>
-                                            <td colSpan={2}></td>
-                                        </tr>
-                                    </tfoot>
-                                )}
-                            </table>
-                        </div>
-                    </div>
+                        <button type="button" className="btn btn-link p-0 t-sm" style={{ minHeight: 0 }} onClick={() => navigate("/settings")}>Settings → Bonus</button>,
+                        then click <strong>Recalculate</strong>.
+                    </Callout>
                 </div>
-            </div>
+            )}
+
+            <DataList<BonusRow>
+                caption={title}
+                toolbar={filterBar}
+                above={bulkBar || undefined}
+                rows={rows}
+                rowKey={(r) => r.beneficiary}
+                columns={columns}
+                status={list.status}
+                refetching={list.refetching}
+                onRetry={list.reload}
+                errorTitle="Couldn't load bonus data"
+                empty={{ icon: "wallet", title: "No bonuses in this range", text: "Try a different date range or status.", action: activeCount > 0 ? <button type="button" className="btn btn-link" onClick={clearFilters}>Clear filters</button> : undefined }}
+                expanded={(r) => (expanded === r.beneficiary ? <BillsBehind row={r} /> : null)}
+                footer={totalsFooter}
+                mobileSummary={mobileTotals}
+                mobileCard={(r) => (
+                    <MobileCard
+                        title={r.beneficiary}
+                        leading={r.status === "Pending" ? (
+                            <input type="checkbox" className="form-check-input" checked={selected.has(r.beneficiary)}
+                                onChange={() => toggleSel(r.beneficiary)} aria-label={`Select ${r.beneficiary}`} />
+                        ) : undefined}
+                        menu={rowMenu(r)}
+                        right={<span className="t-md t-semibold t-strong tabular">{money(r.payableBonus)}</span>}
+                        meta={[statusBadge(r.status === "Paid"), `Jobs ${r.operations}`, `Collected ${money(r.totalCollected)}`]}
+                    >
+                        <div className="d-flex align-items-center gap-2">
+                            {r.status === "Pending" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => openIssue(r)}>Issue</button>}
+                            <button type="button" className="btn btn-link btn-sm" aria-expanded={expanded === r.beneficiary}
+                                onClick={() => setExpanded(expanded === r.beneficiary ? null : r.beneficiary)}>
+                                {expanded === r.beneficiary ? "Hide bills" : "Show bills"}
+                            </button>
+                        </div>
+                        {expanded === r.beneficiary && <div className="mt-2"><BillsBehind row={r} /></div>}
+                    </MobileCard>
+                )}
+            />
 
             {/* Single issue modal */}
-            {issueRow && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Issue Bonus — {issueRow.beneficiary}</span>
-                                <button type="button" className="btn-close" onClick={() => setIssueRow(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s13 text-muted mb-3">
-                                    Pending payable for {from} to {to} is <span className="font-w600">{money(issueRow.payableBonus)}</span>.
-                                    Issuing locks these entries (future bill edits won't change them).
-                                </p>
-                                <label className="form-label font-w500">Amount to pay (₹)</label>
-                                <input type="number" min="0" className="form-control mb-3" value={issueAmount} onChange={(e) => setIssueAmount(e.target.value)} />
-                                <label className="form-label font-w500">Note (optional)</label>
-                                <input type="text" className="form-control" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} placeholder="e.g. paid in cash" />
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setIssueRow(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmIssue} disabled={loading}>{loading ? "Saving..." : "Issue Bonus"}</button>
-                            </div>
-                        </div>
+            <Modal
+                open={!!issueRow}
+                onClose={() => !saving && setIssueRow(null)}
+                title={`Issue Bonus — ${issueRow?.beneficiary ?? ""}`}
+                busy={saving}
+                as="form"
+                onSubmit={issueSubmit(confirmIssue)}
+                footer={
+                    <>
+                        <button type="button" className="btn btn-secondary" onClick={() => setIssueRow(null)} disabled={saving}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                            {saving && <span className="spinner" aria-hidden="true" />}{saving ? "Saving..." : "Issue Bonus"}
+                        </button>
+                    </>
+                }
+            >
+                {issueRow && (
+                    <div className="d-grid gap-3">
+                        <p className="t-sm t-muted mb-0">
+                            Pending payable for {from} to {to} is <strong className="t-strong">{money(issueRow.payableBonus)}</strong>.
+                            Issuing locks these entries (future bill edits won't change them).
+                        </p>
+                        <Field label="Amount to pay (₹)" htmlFor="issue-amount">
+                            <AffixInput id="issue-amount" prefix="₹" type="number" inputMode="decimal" min={0} value={issueAmount} onChange={(e) => setIssueAmount(e.target.value)} />
+                        </Field>
+                        <Field label="Note (optional)" htmlFor="issue-note">
+                            <input id="issue-note" type="text" className="form-control" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} placeholder="e.g. paid in cash" />
+                        </Field>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
 
             {/* Correct ready-to-pay bonus */}
-            {editRow && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Correct bonus — {editRow.beneficiary}</span>
-                                <button type="button" className="btn-close" onClick={() => setEditRow(null)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s13 text-muted mb-3">
-                                    Set the corrected <span className="font-w600">ready-to-pay</span> bonus for {editRow.beneficiary} over {from} to {to}.
-                                    This only changes what's still pending — anything already paid stays as it is.
-                                    The new total is spread across the pending bills behind it.
-                                </p>
-                                <label className="form-label font-w500">Ready-to-pay amount (₹)</label>
-                                <input type="number" min="0" className="form-control mb-3" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} autoFocus />
-                                <label className="form-label font-w500">Reason (optional)</label>
-                                <input type="text" className="form-control" value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="e.g. corrected after rate review" />
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setEditRow(null)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmEdit} disabled={loading}>{loading ? "Saving..." : "Save correction"}</button>
-                            </div>
-                        </div>
+            <Modal
+                open={!!editRow}
+                onClose={() => !saving && setEditRow(null)}
+                title={`Correct bonus — ${editRow?.beneficiary ?? ""}`}
+                busy={saving}
+                as="form"
+                onSubmit={issueSubmit(confirmEdit)}
+                footer={
+                    <>
+                        <button type="button" className="btn btn-secondary" onClick={() => setEditRow(null)} disabled={saving}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                            {saving && <span className="spinner" aria-hidden="true" />}{saving ? "Saving..." : "Save correction"}
+                        </button>
+                    </>
+                }
+            >
+                {editRow && (
+                    <div className="d-grid gap-3">
+                        <p className="t-sm t-muted mb-0">
+                            Set the corrected <strong className="t-strong">ready-to-pay</strong> bonus for {editRow.beneficiary} over {from} to {to}.
+                            This only changes what's still pending — anything already paid stays as it is.
+                            The new total is spread across the pending bills behind it.
+                        </p>
+                        <Field label="Ready-to-pay amount (₹)" htmlFor="edit-amount">
+                            <AffixInput id="edit-amount" prefix="₹" type="number" inputMode="decimal" min={0} value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                        </Field>
+                        <Field label="Reason (optional)" htmlFor="edit-note">
+                            <input id="edit-note" type="text" className="form-control" value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="e.g. corrected after rate review" />
+                        </Field>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
 
             {/* Bulk issue confirm */}
-            {bulkOpen && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Issue selected bonuses</span>
-                                <button type="button" className="btn-close" onClick={() => setBulkOpen(false)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s14 mb-2">Issue each selected {nameLabel.toLowerCase()} their computed payable bonus for {from} to {to}?</p>
-                                <ul className="font-s13 mb-0">
-                                    {[...selected].map((b) => {
-                                        const r = rows.find((x) => x.beneficiary === b);
-                                        return <li key={b}>{b} — <span className="font-w600">{money(r?.payableBonus || 0)}</span></li>;
-                                    })}
-                                </ul>
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setBulkOpen(false)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmBulk} disabled={loading}>{loading ? "Saving..." : `Issue ${selected.size}`}</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <Modal
+                open={bulkOpen}
+                onClose={() => !saving && setBulkOpen(false)}
+                title="Issue selected bonuses"
+                busy={saving}
+                footer={
+                    <>
+                        <button type="button" className="btn btn-secondary" onClick={() => setBulkOpen(false)} disabled={saving}>Cancel</button>
+                        <button type="button" className="btn btn-primary" onClick={confirmBulk} disabled={saving}>
+                            {saving && <span className="spinner" aria-hidden="true" />}{saving ? "Saving..." : `Issue ${selected.size}`}
+                        </button>
+                    </>
+                }
+            >
+                <p className="t-sm mb-2">Issue each selected {nameLabel.toLowerCase()} their computed payable bonus for {from} to {to}?</p>
+                <ul className="t-sm mb-0">
+                    {[...selected].map((b) => {
+                        const r = rows.find((x) => x.beneficiary === b);
+                        return <li key={b}>{b} — <span className="t-strong t-semibold">{money(r?.payableBonus || 0)}</span></li>;
+                    })}
+                </ul>
+            </Modal>
 
             {/* Manual (discretionary) bonus */}
-            {manualOpen && (
-                <div className="modal fade show d-block" tabIndex={-1} role="dialog">
-                    <div className="modal-dialog modal-dialog-centered" role="document">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <span className="modal-title">Manual bonus</span>
-                                <button type="button" className="btn-close" onClick={() => setManualOpen(false)} />
-                            </div>
-                            <div className="modal-body">
-                                <p className="font-s13 text-muted mb-3">
-                                    Give any {nameLabel.toLowerCase()} a one-off bonus of any amount — separate from the
-                                    bill-based calculation. It's recorded as paid for today.
-                                </p>
-                                <label className="form-label font-w500">{nameLabel}</label>
-                                <Selector className="mb-3" isClearable options={nameOptions}
-                                    value={nameOptions.find((o) => o.value === manualName) || null}
-                                    placeholder={`Select ${nameLabel}`}
-                                    onChange={(o: any) => setManualName(o ? o.value : "")} />
-                                <label className="form-label font-w500">Amount (₹)</label>
-                                <input type="number" min="1" className="form-control mb-3" value={manualAmount}
-                                    onChange={(e) => setManualAmount(e.target.value)} placeholder="e.g. 500" autoFocus />
-                                <label className="form-label font-w500">Note (optional)</label>
-                                <input type="text" className="form-control" value={manualNote}
-                                    onChange={(e) => setManualNote(e.target.value)} placeholder="e.g. festival bonus" />
-                            </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-cancel btn-sm" onClick={() => setManualOpen(false)}>Cancel</button>
-                                <button type="button" className="btn btn-primary btn-sm" onClick={confirmManual} disabled={loading}>{loading ? "Saving..." : "Give bonus"}</button>
-                            </div>
-                        </div>
-                    </div>
+            <Modal
+                open={manualOpen}
+                onClose={() => !saving && setManualOpen(false)}
+                title="Manual bonus"
+                busy={saving}
+                as="form"
+                onSubmit={issueSubmit(confirmManual)}
+                footer={
+                    <>
+                        <button type="button" className="btn btn-secondary" onClick={() => setManualOpen(false)} disabled={saving}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                            {saving && <span className="spinner" aria-hidden="true" />}{saving ? "Saving..." : "Give bonus"}
+                        </button>
+                    </>
+                }
+            >
+                <div className="d-grid gap-3">
+                    <p className="t-sm t-muted mb-0">
+                        Give any {nameLabel.toLowerCase()} a one-off bonus of any amount — separate from the
+                        bill-based calculation. It's recorded as paid for today.
+                    </p>
+                    <Field label={nameLabel} htmlFor="manual-name">
+                        <Selector inputId="manual-name" isClearable options={nameOptions}
+                            value={nameOptions.find((o) => o.value === manualName) || null}
+                            placeholder={`Select ${nameLabel}`}
+                            onChange={(o: any) => setManualName(o ? o.value : "")} />
+                    </Field>
+                    <Field label="Amount (₹)" htmlFor="manual-amount">
+                        <AffixInput id="manual-amount" prefix="₹" type="number" inputMode="decimal" min={1} value={manualAmount}
+                            onChange={(e) => setManualAmount(e.target.value)} placeholder="e.g. 500" />
+                    </Field>
+                    <Field label="Note (optional)" htmlFor="manual-note">
+                        <input id="manual-note" type="text" className="form-control" value={manualNote}
+                            onChange={(e) => setManualNote(e.target.value)} placeholder="e.g. festival bonus" />
+                    </Field>
                 </div>
-            )}
-        </div>
+            </Modal>
+        </>
     );
 }
 

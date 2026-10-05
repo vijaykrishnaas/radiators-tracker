@@ -589,3 +589,14 @@ html:has(.form-footer) { scroll-padding-bottom: 120px; }
 .key-values .is-total { padding-top: 12px; margin-top: 4px; border-top: 1px solid var(--border); }
 .key-values .is-total dt { color: var(--text-strong); font-weight: var(--weight-semibold); }
 .key-values .is-total dd { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-bold); }
+
+/* ---------- List totals rows, phone-card overflow, action/checkbox cells ---------- */
+/* Totals row (list tfoot) */
+.list-card .table > tfoot > tr > td { padding-top: 14px; padding-bottom: 14px; background: var(--surface-muted); border-top: 1px solid var(--border); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.mini-table .table > tfoot > tr > td { background: var(--surface-muted); }
+.list-card .cell-actions { white-space: nowrap; }
+/* Phone cards: nested tables must scroll inside the card, never widen the page. */
+.m-list > *, .m-card, .m-card-extra { min-width: 0; }
+.m-card-extra { max-width: 100%; }
+.list-card .table th:has(> .form-check-input), .list-card .table td:has(> .form-check-input) { padding-right: 0; }
+.list-card .cell-actions > * + * { margin-left: 0; }
