@@ -746,20 +746,43 @@ const SettingsPage = () => {
                     </SectionCard>
                 )}
 
-                {isEngineering && draft.engineering && activeTab === "engBonus" && (
-                    <SectionCard title="Mechanic bonus" subtitle="One percentage of each bill's net total.">
-                        <div className="form-grid settings-three">
-                            {pctField("eng-mech-pct", "Mechanic bonus % (of net bill total)", draft.engineering.bonus?.mechanicPercent ?? 0,
-                                /* whole object: tenants created before this setting have no engineering.bonus yet */
-                                (n) => set("engineering.bonus", { mechanicPercent: n }))}
-                        </div>
-                        <span className="field-help">
-                            Each bill earns its mechanic this percentage of the bill's net (post-discount) total, payable in proportion to
-                            the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog<Icons iconName="chevron-right" className="icon-14 mx-1" />
-                            Financial year. After changing the percentage, open Bonus<Icons iconName="chevron-right" className="icon-14 mx-1" />Sync to re-price existing bills.
-                        </span>
-                    </SectionCard>
-                )}
+                {isEngineering && draft.engineering && activeTab === "engBonus" && (() => {
+                    // Whole object on every change: tenants created before these settings have no engineering.bonus yet.
+                    const eb = { mechanicMode: "percent" as const, mechanicPercent: 0, mechanicAmount: 0, ...(draft.engineering.bonus || {}) };
+                    const setEb = (patch: Partial<typeof eb>) => set("engineering.bonus", { ...eb, ...patch });
+                    const fixed = eb.mechanicMode === "amount";
+                    return (
+                        <SectionCard title="Mechanic bonus" subtitle="A percentage of each bill, or a fixed amount per bill.">
+                            <div className="form-grid settings-three">
+                                <Field label="Bonus type" labelId="eng-mech-mode-label">
+                                    <SegmentedControl<"percent" | "amount">
+                                        label="Bonus type"
+                                        radio
+                                        full
+                                        options={[{ value: "percent", label: "% of bill" }, { value: "amount", label: "₹ per bill" }]}
+                                        value={eb.mechanicMode}
+                                        onChange={(v) => setEb({ mechanicMode: v })}
+                                    />
+                                </Field>
+                                {fixed ? (
+                                    <Field label="Mechanic bonus per bill" htmlFor="eng-mech-amt">
+                                        <AffixInput id="eng-mech-amt" name="eng-mech-amt" type="number" className="num" prefix="₹" min={0} step={10} value={eb.mechanicAmount}
+                                            onChange={(e) => setEb({ mechanicAmount: Math.max(Number(e.target.value || 0), 0) })} />
+                                    </Field>
+                                ) : (
+                                    pctField("eng-mech-pct", "Mechanic bonus % (of net bill total)", eb.mechanicPercent, (n) => setEb({ mechanicPercent: n }))
+                                )}
+                            </div>
+                            <span className="field-help">
+                                {fixed
+                                    ? "Each bill earns its mechanic this fixed amount (bills with a zero total earn nothing). "
+                                    : "Each bill earns its mechanic this percentage of the bill's net (post-discount) total. "}
+                                It becomes payable in proportion to the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog<Icons iconName="chevron-right" className="icon-14 mx-1" />
+                                Financial year. After changing the bonus, use Recalculate on the Bonus page to re-price existing bills.
+                            </span>
+                        </SectionCard>
+                    );
+                })()}
 
                 {isEngineering && draft.engineering?.invoice && activeTab === "engInvoice" && (
                     <SectionCard title="Invoice options" subtitle="Title, footer and extras printed on every invoice.">

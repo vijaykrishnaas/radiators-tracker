@@ -152,3 +152,19 @@ test("no mechanic means no entry, and clearing the mechanic drops the pending en
   await syncEngBonusesForRecord(CLIENT, { ...b, mechanic: "" });
   assert.ok(!bonuses().some((x) => String(x.recordId) === String(b._id)));
 });
+
+test("fixed ₹ per bill: accrues the amount once per bill, payable follows collection, nothing on a zero bill", async () => {
+  const saved = structuredClone(settings.engineering.bonus);
+  settings.engineering.bonus = { mechanicMode: "amount", mechanicPercent: 10, mechanicAmount: 500 };
+  try {
+    const b = await createEngBill(CLIENT, bill({ discount: 200, amountReceived: 900 })); // net 1800, half collected
+    const e = bonuses().find((x) => String(x.recordId) === String(b._id));
+    assert.equal(e.accruedAmount, 500);
+    assert.equal(e.payableAmount, 250);
+    const z = await createEngBill(CLIENT, bill({ services: [{ type: "turbo", bsModel: "bs3", items: [{ item: "hold-set", qty: 1, rate: 0 }] }] }));
+    const ez = bonuses().find((x) => String(x.recordId) === String(z._id));
+    assert.equal(ez.accruedAmount, 0);
+  } finally {
+    settings.engineering.bonus = saved;
+  }
+});

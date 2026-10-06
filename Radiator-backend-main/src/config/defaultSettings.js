@@ -189,7 +189,7 @@ export const defaultSettings = {
     // Existing tenants without it fall back to 4 (April) in the frontend.
     fyStartMonth: 4,
     // Mechanic bonus: flat % of each bill's net total, paid in proportion to the amount collected (engbonus.dao.js).
-    bonus: { mechanicPercent: 0 },
+    bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0 },
     invoice: {
       billTitle: "CASH / CREDIT BILL",
       footerNote: "Thank you for your business",
