@@ -121,12 +121,14 @@ function toDark(primaryHex: string | null | undefined, light: BrandTokens): Bran
     const brandText = toHex(text);
     // 300/400 are used for focus borders, hover borders and the second chart series: base them on the readable brand
     // text colour so they stay visible on the dark card instead of sinking into it.
-    scale[300] = toHex(mix(text, surface, 0.6));
+    scale[300] = toHex(mix(text, surface, 0.68));
     scale[400] = toHex(mix(text, surface, 0.8));
     const solidRgb = parseHex(light.solid) as RGB;
     const solidBorder = contrast(solidRgb, surface) < 3 ? brandText : "transparent";
     const focusRing = `rgba(${text.map(Math.round).join(", ")}, 0.35)`;
-    return { ...light, scale, brandText, solidBorder, focusRing, chart: brandText, chart2: scale[300] };
+    // Comparison series: the faintest blend of the brand text into the card that still reaches 3:1.
+    const chart2Rgb = [0.68, 0.75, 0.82, 0.9, 1].map((w) => parseHex(toHex(mix(text, surface, w))) as RGB).find((c) => contrast(c, surface) >= 3) ?? text;
+    return { ...light, scale, brandText, solidBorder, focusRing, chart: brandText, chart2: toHex(chart2Rgb) };
 }
 
 function buildLightBrand(primaryHex: string | null | undefined): BrandTokens {
@@ -180,7 +182,12 @@ function buildLightBrand(primaryHex: string | null | undefined): BrandTokens {
   const ringBase = parseHex(brandText) as RGB;
   const focusRing = `rgba(${ringBase.map(Math.round).join(", ")}, 0.2)`;
 
-  return { scale, solid, hover, onBrand, brandText, solidBorder, focusRing, chart: scale[500], chart2: scale[300] };
+  // Charts: a very light primary (pale yellow, near-white) would draw invisible bars on white, so use the first step
+  // from 500 down that reaches 3:1 on white, and a 45% tint of it for the comparison series (= brand-300 normally).
+  const chartStep = [500, 600, 700, 800, 900, 950].find((s) => contrast(rgbScale[s], white) >= 3) ?? 950;
+  const chart = scale[chartStep];
+  const chart2 = chartStep === 500 ? scale[300] : toHex(mix(rgbScale[chartStep], white, 0.45));
+  return { scale, solid, hover, onBrand, brandText, solidBorder, focusRing, chart, chart2 };
 }
 
 export function buildAccent(accentHex: string | null | undefined) {

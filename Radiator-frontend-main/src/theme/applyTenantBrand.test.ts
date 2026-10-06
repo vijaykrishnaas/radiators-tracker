@@ -107,7 +107,9 @@ test("chart colours stay visible: ≥ 3:1 on the card in both themes for the mai
     const hex = "#" + [r, g, bl].map((v) => v.toString(16).padStart(2, "0")).join("");
     const d = buildBrand(hex, "dark");
     assert.ok(contrast(parseHex(d.chart)!, surface) >= 3, `${hex} dark chart`);
-    assert.ok(contrast(parseHex(d.chart2)!, surface) >= 1.8, `${hex} dark chart-2 distinguishable`);
+    assert.ok(contrast(parseHex(d.chart2)!, surface) >= 3, `${hex} dark chart-2 visible`);
+    const l = buildBrand(hex);
+    assert.ok(contrast(parseHex(l.chart)!, W) >= 3, `${hex} light chart`);
   }
   assert.equal(buildBrand("#12467A").chart, "#12467A");
 });

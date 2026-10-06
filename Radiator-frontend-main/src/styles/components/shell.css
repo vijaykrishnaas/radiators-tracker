@@ -33,7 +33,7 @@
   text-decoration: none;
 }
 .sidebar-brand:hover { color: var(--text-strong); text-decoration: none; }
-.sidebar-brand-logo { max-height: 32px; max-width: 160px; object-fit: contain; flex: 0 0 auto; }
+.sidebar-brand-logo { max-height: 32px; max-width: 160px; object-fit: contain; flex: 0 0 auto; background: var(--logo-backdrop); border-radius: var(--radius-sm); }
 .sidebar-brand-name {
   min-width: 0;
   overflow: hidden;
@@ -131,7 +131,7 @@
 }
 .app-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .app-header-brand { display: flex; align-items: center; min-width: 0; }
-.app-header-brand img { max-height: 32px; max-width: 120px; object-fit: contain; }
+.app-header-brand img { max-height: 32px; max-width: 120px; object-fit: contain; background: var(--logo-backdrop); border-radius: var(--radius-sm); }
 .btn-icon {
   --bs-btn-padding-x: 0;
   --bs-btn-padding-y: 0;

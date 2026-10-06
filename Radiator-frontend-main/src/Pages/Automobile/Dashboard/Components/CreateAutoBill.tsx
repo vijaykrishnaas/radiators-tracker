@@ -42,7 +42,7 @@ type FormValues = {
 const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", unit: "", rate: "", amount: "", amountTouched: false, memo: 0 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-// The server keeps memo numbers 1–50.
+// The server stores memo indexes 0–49 (shown as Memo 1–50).
 const MAX_MEMOS = 50;
 
 const CreateAutoBill = () => {
@@ -259,7 +259,9 @@ const CreateAutoBill = () => {
     const E = errors.autoBill;
     const billNo = watch("autoBill.billNo");
     const memos = Array.from({ length: memoCount }, (_, m) => m);
-    const breakdown = memoCount > 1 ? memos.map((m) => `Memo ${m + 1}: ${money(memoTotal(m))}`).join(" + ") : undefined;
+    // Up to 4 memos the footer spells the sum out; beyond that it would crowd the sticky bar, so it just counts them.
+    const breakdown = memoCount > 4 ? `${memoCount} memos · subtotals shown on each memo`
+        : memoCount > 1 ? memos.map((m) => `Memo ${m + 1}: ${money(memoTotal(m))}`).join(" + ") : undefined;
     let serial = 0; // S.No runs on across memos, as on the paper bill
 
     return (
@@ -434,7 +436,7 @@ const CreateAutoBill = () => {
                                                                             type="number"
                                                                             inputMode="decimal"
                                                                             className={`tabular text-end${G?.qty ? " is-invalid" : ""}`}
-                                                                            aria-label={`Quantity for ${name}`}
+                                                                            aria-label={`Qty for ${name}`}
                                                                             placeholder="Qty"
                                                                             disabled={isView}
                                                                             aria-invalid={!!G?.qty || undefined}
@@ -507,7 +509,11 @@ const CreateAutoBill = () => {
                                                                 </div>
                                                             </div>
                                                             {!isView && fields.length > 1 ? (
-                                                                <button type="button" className="btn btn-icon memo-x" aria-label={`Remove ${name}`} onClick={() => remove(index)}>
+                                                                <button type="button" className="btn btn-icon memo-x" aria-label={`Remove ${name}`} onClick={() => {
+                                                                    remove(index);
+                                                                    // The button disappears with its row: keep keyboard focus in this memo.
+                                                                    setTimeout(() => document.getElementById(`memo-add-${m}`)?.focus(), 0);
+                                                                }}>
                                                                     <Icons iconName="x" />
                                                                 </button>
                                                             ) : <span className="memo-x" />}
@@ -522,7 +528,7 @@ const CreateAutoBill = () => {
 
                                         <div className="memo-foot">
                                             {!isView ? (
-                                                <button type="button" className="btn memo-add" onClick={() => addRow(m)}>
+                                                <button type="button" id={`memo-add-${m}`} className="btn memo-add" onClick={() => addRow(m)}>
                                                     <Icons iconName="add" />Add item
                                                 </button>
                                             ) : <span />}

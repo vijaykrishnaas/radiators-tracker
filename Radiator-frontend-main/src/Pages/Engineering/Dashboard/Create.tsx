@@ -95,6 +95,10 @@ const EngCreate = () => {
     const updateCard = (key: number, fn: (c: Card) => Card) =>
         setCards((cs) => cs.map((c) => (c.key === key ? fn(c) : c)));
 
+    const removeCard = (key: number) => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== key) : [newCard("", billBs)]));
+    // Changing a service's type or removing the service throws its items away, so either asks first when it has any.
+    const [confirm, setConfirm] = useState<{ kind: "type" | "card"; key: number; type?: string; n: number } | null>(null);
+
     const setType = (key: number, type: string) => updateCard(key, (c) => ({ ...c, type, rows: [] }));
 
     // Changing the bill's BS model re-applies the catalog rate on every card and drops items not offered for that model.
@@ -382,11 +386,16 @@ const EngCreate = () => {
                                                 <Selector inputId={`eng-type-${c.key}`} aria-label={`Service type for service ${ci + 1}`} options={typeOpts} isDisabled={isView}
                                                     placeholder="Select service type"
                                                     value={c.type ? { label: t?.label || c.type, value: c.type } : null}
-                                                    onChange={(o: any) => setType(c.key, o ? o.value : "")} />
+                                                    onChange={(o: any) => {
+                                                        const v = o ? o.value : "";
+                                                        if (v === c.type) return;
+                                                        if (c.rows.length) setConfirm({ kind: "type", key: c.key, type: v, n: ci + 1 });
+                                                        else setType(c.key, v);
+                                                    }} />
                                             </div>
                                             {!isView && (
                                                 <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label={`Remove service ${ci + 1}`} title="Remove service"
-                                                    onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
+                                                    onClick={() => (c.rows.length ? setConfirm({ kind: "card", key: c.key, n: ci + 1 }) : removeCard(c.key))}>
                                                     <Icons iconName="delete" />
                                                 </button>
                                             )}
@@ -409,7 +418,7 @@ const EngCreate = () => {
                                                                 {r.requiresComment && (
                                                                     <div className="eng-line-extra">
                                                                         <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
-                                                                            <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
+                                                                            <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} aria-invalid={!!ce || undefined} disabled={isView}
                                                                                 onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
                                                                             {ce && <span className="field-error" role="alert">{ce}</span>}
                                                                         </div>
@@ -423,7 +432,7 @@ const EngCreate = () => {
                                                             </div>
                                                             <div className={`eng-line-qty field${qe ? " has-error" : ""}`}>
                                                                 <span className="eng-mlabel" aria-hidden="true">Qty</span>
-                                                                <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
+                                                                <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Qty for ${r.label}`} aria-invalid={!!qe || undefined} disabled={isView}
                                                                     className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
                                                                 {qe && <span className="field-error" role="alert">{qe}</span>}
                                                             </div>
@@ -435,7 +444,11 @@ const EngCreate = () => {
                                                             <span className="eng-line-amt tabular"><span className="eng-mlabel" aria-hidden="true">Amount</span>{money(amount(r))}</span>
                                                             {!isView ? (
                                                                 <button type="button" className="btn btn-icon eng-line-x" aria-label={`Remove ${r.label}`}
-                                                                    onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>
+                                                                    onClick={() => {
+                                                                        setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item));
+                                                                        // The button disappears with its row: keep keyboard focus in this service.
+                                                                        setTimeout(() => document.getElementById(`eng-items-${c.key}`)?.focus(), 0);
+                                                                    }}>
                                                                     <Icons iconName="x" />
                                                                 </button>
                                                             ) : <span className="eng-line-x" />}
@@ -488,6 +501,18 @@ const EngCreate = () => {
                 )}
             </FormFooter>
 
+            <ConfirmDialog
+                open={!!confirm}
+                title={confirm?.kind === "type" ? `Change service ${confirm?.n}'s type?` : `Remove service ${confirm?.n}?`}
+                message={confirm?.kind === "type" ? "Its items will be cleared, because each service type has its own items." : "It and its items will be removed from this bill."}
+                confirmLabel={confirm?.kind === "type" ? "Change type" : "Remove service"}
+                onConfirm={() => {
+                    if (confirm?.kind === "type") setType(confirm.key, confirm.type || "");
+                    else if (confirm) removeCard(confirm.key);
+                    setConfirm(null);
+                }}
+                onCancel={() => setConfirm(null)}
+            />
             <ConfirmDialog
                 open={discardOpen}
                 title="Discard this bill?"

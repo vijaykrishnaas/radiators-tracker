@@ -271,10 +271,10 @@ export function FormFooter({ totalLabel, total, totalNote, children }: { totalLa
     return (
         <div className="form-footer">
             {total !== undefined && (
-                <div className="form-footer-total" aria-live="polite">
+                <div className="form-footer-total">
                     <span>{totalLabel || "Total amount"}</span>
-                    <strong>{total}</strong>
-                    {totalNote && <small className="form-footer-note">{totalNote}</small>}
+                    <strong aria-live="polite">{total}</strong>
+                    {totalNote && <small className="form-footer-note" title={typeof totalNote === "string" ? totalNote : undefined}>{totalNote}</small>}
                 </div>
             )}
             <div className="form-footer-actions">{children}</div>

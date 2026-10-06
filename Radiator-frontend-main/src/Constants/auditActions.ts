@@ -34,6 +34,7 @@ const LABELS: Record<string, string> = {
     // Settings
     "settings.update": "Updated settings",
     "settings.upload": "Uploaded asset",
+    "settings.remove": "Removed image",
     // Bonus
     "bonus.payout": "Issued bonus",
     "bonus.manual": "Manual bonus",
@@ -112,6 +113,7 @@ export const detailText = (e: AuditEntry): string => {
         case "bonus.adjust":
             return join(d.type, d.beneficiary, d.amount ? rs(d.amount) : "");
         case "settings.upload":
+        case "settings.remove":
             return d.asset ? `${d.asset}` : "";
         case "employee.create":
             return d.name ? `${d.name}` : "";

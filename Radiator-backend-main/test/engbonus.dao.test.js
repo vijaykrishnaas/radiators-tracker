@@ -168,3 +168,20 @@ test("fixed ₹ per bill: accrues the amount once per bill, payable follows coll
     settings.engineering.bonus = saved;
   }
 });
+
+test("bonus settings are clamped: negative or >100 % and absurd amounts can't create negative or runaway bonuses", async () => {
+  const saved = structuredClone(settings.engineering.bonus);
+  try {
+    settings.engineering.bonus = { mechanicMode: "percent", mechanicPercent: -50 };
+    const a = await createEngBill(CLIENT, bill());
+    assert.equal(bonuses().find((x) => String(x.recordId) === String(a._id)).accruedAmount, 0);
+    settings.engineering.bonus = { mechanicMode: "percent", mechanicPercent: 250 };
+    const b = await createEngBill(CLIENT, bill()); // net 2000
+    assert.equal(bonuses().find((x) => String(x.recordId) === String(b._id)).accruedAmount, 2000);
+    settings.engineering.bonus = { mechanicMode: "amount", mechanicAmount: 1e12 };
+    const c = await createEngBill(CLIENT, bill());
+    assert.equal(bonuses().find((x) => String(x.recordId) === String(c._id)).accruedAmount, 1_000_000);
+  } finally {
+    settings.engineering.bonus = saved;
+  }
+});

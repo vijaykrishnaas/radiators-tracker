@@ -154,6 +154,8 @@
   --overlay-nav: rgba(16, 24, 40, 0.5); /* gray-900 @ 50% — mobile sidebar backdrop */
   --overlay-busy: rgba(16, 24, 40, 0.3); /* full-screen "working…" veil */
   --photo-base: #0c111d;                /* behind the login photo / gradient: dark in both themes */
+  --logo-backdrop: transparent;         /* behind uploaded logos / QR / signature: white in dark so dark ink stays visible */
+  --error-solid-hover: #b42318;         /* danger button hover: white text stays ≥ 4.5:1 in both themes */
   --focus-ring-error: rgba(240, 68, 56, 0.16); /* error-500 @ 16% — focus ring on invalid fields, danger buttons */
 
   /* ---------- Typography ---------- */
@@ -286,6 +288,7 @@
   --overlay: rgba(2, 6, 12, 0.6);
   --overlay-nav: rgba(2, 6, 12, 0.6);
   --overlay-busy: rgba(2, 6, 12, 0.5);
+  --logo-backdrop: #ffffff;
   --focus-ring-error: rgba(249, 112, 102, 0.3);
 
   --shadow-theme-xs: 0px 1px 2px 0px rgba(0, 0, 0, 0.4);
@@ -305,7 +308,14 @@
 :root[data-theme="dark"] .menu-item.is-danger,
 :root[data-theme="dark"] .btn-icon.is-danger { color: var(--error-400); }
 :root[data-theme="dark"] .t-success { color: var(--success-400); }
-:root[data-theme="dark"] .btn-danger { --bs-btn-hover-bg: var(--error-500); --bs-btn-hover-border-color: var(--error-500); --bs-btn-active-bg: var(--error-500); }
+:root[data-theme="dark"] .btn-danger { --bs-btn-hover-bg: var(--error-solid-hover); --bs-btn-hover-border-color: var(--error-solid-hover); --bs-btn-active-bg: var(--error-solid-hover); --bs-btn-active-border-color: var(--error-solid-hover); }
+/* Dark: the selected segment needs its own fill (the card colour is almost the track colour). */
+:root[data-theme="dark"] .segmented-btn[aria-selected="true"],
+:root[data-theme="dark"] .segmented-btn[aria-checked="true"] { background: var(--gray-300); color: var(--gray-900); }
+/* Dark: skeletons and table hover would otherwise sit at ~1.1:1 against the card. */
+:root[data-theme="dark"] .skel,
+:root[data-theme="dark"] .skel-block { background: var(--gray-200); }
+:root[data-theme="dark"] .table { --bs-table-hover-bg: var(--gray-100); }
 :root[data-theme="dark"] img { color-scheme: light; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -339,3 +349,5 @@ body {
   outline-offset: 2px;
   box-shadow: 0 0 0 4px var(--focus-ring-color);
 }
+/* The soft halo alone is under 3:1, so everything except text fields (which also change border) gets a solid outline. */
+:focus-visible:not(input):not(textarea):not(select):not(.form-control) { outline: 2px solid var(--brand-text); outline-offset: 2px; }

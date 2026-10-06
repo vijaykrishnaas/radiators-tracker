@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icons from "../Components/Icons";
 import { Popover, MenuItems, type MenuItem } from "../Components/ui/Menu";
-import { SegmentedControl } from "../Components/ui/Basics";
 import { useThemePref, type ThemePref } from "../theme/themeMode";
 import { storage, trapTab, useDesktopShell, useDocumentKeydown, useScrollLock } from "../Components/ui/hooks";
 import { isParent, parentActive, type NavGroup, type NavItem } from "./navConfig";
@@ -193,20 +192,34 @@ export default function AppShell({ nav, brand, user, children }: {
     );
 }
 
-// Light / Dark / System, remembered on this device.
+// Light / Dark / System, remembered on this device. Inside the account menu these are menuitemradio items, so the
+// menu's own arrow-key navigation moves between them (and on to Settings / Logout) without changing the theme;
+// Enter / Space / click picks one and leaves the menu open.
+const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+    { value: "system", label: "System" },
+];
 function ThemeSwitch() {
     const [pref, setPref] = useThemePref();
     return (
         <div className="user-menu-theme" role="presentation">
             <span className="user-menu-theme-label" aria-hidden="true">Theme</span>
-            <SegmentedControl<ThemePref>
-                label="Theme"
-                radio
-                full
-                options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }]}
-                value={pref}
-                onChange={setPref}
-            />
+            <div className="segmented is-full" role="group" aria-label="Theme">
+                {THEME_OPTIONS.map((o) => (
+                    <button
+                        key={o.value}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={pref === o.value}
+                        data-menu-item=""
+                        className="segmented-btn"
+                        onClick={() => setPref(o.value)}
+                    >
+                        {o.label}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

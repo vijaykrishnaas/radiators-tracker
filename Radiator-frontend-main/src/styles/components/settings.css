@@ -83,7 +83,7 @@
 .cat-cost .input-group-text { font-size: var(--text-xs); color: var(--text-muted); padding-left: 8px; padding-right: 8px; }
 .cat-cost .form-control { height: 36px; min-height: 36px; font-size: var(--text-sm); }
 .cat-cost .input-group-text { height: 36px; }
-.cat-head-sub { display: block; font-weight: var(--weight-regular, 400); color: var(--text-subtle); }
+.cat-head-sub { display: block; font-weight: var(--weight-regular, 400); color: var(--text-muted); }
 .cat-price.is-off .form-control { background: var(--surface-muted); }
 .cat-del { display: flex; justify-content: flex-end; }
 @media (max-width: 767.98px) {

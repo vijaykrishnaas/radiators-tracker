@@ -195,12 +195,13 @@ a:hover { color: var(--brand-text); text-decoration: underline; }
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-theme-xs);
 }
-.form-control::placeholder { color: var(--text-subtle); }
+.form-control::placeholder { color: var(--text-muted); }
 .form-select { padding-right: 40px; background-position: right 14px center; }
 .form-control-lg, .form-select-lg { border-radius: var(--radius-md); }
 .form-control:focus,
 .form-select:focus {
   color: var(--text-strong);
+  background-color: var(--white); /* Bootstrap's own :focus would switch to the page colour */
   border-color: var(--brand-300);
   box-shadow: 0 0 0 3px var(--focus-ring-color);
 }

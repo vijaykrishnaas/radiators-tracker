@@ -30,6 +30,7 @@
 .memo-row .form-control { height: 42px; min-height: 42px; border-radius: var(--radius-sm); }
 .memo-row .input-group-text { height: 42px; }
 .memo-row-error { grid-column: 2 / -1; margin-top: 0; }
+:root:not([data-theme="dark"]) .memo-row .field-error { color: var(--error-700); } /* 4.5:1 on the grey row */
 .memo-mlabel { display: none; }
 
 /* Amount reads as text (qty × rate) but stays editable for a hand-agreed price. */
@@ -73,6 +74,8 @@
   .memo-amt { grid-area: amt; }
   .memo-row-error { grid-area: err; }
   .memo-mlabel { display: block; margin-bottom: 2px; font-size: var(--text-xs); color: var(--text-muted); }
+  .memo-row .form-control:not(.memo-amt-input) { padding-left: 8px; padding-right: 8px; }
+  .memo-row .input-group-text { padding-left: 8px; padding-right: 8px; }
   .memo-amt { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .memo-amt .memo-mlabel { margin: 0; }
 }

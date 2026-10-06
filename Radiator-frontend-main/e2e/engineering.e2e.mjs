@@ -683,7 +683,7 @@ async function run(type) {
   await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
   const themeOf = () => page.evaluate(() => document.documentElement.dataset.theme);
   await page.getByRole("button", { name: /Account menu/ }).click();
-  await page.getByRole("radio", { name: "Dark" }).click();
+  await page.getByRole("menuitemradio", { name: "Dark" }).click();
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${S}/eng-theme-menu-dark.png` });
@@ -691,8 +691,18 @@ async function run(type) {
   await page.reload();
   await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
   ok("eng: the Dark choice is remembered after a reload", (await themeOf()) === "dark");
+  // Dropdown menus follow the theme (react-select's own default is a white menu).
+  await page.locator(".filter-bar .rs__control, .rs__control").first().click({ force: true });
+  const menuBg = await page.locator(".rs__menu").first().evaluate((el) => getComputedStyle(el).backgroundColor).catch(() => "none");
+  ok("eng: dropdown menus are dark in dark mode", menuBg !== "rgb(255, 255, 255)" && menuBg !== "none", menuBg);
+  await page.keyboard.press("Escape");
+  // Arrow keys in the account menu move between items; they must not change the theme on the way.
   await page.getByRole("button", { name: /Account menu/ }).click();
-  await page.getByRole("radio", { name: "System" }).click();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+  ok("eng: arrowing through the account menu doesn't change the theme", (await themeOf()) === "dark");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("menuitemradio", { name: "System" }).click();
   ok("eng: System follows the device (light here)", (await themeOf()) === "light");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.waitForTimeout(200);

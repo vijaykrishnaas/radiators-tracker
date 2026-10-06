@@ -16,9 +16,10 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // payable in step with collection, so a fixed ₹500 on a half-paid bill has ₹250 ready to pay.
 export function computeEngMechanicBonus(bill, settings) {
   const cfg = settings?.engineering?.bonus || {};
+  // Settings are saved without server-side checks, so clamp here: 0–100 %, and a fixed amount of 0–₹10,00,000.
   const fixed = cfg.mechanicMode === "amount";
-  const percent = Number(cfg.mechanicPercent || 0);
-  const perBill = Math.max(Number(cfg.mechanicAmount) || 0, 0);
+  const percent = Math.min(Math.max(Number(cfg.mechanicPercent) || 0, 0), 100);
+  const perBill = Math.min(Math.max(Number(cfg.mechanicAmount) || 0, 0), 1_000_000);
   const gross = Number.isFinite(Number(bill.total)) ? Number(bill.total) : 0;
   const discount = Math.max(Number(bill.discount || 0), 0);
   const net = Number.isFinite(Number(bill.netTotal)) ? Number(bill.netTotal) : Math.max(gross - discount, 0);

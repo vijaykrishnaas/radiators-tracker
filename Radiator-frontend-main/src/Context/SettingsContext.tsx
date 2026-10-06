@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { getData } from "../Services/ApiServices";
-import { isLoggedIn, isSuperAdmin } from "../Services/Auth";
+import { getUser, isLoggedIn, isSuperAdmin } from "../Services/Auth";
 import { applyTenantBrand, DEFAULT_ACCENT, DEFAULT_PRIMARY } from "../theme/applyTenantBrand";
 
 // Generic, white-label default for the browser tab title.
@@ -213,7 +213,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [loading, setLoading] = useState(true);
     const [loaded, setLoaded] = useState(false);
 
+    // Whose settings are in memory. When a different account signs in (logout → login without a page reload), the
+    // previous company's settings are dropped first, so a failed load can never show or save them for the new one.
+    const loadedFor = useRef<string | null>(null);
+
     const refreshSettings = useCallback(async () => {
+        const who = isLoggedIn() ? `${getUser()?.clientId || ""}:${getUser()?.userId || ""}` : null;
+        if (loadedFor.current !== who) {
+            loadedFor.current = who;
+            setSettings(FALLBACK_SETTINGS);
+            setLoaded(false);
+        }
         // Super-admins have no client tenant, so /settings 403s for them.
         // The admin portal doesn't use these settings — skip the fetch.
         if (!isLoggedIn() || isSuperAdmin()) {

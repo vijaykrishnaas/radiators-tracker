@@ -76,7 +76,7 @@ router.delete("/asset/:kind", async (req, res, next) => {
     if (!a) return res.status(404).json({ success: false, message: "Unknown image" });
     await clearCompanyAssetUrl(req.user.clientId, a.field);
     await a.remove(req.user.clientId);
-    await auditClient(req, "settings.upload", { asset: req.params.kind, removed: true });
+    await auditClient(req, "settings.remove", { asset: req.params.kind });
     res.json({ success: true, message: "Image removed", [a.field]: "" });
   } catch (error) {
     next(error);

@@ -28,7 +28,7 @@
 .profit-lines > div { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-sm); }
 .profit-lines dt { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
 .profit-lines dd { margin: 0; font-weight: var(--weight-semibold); color: var(--text-strong); text-align: right; }
-.profit-lines dd span { font-weight: var(--weight-regular, 400); color: var(--text-subtle); }
+.profit-lines dd span { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
 .profit-table th.num, .profit-table td.num { text-align: right; white-space: nowrap; }
 
 /* ---- Service form ---- */
@@ -79,6 +79,8 @@
   .eng-mlabel { display: block; margin-bottom: 4px; font-size: var(--text-xs); font-weight: var(--weight-regular, 400); color: var(--text-muted); }
   .eng-line-amt .eng-mlabel { margin: 0; }
   .eng-add { flex-basis: 100%; }
+  .eng-line .form-control { padding-left: 10px; padding-right: 10px; }
+  .eng-line .input-group-text { padding-left: 10px; padding-right: 10px; }
 }
 
 /* Reduced motion: react-select's emotion styles carry a built-in control transition that the theme tokens do not reach. */

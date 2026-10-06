@@ -11,6 +11,7 @@ import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Input
 import { usePhone } from "../../Components/ui/hooks";
 import { buildBrand, parseHex, toHex } from "../../theme/applyTenantBrand";
 import { assetUrl, BACKEND } from "../../Utils/pdfImage";
+import { ConfirmDialog } from "../../Components/ui/Modal";
 import { resolveTheme, useThemePref } from "../../theme/themeMode";
 
 const resolveLogo = assetUrl;
@@ -141,7 +142,8 @@ const SettingsPage = () => {
             setUploading((u) => ({ ...u, [key]: false }));
         }
     };
-    // Remove deletes the stored image right away (like upload), so it can't be undone by a later Save.
+    // Remove deletes the stored image right away (like upload), so it can't be undone by a later Save: ask first.
+    const [confirmRemove, setConfirmRemove] = useState<{ key: string; kind: string; path: string; label: string } | null>(null);
     const removeAsset = async (key: string, kind: string, path: string) => {
         setUploading((u) => ({ ...u, [key]: true }));
         try {
@@ -420,24 +422,24 @@ const SettingsPage = () => {
                                 <div>
                                     <Upload id="upload-logo" brokenHint={brokenHint} label="Business logo" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.logoUrl)} uploading={!!uploading.logo}
-                                        emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => removeAsset("logo", "logo", "company.logoUrl")} />
+                                        emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => setConfirmRemove({ key: "logo", kind: "logo", path: "company.logoUrl", label: "business logo" })} />
                                 </div>
                                 <div>
                                     <Upload id="upload-qr" brokenHint={brokenHint} label="Payment QR (printed on the bill)" hint="PNG, JPG, SVG or WebP."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.qrUrl)} uploading={!!uploading.qr}
-                                        emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => removeAsset("qr", "qr", "company.qrUrl")} />
+                                        emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => setConfirmRemove({ key: "qr", kind: "qr", path: "company.qrUrl", label: "payment QR" })} />
                                     <span className="field-help">Upload your UPI/payment QR image. If set, it's printed on the invoice instead of the auto-generated one.</span>
                                 </div>
                                 <div>
                                     <Upload id="upload-signature" brokenHint={brokenHint} label="Authorised signature (printed on the bill)" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.signatureUrl)} uploading={!!uploading.signature}
-                                        emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => removeAsset("signature", "signature", "company.signatureUrl")} />
+                                        emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => setConfirmRemove({ key: "signature", kind: "signature", path: "company.signatureUrl", label: "signature" })} />
                                     <span className="field-help">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</span>
                                 </div>
                                 <div>
                                     <Upload id="upload-login-bg" brokenHint={brokenHint} label="Login background (shown on your login page)" hint="PNG, JPG or WebP, up to 4 MB."
                                         accept="image/png,image/jpeg,image/webp" previewUrl={resolveLogo(draft.company.loginBgUrl)} uploading={!!uploading.bg}
-                                        cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => removeAsset("bg", "login-bg", "company.loginBgUrl")} />
+                                        cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => setConfirmRemove({ key: "bg", kind: "login-bg", path: "company.loginBgUrl", label: "login background" })} />
                                     <span className="field-help">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</span>
                                 </div>
                             </div>
@@ -822,6 +824,15 @@ const SettingsPage = () => {
             </div>
 
             <FormFooter>{saveButton}</FormFooter>
+
+            <ConfirmDialog
+                open={!!confirmRemove}
+                title={`Remove the ${confirmRemove?.label}?`}
+                message="The image is deleted now; Save isn't needed and it can't be undone (you can upload it again)."
+                confirmLabel="Remove"
+                onConfirm={() => { if (confirmRemove) removeAsset(confirmRemove.key, confirmRemove.kind, confirmRemove.path); setConfirmRemove(null); }}
+                onCancel={() => setConfirmRemove(null)}
+            />
         </>
     );
 };
