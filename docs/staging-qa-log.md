@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **2** (ninth lap)
+Next area: **3** (ninth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-06 02:37 UTC — Area 2 (Engineering frontend, 9th lap): no new bug; staging unchanged since e50e7a5, nothing new to review. backend 53/53, tsc clean, e2e engineering 139, radiator 6, automobile 10, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-05 22:37 UTC — Area 1 (Engineering backend, 9th lap): no new bug; staging unchanged since e50e7a5, nothing new to review. backend 53/53, tsc clean, e2e engineering 139, radiator 6, automobile 10, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-05 18:37 UTC — Area 6 (Cross-cutting, 8th lap): no new bug; staging unchanged since e50e7a5 (the redesign), nothing new to review. backend 53/53, tsc clean, e2e engineering 139, radiator 6, automobile 10, salary 6, all PASS (after `npm install` for the redesign's new deps). No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-05 14:37 UTC — Area 5 (Radiator, 8th lap): staging is now e50e7a5 (a full 'Redesign' + engineering bill-sheet restyle merged by another session; 256ac9f -> e50e7a5, 184+ files). No bug found. NOTE: the redesign added deps (@fontsource/outfit, @fontsource/inter) and removed ~100 packages; with the old node_modules Vite failed to compile and ALL browser suites failed — environment only, fixed by `npm install --no-package-lock --no-audit --no-fund` in Radiator-frontend-main. After install: tsc clean, backend 53/53, e2e engineering 139 (was 142; 3 checks no longer apply to the redesigned form), radiator 6, automobile 10, salary 6, all PASS. No PR, no notification.
