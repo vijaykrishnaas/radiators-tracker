@@ -249,3 +249,4 @@ BLOCKING if: file outside scope; non-`eng-` CSS selector matching outside Engine
 - 2026-10-06 13:56 UTC — No UI PR (held; staging unchanged 58e576a; no open UI PR). Quiet.
 - 2026-10-06 14:56 UTC — No UI PR (held). staging now 9a87ebd: another session landed 'Engineering bill: item rows as an aligned table' (9a87ebd, Create.tsx/engineering.css; ItemMultiSelect.tsx removed) and an upload/PDF-image fix (c901405). The only open PR is #70 (a QA test-only PR, not a UI PR). Did not duplicate.
 - 2026-10-06 15:56 UTC — No UI PR (held). staging now fae3b37 (another session still landing engineering/other changes); open PR is only #70 (QA test-only). Quiet.
+- 2026-10-06 16:56 UTC — No UI PR (held; staging unchanged fae3b37; open PR is only #70, QA test-only). Quiet.
