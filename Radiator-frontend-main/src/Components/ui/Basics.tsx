@@ -12,6 +12,16 @@ export type HeaderAction = {
     disabled?: boolean;
     /** Exports etc.: collapse into the "More" menu on phones. */
     collapse?: boolean;
+    /** Colour by meaning; neutral (white) when omitted. */
+    tone?: "primary" | "outline" | "soft" | "success" | "danger";
+};
+
+const TONE_CLASS: Record<NonNullable<HeaderAction["tone"]>, string> = {
+    primary: "btn-primary",
+    outline: "btn-tone-outline",
+    soft: "btn-tone-soft",
+    success: "btn-tone-success",
+    danger: "btn-tone-danger",
 };
 
 export function PageHeader({
@@ -56,7 +66,7 @@ export function PageHeader({
                         />
                     )}
                     {visible.map((a) => (
-                        <button key={a.label} type="button" className="btn btn-secondary" onClick={a.onClick} disabled={a.disabled}>
+                        <button key={a.label} type="button" className={`btn ${a.tone ? TONE_CLASS[a.tone] : "btn-secondary"}`} onClick={a.onClick} disabled={a.disabled}>
                             {a.icon && <Icons iconName={a.icon} />}
                             {a.label}
                         </button>

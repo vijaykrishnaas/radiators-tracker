@@ -93,6 +93,63 @@ a:hover { color: var(--brand-text); text-decoration: underline; }
   --bs-btn-disabled-border-color: var(--gray-200);
   box-shadow: var(--shadow-theme-xs);
 }
+/* Tinted header actions (bonus page): brand outline, soft brand, green for Excel, red for PDF. */
+.btn-tone-outline {
+  --bs-btn-color: var(--brand-text);
+  --bs-btn-bg: var(--surface);
+  --bs-btn-border-color: var(--brand-300);
+  --bs-btn-hover-color: var(--brand-text);
+  --bs-btn-hover-bg: var(--brand-50);
+  --bs-btn-hover-border-color: var(--brand-300);
+  --bs-btn-active-color: var(--brand-text);
+  --bs-btn-active-bg: var(--brand-100);
+  --bs-btn-active-border-color: var(--brand-300);
+  --bs-btn-disabled-color: var(--gray-400);
+  --bs-btn-disabled-bg: var(--surface);
+  --bs-btn-disabled-border-color: var(--gray-200);
+}
+.btn-tone-soft {
+  --bs-btn-color: var(--brand-text);
+  --bs-btn-bg: var(--brand-50);
+  --bs-btn-border-color: var(--brand-100);
+  --bs-btn-hover-color: var(--brand-text);
+  --bs-btn-hover-bg: var(--brand-100);
+  --bs-btn-hover-border-color: var(--brand-200);
+  --bs-btn-active-color: var(--brand-text);
+  --bs-btn-active-bg: var(--brand-100);
+  --bs-btn-active-border-color: var(--brand-200);
+  --bs-btn-disabled-color: var(--gray-400);
+  --bs-btn-disabled-bg: var(--gray-50);
+  --bs-btn-disabled-border-color: var(--gray-200);
+}
+.btn-tone-success {
+  --bs-btn-color: var(--success-700);
+  --bs-btn-bg: var(--success-50);
+  --bs-btn-border-color: var(--success-200);
+  --bs-btn-hover-color: var(--success-800);
+  --bs-btn-hover-bg: var(--success-100);
+  --bs-btn-hover-border-color: var(--success-300);
+  --bs-btn-active-color: var(--success-800);
+  --bs-btn-active-bg: var(--success-100);
+  --bs-btn-active-border-color: var(--success-300);
+  --bs-btn-disabled-color: var(--gray-400);
+  --bs-btn-disabled-bg: var(--gray-50);
+  --bs-btn-disabled-border-color: var(--gray-200);
+}
+.btn-tone-danger {
+  --bs-btn-color: var(--error-700);
+  --bs-btn-bg: var(--error-50);
+  --bs-btn-border-color: var(--error-200);
+  --bs-btn-hover-color: var(--error-800);
+  --bs-btn-hover-bg: var(--error-100);
+  --bs-btn-hover-border-color: var(--error-300);
+  --bs-btn-active-color: var(--error-800);
+  --bs-btn-active-bg: var(--error-100);
+  --bs-btn-active-border-color: var(--error-300);
+  --bs-btn-disabled-color: var(--gray-400);
+  --bs-btn-disabled-bg: var(--gray-50);
+  --bs-btn-disabled-border-color: var(--gray-200);
+}
 .btn-danger {
   --bs-btn-color: var(--white);
   --bs-btn-bg: var(--error-600);           /* #D92D20 — white text 4.5:1+; error-500 is only 3.76:1 */

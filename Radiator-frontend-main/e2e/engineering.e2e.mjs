@@ -616,6 +616,10 @@ async function run(type) {
   ok("eng: bonus page lists the mechanic row with payable bonus", (await page.getByText("Ramesh").count()) > 0 && (await page.getByText("600").count()) > 0);
   const bonusFrom = await page.locator('input[type="date"]').first().inputValue();
   ok("eng: bonus page starts from the financial-year start", bonusFrom === fyExpect(4), `${bonusFrom} vs ${fyExpect(4)}`);
+  const hdr = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll(".page-actions > .btn")].map((b) => [b.textContent.trim(), getComputedStyle(b).backgroundColor])));
+  const bgs = ["Analytics", "Excel", "PDF", "Recalculate", "Manual bonus"].map((k) => hdr[k]);
+  ok("eng: bonus header buttons are coloured by meaning (five distinct fills)", bgs.every(Boolean) && new Set(bgs).size === 5, JSON.stringify(hdr));
+  await page.screenshot({ path: `${S}/eng-bonus.png` });
 
   fyMonth = new Date().getMonth() + 1 === 10 ? 7 : 10;
   await page.goto(BASE + "/bonus/mechanics");

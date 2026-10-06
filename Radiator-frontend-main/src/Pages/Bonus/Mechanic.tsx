@@ -433,11 +433,11 @@ export function BonusPage({
                     </>
                 }
                 actions={[
-                    { label: "Analytics", icon: "bar_chart", onClick: () => navigate(reviewPath) },
-                    { label: "Excel", icon: "exporticon", onClick: exportExcel, collapse: true },
-                    { label: "PDF", icon: "entrolment_download", onClick: exportPDF, collapse: true },
-                    { label: "Recalculate", icon: "refresh", onClick: handleRecalculate, disabled: saving },
-                    { label: "Manual bonus", icon: "add", onClick: openManual },
+                    { label: "Analytics", icon: "bar_chart", tone: "soft", onClick: () => navigate(reviewPath) },
+                    { label: "Excel", icon: "exporticon", tone: "success", onClick: exportExcel, collapse: true },
+                    { label: "PDF", icon: "entrolment_download", tone: "danger", onClick: exportPDF, collapse: true },
+                    { label: "Recalculate", icon: "refresh", tone: "outline", onClick: handleRecalculate, disabled: saving },
+                    { label: "Manual bonus", icon: "add", tone: "primary", onClick: openManual },
                 ]}
             />
 

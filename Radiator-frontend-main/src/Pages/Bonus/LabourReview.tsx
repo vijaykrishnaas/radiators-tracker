@@ -150,8 +150,8 @@ const LabourReview = () => {
                 title={`${workerLabel} performance review`}
                 back={{ to: "/bonus/labour", label: `${settings.labels.worker.replace(/\s*Name$/i, "")} Bonus` }}
                 actions={data ? [
-                    { label: "Excel", icon: "exporticon", onClick: exportExcel, collapse: true },
-                    { label: "PDF", icon: "entrolment_download", onClick: exportPDF, collapse: true },
+                    { label: "Excel", icon: "exporticon", tone: "success", onClick: exportExcel, collapse: true },
+                    { label: "PDF", icon: "entrolment_download", tone: "danger", onClick: exportPDF, collapse: true },
                 ] : []}
             />
 
