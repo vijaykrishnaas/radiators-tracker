@@ -144,13 +144,12 @@ async function run(type) {
   await page.getByText("Select BS model").click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
   const card = page.locator(".nested-card").first();
-  await card.getByText("Select...").first().click({ force: true });
+  await card.getByText("Select service type").first().click({ force: true });
   await page.getByText("Turbo", { exact: true }).last().click();
-  await card.getByText("Select items").click({ force: true });
-  await page.getByText("Hold set", { exact: true }).last().click();
-  await page.getByText("O-ring kit change", { exact: true }).last().click();
-  await page.getByText("Other", { exact: true }).last().click();
-  await page.keyboard.press("Escape");
+  for (const it of ["Hold set", "O-ring kit change", "Other"]) {
+    await card.getByText("+ Add item").click({ force: true });
+    await page.getByText(it, { exact: true }).last().click();
+  }
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${S}/eng-form-turbo.png`, fullPage: true });
   const rateInputs = card.locator('input[placeholder="Rate"]');
@@ -177,9 +176,27 @@ async function run(type) {
     return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
   });
   ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
-  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l) => ({ sep: getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
+  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l, i) => ({ sep: i === 0 ? "1px" : getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
   ok("eng: item rows are separated lines with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.sep === "1px" && l.hasX && l.amt), JSON.stringify(lineShape));
 
+  // Rows line up as a table: column headers, and every row's qty / rate / amount share the header's x positions.
+  const align = await page.evaluate(() => {
+    const card = document.querySelector(".eng-svc");
+    const cols = [...card.querySelectorAll(".eng-cols > span")].map((e) => e.getBoundingClientRect());
+    const rows = [...card.querySelectorAll(".eng-line")].map((l) => ["eng-line-qty", "eng-line-rate", "eng-line-amt"].map((k) => l.querySelector("." + k).getBoundingClientRect()));
+    const head = card.querySelector(".eng-svc-head");
+    const sel = head.querySelector('div[class*="-control"]').getBoundingClientRect();
+    const bin = head.querySelector(".eng-svc-remove").getBoundingClientRect();
+    return {
+      headers: cols.length,
+      qtyX: [...new Set(rows.map((r) => Math.round(r[0].left)))], qtyHead: Math.round(cols[1]?.left),
+      amtRight: [...new Set(rows.map((r) => Math.round(r[2].right)))], amtHeadRight: Math.round(cols[3]?.right),
+      binCentreGap: Math.abs((sel.top + sel.height / 2) - (bin.top + bin.height / 2)),
+      tagBox: !!card.querySelector(".rs__multi-value"),
+    };
+  });
+  ok("eng: item rows align under the ITEM / QTY / RATE / AMOUNT headers", align.headers === 5 && align.qtyX.length === 1 && align.qtyX[0] === align.qtyHead && align.amtRight.length === 1 && align.amtRight[0] === align.amtHeadRight, JSON.stringify(align));
+  ok("eng: service bin is level with the type dropdown and items are not repeated as tags", align.binCentreGap <= 1 && !align.tagBox, JSON.stringify(align));
   // Quick-add chips: "Quick add" label + pill chips with a plus icon.
   const chipStyle = await page.evaluate(() => {
     const chip = document.querySelector(".eng-quick-row .chip-btn");
@@ -195,15 +212,15 @@ async function run(type) {
 
   // BS-6 (bill-level) hides Block bush change for compressor
   const c2 = page.locator(".nested-card").nth(1);
-  await page.locator(".card-stack").getByText("BS-3", { exact: true }).first().click({ force: true });
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
   await page.getByText("BS-6", { exact: true }).last().click();
-  await c2.locator("[class*='control']").nth(1).click({ force: true });
+  await c2.getByText("+ Add item").click({ force: true });
   await page.waitForTimeout(300);
   const menu = await page.locator("[class*='menu']").last().innerText();
   ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
   await page.keyboard.press("Escape");
   // Back to BS-3: the change re-applies catalog rates on every card, so retype the manual values afterwards.
-  await page.locator(".card-stack").getByText("BS-6", { exact: true }).first().click({ force: true });
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
   await page.getByText("BS-3", { exact: true }).last().click();
   await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
   await rateInputs.nth(2).fill("50");

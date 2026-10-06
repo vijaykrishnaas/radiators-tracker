@@ -11,7 +11,6 @@ import { money, today } from "../../../Utils/format";
 import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../Components/ui/Basics";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
-import ItemMultiSelect from "../Components/ItemMultiSelect";
 import { defaultRate, isOffered, round2, type EngBill } from "../types";
 
 type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
@@ -345,28 +344,31 @@ const EngCreate = () => {
                         <div className="d-grid gap-3 mt-4">
                             {cards.map((c, ci) => {
                                 const t = findType(c.type);
-                                const itemOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel)).map((i) => ({ label: i.label, value: i.value }));
+                                const chosen = new Set(c.rows.map((r) => r.item));
+                                const addOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel) && !chosen.has(i.value)).map((i) => ({ label: i.label, value: i.value }));
                                 return (
-                                    <div key={c.key} className="nested-card">
+                                    <section key={c.key} className="nested-card eng-svc" aria-label={`Service ${ci + 1}`}>
                                         <div className="eng-svc-head">
-                                            <Field label="Service type" htmlFor={`eng-type-${c.key}`} className="flex-grow-1">
-                                                <Selector inputId={`eng-type-${c.key}`} options={typeOpts} isDisabled={isView} placeholder="Select..."
+                                            <span className="eng-svc-tag">Service {ci + 1}</span>
+                                            <div className="eng-svc-type">
+                                                <Selector inputId={`eng-type-${c.key}`} aria-label={`Service type for service ${ci + 1}`} options={typeOpts} isDisabled={isView}
+                                                    placeholder="Select service type"
                                                     value={c.type ? { label: t?.label || c.type, value: c.type } : null}
                                                     onChange={(o: any) => setType(c.key, o ? o.value : "")} />
-                                            </Field>
+                                            </div>
                                             {!isView && (
-                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label="Remove service"
+                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label="Remove service" title="Remove service"
                                                     onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
                                                     <Icons iconName="delete" />
                                                 </button>
                                             )}
                                         </div>
-                                        <Field label="Work / service items" htmlFor={`eng-items-${c.key}`} className="mt-3">
-                                            <ItemMultiSelect inputId={`eng-items-${c.key}`} options={itemOpts} value={c.rows.map((r) => r.item)} disabled={isView || !c.type}
-                                                placeholder={c.type ? "Select items" : "Select type first"}
-                                                onChange={(v) => setItems(c.key, v)} />
-                                        </Field>
 
+                                        {c.rows.length > 0 && (
+                                            <div className="eng-cols" aria-hidden="true">
+                                                <span>Item</span><span className="num">Qty</span><span>Rate</span><span className="num">Amount</span><span />
+                                            </div>
+                                        )}
                                         {c.rows.length > 0 && (
                                             <ul className="eng-lines" aria-label={`Items for service ${ci + 1}`}>
                                                 {c.rows.map((r) => {
@@ -374,45 +376,62 @@ const EngCreate = () => {
                                                     const qe = errors[`q${c.key}-${r.item}`];
                                                     return (
                                                         <li key={r.item} className="eng-line">
-                                                            <span className="eng-line-name t-md t-medium t-strong">{r.label}</span>
-                                                            {r.requiresComment && (
-                                                                <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
-                                                                    <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
-                                                                        onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
-                                                                    {ce && <span className="field-error" role="alert">{ce}</span>}
-                                                                </div>
-                                                            )}
-                                                            <div className="eng-line-calc">
-                                                                <div className={`eng-line-qty field${qe ? " has-error" : ""}`}>
-                                                                    <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
-                                                                        className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
-                                                                    {qe && <span className="field-error" role="alert">{qe}</span>}
-                                                                </div>
-                                                                <span className="t-muted" aria-hidden="true">×</span>
-                                                                <div className="eng-line-rate">
-                                                                    <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
-                                                                        className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
-                                                                </div>
+                                                            <div className="eng-line-main">
+                                                                <span className="eng-line-name">{r.label}</span>
+                                                                {r.requiresComment && (
+                                                                    <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
+                                                                        <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
+                                                                            onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
+                                                                        {ce && <span className="field-error" role="alert">{ce}</span>}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            <span className="eng-line-amt t-md t-semibold t-strong tabular">{money(amount(r))}</span>
-                                                            {!isView && (
+                                                            <div className={`eng-line-qty field${qe ? " has-error" : ""}`}>
+                                                                <span className="eng-mlabel" aria-hidden="true">Qty</span>
+                                                                <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
+                                                                    className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
+                                                                {qe && <span className="field-error" role="alert">{qe}</span>}
+                                                            </div>
+                                                            <div className="eng-line-rate">
+                                                                <span className="eng-mlabel" aria-hidden="true">Rate</span>
+                                                                <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
+                                                                    className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
+                                                            </div>
+                                                            <span className="eng-line-amt tabular"><span className="eng-mlabel" aria-hidden="true">Amount</span>{money(amount(r))}</span>
+                                                            {!isView ? (
                                                                 <button type="button" className="btn btn-icon eng-line-x" aria-label="Remove item"
                                                                     onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>
                                                                     <Icons iconName="x" />
                                                                 </button>
-                                                            )}
+                                                            ) : <span className="eng-line-x" />}
                                                         </li>
                                                     );
                                                 })}
                                             </ul>
                                         )}
-                                        {c.rows.length > 0 && (
-                                            <div className="eng-subtotal t-sm">
-                                                <span className="t-muted">Subtotal</span>
-                                                <strong className="t-strong t-semibold tabular">{money(subtotal(c))}</strong>
-                                            </div>
-                                        )}
-                                    </div>
+
+                                        <div className="eng-svc-foot">
+                                            {!isView ? (
+                                                <div className="eng-add">
+                                                    <Selector
+                                                        inputId={`eng-items-${c.key}`}
+                                                        aria-label={`Add item to service ${ci + 1}`}
+                                                        options={addOpts}
+                                                        value={null}
+                                                        isDisabled={!c.type || !addOpts.length}
+                                                        placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : "All items added"}
+                                                        onChange={(o: any) => { if (o) setItems(c.key, [...c.rows.map((x) => x.item), o.value]); }}
+                                                    />
+                                                </div>
+                                            ) : <span />}
+                                            {c.rows.length > 0 && (
+                                                <div className="eng-subtotal">
+                                                    <span>Subtotal</span>
+                                                    <strong className="tabular">{money(subtotal(c))}</strong>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
                                 );
                             })}
                         </div>
