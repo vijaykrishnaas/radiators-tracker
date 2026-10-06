@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5** (ninth lap)
+Next area: **6** (ninth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-06 14:37 UTC — Area 5 (Radiator, 9th lap): no radiator bug; staging unchanged 58e576a. Found a FLAKY e2e: automobile 'no horizontal overflow at 390px' read scrollWidth the instant the first input mounts, when .form-footer is still settling (overflow 6-11px, settles to 0 within 1.5s); failed 2 of 4 runs on an unchanged commit. PR #70 (claude/staging-qa-fix-12, test-only) makes the check poll up to 3s; 8/8 pass after. tsc clean, backend 54/54, e2e engineering 138, radiator 6, automobile 23, salary 6. Note: the footer's brief 6px overflow after load is a small visual flicker in app code — left alone (another session is editing that form). Merge is next run after review. No notification (test-only).
 - 2026-10-06 10:37 UTC — Area 4 (Salary, 9th lap): no new bug in salary. staging is now 58e576a (since the last lap another session reverted the engineering bill-form restyle d0fe861 and put the automobile bill form into the spare-parts bill design 58e576a; backend suite grew to 54). tsc clean, backend 54/54, e2e engineering 138, radiator 6, automobile 23 (was 10), salary 6, all PASS. I did not review the new automobile form code beyond its passing e2e. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-06 06:37 UTC — Area 3 (Automobile, 9th lap): no new bug; staging unchanged since e50e7a5, nothing new to review. backend 53/53, tsc clean, e2e engineering 139, radiator 6, automobile 10, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-06 02:37 UTC — Area 2 (Engineering frontend, 9th lap): no new bug; staging unchanged since e50e7a5, nothing new to review. backend 53/53, tsc clean, e2e engineering 139, radiator 6, automobile 10, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
