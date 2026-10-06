@@ -54,7 +54,14 @@ async function run(type) {
     if (p === "/engbills/mechanics") return json({ success: true, mechanics: ["Ramesh", "Suresh"] });
     if (p === "/engbills/lookup-vehicle") return json({ success: true, match: { lorryAddress: "Sri Velavan Radiators", phone: "8870713151" } });
     if (p === "/engbills/analytics") return json({ kpis: { totalBills: 1, totalBilled: 4850, totalReceived: 0, totalOutstanding: 4850 },
-      byMonth: [{ month: "2026-09", billed: 4850, received: 0, count: 1 }], byServiceType: [{ type: "turbo", label: "Turbo", amount: 4850, count: 1 }], byMechanic: [{ mechanic: "Ramesh", billed: 4850, count: 1 }] });
+      byMonth: [{ month: "2026-09", billed: 4850, received: 0, count: 1 }], byServiceType: [{ type: "turbo", label: "Turbo", amount: 4850, count: 1 }], byMechanic: [{ mechanic: "Ramesh", billed: 4850, count: 1 }],
+      profit: {
+        earned: { bills: 0, sales: 0, cost: 0, gross: 0, discount: 0, afterDiscount: 0, bonus: 0, afterBonus: 0 },
+        expected: { bills: 1, sales: 4850, cost: 2900, gross: 1950, discount: 50, afterDiscount: 1900, bonus: 190, afterBonus: 1710 },
+        byServiceType: [{ type: "turbo", label: "Turbo", sales: 4850, cost: 2900, gross: 1950, margin: 40.2 }],
+        byItem: [{ type: "turbo", typeLabel: "Turbo", item: "hold-set", label: "Hold set", qty: 1, sales: 4850, cost: 2900, gross: 1950, margin: 40.2 }],
+        missingCostLines: 1,
+      } });
     if (p === "/engbills/b1" && req.method() === "GET") return json({ success: true, bill });
     if (p === "/engbills/b1" && req.method() === "PUT") { putBody = req.postDataJSON(); return json({ success: true, message: "Service updated ✅", bill }); }
     if (p === "/engbills/b1/payment" && req.method() === "POST") { paid = req.postDataJSON(); return json({ success: true, message: "Payment recorded ✅", bill }); }
@@ -102,6 +109,11 @@ async function run(type) {
   ok("eng: dashboard KPIs render", (await page.getByText("Outstanding").count()) > 0);
   await page.screenshot({ path: `${S}/eng-dashboard.png`, fullPage: true });
   ok("eng: dashboard shows 4 KPI tiles", (await page.locator(".kpi").count()) === 4);
+  // Profit: earned vs expected cards, each with after-discount and after-bonus lines; item table; missing-cost warning.
+  const expected = await page.locator('.profit-card[aria-label="Expected profit"]').innerText();
+  ok("eng: expected-profit card shows gross, after discount and after bonus", /1,950\.00/.test(expected) && /After discounts\s*₹1,900\.00/.test(expected) && /After mechanic bonus\s*₹1,710\.00/.test(expected), expected.replace(/\s+/g, " "));
+  ok("eng: profit-by-item table lists margin", /Hold set[\s\S]*40\.2%/.test(await page.locator(".profit-table").innerText()));
+  ok("eng: dashboard warns about bill lines without a cost price", (await page.getByText(/1 bill line has no cost price/).count()) === 1);
   const SEL = '[role="tab"][aria-selected="true"]';
   ok("eng: 'This FY' is the active range by default", (await page.locator(SEL).innerText()) === "This FY");
   ok("eng: by-service-type legend lists Turbo with 100%", /Turbo/.test(await page.locator(".legend-list").innerText()) && /100%/.test(await page.locator(".legend-list").innerText()));
@@ -166,6 +178,7 @@ async function run(type) {
   const okBorder = await page.locator("#eng-lorry-address").evaluate((el) => getComputedStyle(el).borderTopColor);
   ok("eng: missing description field is marked with the error colour", errBorder !== okBorder, `${errBorder} vs ${okBorder}`);
   await card.getByPlaceholder("Describe the work").fill("Bearing clean");
+  await card.getByLabel("Cost for Other").fill("20");
   // 2*500 + 2000 + 50 = 3050
   const subtotalText = await card.locator(".eng-subtotal").innerText();
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
@@ -242,6 +255,7 @@ async function run(type) {
     ok("eng: payload 2 services", posted.services.length === 2, JSON.stringify(posted.services.map((s) => [s.type, s.bsModel, s.items.length])));
     ok("eng: payload turbo bsModel bs3, qty 2 on Hold set", posted.services[0].bsModel === "bs3" && posted.services[0].items[0].qty === 2);
     ok("eng: payload Other has comment", posted.services[0].items.some((i) => i.item === "other" && i.comment === "Bearing clean"));
+    ok("eng: payload sends the typed cost on the Other row only", posted.services[0].items.find((i) => i.item === "other")?.cost === 20 && posted.services[0].items.filter((i) => "cost" in i).length === 1, JSON.stringify(posted.services[0].items));
     ok("eng: payload discount 0, received 0 (paid later via Record payment)", posted.discount === 0 && posted.amountReceived === 0);
   }
   ok("eng: navigated to billing after save", page.url().endsWith("/engineering/billing"), page.url());
@@ -383,6 +397,19 @@ async function run(type) {
   await openSettingsTab("Service Catalog");
   await page.waitForTimeout(500);
   ok("eng: catalog grid shows Turbo items", (await page.locator(".cat-item input[value='Hold set']").count()) > 0);
+  const holdCost = page.getByLabel("Hold set cost for BS-3");
+  ok("eng: catalog has a cost input beside each offered BS-model price", (await holdCost.count()) === 1);
+  await holdCost.fill("320");
+  let settingsPut = null;
+  const onReq = (r) => { if (r.method() === "PUT" && new URL(r.url()).pathname === "/settings") settingsPut = r.postDataJSON(); };
+  page.on("request", onReq);
+  await page.locator(".page-header .btn-primary, .form-footer .btn-primary").filter({ hasText: /Save/ }).first().click();
+  for (let i = 0; i < 30 && !settingsPut; i++) await page.waitForTimeout(100);
+  page.off("request", onReq);
+  const cp = settingsPut ? { postDataJSON: () => settingsPut } : null;
+  const savedHold = cp ? cp.postDataJSON()?.engineering?.serviceTypes?.find((t) => t.value === "turbo")?.items?.find((i) => i.value === "hold-set") : null;
+  ok("eng: saving settings sends the item cost per BS model", savedHold?.costs?.bs3 === 320, JSON.stringify(savedHold ?? (cp ? Object.keys(cp.postDataJSON()?.engineering || {}) : "no PUT")));
+  await page.screenshot({ path: `${S}/eng-catalog-costs.png` });
   // Bill numbering input and Financial year select should look like one control family (44px, 8px, white, same type).
   const numCtl = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => { const c = getComputedStyle(e); return { tag: e.tagName, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor, fs: c.fontSize, fw: c.fontWeight }; }));
   ok("eng: bill-numbering input and financial-year select match (44px, 8px, white, same type)", numCtl.length === 2 && numCtl.every((c) => c.h === 44 && c.r === "8px" && c.bg === "rgb(255, 255, 255)") && numCtl[0].fs === numCtl[1].fs && numCtl[0].fw === numCtl[1].fw, JSON.stringify(numCtl));

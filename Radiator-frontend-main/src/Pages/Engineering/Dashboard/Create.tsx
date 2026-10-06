@@ -13,7 +13,8 @@ import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { defaultRate, isOffered, round2, type EngBill } from "../types";
 
-type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
+// cost: only typed on free-description rows ("Other"); catalog items take their cost from Settings on save.
+type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string; cost: string };
 type Card = { key: number; type: string; bsModel: string; rows: Row[] };
 
 let keySeq = 1;
@@ -76,6 +77,7 @@ const EngCreate = () => {
                     rows: s.items.map((i) => ({
                         item: i.item, label: i.label, comment: i.comment || "",
                         requiresComment: !!i.requiresComment, qty: String(i.qty), rate: String(i.rate),
+                        cost: i.requiresComment && i.cost ? String(i.cost) : "",
                     })),
                 })));
                 setDiscount(bill.discount ? String(bill.discount) : "");
@@ -123,7 +125,7 @@ const EngCreate = () => {
                     const it = t?.items.find((i) => i.value === v);
                     return {
                         item: v, label: it?.label || v, comment: "", requiresComment: !!it?.requiresComment,
-                        qty: "1", rate: String(defaultRate(it, c.bsModel)),
+                        qty: "1", rate: String(defaultRate(it, c.bsModel)), cost: "",
                     };
                 });
             return { ...c, rows: [...kept, ...added] };
@@ -153,7 +155,7 @@ const EngCreate = () => {
             if (it && !isOffered(it, target.bsModel)) return list;
             const row: Row = {
                 item, label: it?.label || item, comment: "", requiresComment: !!it?.requiresComment,
-                qty: "1", rate: String(defaultRate(it, target.bsModel)),
+                qty: "1", rate: String(defaultRate(it, target.bsModel)), cost: "",
             };
             return list.map((c) => (c.key === target!.key ? { ...c, rows: [...c.rows, row] } : c));
         });
@@ -233,6 +235,7 @@ const EngCreate = () => {
                     items: c.rows.map((r) => ({
                         item: r.item, label: r.label, comment: r.comment, requiresComment: r.requiresComment,
                         qty: Number(r.qty), rate: Number(r.rate) || 0,
+                        ...(r.requiresComment && r.cost !== "" ? { cost: Math.max(Number(r.cost) || 0, 0) } : {}),
                     })),
                 })),
                 // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
@@ -379,10 +382,17 @@ const EngCreate = () => {
                                                             <div className="eng-line-main">
                                                                 <span className="eng-line-name">{r.label}</span>
                                                                 {r.requiresComment && (
-                                                                    <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
-                                                                        <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
-                                                                            onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
-                                                                        {ce && <span className="field-error" role="alert">{ce}</span>}
+                                                                    <div className="eng-line-extra">
+                                                                        <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
+                                                                            <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
+                                                                                onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
+                                                                            {ce && <span className="field-error" role="alert">{ce}</span>}
+                                                                        </div>
+                                                                        <div className="eng-line-cost" title="What this work cost you (for profit). Optional.">
+                                                                            <AffixInput prefix="Cost ₹" type="number" min={0} inputMode="decimal" value={r.cost} placeholder="optional" disabled={isView}
+                                                                                aria-label={`Cost for ${r.label}`} className="tabular text-end"
+                                                                                onChange={(e) => setRow(c.key, r.item, { cost: e.target.value })} />
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </div>

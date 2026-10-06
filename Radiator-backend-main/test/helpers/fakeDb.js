@@ -114,8 +114,9 @@ class FakeCollection {
       async toArray() {
         if (!projectFields) return results;
         return results.map((r) => {
-          const out = {};
-          for (const k of Object.keys(projectFields)) out[k] = r[k];
+          // Like MongoDB, _id comes back unless the projection excludes it.
+          const out = projectFields._id === 0 ? {} : { _id: r._id };
+          for (const [k, v] of Object.entries(projectFields)) if (k !== "_id" && v) out[k] = r[k];
           return out;
         });
       },

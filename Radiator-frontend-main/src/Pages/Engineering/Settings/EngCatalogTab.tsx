@@ -79,6 +79,12 @@ const EngCatalogTab = ({ eng, set }: Props) => {
         patchItem(idx, { prices: { ...it.prices, [model]: raw === "" ? null : Math.max(Number(raw) || 0, 0) } });
     };
 
+    const setCost = (idx: number, model: string, raw: string) => {
+        if (!current) return;
+        const it = current.items[idx];
+        patchItem(idx, { costs: { ...(it.costs || {}), [model]: raw === "" ? null : Math.max(Number(raw) || 0, 0) } });
+    };
+
     const deleteItem = (idx: number) => {
         if (!current) return;
         const it = current.items[idx];
@@ -112,7 +118,8 @@ const EngCatalogTab = ({ eng, set }: Props) => {
             ...t,
             items: t.items.map((it) => {
                 const { [value]: _drop, ...rest } = it.prices || {};
-                return { ...it, prices: rest };
+                const { [value]: _dropCost, ...restCosts } = it.costs || {};
+                return { ...it, prices: rest, costs: restCosts };
             }),
         })));
     };
@@ -190,7 +197,7 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                                 <div className="cat-grid" style={{ ["--n" as string]: models.length }}>
                                     <div className="cat-row cat-head" aria-hidden="true">
                                         <span>Item</span>
-                                        {models.map((m) => <span key={m.value} className="num">{m.label}</span>)}
+                                        {models.map((m) => <span key={m.value} className="num">{m.label}<span className="cat-head-sub">price / cost</span></span>)}
                                         <span>Description</span>
                                         <span>Quick add</span>
                                         <span />
@@ -205,6 +212,7 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                                             {models.map((m) => {
                                                 const p = it.prices?.[m.value];
                                                 const off = p === null || p === undefined;
+                                                const c = it.costs?.[m.value];
                                                 return (
                                                     <div key={m.value} className={`cat-price${off ? " is-off" : ""}`}
                                                         title={off ? `Not offered for ${m.label}` : undefined}>
@@ -213,6 +221,14 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                                                             aria-label={`${it.label} price for ${m.label}`}
                                                             value={off ? "" : p}
                                                             onChange={(e) => setPrice(idx, m.value, e.target.value)} />
+                                                        {!off && !it.requiresComment && (
+                                                            <div className="cat-cost">
+                                                                <AffixInput prefix="Cost ₹" type="number" min={0} inputMode="decimal" placeholder="not set" className="num"
+                                                                    aria-label={`${it.label} cost for ${m.label}`}
+                                                                    value={c === null || c === undefined ? "" : c}
+                                                                    onChange={(e) => setCost(idx, m.value, e.target.value)} />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -247,7 +263,9 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                                 <button type="button" className="btn btn-primary" disabled={!newItem.trim()} onClick={addItem}>Add item</button>
                             </div>
                             <p className="field-help mb-0">
-                                Empty = not offered for that BS model (hidden in the service form). ₹0 is still offered.
+                                Empty price = not offered for that BS model (hidden in the service form). ₹0 is still offered.
+                                Cost is what one unit costs you; it is saved on each bill and drives the profit on the dashboard.
+                                Items that ask for a description take their cost on the bill instead.
                             </p>
                         </div>
                     ) : (

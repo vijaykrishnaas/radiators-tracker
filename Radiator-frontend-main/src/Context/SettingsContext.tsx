@@ -20,6 +20,8 @@ export type EngItem = {
     label: string;
     value: string;
     prices: Record<string, number | null>;
+    /** What one unit costs you to buy, per BS model (for profit). Missing = no cost set. */
+    costs?: Record<string, number | null>;
     requiresComment?: boolean;
 };
 

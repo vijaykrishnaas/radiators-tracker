@@ -55,17 +55,22 @@ function toPaymentMode(mode) {
 function computeTotals(services, discountIn, receivedIn) {
   const typeTotals = {};
   let total = 0;
+  let costTotal = 0;
   for (const s of services) {
     typeTotals[s.type] = round2((typeTotals[s.type] || 0) + s.subtotal);
     total += s.subtotal;
+    costTotal += Number(s.costTotal) || 0;
   }
   total = round2(total);
+  costTotal = round2(costTotal);
   const discount = Math.min(Math.max(Number(discountIn) || 0, 0), total);
   const netTotal = round2(total - discount);
   const amountReceived = Math.min(Math.max(Number(receivedIn) || 0, 0), netTotal);
   return {
     typeTotals,
     total,
+    costTotal,
+    grossProfit: round2(total - costTotal), // before discount and bonus
     discount,
     netTotal,
     amountReceived,
@@ -80,10 +85,33 @@ function findCatalogItem(catalog, type, item) {
   return { typeDef: t, itemDef: i };
 }
 
+// The bought (cost) price of one unit, saved on the bill so later catalog edits don't rewrite past profit.
+// Catalog items take the catalog cost for the card's BS model; an edit keeps the cost already saved on the bill
+// (when it had one). Free-description items ("Other") have no catalog cost, so the form sends one per row.
+function unitCost(it, itemDef, bsModel, prevCost) {
+  if (!itemDef || itemDef.requiresComment) {
+    if (it?.cost !== undefined && it?.cost !== null && it?.cost !== "") return toMoney(it.cost, "item cost");
+    return prevCost || 0;
+  }
+  if (prevCost > 0) return prevCost;
+  const c = itemDef.costs?.[bsModel];
+  return typeof c === "number" && Number.isFinite(c) && c > 0 ? c : 0;
+}
+
+// Costs already saved on a bill, keyed by service type + BS model + item.
+function savedCosts(services) {
+  const map = new Map();
+  for (const s of services || []) for (const i of s.items || []) {
+    if (Number(i.cost) > 0) map.set(`${s.type}|${s.bsModel || ""}|${i.item}`, Number(i.cost));
+  }
+  return map;
+}
+
 // Validates and normalizes the service cards. Labels come from the catalog
 // when the item still exists there (falls back to the submitted label so old
-// bills stay editable after a catalog edit). amount is always qty × rate.
-function buildServices(rawServices, catalog) {
+// bills stay editable after a catalog edit). amount is always qty × rate;
+// costAmount is qty × the item's saved unit cost.
+function buildServices(rawServices, catalog, prevCosts = new Map()) {
   if (!Array.isArray(rawServices) || rawServices.length === 0) {
     throw httpError("Add at least one service", 400);
   }
@@ -93,6 +121,7 @@ function buildServices(rawServices, catalog) {
     const rawItems = Array.isArray(s.items) ? s.items : [];
     if (rawItems.length === 0) throw httpError(`Service ${si + 1}: choose at least one item`, 400);
     const { typeDef } = findCatalogItem(catalog, type, null);
+    const bsModel = String(s.bsModel || "").trim();
     const items = rawItems.map((it, ii) => {
       const itemKey = String(it?.item || "").trim();
       const { itemDef } = findCatalogItem(catalog, type, itemKey);
@@ -105,15 +134,17 @@ function buildServices(rawServices, catalog) {
       }
       const qty = it?.qty === "" || it?.qty == null ? 1 : toMoney(it.qty, "item qty");
       const rate = toMoney(it?.rate ?? 0, "item rate");
-      return { item: itemKey, label, comment, requiresComment, qty, rate, amount: round2(qty * rate) };
+      const cost = unitCost(it, itemDef, bsModel, prevCosts.get(`${type}|${bsModel}|${itemKey}`) || 0);
+      return { item: itemKey, label, comment, requiresComment, qty, rate, amount: round2(qty * rate), cost, costAmount: round2(qty * cost) };
     });
     const subtotal = round2(items.reduce((sum, i) => sum + i.amount, 0));
     return {
       type,
       typeLabel: typeDef?.label || String(s.typeLabel || type),
-      bsModel: String(s.bsModel || "").trim(),
+      bsModel,
       items,
       subtotal,
+      costTotal: round2(items.reduce((sum, i) => sum + i.costAmount, 0)),
     };
   });
   return services;
@@ -191,7 +222,7 @@ export async function updateEngBill(clientId, id, data) {
 
   const catalog = await getCatalog(clientId);
   const header = buildHeader(data);
-  const services = buildServices(data.services, catalog);
+  const services = buildServices(data.services, catalog, savedCosts(existing.services));
   const receivedIn = data.amountReceived ?? existing.amountReceived;
   const discountIn = data.discount ?? existing.discount;
   const totals = computeTotals(services, discountIn, receivedIn);
@@ -295,9 +326,101 @@ export async function lookupVehicle(clientId, vehicleNo) {
   return last[0] || null;
 }
 
+// ---- Profit ----
+// Gross profit = bill total − saved item costs. Bills fully paid count as "earned"; unpaid and part-paid bills as
+// "expected". Each bucket also shows what is left after the bill discount and after the mechanic bonus, so the
+// headline gross figure is never read as money in hand.
+const emptyBucket = () => ({ bills: 0, sales: 0, cost: 0, gross: 0, discount: 0, afterDiscount: 0, bonus: 0, afterBonus: 0 });
+
+export function summarizeProfit(bills, bonusByBill = new Map()) {
+  const earned = emptyBucket();
+  const expected = emptyBucket();
+  const byType = new Map();
+  const byItem = new Map();
+  let missingCostLines = 0;
+
+  for (const b of bills) {
+    const bucket = b.paymentStatus === STATUS.RECEIVED ? earned : expected;
+    let sales = 0;
+    let cost = 0;
+    for (const s of b.services || []) {
+      const t = byType.get(s.type) || { type: s.type, label: s.typeLabel || s.type, sales: 0, cost: 0 };
+      for (const i of s.items || []) {
+        const amt = Number(i.amount) || 0;
+        const c = Number(i.costAmount) || 0;
+        sales += amt;
+        cost += c;
+        t.sales += amt;
+        t.cost += c;
+        if (amt > 0 && !(Number(i.cost) > 0)) missingCostLines += 1;
+        // "Other"-style rows are grouped under their item, not their free-text description.
+        const key = `${s.type}|${i.item}`;
+        const row = byItem.get(key) || { type: s.type, typeLabel: s.typeLabel || s.type, item: i.item, label: i.label, qty: 0, sales: 0, cost: 0 };
+        row.qty += Number(i.qty) || 0;
+        row.sales += amt;
+        row.cost += c;
+        byItem.set(key, row);
+      }
+      byType.set(s.type, t);
+    }
+    const discount = Math.max(Number(b.discount) || 0, 0);
+    const bonus = Number(bonusByBill.get(String(b._id))) || 0;
+    bucket.bills += 1;
+    bucket.sales += sales;
+    bucket.cost += cost;
+    bucket.discount += discount;
+    bucket.bonus += bonus;
+  }
+
+  const finish = (x) => {
+    const gross = x.sales - x.cost;
+    return {
+      bills: x.bills,
+      sales: round2(x.sales),
+      cost: round2(x.cost),
+      gross: round2(gross),
+      discount: round2(x.discount),
+      afterDiscount: round2(gross - x.discount),
+      bonus: round2(x.bonus),
+      afterBonus: round2(gross - x.discount - x.bonus),
+    };
+  };
+  const withMargin = (r) => ({ ...r, sales: round2(r.sales), cost: round2(r.cost), gross: round2(r.sales - r.cost), margin: r.sales > 0 ? round2(((r.sales - r.cost) / r.sales) * 100) : 0 });
+  return {
+    earned: finish(earned),
+    expected: finish(expected),
+    byServiceType: [...byType.values()].map(withMargin).sort((a, b) => b.gross - a.gross),
+    byItem: [...byItem.values()].map((r) => ({ ...withMargin(r), qty: round2(r.qty) })).sort((a, b) => b.gross - a.gross),
+    missingCostLines,
+  };
+}
+
+export async function getEngProfit(clientId, filters = {}) {
+  const db = await connectDB();
+  const bills = await db
+    .collection(COLLECTION)
+    .find(buildQuery(clientId, filters))
+    .project({ services: 1, discount: 1, paymentStatus: 1 })
+    .toArray();
+  const ids = bills.map((b) => b._id);
+  const bonusByBill = new Map();
+  if (ids.length) {
+    const entries = await db
+      .collection("bonuses")
+      .find({ clientId: toClientId(clientId), type: "mechanic", recordId: { $in: ids } })
+      .toArray();
+    for (const e of entries) {
+      const k = String(e.recordId);
+      bonusByBill.set(k, (bonusByBill.get(k) || 0) + (Number(e.status === "paid" ? e.paidAmount ?? e.accruedAmount : e.accruedAmount) || 0));
+    }
+  }
+  return summarizeProfit(bills, bonusByBill);
+}
+
 export async function getEngAnalytics(clientId, filters = {}) {
   const db = await connectDB();
   const query = buildQuery(clientId, filters);
+  const profitP = getEngProfit(clientId, filters);
   const [result] = await db.collection(COLLECTION).aggregate([
     { $match: query },
     {
@@ -355,5 +478,6 @@ export async function getEngAnalytics(clientId, filters = {}) {
     byMonth: result?.byMonth || [],
     byServiceType: result?.byServiceType || [],
     byMechanic: result?.byMechanic || [],
+    profit: await profitP,
   };
 }

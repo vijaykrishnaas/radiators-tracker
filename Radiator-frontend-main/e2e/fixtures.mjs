@@ -77,6 +77,20 @@ export const fixtures = {
     byMonth: months.map((m, i) => ({ month: `${m} 2026`, billed: 150000 + i * 32000, received: 120000 + i * 28000, count: 20 + i })),
     byServiceType: [{ type: "turbo", label: "Turbo", amount: 800000, count: 80 }, { type: "compressor", label: "Air Compressor", amount: 400000, count: 40 }, { type: "other", label: "Other", amount: 34567, count: 4 }],
     byMechanic: topMechanics.map((m) => ({ mechanic: m.mechanic, billed: m.revenue, count: m.count })),
+    profit: {
+      earned: { bills: 96, sales: 987654, cost: 512300, gross: 475354, discount: 12500, afterDiscount: 462854, bonus: 46285.4, afterBonus: 416568.6 },
+      expected: { bills: 28, sales: 246913.5, cost: 131200, gross: 115713.5, discount: 2500, afterDiscount: 113213.5, bonus: 11321.35, afterBonus: 101892.15 },
+      byServiceType: [
+        { type: "turbo", label: "Turbo", sales: 800000, cost: 420000, gross: 380000, margin: 47.5 },
+        { type: "compressor", label: "Air Compressor", sales: 400000, cost: 223500, gross: 176500, margin: 44.1 },
+      ],
+      byItem: [
+        { type: "turbo", typeLabel: "Turbo", item: "o-ring-kit-change", label: "O-ring kit change", qty: 140, sales: 280000, cost: 154000, gross: 126000, margin: 45 },
+        { type: "compressor", typeLabel: "Air Compressor", item: "piston", label: "Piston", qty: 210, sales: 189000, cost: 105000, gross: 84000, margin: 44.4 },
+        { type: "turbo", typeLabel: "Turbo", item: "hold-set", label: "Hold set", qty: 300, sales: 150000, cost: 0, gross: 150000, margin: 100 },
+      ],
+      missingCostLines: 12,
+    },
   },
   expenseAnalytics: {
     totalExpenses: 184500, payrollTotal: 96000,

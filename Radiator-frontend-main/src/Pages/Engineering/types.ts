@@ -8,6 +8,9 @@ export type EngBillItem = {
     qty: number;
     rate: number;
     amount: number;
+    /** Unit cost saved when the bill was saved (catalog cost, or typed on "Other" rows). */
+    cost?: number;
+    costAmount?: number;
 };
 
 export type EngService = {
@@ -31,6 +34,8 @@ export type EngBill = {
     services: EngService[];
     typeTotals: Record<string, number>;
     total: number;
+    costTotal?: number;
+    grossProfit?: number;
     discount: number;
     netTotal: number;
     amountReceived: number;

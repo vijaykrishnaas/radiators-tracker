@@ -6,7 +6,7 @@ import { getData } from "../../../Services/ApiServices";
 import { useAlertMsg } from "../../../Services/AllServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { money, today, fyStart } from "../../../Utils/format";
-import { PageHeader, KpiCard, KpiGrid, SegmentedControl } from "../../../Components/ui/Basics";
+import { PageHeader, KpiCard, KpiGrid, SegmentedControl, Callout, CardHead } from "../../../Components/ui/Basics";
 import { ChartCard, DonutWithLegend, SeriesLegend } from "../../../Components/ui/Charts";
 import { HBarChart, PairBarChart } from "../../IssueCounter/Dashboard/Index";
 import { PAIR_COLORS } from "../../../theme/chartTheme";
@@ -16,7 +16,44 @@ type Analytics = {
     byMonth: { month: string; billed: number; received: number; count: number }[];
     byServiceType: { type: string; label?: string; amount: number; count: number }[];
     byMechanic: { mechanic: string; billed: number; count: number }[];
+    profit?: Profit;
 };
+
+type ProfitBucket = { bills: number; sales: number; cost: number; gross: number; discount: number; afterDiscount: number; bonus: number; afterBonus: number };
+type ProfitRow = { sales: number; cost: number; gross: number; margin: number };
+type Profit = {
+    earned: ProfitBucket;
+    expected: ProfitBucket;
+    byServiceType: (ProfitRow & { type: string; label: string })[];
+    byItem: (ProfitRow & { type: string; typeLabel: string; item: string; label: string; qty: number })[];
+    missingCostLines: number;
+};
+
+const pct = (n: number) => `${n.toFixed(1)}%`;
+
+// One profit bucket: gross profit as the headline, then what is left after discounts and the mechanic bonus.
+function ProfitCard({ title, hint, b, tone, loading }: { title: string; hint: string; b?: ProfitBucket; tone: "success" | "brand"; loading: boolean }) {
+    return (
+        <section className={`card profit-card is-${tone}`} aria-label={title}>
+            <div className="card-body">
+                <p className="profit-title">{title}</p>
+                <p className="profit-hint">{hint}</p>
+                {loading || !b ? <span className="skel mt-2" style={{ height: 32, width: "60%" }} aria-hidden="true" /> : (
+                    <>
+                        <p className="profit-value tabular">{money(b.gross)}</p>
+                        <p className="profit-caption tabular">
+                            Gross profit · sales {money(b.sales)} − cost {money(b.cost)} · {b.bills} bill{b.bills === 1 ? "" : "s"}
+                        </p>
+                        <dl className="profit-lines">
+                            <div><dt>After discounts</dt><dd className="tabular">{money(b.afterDiscount)}<span> (−{money(b.discount)})</span></dd></div>
+                            <div><dt>After mechanic bonus</dt><dd className="tabular">{money(b.afterBonus)}<span> (−{money(b.bonus)})</span></dd></div>
+                        </dl>
+                    </>
+                )}
+            </div>
+        </section>
+    );
+}
 
 type Preset = "today" | "month" | "fy";
 const PRESETS: { value: Preset; label: string }[] = [
@@ -101,6 +138,54 @@ const EngDashboard = () => {
                     <KpiCard loading={first} label="Received" value={money(k?.totalReceived || 0)} icon="trendingup" tone="success" />
                     <KpiCard loading={first} label="Outstanding" value={money(k?.totalOutstanding || 0)} icon="clock" tone="error" valueTone="error" />
                 </KpiGrid>
+
+                <div className="profit-grid">
+                    <ProfitCard title="Earned profit" hint="Fully paid bills" b={data?.profit?.earned} tone="success" loading={first} />
+                    <ProfitCard title="Expected profit" hint="Unpaid and part-paid bills" b={data?.profit?.expected} tone="brand" loading={first} />
+                </div>
+                {!!data?.profit?.missingCostLines && (
+                    <Callout tone="warning">
+                        {data.profit.missingCostLines} bill line{data.profit.missingCostLines === 1 ? " has" : "s have"} no cost price, so the whole amount counts as profit.
+                        Set costs in Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Service Catalog (new bills pick them up), or type a cost on "Other" rows.
+                    </Callout>
+                )}
+
+                <div className="row g-3 g-md-4">
+                    <div className="col-12 col-xl-5">
+                        <ChartCard title="Profit by service type" subtitle="Gross, before discount and bonus" loading={first} isEmpty={!(data?.profit?.byServiceType?.length)}>
+                            <HBarChart data={(data?.profit?.byServiceType || []).map((t) => ({ ...t, name: t.label }))} dataKey="gross" nameKey="name" name="Gross profit" color="var(--success-500)" />
+                        </ChartCard>
+                    </div>
+                    <div className="col-12 col-xl-7">
+                        <section className="card" aria-label="Profit by item">
+                            <div className="card-body pb-2">
+                                <CardHead title="Profit by item" subtitle="Gross profit per item, best first" />
+                            </div>
+                            {first ? <div className="card-body pt-0"><span className="skel" style={{ height: 120, width: "100%" }} aria-hidden="true" /></div>
+                                : !(data?.profit?.byItem?.length) ? <div className="card-body pt-0"><p className="t-sm t-muted mb-0">No bills in this range.</p></div> : (
+                                <div className="table-wrap">
+                                    <table className="table profit-table mb-0">
+                                        <thead>
+                                            <tr><th>Item</th><th className="num">Qty</th><th className="num">Sales</th><th className="num">Cost</th><th className="num">Profit</th><th className="num">Margin</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.profit.byItem.map((r) => (
+                                                <tr key={`${r.type}-${r.item}`}>
+                                                    <td><span className="t-strong t-medium">{r.label}</span><span className="d-block t-xs t-muted">{r.typeLabel}</span></td>
+                                                    <td className="num tabular">{r.qty}</td>
+                                                    <td className="num tabular">{money(r.sales)}</td>
+                                                    <td className="num tabular">{r.cost ? money(r.cost) : <span className="t-muted">not set</span>}</td>
+                                                    <td className={`num tabular t-semibold${r.gross < 0 ? " t-error" : ""}`}>{money(r.gross)}</td>
+                                                    <td className="num tabular">{pct(r.margin)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
+                    </div>
+                </div>
 
                 <div className="row g-3 g-md-4">
                     <div className="col-12 col-xl-8">

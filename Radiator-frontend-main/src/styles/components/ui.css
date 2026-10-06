@@ -583,7 +583,7 @@ html:has(.form-footer) { scroll-padding-bottom: 120px; }
 @media (max-width: 767.98px) { .bulk-bar { margin: 12px 12px 0; } }
 
 /* ---------- Generic grids ---------- */
-.dash-grid { display: grid; gap: 16px; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 @media (min-width: 768px) { .dash-grid { gap: 24px; } }
 .key-values { display: grid; gap: 10px; margin: 0; }
 .key-values > div { display: flex; justify-content: space-between; gap: 16px; font-size: var(--text-sm); line-height: var(--lh-sm); }

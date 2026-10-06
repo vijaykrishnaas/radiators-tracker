@@ -12,6 +12,23 @@
   .eng-range-sep { display: block; margin-bottom: 12px; }
 }
 
+/* ---- Dashboard: profit ---- */
+.profit-grid { display: grid; gap: 16px; }
+@media (min-width: 768px) { .profit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; } }
+.profit-card { border-top: 3px solid var(--brand-solid); }
+.profit-card.is-success { border-top-color: var(--success-500); }
+.profit-title { margin: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.profit-hint { margin: 2px 0 0; font-size: var(--text-xs); color: var(--text-muted); }
+.profit-value { margin: 12px 0 0; font-size: var(--text-3xl); line-height: 1.15; font-weight: var(--weight-bold); color: var(--text-strong); }
+.profit-card.is-success .profit-value { color: var(--success-700); }
+.profit-caption { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.profit-lines { display: grid; gap: 6px; margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
+.profit-lines > div { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-sm); }
+.profit-lines dt { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
+.profit-lines dd { margin: 0; font-weight: var(--weight-semibold); color: var(--text-strong); text-align: right; }
+.profit-lines dd span { font-weight: var(--weight-regular, 400); color: var(--text-subtle); }
+.profit-table th.num, .profit-table td.num { text-align: right; white-space: nowrap; }
+
 /* ---- Service form ---- */
 .eng-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -30,6 +47,10 @@
 .eng-line-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .eng-line-name { font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-strong); overflow-wrap: anywhere; }
 .eng-line-qty, .eng-line-rate { min-width: 0; }
+.eng-line-extra { display: flex; flex-wrap: wrap; gap: 8px; }
+.eng-line-extra .eng-line-comment { flex: 1 1 200px; min-width: 0; }
+.eng-line-cost { flex: 0 1 170px; min-width: 140px; }
+.eng-line-cost .input-group-text { font-size: var(--text-xs); color: var(--text-muted); }
 .eng-line-amt { text-align: right; white-space: nowrap; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-strong); }
 .eng-line-x { justify-self: end; }
 .eng-mlabel { display: none; }
