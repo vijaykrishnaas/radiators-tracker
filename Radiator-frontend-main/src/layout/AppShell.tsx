@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Icons from "../Components/Icons";
 import { Popover, MenuItems, type MenuItem } from "../Components/ui/Menu";
+import { SegmentedControl } from "../Components/ui/Basics";
+import { useThemePref, type ThemePref } from "../theme/themeMode";
 import { storage, trapTab, useDesktopShell, useDocumentKeydown, useScrollLock } from "../Components/ui/hooks";
 import { isParent, parentActive, type NavGroup, type NavItem } from "./navConfig";
 
@@ -191,6 +193,24 @@ export default function AppShell({ nav, brand, user, children }: {
     );
 }
 
+// Light / Dark / System, remembered on this device.
+function ThemeSwitch() {
+    const [pref, setPref] = useThemePref();
+    return (
+        <div className="user-menu-theme" role="presentation">
+            <span className="user-menu-theme-label" id="theme-switch-label">Theme</span>
+            <SegmentedControl<ThemePref>
+                label="Theme"
+                radio
+                full
+                options={[{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }]}
+                value={pref}
+                onChange={setPref}
+            />
+        </div>
+    );
+}
+
 function UserMenu({ user }: { user: ShellUser }) {
     return (
         <Popover
@@ -212,6 +232,7 @@ function UserMenu({ user }: { user: ShellUser }) {
                         <strong>{user.name}</strong>
                         <span>{user.meta}</span>
                     </div>
+                    <ThemeSwitch />
                     <MenuItems items={user.items} close={close} />
                 </>
             )}

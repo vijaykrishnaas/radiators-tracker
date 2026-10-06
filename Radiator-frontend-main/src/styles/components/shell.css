@@ -284,3 +284,8 @@
 @media (min-width: 576px) { .auth-actions { flex-direction: row; justify-content: flex-end; } }
 .auth-actions .btn { width: 100%; }
 @media (min-width: 576px) { .auth-actions .btn { width: auto; } }
+
+/* Theme switch inside the account menu */
+.user-menu-theme { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.user-menu-theme-label { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-muted); }
+.user-menu-theme .segmented-btn { min-height: 36px; }

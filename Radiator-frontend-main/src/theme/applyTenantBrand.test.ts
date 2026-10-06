@@ -2,7 +2,7 @@
 // Or port to the project's test runner (Vitest/Jest) unchanged apart from imports.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildBrand, buildAccent, contrast, parseHex, DEFAULT_PRIMARY } from "./applyTenantBrand.ts";
+import { buildBrand, buildAccent, contrast, parseHex, DEFAULT_PRIMARY, DARK_SURFACE } from "./applyTenantBrand.ts";
 
 const W = parseHex("#FFFFFF")!;
 const cases = {
@@ -78,4 +78,25 @@ test("accent: on-accent picks readable text", () => {
   }
   assert.equal(buildAccent("#F47F6B").onAccent, "#101828");
   assert.equal(buildAccent("#12467A").onAccent, "#FFFFFF");
+});
+
+test("dark theme: brand text readable on the dark card and on dark brand-50; tints stay dark (sweep of 4,096 primaries)", () => {
+  const surface = parseHex(DARK_SURFACE)!;
+  for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let bl = 0; bl < 256; bl += 17) {
+    const hex = "#" + [r, g, bl].map((v) => v.toString(16).padStart(2, "0")).join("");
+    const b = buildBrand(hex, "dark");
+    const text = parseHex(b.brandText)!;
+    assert.ok(contrast(text, surface) >= 4.5, `${hex} brand-text on dark surface`);
+    assert.ok(contrast(text, parseHex(b.scale[50])!) >= 4.5, `${hex} brand-text on dark brand-50`);
+    assert.ok(contrast(parseHex(b.solid)!, parseHex(b.onBrand)!) >= 4.5, `${hex} solid`);
+    assert.ok(contrast(parseHex(b.scale[50])!, surface) < 1.6, `${hex} brand-50 is a subtle tint, not a bright patch`);
+  }
+});
+
+test("dark theme keeps the light solid button colours (already contrast-checked)", () => {
+  const l = buildBrand("#12467A");
+  const d = buildBrand("#12467A", "dark");
+  assert.equal(d.solid, l.solid);
+  assert.equal(d.onBrand, l.onBrand);
+  assert.notEqual(d.scale[50], l.scale[50]);
 });

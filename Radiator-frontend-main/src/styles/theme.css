@@ -64,7 +64,8 @@
   --gray-800: #1d2939;
   --gray-900: #101828;
   --gray-950: #0c111d;
-  --white: #FFFFFF;
+  --white: #FFFFFF;          /* surface white: becomes the card colour in dark mode */
+  --on-solid: #FFFFFF;       /* text on solid colour (danger button, photo overlays): white in both themes */
 
   /* ---------- Status ---------- */
   --success-25: #f6fef9;
@@ -213,6 +214,91 @@
   --duration: 300ms;         /* sidebar width / slide */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+
+/* ---------- Dark theme ----------
+ * Set by ThemeProvider as <html data-theme="dark"> (Light / Dark / System in the user menu). Components only use
+ * tokens, so the theme is a remap: the neutral scale flips (gray-50 page → near-black, gray-800 text → near-white),
+ * --white becomes the card surface, and each status scale swaps its pale tints (25–200) for deep ones and its dark
+ * text steps (700–800) for light ones. The mid steps (300–600) that solid buttons and dots use stay as they are.
+ * Brand tints are recomputed for dark in applyTenantBrand (they are set inline at runtime).
+ * Printed PDFs don't read these tokens, so bills stay light. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --gray-25: #0b101a;
+  --gray-50: #0f1623;
+  --gray-100: #1b2433;
+  --gray-200: #2a3445;
+  --gray-300: #3d4859;
+  --gray-400: #6b7689;
+  --gray-500: #98a2b3;
+  --gray-600: #b4bccb;
+  --gray-700: #d0d5dd;
+  --gray-800: #e9ecf1;
+  --gray-900: #f5f6f8;
+  --gray-950: #fcfcfd;
+  --white: #161e2c;
+
+  --success-25: #052a1c;
+  --success-50: #073523;
+  --success-100: #0a4a31;
+  --success-200: #0f6141;
+  --success-700: #8ff0bb;
+  --success-800: #c3f8da;
+
+  --error-25: #3a120c;
+  --error-50: #45160f;
+  --error-100: #5a1d14;
+  --error-200: #7a281b;
+  --error-700: #ffb4ad;
+  --error-800: #ffd6d2;
+
+  --warning-25: #3a2208;
+  --warning-50: #45290a;
+  --warning-100: #5c370c;
+  --warning-200: #7a4a10;
+  --warning-700: #fdcf7a;
+  --warning-800: #fee4b0;
+
+  --blue-light-50: #062c41;
+  --blue-light-100: #0b4a6f;
+  --blue-light-700: #9ad9fb;
+  --orange-50: #3f1a0c;
+  --orange-100: #5a250f;
+  --orange-700: #feb78a;
+
+  --page-bg: var(--gray-50);
+  --surface: var(--white);
+  --surface-muted: #121a27;
+  --surface-sunken: var(--gray-100);
+  --border: var(--gray-200);
+  --border-subtle: #1f2938;
+  --border-control: var(--gray-300);
+  --text-strong: var(--gray-800);
+  --text: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-subtle: var(--gray-400);
+  --overlay: rgba(2, 6, 12, 0.6);
+  --overlay-nav: rgba(2, 6, 12, 0.6);
+  --focus-ring-error: rgba(249, 112, 102, 0.3);
+
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(0, 0, 0, 0.4);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(0, 0, 0, 0.5), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(0, 0, 0, 0.5), 0px 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-theme-lg: 0px 12px 16px -4px rgba(0, 0, 0, 0.55), 0px 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-theme-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.6), 0px 8px 8px -4px rgba(0, 0, 0, 0.3);
+  --shadow-tooltip: 0px 4px 6px -2px rgba(0, 0, 0, 0.5), -8px 0px 20px 8px rgba(0, 0, 0, 0.3);
+}
+/* Error red as text on a dark surface needs the lighter step to stay readable (≥ 4.5:1). */
+:root[data-theme="dark"] .t-error,
+:root[data-theme="dark"] .field-error,
+:root[data-theme="dark"] .kpi-value.is-error,
+:root[data-theme="dark"] .form-label .req,
+:root[data-theme="dark"] .btn-outline-danger { color: var(--error-400); }
+:root[data-theme="dark"] .t-success { color: var(--success-400); }
+:root[data-theme="dark"] .btn-danger { --bs-btn-hover-bg: var(--error-500); --bs-btn-hover-border-color: var(--error-500); --bs-btn-active-bg: var(--error-500); }
+:root[data-theme="dark"] img { color-scheme: light; }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --duration-fast: 0ms; --duration: 0ms; }

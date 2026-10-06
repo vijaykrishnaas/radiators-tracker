@@ -1,6 +1,6 @@
 // Screenshot sweep for the redesign (spec §16): every screen at several widths, API mocked.
 // Run: (in Radiator-frontend-main) `npx vite --port 5173 &` then
-//   node e2e/screens.mjs [filter] [--widths=390,820,1280,1440]
+//   node e2e/screens.mjs [filter] [--widths=390,820,1280,1440] [--dark]   (--dark: device in dark mode, files *-dark.png)
 // Output: e2e/.out/screens/<vertical>-<screen>-<width>.png
 import { execSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -19,6 +19,7 @@ const args = process.argv.slice(2);
 const filter = args.find((a) => !a.startsWith("--")) || "";
 const widthsArg = args.find((a) => a.startsWith("--widths="));
 const WIDTHS = widthsArg ? widthsArg.slice(9).split(",").map(Number) : [390, 820, 1280, 1440];
+const DARK = args.includes("--dark");
 const full = !args.includes("--viewport");
 
 const SCREENS = [
@@ -56,7 +57,7 @@ for (const [vertical, name, route] of SCREENS) {
   const id = `${vertical}-${name}`;
   if (filter && !id.includes(filter)) continue;
   for (const w of WIDTHS) {
-    const page = await browser.newPage({ viewport: { width: w, height: w < 768 ? 844 : 900 } });
+    const page = await browser.newPage({ viewport: { width: w, height: w < 768 ? 844 : 900 }, colorScheme: DARK ? "dark" : "light" });
     page.on("pageerror", (e) => errors.push(`${id}@${w}: ${e.message}`));
     await mockApi(page, vertical === "admin" || vertical === "public" ? "radiator" : vertical);
     if (vertical === "admin") await loginAs(page, BASE, "superadmin");
@@ -72,7 +73,7 @@ for (const [vertical, name, route] of SCREENS) {
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (overflow > 1) errors.push(`${id}@${w}: horizontal page overflow ${overflow}px`);
-    await page.screenshot({ path: join(OUT, `${id}-${w}.png`), fullPage: full });
+    await page.screenshot({ path: join(OUT, `${id}-${w}${DARK ? "-dark" : ""}.png`), fullPage: full });
     await page.close();
   }
 }

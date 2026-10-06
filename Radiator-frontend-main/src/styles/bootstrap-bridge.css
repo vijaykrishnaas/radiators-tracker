@@ -151,10 +151,10 @@ a:hover { color: var(--brand-text); text-decoration: underline; }
   --bs-btn-disabled-border-color: var(--gray-200);
 }
 .btn-danger {
-  --bs-btn-color: var(--white);
+  --bs-btn-color: var(--on-solid);
   --bs-btn-bg: var(--error-600);           /* #D92D20 — white text 4.5:1+; error-500 is only 3.76:1 */
   --bs-btn-border-color: var(--error-600);
-  --bs-btn-hover-color: var(--white);
+  --bs-btn-hover-color: var(--on-solid);
   --bs-btn-hover-bg: var(--error-700);
   --bs-btn-hover-border-color: var(--error-700);
   --bs-btn-active-bg: var(--error-700);

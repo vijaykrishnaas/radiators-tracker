@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { applyTheme, watchSystemTheme } from "./theme/themeMode";
 
 // Style order (spec §15.2): Bootstrap → fonts → tokens → Bootstrap bridge → components.
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -23,4 +24,6 @@ import "./styles/components/admin-console.css";
 import App from "./App";
 
 const root = document.getElementById("root")!;
+applyTheme();
+watchSystemTheme();
 createRoot(root).render(<App />);

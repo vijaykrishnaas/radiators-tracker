@@ -664,6 +664,28 @@ async function run(type) {
   ok("eng: bonus year start follows the Settings financial-year month", bonusFrom2 === fyExpect(fyMonth), `${bonusFrom2} vs ${fyExpect(fyMonth)}`);
   fyMonth = null;
 
+  // Theme: Light / Dark / System in the account menu, remembered on this device; System follows the device setting.
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  const themeOf = () => page.evaluate(() => document.documentElement.dataset.theme);
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("radio", { name: "Dark" }).click();
+  const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${S}/eng-theme-menu-dark.png` });
+  ok("eng: choosing Dark switches the page to the dark theme", (await themeOf()) === "dark" && darkBg !== "rgb(249, 250, 251)", darkBg);
+  await page.reload();
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  ok("eng: the Dark choice is remembered after a reload", (await themeOf()) === "dark");
+  await page.getByRole("button", { name: /Account menu/ }).click();
+  await page.getByRole("radio", { name: "System" }).click();
+  ok("eng: System follows the device (light here)", (await themeOf()) === "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.waitForTimeout(200);
+  ok("eng: with System chosen, a device switch to dark follows live", (await themeOf()) === "dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.keyboard.press("Escape");
+
   // Logout returns to the company login (/t/<code>/login); without a code it falls back to the generic login.
   await page.evaluate(() => localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1", code: "acme" })));
   await page.goto(BASE + "/engineering/billing");

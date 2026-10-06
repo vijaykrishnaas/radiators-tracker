@@ -31,6 +31,10 @@ export const DEFAULT_ACCENT = "#F47F6B";
 
 const WHITE = "#FFFFFF";
 const GRAY_900 = "#101828";
+/** Dark theme card surface (--white in theme.css dark block). */
+export const DARK_SURFACE = "#161E2C";
+
+export type ThemeMode = "light" | "dark";
 
 type RGB = [number, number, number];
 
@@ -86,7 +90,38 @@ export interface BrandTokens {
   focusRing: string;
 }
 
-export function buildBrand(primaryHex: string | null | undefined): BrandTokens {
+export function buildBrand(primaryHex: string | null | undefined, mode: ThemeMode = "light"): BrandTokens {
+    const light = buildLightBrand(primaryHex);
+    return mode === "dark" ? toDark(primaryHex, light) : light;
+}
+
+// Dark theme: tints (25–400) blend the primary into the dark card surface so "brand-50" stays a subtle background,
+// and 600–950 blend toward white so they read as lighter steps. Solid buttons keep the light-mode surface and text
+// (already contrast-checked). Brand text must reach 4.5:1 on the dark surface and on dark brand-50.
+function toDark(primaryHex: string | null | undefined, light: BrandTokens): BrandTokens {
+    const p = parseHex(primaryHex) ?? (parseHex(DEFAULT_PRIMARY) as RGB);
+    const surface = parseHex(DARK_SURFACE) as RGB;
+    const white = parseHex(WHITE) as RGB;
+    const DARK_TINTS: Record<number, number> = { 25: 0.06, 50: 0.12, 100: 0.2, 200: 0.32, 300: 0.5, 400: 0.75 };
+    const DARK_LIFTS: Record<number, number> = { 600: 0.15, 700: 0.3, 800: 0.45, 900: 0.6, 950: 0.75 };
+    const rgb: Record<number, RGB> = { 500: p };
+    for (const [step, w] of Object.entries(DARK_TINTS)) rgb[+step] = mix(p, surface, w);
+    for (const [step, w] of Object.entries(DARK_LIFTS)) rgb[+step] = mix(white, p, w);
+    const scale: Record<number, string> = {};
+    for (const step of Object.keys(rgb).map(Number).sort((a, b) => a - b)) {
+        scale[step] = toHex(rgb[step]);
+        rgb[step] = parseHex(scale[step]) as RGB;
+    }
+    const candidates: RGB[] = [p, ...[0.15, 0.3, 0.45, 0.6, 0.75, 0.9].map((w) => parseHex(toHex(mix(white, p, w))) as RGB)];
+    const text = candidates.find((c) => contrast(c, surface) >= 4.5 && contrast(c, rgb[50]) >= 4.5) ?? white;
+    const brandText = toHex(text);
+    const solidRgb = parseHex(light.solid) as RGB;
+    const solidBorder = contrast(solidRgb, surface) < 3 ? brandText : "transparent";
+    const focusRing = `rgba(${text.map(Math.round).join(", ")}, 0.35)`;
+    return { ...light, scale, brandText, solidBorder, focusRing };
+}
+
+function buildLightBrand(primaryHex: string | null | undefined): BrandTokens {
   const p = parseHex(primaryHex) ?? (parseHex(DEFAULT_PRIMARY) as RGB);
   const white = parseHex(WHITE) as RGB;
   const black: RGB = [0, 0, 0];
@@ -171,12 +206,17 @@ export function buildAccent(accentHex: string | null | undefined) {
   };
 }
 
+// The last brand applied, so a theme switch can re-derive the palette without reloading settings.
+let lastBrand: { primary: string | null | undefined; accent: string | null | undefined } = { primary: DEFAULT_PRIMARY, accent: DEFAULT_ACCENT };
+
 export function applyTenantBrand(
   primary: string | null | undefined,
   accent: string | null | undefined,
   root: HTMLElement = document.documentElement,
+  mode: ThemeMode = root.dataset.theme === "dark" ? "dark" : "light",
 ): void {
-  const b = buildBrand(primary);
+  if (root === document.documentElement) lastBrand = { primary, accent };
+  const b = buildBrand(primary, mode);
   const a = buildAccent(accent);
   const set = (k: string, v: string) => root.style.setProperty(k, v);
 
@@ -196,4 +236,9 @@ export function applyTenantBrand(
   // Backward compatibility — existing code (jsPDF headers, legacy CSS) reads these.
   set("--primary", b.scale[500]);
   set("--accentColor", a.accent);
+}
+
+/** Re-derive the brand palette for the current theme (call after <html data-theme> changes). */
+export function reapplyTenantBrand(): void {
+  applyTenantBrand(lastBrand.primary, lastBrand.accent);
 }

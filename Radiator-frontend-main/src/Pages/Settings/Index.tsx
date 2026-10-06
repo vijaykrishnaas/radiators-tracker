@@ -11,6 +11,7 @@ import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Input
 import { usePhone } from "../../Components/ui/hooks";
 import { buildBrand, parseHex, toHex } from "../../theme/applyTenantBrand";
 import { assetUrl, BACKEND } from "../../Utils/pdfImage";
+import { resolveTheme, useThemePref } from "../../theme/themeMode";
 
 const resolveLogo = assetUrl;
 
@@ -331,7 +332,8 @@ const SettingsPage = () => {
 
     // ---- Branding preview (rendered from the same buildBrand() the app uses) ----
     const primary = draft.branding.primaryColor;
-    const brand = buildBrand(primary);
+    const [themePref] = useThemePref();
+    const brand = buildBrand(primary, resolveTheme(themePref));
     const adjusted = brand.solid.toUpperCase() !== (primary || "").toUpperCase();
     const previewVars = {
         "--brand-solid": brand.solid,
