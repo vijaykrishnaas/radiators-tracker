@@ -8,9 +8,10 @@ import { getData, postData, putData } from "../../../Services/ApiServices";
 import { useAlertMsg } from "../../../Services/AllServices";
 import { useSettings } from "../../../Context/SettingsContext";
 import { money, today } from "../../../Utils/format";
-import { PageHeader, Field, FormFooter, SkeletonRows } from "../../../Components/ui/Basics";
+import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../Components/ui/Basics";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
+import ItemMultiSelect from "../Components/ItemMultiSelect";
 import { defaultRate, isOffered, round2, type EngBill } from "../types";
 
 type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
@@ -88,9 +89,6 @@ const EngCreate = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
-    const clearErr = (...keys: string[]) =>
-        setErrors((e) => (keys.some((k) => e[k]) ? Object.fromEntries(Object.entries(e).filter(([k]) => !keys.includes(k))) : e));
-
     const findType = (t: string) => serviceTypes.find((x) => x.value === t);
 
     const updateCard = (key: number, fn: (c: Card) => Card) =>
@@ -131,11 +129,6 @@ const EngCreate = () => {
                 });
             return { ...c, rows: [...kept, ...added] };
         });
-    const addItem = (key: number, value: string) => {
-        const c = cards.find((x) => x.key === key);
-        if (c) setItems(key, [...c.rows.map((x) => x.item), value]);
-        clearErr("services");
-    };
 
     const setRow = (key: number, item: string, patch: Partial<Row>) => {
         updateCard(key, (c) => ({ ...c, rows: c.rows.map((r) => (r.item === item ? { ...r, ...patch } : r)) }));
@@ -148,7 +141,6 @@ const EngCreate = () => {
     };
 
     const quickAdd = (type: string, item: string) => {
-        clearErr("services");
         const it = findType(type)?.items.find((i) => i.value === item);
         setCards((cs) => {
             let list = cs;
@@ -266,129 +258,123 @@ const EngCreate = () => {
         })
         .filter(Boolean) as { type: string; item: string; text: string }[];
 
-    const title = isView ? "View bill" : isEdit ? "Edit bill" : "Create bill";
+    const title = isView ? "View service" : isEdit ? "Edit service" : "Turbo & air compressor service";
     const mixedBs = !billBs && new Set(cards.filter((c) => c.type).map((c) => c.bsModel || "")).size > 1;
     const typeOpts = serviceTypes.map((t) => ({ label: t.label, value: t.value }));
     const bsOpts = bsModels.map((b) => ({ label: b.label, value: b.value }));
-    const filledCards = cards.filter((c) => c.rows.length);
-    const memoParts = filledCards.length > 1 ? filledCards.map((c) => `Memo ${cards.indexOf(c) + 1}: ${money(subtotal(c))}`) : [];
-    if (disc > 0 && filledCards.length) {
-        if (!memoParts.length) memoParts.push(`Subtotal ${money(total)}`);
-        memoParts.push(`− Discount ${money(disc)}`);
-    }
-    const memoBreakdown = memoParts.length ? memoParts.join(" + ").replace(" + −", " −") : undefined;
-    // Serial numbers run across memos (1–14 in memo 1, 15– in memo 2), as on the paper bill.
-    const serialStart = (ci: number) => cards.slice(0, ci).reduce((n, c) => n + c.rows.length, 0);
+    const subtitle = (
+        <>
+            {bsModels.map((b) => b.label).join(" / ") || "BS"} service work record
+            {billNo != null && <> · Bill no. {billNo}</>}
+        </>
+    );
 
     return (
         <>
-            <PageHeader title={title} back={{ to: "/engineering/billing", label: "Bills" }} />
+            <PageHeader title={title} subtitle={subtitle} back={{ to: "/engineering/billing", label: "Bills" }} />
             <div className="card-stack">
-            <section className="card bill-sheet">
-                <div className="card-body">
-                    <div className="bill-sheet-head">
-                        <div>
-                            <h2 className="bill-sheet-title">{isView ? "Service bill" : "Turbo & air compressor service"}</h2>
-                            <p className="bill-sheet-sub">{bsModels.map((b) => b.label).join(" / ") || "BS"} service work record</p>
-                        </div>
-                        <span className="bill-no" title={billNo == null && !id ? "The number is assigned when the bill is saved" : undefined}>
-                            Bill No. {billNo != null ? billNo : id ? "…" : "[AUTO]"}
-                        </span>
-                    </div>
-
-                    {loadingRecord ? <SkeletonRows rows={3} /> : (
-                        <div className="bill-fields">
-                            <Field label="Bill date" htmlFor="eng-bill-date" required error={errors.billDate}>
-                                <input id="eng-bill-date" type="date" className="form-control" value={billDate} disabled={isView}
-                                    onChange={(e) => { setBillDate(e.target.value); clearErr("billDate"); }} />
-                            </Field>
-                            <Field label="Lorry address" htmlFor="eng-lorry-address">
-                                <InputText id="eng-lorry-address" value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
-                                    onChange={(e) => setLorryAddress(e.target.value)} />
-                            </Field>
-                            <Field label="Truck number" htmlFor="eng-truck-no" required error={errors.vehicleNo}
-                                help={filledNote ? <span className="t-success" role="status">Filled from last bill</span> : undefined}>
-                                <div className="input-icon">
-                                    <InputText id="eng-truck-no" value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
-                                        onChange={(e) => { setVehicleNo(e.target.value.toUpperCase()); clearErr("vehicleNo"); }} onBlur={lookupVehicle} />
-                                    {lookingUp && <span className="spinner input-spinner" role="status" aria-label="Looking up truck" />}
-                                </div>
-                            </Field>
-                            <Field label="Phone number" htmlFor="eng-phone" error={errors.phone}>
-                                <InputText id="eng-phone" type="tel" inputMode="numeric" value={phone} placeholder="Enter Phone Number" disabled={isView}
-                                    onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearErr("phone"); }} />
-                            </Field>
-                            <Field label="Mechanic name" htmlFor="eng-mechanic" required error={errors.mechanic}>
-                                <Selector
-                                    inputId="eng-mechanic"
-                                    options={mechanics.map((m) => ({ label: m, value: m }))}
-                                    value={mechanic ? { label: mechanic, value: mechanic } : null}
-                                    isDisabled={isView}
-                                    placeholder="Select Mechanic Name"
-                                    aria-invalid={!!errors.mechanic}
-                                    onChange={(o: any) => { setMechanic(o ? o.value : ""); clearErr("mechanic"); }}
-                                />
-                            </Field>
-                            <Field label="BS model" htmlFor="eng-bs">
-                                <Selector inputId="eng-bs" options={bsOpts} isDisabled={isView} isClearable
-                                    placeholder={mixedBs ? "Mixed" : "Select BS model"}
-                                    value={billBs ? bsOpts.find((b) => b.value === billBs) || { label: billBs, value: billBs } : null}
-                                    onChange={(o: any) => setBs(o ? o.value : "")} />
-                            </Field>
-                        </div>
-                    )}
-
-                    {!isView && quick.length > 0 && (
-                        <div className="eng-quick-row">
-                            <span className="t-xs t-muted">Quick add</span>
-                            {quick.map((q) => (
-                                <button key={`${q.type}-${q.item}`} type="button" className="chip-btn" onClick={() => quickAdd(q.type, q.item)}>
-                                    <Icons iconName="add" />{q.text}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    {errors.services && <p className="field-error mt-3" role="alert">{errors.services}</p>}
-
-                    <div className="memo-stack">
-                        {cards.map((c, ci) => {
-                            const t = findType(c.type);
-                            const chosen = new Set(c.rows.map((r) => r.item));
-                            const addOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel) && !chosen.has(i.value)).map((i) => ({ label: i.label, value: i.value }));
-                            const base = serialStart(ci);
-                            return (
-                                <section key={c.key} className="memo" aria-label={`Memo ${ci + 1}`}>
-                                    <div className="memo-head">
-                                        <span className="memo-tag">Memo {ci + 1}</span>
-                                        <div className="memo-type">
-                                            <Selector inputId={`eng-type-${c.key}`} aria-label={`Service type for memo ${ci + 1}`} options={typeOpts} isDisabled={isView}
-                                                placeholder="Select service type"
-                                                value={c.type ? { label: t?.label || c.type, value: c.type } : null}
-                                                onChange={(o: any) => setType(c.key, o ? o.value : "")} />
-                                        </div>
-                                        {!isView && (
-                                            <button type="button" className="btn btn-icon eng-svc-remove" aria-label={`Remove memo ${ci + 1}`} title="Remove memo"
-                                                onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
-                                                <Icons iconName="delete" />
-                                            </button>
-                                        )}
+                <section className="card">
+                    <div className="card-body">
+                        <CardHead title="Bill details" />
+                        {loadingRecord ? <SkeletonRows rows={3} /> : (
+                            <div className="form-grid mt-4">
+                                <Field label="Bill date" htmlFor="eng-bill-date" required error={errors.billDate}>
+                                    <input id="eng-bill-date" type="date" className="form-control" value={billDate} disabled={isView}
+                                        onChange={(e) => setBillDate(e.target.value)} />
+                                </Field>
+                                <Field label="Truck number" htmlFor="eng-truck-no" required error={errors.vehicleNo}
+                                    help={filledNote ? <span className="t-success" role="status">Filled from last bill</span> : undefined}>
+                                    <div className="input-icon">
+                                        <InputText id="eng-truck-no" value={vehicleNo} placeholder="Enter Truck Number" disabled={isView}
+                                            onChange={(e) => setVehicleNo(e.target.value.toUpperCase())} onBlur={lookupVehicle} />
+                                        {lookingUp && <span className="spinner input-spinner" role="status" aria-label="Looking up truck" />}
                                     </div>
+                                </Field>
+                                <Field label="Lorry address" htmlFor="eng-lorry-address">
+                                    <InputText id="eng-lorry-address" value={lorryAddress} placeholder="Enter Lorry Address" disabled={isView}
+                                        onChange={(e) => setLorryAddress(e.target.value)} />
+                                </Field>
+                                <Field label="Mechanic name" htmlFor="eng-mechanic" required error={errors.mechanic}>
+                                    <Selector
+                                        inputId="eng-mechanic"
+                                        options={mechanics.map((m) => ({ label: m, value: m }))}
+                                        value={mechanic ? { label: mechanic, value: mechanic } : null}
+                                        isDisabled={isView}
+                                        placeholder="Select Mechanic Name"
+                                        aria-invalid={!!errors.mechanic}
+                                        onChange={(o: any) => setMechanic(o ? o.value : "")}
+                                    />
+                                </Field>
+                                <Field label="Phone number" htmlFor="eng-phone" error={errors.phone}>
+                                    <InputText id="eng-phone" type="tel" inputMode="numeric" value={phone} placeholder="Enter Phone Number" disabled={isView}
+                                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
+                                </Field>
+                                <Field label="BS model" htmlFor="eng-bs">
+                                    <Selector inputId="eng-bs" options={bsOpts} isDisabled={isView} isClearable
+                                        placeholder={mixedBs ? "Mixed" : "Select BS model"}
+                                        value={billBs ? bsOpts.find((b) => b.value === billBs) || { label: billBs, value: billBs } : null}
+                                        onChange={(o: any) => setBs(o ? o.value : "")} />
+                                </Field>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
-                                    {c.rows.length > 0 && (
-                                        <div className="memo-cols" aria-hidden="true">
-                                            <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span>Rate</span><span className="num">Amount</span><span />
+                <section className="card">
+                    <div className="card-body">
+                        <CardHead
+                            title="Services"
+                            actions={!isView && (
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
+                                    <Icons iconName="add" />Add New Service
+                                </button>
+                            )}
+                        />
+                        {!isView && quick.length > 0 && (
+                            <div className="eng-quick-row mt-4">
+                                <span className="t-xs t-muted">Quick add</span>
+                                {quick.map((q) => (
+                                    <button key={`${q.type}-${q.item}`} type="button" className="chip-btn" onClick={() => quickAdd(q.type, q.item)}>
+                                        <Icons iconName="add" />{q.text}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {errors.services && <p className="field-error mt-3" role="alert">{errors.services}</p>}
+
+                        <div className="d-grid gap-3 mt-4">
+                            {cards.map((c, ci) => {
+                                const t = findType(c.type);
+                                const itemOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel)).map((i) => ({ label: i.label, value: i.value }));
+                                return (
+                                    <div key={c.key} className="nested-card">
+                                        <div className="eng-svc-head">
+                                            <Field label="Service type" htmlFor={`eng-type-${c.key}`} className="flex-grow-1">
+                                                <Selector inputId={`eng-type-${c.key}`} options={typeOpts} isDisabled={isView} placeholder="Select..."
+                                                    value={c.type ? { label: t?.label || c.type, value: c.type } : null}
+                                                    onChange={(o: any) => setType(c.key, o ? o.value : "")} />
+                                            </Field>
+                                            {!isView && (
+                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label="Remove service"
+                                                    onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
+                                                    <Icons iconName="delete" />
+                                                </button>
+                                            )}
                                         </div>
-                                    )}
-                                    {c.rows.length > 0 && (
-                                        <ul className="memo-rows eng-lines" aria-label={`Items in memo ${ci + 1}`}>
-                                            {c.rows.map((r, ri) => {
-                                                const ce = errors[`c${c.key}-${r.item}`];
-                                                const qe = errors[`q${c.key}-${r.item}`];
-                                                return (
-                                                    <li key={r.item} className="memo-row eng-line">
-                                                        <span className="memo-sno tabular">{base + ri + 1}</span>
-                                                        <div className="memo-part">
-                                                            <span className="memo-part-name eng-line-name">{r.label}</span>
+                                        <Field label="Work / service items" htmlFor={`eng-items-${c.key}`} className="mt-3">
+                                            <ItemMultiSelect inputId={`eng-items-${c.key}`} options={itemOpts} value={c.rows.map((r) => r.item)} disabled={isView || !c.type}
+                                                placeholder={c.type ? "Select items" : "Select type first"}
+                                                onChange={(v) => setItems(c.key, v)} />
+                                        </Field>
+
+                                        {c.rows.length > 0 && (
+                                            <ul className="eng-lines" aria-label={`Items for service ${ci + 1}`}>
+                                                {c.rows.map((r) => {
+                                                    const ce = errors[`c${c.key}-${r.item}`];
+                                                    const qe = errors[`q${c.key}-${r.item}`];
+                                                    return (
+                                                        <li key={r.item} className="eng-line">
+                                                            <span className="eng-line-name t-md t-medium t-strong">{r.label}</span>
                                                             {r.requiresComment && (
                                                                 <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
                                                                     <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} disabled={isView}
@@ -396,67 +382,45 @@ const EngCreate = () => {
                                                                     {ce && <span className="field-error" role="alert">{ce}</span>}
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                        <div className={`memo-qty field${qe ? " has-error" : ""}`}>
-                                                            <span className="memo-mlabel" aria-hidden="true">Qty</span>
-                                                            <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
-                                                                className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
-                                                            {qe && <span className="field-error" role="alert">{qe}</span>}
-                                                        </div>
-                                                        <div className="memo-rate">
-                                                            <span className="memo-mlabel" aria-hidden="true">Rate</span>
-                                                            <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
-                                                                className="tabular" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
-                                                        </div>
-                                                        <span className="memo-amt eng-line-amt tabular">{money(amount(r))}</span>
-                                                        {!isView ? (
-                                                            <button type="button" className="btn btn-icon memo-x" aria-label="Remove item"
-                                                                onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>
-                                                                <Icons iconName="x" />
-                                                            </button>
-                                                        ) : <span />}
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-
-                                    <div className="memo-foot">
-                                        {!isView ? (
-                                            <div className="memo-add">
-                                                <Selector
-                                                    inputId={`eng-add-${c.key}`}
-                                                    aria-label={`Add item to memo ${ci + 1}`}
-                                                    options={addOpts}
-                                                    value={null}
-                                                    isDisabled={!c.type || !addOpts.length}
-                                                    placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : "All items added"}
-                                                    onChange={(o: any) => { if (o) addItem(c.key, o.value); }}
-                                                />
-                                            </div>
-                                        ) : <span />}
+                                                            <div className="eng-line-calc">
+                                                                <div className={`eng-line-qty field${qe ? " has-error" : ""}`}>
+                                                                    <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Quantity for ${r.label}`} disabled={isView}
+                                                                        className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
+                                                                    {qe && <span className="field-error" role="alert">{qe}</span>}
+                                                                </div>
+                                                                <span className="t-muted" aria-hidden="true">×</span>
+                                                                <div className="eng-line-rate">
+                                                                    <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
+                                                                        className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
+                                                                </div>
+                                                            </div>
+                                                            <span className="eng-line-amt t-md t-semibold t-strong tabular">{money(amount(r))}</span>
+                                                            {!isView && (
+                                                                <button type="button" className="btn btn-icon eng-line-x" aria-label="Remove item"
+                                                                    onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>
+                                                                    <Icons iconName="x" />
+                                                                </button>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
                                         {c.rows.length > 0 && (
-                                            <div className="memo-subtotal eng-subtotal">
-                                                <span>Subtotal ({c.rows.length} item{c.rows.length === 1 ? "" : "s"}):</span>
-                                                <strong className="tabular">{money(subtotal(c))}</strong>
+                                            <div className="eng-subtotal t-sm">
+                                                <span className="t-muted">Subtotal</span>
+                                                <strong className="t-strong t-semibold tabular">{money(subtotal(c))}</strong>
                                             </div>
                                         )}
                                     </div>
-                                </section>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
-
-                    {!isView && (
-                        <button type="button" className="btn btn-secondary memo-new" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
-                            <Icons iconName="add" />Add memo
-                        </button>
-                    )}
-                </div>
-            </section>
+                </section>
             </div>
 
-            <FormFooter totalLabel="Total amount" total={money(net)} totalNote={memoBreakdown}>
+            <FormFooter totalLabel="Total amount" total={money(net)}>
                 {isView ? (
                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Back</button>
                 ) : (
@@ -464,7 +428,7 @@ const EngCreate = () => {
                         <button type="button" className="btn btn-secondary" onClick={cancel}>Cancel</button>
                         <button type="button" className="btn btn-primary" disabled={loading || loadingRecord} onClick={save}>
                             {loading && <span className="spinner" aria-hidden="true" />}
-                            {loading ? "Saving..." : isEdit ? "Update bill" : "Create bill"}
+                            {loading ? "Saving..." : isEdit ? "Update service" : "Save service"}
                         </button>
                     </>
                 )}

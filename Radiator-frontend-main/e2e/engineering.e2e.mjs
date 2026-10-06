@@ -132,7 +132,7 @@ async function run(type) {
   ok("eng: service form title and back link", (await page.getByRole("heading", { name: "Turbo & air compressor service" }).count()) === 1 && (await page.getByRole("link", { name: "Bills" }).count()) >= 1);
 
   // Save with nothing → validation
-  await page.getByRole("button", { name: "Create bill" }).click();
+  await page.getByRole("button", { name: "Save service" }).click();
   ok("eng: mechanic required error", (await page.getByText("Mechanic is required").count()) > 0);
   ok("eng: service required error", (await page.getByText("Add at least one service with an item").count()) > 0);
 
@@ -140,16 +140,16 @@ async function run(type) {
   await page.getByText("Select Mechanic Name").click({ force: true });
   await page.getByText("Ramesh", { exact: true }).last().click();
   // One BS model for the whole bill (header), then service type Turbo on the card.
-  ok("eng: BS model is a bill-level header field (no BS select inside the service card)", (await page.getByText("BS model", { exact: true }).count()) === 1 && (await page.locator(".memo").first().getByText("BS model").count()) === 0);
+  ok("eng: BS model is a bill-level header field (no BS select inside the service card)", (await page.getByText("BS model", { exact: true }).count()) === 1 && (await page.locator(".nested-card").first().getByText("BS model").count()) === 0);
   await page.getByText("Select BS model").click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
-  const card = page.locator(".memo").first();
-  await card.getByText("Select service type").first().click({ force: true });
+  const card = page.locator(".nested-card").first();
+  await card.getByText("Select...").first().click({ force: true });
   await page.getByText("Turbo", { exact: true }).last().click();
-  for (const it of ["Hold set", "O-ring kit change", "Other"]) {
-    await card.getByText("+ Add item").click({ force: true });
-    await page.getByText(it, { exact: true }).last().click();
-  }
+  await card.getByText("Select items").click({ force: true });
+  await page.getByText("Hold set", { exact: true }).last().click();
+  await page.getByText("O-ring kit change", { exact: true }).last().click();
+  await page.getByText("Other", { exact: true }).last().click();
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${S}/eng-form-turbo.png`, fullPage: true });
@@ -160,9 +160,8 @@ async function run(type) {
   await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
   await rateInputs.nth(2).fill("50");
   // Other without description → error
-  await page.getByRole("button", { name: "Create bill" }).click();
+  await page.getByRole("button", { name: "Save service" }).click();
   ok("eng: Other requires description", (await page.getByText("Describe the work").count()) > 0);
-  await page.screenshot({ path: `${S}/eng-form-errors.png`, fullPage: true });
   await page.waitForTimeout(450); // border-color has a 150ms transition
   const errBorder = await page.locator(".eng-line-comment.has-error .form-control").first().evaluate((el) => getComputedStyle(el).borderTopColor);
   const okBorder = await page.locator("#eng-lorry-address").evaluate((el) => getComputedStyle(el).borderTopColor);
@@ -173,13 +172,13 @@ async function run(type) {
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
   const heights = await page.evaluate(() => {
     const h = (el) => Math.round(el.getBoundingClientRect().height);
-    const inputs = [...document.querySelectorAll(".card-stack input.form-control")].filter((e) => !e.closest(".eng-line")).filter((e) => e.type === "text" || e.type === "date" || e.type === "tel").map(h);
+    const inputs = [...document.querySelectorAll(".card-stack input.form-control")].filter((e) => e.type === "text" || e.type === "date" || e.type === "tel").map(h);
     const selects = [...document.querySelectorAll('.card-stack div[class*="-control"]')].filter((e) => !e.className.includes("form-control") && !e.closest(".eng-line")).map(h);
     return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
   });
   ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
-  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l) => ({ bg: getComputedStyle(l).backgroundColor !== "rgba(0, 0, 0, 0)", hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
-  ok("eng: item rows are tinted rows with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.bg && l.hasX && l.amt), JSON.stringify(lineShape));
+  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l) => ({ sep: getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
+  ok("eng: item rows are separated lines with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.sep === "1px" && l.hasX && l.amt), JSON.stringify(lineShape));
 
   // Quick-add chips: "Quick add" label + pill chips with a plus icon.
   const chipStyle = await page.evaluate(() => {
@@ -192,19 +191,19 @@ async function run(type) {
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();
   await page.waitForTimeout(300);
-  ok("eng: quick-add created compressor card with Piston row", (await page.locator(".memo").count()) === 2 && (await page.locator(".memo").nth(1).getByText("Piston", { exact: true }).count()) > 0);
+  ok("eng: quick-add created compressor card with Piston row", (await page.locator(".nested-card").count()) === 2 && (await page.locator(".nested-card").nth(1).getByText("Piston", { exact: true }).count()) > 0);
 
   // BS-6 (bill-level) hides Block bush change for compressor
-  const c2 = page.locator(".memo").nth(1);
-  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  const c2 = page.locator(".nested-card").nth(1);
+  await page.locator(".card-stack").getByText("BS-3", { exact: true }).first().click({ force: true });
   await page.getByText("BS-6", { exact: true }).last().click();
-  await c2.getByText("+ Add item").click({ force: true });
+  await c2.locator("[class*='control']").nth(1).click({ force: true });
   await page.waitForTimeout(300);
   const menu = await page.locator("[class*='menu']").last().innerText();
   ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
   await page.keyboard.press("Escape");
   // Back to BS-3: the change re-applies catalog rates on every card, so retype the manual values afterwards.
-  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  await page.locator(".card-stack").getByText("BS-6", { exact: true }).first().click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
   await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
   await rateInputs.nth(2).fill("50");
@@ -218,7 +217,7 @@ async function run(type) {
   ok("eng: create footer has no discount / per-type totals, form has no payment fields", !/Discount|Amount received|Payment mode|Turbo|Air Compressor/i.test(footText) && (await page.locator("label:has-text('Discount'), label:has-text('Amount received'), label:has-text('Payment mode')").count()) === 0, footText.replace(/\s+/g, " "));
   await page.screenshot({ path: `${S}/eng-form-full.png`, fullPage: true });
 
-  await page.getByRole("button", { name: "Create bill" }).click();
+  await page.getByRole("button", { name: "Save service" }).click();
   await page.waitForTimeout(1500);
   ok("eng: POST payload sent", !!posted);
   if (posted) {
@@ -420,13 +419,13 @@ async function run(type) {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
     return { input: g(document.querySelector(".card-stack input.form-control")), select: g([...document.querySelectorAll('.card-stack div[class*="-control"]')][0]),
       save: g(document.querySelector(".form-footer .btn-primary")), cancel: g(document.querySelector(".form-footer .btn-secondary")),
-      add: g(document.querySelector(".memo-new")), remove: g(document.querySelector(".eng-svc-remove")) };
+      add: g(document.querySelector(".card-head .btn-sm")), remove: g(document.querySelector(".eng-svc-remove")) };
   });
   ok("eng: form inputs and dropdowns share the 8px radius", bi.input.r === "8px" && bi.select.r === "8px", `input ${bi.input.r} select ${bi.select.r}`);
   ok("eng: footer buttons are 8px radius and at least 44px tall", bi.save.r === "8px" && bi.cancel.r === "8px" && bi.save.h >= 44 && bi.cancel.h >= 44, JSON.stringify({ save: bi.save, cancel: bi.cancel }));
   const ctlRadii = await page.evaluate(() => [...document.querySelectorAll('.card-stack div[class*="-control"]')].filter((e) => !e.className.includes("form-control")).map((e) => getComputedStyle(e).borderTopLeftRadius));
   ok("eng: every dropdown in the form (incl. the service-items picker) is 8px radius", ctlRadii.length >= 3 && ctlRadii.every((r) => r === "8px"), JSON.stringify(ctlRadii));
-  ok("eng: small form buttons (Add memo / Remove memo) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
+  ok("eng: small form buttons (Add New Service / Remove service) are 8px radius", bi.add.r === "8px" && bi.remove.r === "8px", `${bi.add.r} ${bi.remove.r}`);
 
   // Phone: footer actions stay at least 44px tall and inside the viewport.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -540,7 +539,7 @@ async function run(type) {
   ok("eng: edit loads item rate 4850", (await page.locator('input[placeholder="Rate"]').first().inputValue()) === "4850");
   ok("eng: edit shows the net total (4,800) and no discount field", (await page.locator(".form-footer-total strong").innerText()).includes("4,800.00") && (await page.locator("label:has-text('Discount')").count()) === 0);
   await page.locator('input[placeholder="Qty"]').first().fill("2");
-  await page.getByRole("button", { name: "Update bill" }).click();
+  await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
   ok("eng: edit sends PUT with updated qty and leaves discount to the server", putBody?.services?.[0]?.items?.[0]?.qty === 2 && putBody?.discount === undefined && putBody?.vehicleNo === "TN52J2622", JSON.stringify(putBody && { qty: putBody.services?.[0]?.items?.[0]?.qty, discount: putBody.discount }));
 
@@ -586,7 +585,7 @@ async function run(type) {
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
   ok("eng: legacy mixed-BS bill shows 'Mixed' in the BS field", (await page.getByText("Mixed", { exact: true }).count()) === 1);
-  await page.getByRole("button", { name: "Update bill" }).click();
+  await page.getByRole("button", { name: "Update service" }).click();
   for (let i = 0; i < 50 && !putBody; i++) await page.waitForTimeout(100);
   ok("eng: saving a mixed-BS bill keeps each card's own BS model", putBody?.services?.[0]?.bsModel === "bs3" && putBody?.services?.[1]?.bsModel === "bs6", JSON.stringify(putBody?.services?.map((x) => x.bsModel)));
   await page.unroute("http://localhost:5000/**", mixedHandler);
@@ -627,10 +626,7 @@ async function run(type) {
   await page.goto(BASE + "/engineering/dashboard/view/b1");
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
-  await page.screenshot({ path: `${S}/eng-form-view.png`, fullPage: true });
-  const viewNote = await page.locator(".form-footer-note").innerText().catch(() => "");
-  ok("eng: view footer explains the discount (subtotal − discount = total)", /Subtotal .*4,850\.00 − Discount .*50\.00/.test(viewNote), viewNote);
-  ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Create bill|Update bill/ }).count()) === 0);
+  ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Save service|Update service/ }).count()) === 0);
   ok("eng: view mode has no remove-item / remove-service buttons", (await page.getByRole("button", { name: /Remove (item|service)/ }).count()) === 0);
 
   // Print from billing downloads a PDF without errors.
@@ -688,9 +684,9 @@ async function run(type) {
   ok("eng: 'Filters' sheet reveals date filters", await page.locator("#from-date").isVisible());
   await page.keyboard.press("Escape");
   await page.goto(BASE + "/engineering/dashboard/create");
-  await page.getByRole("button", { name: "Create bill" }).waitFor({ timeout: 10000 });
-  const saveBox = await page.getByRole("button", { name: "Create bill" }).boundingBox();
-  ok("eng: Create bill is inside the viewport without scrolling (sticky bar)", !!saveBox && saveBox.y + saveBox.height <= 844 && saveBox.y >= 0, JSON.stringify(saveBox));
+  await page.getByRole("button", { name: "Save service" }).waitFor({ timeout: 10000 });
+  const saveBox = await page.getByRole("button", { name: "Save service" }).boundingBox();
+  ok("eng: Save service is inside the viewport without scrolling (sticky bar)", !!saveBox && saveBox.y + saveBox.height <= 844 && saveBox.y >= 0, JSON.stringify(saveBox));
   const formOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   ok("eng: service form has no horizontal overflow at 390px", formOverflow <= 0, `overflow=${formOverflow}`);
   await page.setViewportSize({ width: 1300, height: 1000 });
