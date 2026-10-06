@@ -155,7 +155,11 @@ await page.screenshot({ path: `${OUT}/auto-edit-memos.png`, fullPage: true });
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(BASE + "/automobile/dashboard/edit/a3");
 await page.locator("#particulars-0").waitFor({ timeout: 10000 });
-const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+// The footer is still settling for a moment after the first input mounts (measured ~6-11px at that instant), so wait
+// for the layout to settle; an overflow that persists for the whole wait still fails.
+const measureOverflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+let overflow = await measureOverflow();
+for (let i = 0; i < 30 && overflow > 0; i++) { await page.waitForTimeout(100); overflow = await measureOverflow(); }
 ok("auto: bill form has no horizontal overflow at 390px", overflow <= 0, `overflow=${overflow}`);
 ok("auto: phone rows show Qty / Unit / Rate / Amount labels", await page.locator(".memo-row").first().locator(".memo-mlabel").evaluateAll((els) => els.length === 4 && els.every((e) => getComputedStyle(e).display !== "none")));
 await page.screenshot({ path: `${OUT}/auto-edit-390.png`, fullPage: true });
