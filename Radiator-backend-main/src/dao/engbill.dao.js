@@ -332,7 +332,13 @@ export async function lookupVehicle(clientId, vehicleNo) {
 // headline gross figure is never read as money in hand.
 const emptyBucket = () => ({ bills: 0, sales: 0, cost: 0, gross: 0, discount: 0, afterDiscount: 0, bonus: 0, afterBonus: 0 });
 
-export function summarizeProfit(bills, bonusByBill = new Map()) {
+// A bill counts as "earned" once it is fully paid — including a bill discounted to zero (nothing left to collect).
+const isSettled = (b) => b.paymentStatus === STATUS.RECEIVED || (Number(b.total) > 0 && Number(b.netTotal) <= 0);
+
+// With a service-type / BS-model filter only the matching cards count; the bill's discount and bonus are shared out
+// in proportion to those cards' share of the bill total.
+export function summarizeProfit(bills, bonusByBill = new Map(), { serviceType = "", bsModel = "" } = {}) {
+  const cardMatches = (s) => (!serviceType || s.type === serviceType) && (!bsModel || (s.bsModel || "") === bsModel);
   const earned = emptyBucket();
   const expected = emptyBucket();
   const byType = new Map();
@@ -340,10 +346,13 @@ export function summarizeProfit(bills, bonusByBill = new Map()) {
   let missingCostLines = 0;
 
   for (const b of bills) {
-    const bucket = b.paymentStatus === STATUS.RECEIVED ? earned : expected;
+    const bucket = isSettled(b) ? earned : expected;
     let sales = 0;
     let cost = 0;
+    let billSales = 0;
+    for (const s of b.services || []) billSales += Number(s.subtotal) || 0;
     for (const s of b.services || []) {
+      if (!cardMatches(s)) continue;
       const t = byType.get(s.type) || { type: s.type, label: s.typeLabel || s.type, sales: 0, cost: 0 };
       for (const i of s.items || []) {
         const amt = Number(i.amount) || 0;
@@ -363,8 +372,10 @@ export function summarizeProfit(bills, bonusByBill = new Map()) {
       }
       byType.set(s.type, t);
     }
-    const discount = Math.max(Number(b.discount) || 0, 0);
-    const bonus = Number(bonusByBill.get(String(b._id))) || 0;
+    const share = serviceType || bsModel ? (billSales > 0 ? sales / billSales : 0) : 1;
+    if ((serviceType || bsModel) && share === 0 && sales === 0) continue;
+    const discount = Math.max(Number(b.discount) || 0, 0) * share;
+    const bonus = (Number(bonusByBill.get(String(b._id))) || 0) * share;
     bucket.bills += 1;
     bucket.sales += sales;
     bucket.cost += cost;
@@ -400,7 +411,7 @@ export async function getEngProfit(clientId, filters = {}) {
   const bills = await db
     .collection(COLLECTION)
     .find(buildQuery(clientId, filters))
-    .project({ services: 1, discount: 1, paymentStatus: 1 })
+    .project({ services: 1, discount: 1, paymentStatus: 1, total: 1, netTotal: 1 })
     .toArray();
   const ids = bills.map((b) => b._id);
   const bonusByBill = new Map();
@@ -414,14 +425,13 @@ export async function getEngProfit(clientId, filters = {}) {
       bonusByBill.set(k, (bonusByBill.get(k) || 0) + (Number(e.status === "paid" ? e.paidAmount ?? e.accruedAmount : e.accruedAmount) || 0));
     }
   }
-  return summarizeProfit(bills, bonusByBill);
+  return summarizeProfit(bills, bonusByBill, { serviceType: filters.serviceType, bsModel: filters.bsModel });
 }
 
 export async function getEngAnalytics(clientId, filters = {}) {
   const db = await connectDB();
   const query = buildQuery(clientId, filters);
-  const profitP = getEngProfit(clientId, filters);
-  const [result] = await db.collection(COLLECTION).aggregate([
+  const [[result], profit] = await Promise.all([db.collection(COLLECTION).aggregate([
     { $match: query },
     {
       $facet: {
@@ -465,7 +475,7 @@ export async function getEngAnalytics(clientId, filters = {}) {
         ],
       },
     },
-  ]).toArray();
+  ]).toArray(), getEngProfit(clientId, filters)]);
 
   const k = result?.kpis?.[0] || { totalBills: 0, totalBilled: 0, totalReceived: 0 };
   return {
@@ -478,6 +488,6 @@ export async function getEngAnalytics(clientId, filters = {}) {
     byMonth: result?.byMonth || [],
     byServiceType: result?.byServiceType || [],
     byMechanic: result?.byMechanic || [],
-    profit: await profitP,
+    profit,
   };
 }

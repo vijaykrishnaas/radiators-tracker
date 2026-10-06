@@ -120,6 +120,8 @@ ok("auto: picking a catalog part fills unit, rate and amount", (await page.locat
 ok("auto: S.No runs on across memos (memo 2 starts at 2)", (await page.locator(".memo").nth(1).locator(".memo-sno").first().innerText()) === "2");
 await page.locator(".memo").nth(1).getByRole("button", { name: "Add item" }).click();
 await page.locator("#particulars-2").fill("Labour charge");
+await page.locator("#rate-2").fill("0");
+ok("auto: a ₹0 rate gives a ₹0 amount (free item), not a blank required field", (await page.locator("#amount-2").inputValue()) === "0", await page.locator("#amount-2").inputValue());
 await page.locator("#rate-2").fill("200");
 ok("auto: memo 2 subtotal ₹520.00", (await page.locator(".memo").nth(1).locator(".memo-subtotal").innerText()).includes("520.00"));
 const note = await page.locator(".form-footer-note").innerText();

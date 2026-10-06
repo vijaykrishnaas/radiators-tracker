@@ -52,7 +52,7 @@ const opt = (options: { value: string; label: string }[], v: string) => options.
 const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /** Horizontal bar chart (product mix, top mechanics): height grows with the rows. */
-export const HBarChart = ({ data, dataKey, nameKey, name, color = "var(--brand-500)" }: {
+export const HBarChart = ({ data, dataKey, nameKey, name, color = "var(--brand-chart)" }: {
     data: object[]; dataKey: string; nameKey: string; name: string; color?: string;
 }) => (
     <ResponsiveContainer width="100%" height={Math.max(240, data.length * 40 + 40)}>
@@ -215,15 +215,15 @@ const Analytics = () => {
                             <AreaChart data={expenseData?.byMonth || []}>
                                 <defs>
                                     <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="var(--brand-500)" stopOpacity={0.2} />
-                                        <stop offset="100%" stopColor="var(--brand-500)" stopOpacity={0} />
+                                        <stop offset="0%" stopColor="var(--brand-chart)" stopOpacity={0.2} />
+                                        <stop offset="100%" stopColor="var(--brand-chart)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid stroke={GRID_STROKE} vertical={false} />
                                 <XAxis dataKey="month" {...axisProps} />
                                 <YAxis {...axisProps} width={48} tickFormatter={compactINR} />
                                 <Tooltip content={<ChartTooltip />} />
-                                <Area dataKey="amount" name="Expenses" stroke="var(--brand-500)" strokeWidth={2} fill="url(#gradExpense)" />
+                                <Area dataKey="amount" name="Expenses" stroke="var(--brand-chart)" strokeWidth={2} fill="url(#gradExpense)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </ChartCard>

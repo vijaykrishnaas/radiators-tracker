@@ -40,7 +40,7 @@ function ProfitCard({ title, hint, b, tone, loading }: { title: string; hint: st
                 <p className="profit-hint">{hint}</p>
                 {loading || !b ? <span className="skel mt-2" style={{ height: 32, width: "60%" }} aria-hidden="true" /> : (
                     <>
-                        <p className="profit-value tabular">{money(b.gross)}</p>
+                        <p className={`profit-value tabular${b.gross < 0 ? " is-negative" : ""}`}>{money(b.gross)}</p>
                         <p className="profit-caption tabular">
                             Gross profit · sales {money(b.sales)} − cost {money(b.cost)} · {b.bills} bill{b.bills === 1 ? "" : "s"}
                         </p>
@@ -139,6 +139,8 @@ const EngDashboard = () => {
                     <KpiCard loading={first} label="Outstanding" value={money(k?.totalOutstanding || 0)} icon="clock" tone="error" valueTone="error" />
                 </KpiGrid>
 
+                {/* An older server sends no profit block: leave the section out rather than show endless placeholders. */}
+                {(first || data?.profit) && (<>
                 <div className="profit-grid">
                     <ProfitCard title="Earned profit" hint="Fully paid bills" b={data?.profit?.earned} tone="success" loading={first} />
                     <ProfitCard title="Expected profit" hint="Unpaid and part-paid bills" b={data?.profit?.expected} tone="brand" loading={first} />
@@ -186,6 +188,7 @@ const EngDashboard = () => {
                         </section>
                     </div>
                 </div>
+                </>)}
 
                 <div className="row g-3 g-md-4">
                     <div className="col-12 col-xl-8">

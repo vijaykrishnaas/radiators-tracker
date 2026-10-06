@@ -21,6 +21,8 @@
 .profit-hint { margin: 2px 0 0; font-size: var(--text-xs); color: var(--text-muted); }
 .profit-value { margin: 12px 0 0; font-size: var(--text-3xl); line-height: 1.15; font-weight: var(--weight-bold); color: var(--text-strong); }
 .profit-card.is-success .profit-value { color: var(--success-700); }
+.profit-card .profit-value.is-negative { color: var(--error-600); }
+:root[data-theme="dark"] .profit-card .profit-value.is-negative { color: var(--error-400); }
 .profit-caption { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
 .profit-lines { display: grid; gap: 6px; margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
 .profit-lines > div { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-sm); }

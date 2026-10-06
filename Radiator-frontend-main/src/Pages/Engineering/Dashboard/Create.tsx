@@ -98,21 +98,31 @@ const EngCreate = () => {
     const setType = (key: number, type: string) => updateCard(key, (c) => ({ ...c, type, rows: [] }));
 
     // Changing the bill's BS model re-applies the catalog rate on every card and drops items not offered for that model.
+    // Free-description rows ("Other") keep what was typed (description, rate, cost): they have no catalog price.
     const setBs = (bsModel: string) => {
         setBillBs(bsModel);
-        setCards((cs) => cs.map((c) => {
+        let dropped: string[] = [];
+        const next = cards.map((c) => {
             const t = findType(c.type);
+            const keep = (r: Row) => {
+                const it = t?.items.find((i) => i.value === r.item);
+                return !it || r.requiresComment || isOffered(it, bsModel);
+            };
+            dropped = dropped.concat(c.rows.filter((r) => !keep(r)).map((r) => r.label));
             return {
                 ...c,
                 bsModel,
-                rows: c.rows
-                    .filter((r) => { const it = t?.items.find((i) => i.value === r.item); return !it || isOffered(it, bsModel); })
-                    .map((r) => {
-                        const it = t?.items.find((i) => i.value === r.item);
-                        return it ? { ...r, rate: String(defaultRate(it, bsModel)) } : r;
-                    }),
+                rows: c.rows.filter(keep).map((r) => {
+                    const it = t?.items.find((i) => i.value === r.item);
+                    return it && !r.requiresComment ? { ...r, rate: String(defaultRate(it, bsModel)) } : r;
+                }),
             };
-        }));
+        });
+        setCards(next);
+        if (dropped.length) {
+            const bsName = bsModels.find((b) => b.value === bsModel)?.label || bsModel;
+            callAlertMsg(`Removed ${dropped.join(", ")}: not offered for ${bsName}.`, "warning");
+        }
     };
 
     const setItems = (key: number, values: string[]) =>
@@ -141,8 +151,22 @@ const EngCreate = () => {
         });
     };
 
+    // Clears one field's error as soon as it is fixed (e.g. "Add at least one service" once an item is added).
+    const clearErr = (key: string) => setErrors((e) => {
+        if (!e[key]) return e;
+        const { [key]: _drop, ...rest } = e;
+        return rest;
+    });
+
     const quickAdd = (type: string, item: string) => {
         const it = findType(type)?.items.find((i) => i.value === item);
+        // The card the chip would add to: an existing one of that type, else a blank or new card (bill BS model).
+        const targetBs = (cards.find((c) => c.type === type) || cards.find((c) => !c.type))?.bsModel ?? billBs;
+        if (it && !isOffered(it, targetBs)) {
+            callAlertMsg(`${it.label} isn't offered for ${bsModels.find((b) => b.value === targetBs)?.label || targetBs}.`, "warning");
+            return;
+        }
+        clearErr("services");
         setCards((cs) => {
             let list = cs;
             let target = list.find((c) => c.type === type);
@@ -235,7 +259,8 @@ const EngCreate = () => {
                     items: c.rows.map((r) => ({
                         item: r.item, label: r.label, comment: r.comment, requiresComment: r.requiresComment,
                         qty: Number(r.qty), rate: Number(r.rate) || 0,
-                        ...(r.requiresComment && r.cost !== "" ? { cost: Math.max(Number(r.cost) || 0, 0) } : {}),
+                        // Free-description rows always send their cost (empty = 0), so clearing it really clears it.
+                        ...(r.requiresComment ? { cost: Math.max(Number(r.cost) || 0, 0) } : {}),
                     })),
                 })),
                 // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
@@ -360,7 +385,7 @@ const EngCreate = () => {
                                                     onChange={(o: any) => setType(c.key, o ? o.value : "")} />
                                             </div>
                                             {!isView && (
-                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label="Remove service" title="Remove service"
+                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label={`Remove service ${ci + 1}`} title="Remove service"
                                                     onClick={() => setCards((cs) => (cs.length > 1 ? cs.filter((x) => x.key !== c.key) : [newCard("", billBs)]))}>
                                                     <Icons iconName="delete" />
                                                 </button>
@@ -409,7 +434,7 @@ const EngCreate = () => {
                                                             </div>
                                                             <span className="eng-line-amt tabular"><span className="eng-mlabel" aria-hidden="true">Amount</span>{money(amount(r))}</span>
                                                             {!isView ? (
-                                                                <button type="button" className="btn btn-icon eng-line-x" aria-label="Remove item"
+                                                                <button type="button" className="btn btn-icon eng-line-x" aria-label={`Remove ${r.label}`}
                                                                     onClick={() => setItems(c.key, c.rows.filter((x) => x.item !== r.item).map((x) => x.item))}>
                                                                     <Icons iconName="x" />
                                                                 </button>
@@ -429,8 +454,8 @@ const EngCreate = () => {
                                                         options={addOpts}
                                                         value={null}
                                                         isDisabled={!c.type || !addOpts.length}
-                                                        placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : "All items added"}
-                                                        onChange={(o: any) => { if (o) setItems(c.key, [...c.rows.map((x) => x.item), o.value]); }}
+                                                        placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : c.rows.length ? "All items added" : "No items offered for this BS model"}
+                                                        onChange={(o: any) => { if (o) { setItems(c.key, [...c.rows.map((x) => x.item), o.value]); clearErr("services"); } }}
                                                     />
                                                 </div>
                                             ) : <span />}

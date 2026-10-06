@@ -22,10 +22,11 @@ async function rasterToPng(blob: Blob): Promise<string> {
             i.onerror = () => reject(new Error("image decode failed"));
             i.src = src;
         });
-        // SVGs without width/height report 0×0 (or 150×150); give them a print-sharp size.
+        // SVGs without width/height report 0×0 (or 150×150); give them a print-sharp size. Large photos are scaled
+        // down to 1200px: a QR or signature never needs more, and a full-size canvas can exhaust a phone's memory.
         const w = img.naturalWidth || 600;
         const h = img.naturalHeight || 600;
-        const scale = Math.max(1, 600 / Math.max(w, h));
+        const scale = Math.min(Math.max(1, 600 / Math.max(w, h)), 1200 / Math.max(w, h));
         const canvas = document.createElement("canvas");
         canvas.width = Math.round(w * scale);
         canvas.height = Math.round(h * scale);

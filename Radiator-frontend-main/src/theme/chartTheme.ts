@@ -2,11 +2,11 @@
 // (applyTenantBrand) flows into the charts with no hard-coded hex values.
 
 /** Paired comparison series (Revenue vs Collected, Billed vs Received). */
-export const PAIR_COLORS = ["var(--brand-500)", "var(--brand-300)"] as const;
+export const PAIR_COLORS = ["var(--brand-chart)", "var(--brand-chart-2)"] as const;
 
 /** Categorical series, in order. Beyond 8 slices the rest are grouped as "Other". */
 export const CATEGORY_COLORS = [
-    "var(--brand-500)",
+    "var(--brand-chart)",
     "var(--accent)",
     "var(--blue-light-500)",
     "var(--warning-500)",

@@ -88,6 +88,10 @@ export interface BrandTokens {
   brandText: string;
   solidBorder: string;
   focusRing: string;
+  /** Chart series colours (pair: main + comparison). Light: brand-500 / brand-300. Dark: lifted so bars, lines and
+   *  loaders stay visible on the dark card (the raw primary is often too dark there). */
+  chart: string;
+  chart2: string;
 }
 
 export function buildBrand(primaryHex: string | null | undefined, mode: ThemeMode = "light"): BrandTokens {
@@ -115,10 +119,14 @@ function toDark(primaryHex: string | null | undefined, light: BrandTokens): Bran
     const candidates: RGB[] = [p, ...[0.15, 0.3, 0.45, 0.6, 0.75, 0.9].map((w) => parseHex(toHex(mix(white, p, w))) as RGB)];
     const text = candidates.find((c) => contrast(c, surface) >= 4.5 && contrast(c, rgb[50]) >= 4.5) ?? white;
     const brandText = toHex(text);
+    // 300/400 are used for focus borders, hover borders and the second chart series: base them on the readable brand
+    // text colour so they stay visible on the dark card instead of sinking into it.
+    scale[300] = toHex(mix(text, surface, 0.6));
+    scale[400] = toHex(mix(text, surface, 0.8));
     const solidRgb = parseHex(light.solid) as RGB;
     const solidBorder = contrast(solidRgb, surface) < 3 ? brandText : "transparent";
     const focusRing = `rgba(${text.map(Math.round).join(", ")}, 0.35)`;
-    return { ...light, scale, brandText, solidBorder, focusRing };
+    return { ...light, scale, brandText, solidBorder, focusRing, chart: brandText, chart2: scale[300] };
 }
 
 function buildLightBrand(primaryHex: string | null | undefined): BrandTokens {
@@ -172,7 +180,7 @@ function buildLightBrand(primaryHex: string | null | undefined): BrandTokens {
   const ringBase = parseHex(brandText) as RGB;
   const focusRing = `rgba(${ringBase.map(Math.round).join(", ")}, 0.2)`;
 
-  return { scale, solid, hover, onBrand, brandText, solidBorder, focusRing };
+  return { scale, solid, hover, onBrand, brandText, solidBorder, focusRing, chart: scale[500], chart2: scale[300] };
 }
 
 export function buildAccent(accentHex: string | null | undefined) {
@@ -227,6 +235,8 @@ export function applyTenantBrand(
   set("--brand-text", b.brandText);
   set("--brand-solid-border", b.solidBorder);
   set("--focus-ring-color", b.focusRing);
+  set("--brand-chart", b.chart);
+  set("--brand-chart-2", b.chart2);
 
   set("--accent", a.accent);
   set("--accent-solid", a.accentSolid);

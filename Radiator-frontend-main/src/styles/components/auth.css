@@ -22,7 +22,7 @@
 .auth-tile.is-40 .icons { width: 20px; height: 20px; }
 
 /* ---------- Tenant login (§6.1): full-bleed background + solid white card ---------- */
-.login-shell { position: relative; min-height: 100vh; min-height: 100dvh; width: 100%; overflow: hidden; background: var(--gray-950); }
+.login-shell { position: relative; min-height: 100vh; min-height: 100dvh; width: 100%; overflow: hidden; background: var(--photo-base); }
 .login-bg {
   position: absolute;
   inset: -4%;

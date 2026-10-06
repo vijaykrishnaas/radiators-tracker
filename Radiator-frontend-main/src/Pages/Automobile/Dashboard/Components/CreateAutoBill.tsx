@@ -12,6 +12,7 @@ import { useAlertMsg } from "../../../../Services/AllServices";
 import { useSettings } from "../../../../Context/SettingsContext";
 import { PageHeader, Field, FormFooter, SkeletonRows } from "../../../../Components/ui/Basics";
 import { money } from "../../../../Utils/format";
+import { ConfirmDialog } from "../../../../Components/ui/Modal";
 
 type ItemRow = {
     particulars: string;
@@ -41,6 +42,8 @@ type FormValues = {
 const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", unit: "", rate: "", amount: "", amountTouched: false, memo: 0 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+// The server keeps memo numbers 1–50.
+const MAX_MEMOS = 50;
 
 const CreateAutoBill = () => {
     const navigate = useNavigate();
@@ -69,7 +72,9 @@ const CreateAutoBill = () => {
         setValue,
         getValues,
         reset,
-        formState: { errors },
+        clearErrors,
+        trigger,
+        formState: { errors, isSubmitted },
     } = useForm<FormValues>({
         mode: "onChange",
         defaultValues: {
@@ -142,35 +147,54 @@ const CreateAutoBill = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
+    // Values filled in by code (amount from qty × rate, a catalog part's unit and rate) re-run their own validation,
+    // so an earlier "required" error on that field clears as soon as it has a value.
+    const fill = (path: `autoBill.items.${number}.${"qty" | "unit" | "rate" | "amount"}`, value: string | number) =>
+        setValue(path, value, { shouldValidate: isSubmitted });
+
     // Particulars is free text with the parts catalog as suggestions; an exact catalog name fills unit and rate.
     const onParticularsChange = (index: number, text: string) => {
         const part = parts.find((p) => p.label.toLowerCase() === text.trim().toLowerCase());
         setValue(`autoBill.items.${index}.partRef`, part ? part.value : null);
         if (!part) return;
-        setValue(`autoBill.items.${index}.unit`, part.unit || "");
-        setValue(`autoBill.items.${index}.rate`, part.rate ?? "");
+        fill(`autoBill.items.${index}.unit`, part.unit || "");
+        fill(`autoBill.items.${index}.rate`, part.rate ?? "");
         setValue(`autoBill.items.${index}.amountTouched`, false);
         const qty = items[index]?.qty || 1;
-        setValue(`autoBill.items.${index}.qty`, qty);
-        setValue(`autoBill.items.${index}.amount`, round2((Number(qty) || 0) * (Number(part.rate) || 0)));
+        fill(`autoBill.items.${index}.qty`, qty);
+        fill(`autoBill.items.${index}.amount`, round2((Number(qty) || 0) * (Number(part.rate) || 0)));
     };
 
     const addRow = (memo: number) => append({ ...emptyItem, qty: 1, memo });
-    const addMemo = () => { addRow(memoCount); setMemoCount((n) => n + 1); };
-    // Removing a memo drops its rows and closes the gap so memo numbers stay 1..n.
+    const addMemo = () => {
+        if (memoCount >= MAX_MEMOS) return;
+        addRow(memoCount);
+        setMemoCount((n) => n + 1);
+    };
+    // Removing a memo drops its rows and closes the gap so memo numbers stay 1..n. replace() re-indexes the rows, so
+    // any validation errors (keyed by row index) are cleared and re-run instead of landing on the wrong rows.
     const removeMemo = (memo: number) => {
         const rest = (getValues("autoBill.items") || [])
             .filter((i) => (i.memo || 0) !== memo)
             .map((i) => ({ ...i, memo: (i.memo || 0) > memo ? i.memo - 1 : i.memo || 0 }));
         replace(rest.length ? rest : [{ ...emptyItem }]);
         setMemoCount((n) => Math.max(1, n - 1));
+        clearErrors("autoBill.items");
+        if (isSubmitted) setTimeout(() => trigger("autoBill.items"), 0);
+    };
+    // A memo with anything typed in it asks first: one click would otherwise wipe a whole supplier memo.
+    const [confirmMemo, setConfirmMemo] = useState<number | null>(null);
+    const askRemoveMemo = (memo: number) => {
+        const hasData = items.some((i) => (i.memo || 0) === memo && (String(i.particulars || "").trim() || Number(i.amount) > 0));
+        if (hasData) setConfirmMemo(memo);
+        else removeMemo(memo);
     };
 
     const recomputeAmount = (index: number, qty: any, rate: any) => {
         if (items[index]?.amountTouched) return;
-        const q = Number(qty) || 0;
-        const r = Number(rate) || 0;
-        setValue(`autoBill.items.${index}.amount`, q && r ? round2(q * r) : "");
+        // A ₹0 rate is valid (free item): compute whenever both are entered, blank only while one is missing.
+        const filled = (v: any) => v !== "" && v !== null && v !== undefined;
+        fill(`autoBill.items.${index}.amount`, filled(qty) && filled(rate) ? round2((Number(qty) || 0) * (Number(rate) || 0)) : "");
     };
 
     const onQtyChange = (index: number, val: string) => {
@@ -197,6 +221,8 @@ const CreateAutoBill = () => {
         try {
             const ab = data.autoBill;
             const usedMemos = [...new Set<number>(ab.items.map((i: ItemRow) => i.memo || 0))].sort((a, b) => a - b);
+            // Saved in memo order (rows added to an earlier memo later on are appended at the end of the form array).
+            const ordered = [...ab.items].sort((a: ItemRow, b: ItemRow) => (a.memo || 0) - (b.memo || 0));
             const payload = {
                 billDate: ab.date,
                 vehicleNumber: ab.vehicleNumber,
@@ -205,7 +231,7 @@ const CreateAutoBill = () => {
                 mechanicName: ab.mechanicName,
                 labourName: ab.labourName,
                 notes: ab.notes,
-                items: ab.items.map((i: ItemRow) => ({
+                items: ordered.map((i: ItemRow) => ({
                     memo: usedMemos.indexOf(i.memo || 0), // empty memos are dropped, so renumber from 0
                     particulars: i.particulars,
                     partRef: i.partRef,
@@ -344,6 +370,7 @@ const CreateAutoBill = () => {
                             </div>
                         )}
 
+                        {loadingRecord ? <SkeletonRows rows={4} /> : (
                         <div className="memo-stack">
                             {memos.map((m) => {
                                 const rows = fields.map((f, index) => ({ f, index })).filter(({ index }) => (items[index]?.memo || 0) === m);
@@ -352,7 +379,7 @@ const CreateAutoBill = () => {
                                         <div className="memo-head">
                                             <span className="memo-tag">Memo {m + 1}</span>
                                             {!isView && memoCount > 1 && (
-                                                <button type="button" className="btn btn-icon memo-remove" aria-label={`Remove memo ${m + 1}`} title="Remove memo" onClick={() => removeMemo(m)}>
+                                                <button type="button" className="btn btn-icon memo-remove" aria-label={`Remove memo ${m + 1}`} title="Remove memo" onClick={() => askRemoveMemo(m)}>
                                                     <Icons iconName="delete" />
                                                 </button>
                                             )}
@@ -360,7 +387,7 @@ const CreateAutoBill = () => {
 
                                         {rows.length > 0 && (
                                             <div className="memo-cols" aria-hidden="true">
-                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span>Unit</span><span>Rate</span><span className="num">Amount</span><span />
+                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span>Unit</span><span className="num">Rate</span><span className="num">Amount</span><span />
                                             </div>
                                         )}
                                         {rows.length > 0 ? (
@@ -467,7 +494,7 @@ const CreateAutoBill = () => {
                                                                             inputMode="decimal"
                                                                             className={`memo-amt-input tabular${G?.amount ? " is-invalid" : ""}`}
                                                                             // Sized to its digits so the ₹ sits beside the number, like printed text.
-                                                                            style={{ width: `calc(${Math.max(String(field.value ?? "").length, 3)}ch + 12px)` }}
+                                                                            style={{ width: `calc(${Math.max(String(field.value ?? "").length, 4)}ch + 12px)` }}
                                                                             aria-label={`Amount for ${name} (₹)`}
                                                                             title="Qty × rate. Type to override."
                                                                             placeholder="0.00"
@@ -508,9 +535,11 @@ const CreateAutoBill = () => {
                                 );
                             })}
                         </div>
+                        )}
 
-                        {!isView && (
-                            <button type="button" className="btn btn-secondary memo-new" onClick={addMemo}>
+                        {!isView && !loadingRecord && (
+                            <button type="button" className="btn btn-secondary memo-new" onClick={addMemo} disabled={memoCount >= MAX_MEMOS}
+                                title={memoCount >= MAX_MEMOS ? `A bill can have up to ${MAX_MEMOS} memos` : undefined}>
                                 <Icons iconName="add" />Add memo
                             </button>
                         )}
@@ -529,6 +558,15 @@ const CreateAutoBill = () => {
                     )}
                 </FormFooter>
             </motion.form>
+
+            <ConfirmDialog
+                open={confirmMemo !== null}
+                title={`Remove memo ${(confirmMemo ?? 0) + 1}?`}
+                message="Its items will be removed from this bill."
+                confirmLabel="Remove memo"
+                onConfirm={() => { if (confirmMemo !== null) removeMemo(confirmMemo); setConfirmMemo(null); }}
+                onCancel={() => setConfirmMemo(null)}
+            />
         </>
     );
 };

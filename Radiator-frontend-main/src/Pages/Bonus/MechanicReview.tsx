@@ -206,15 +206,15 @@ const MechanicReview = () => {
                                         <AreaChart data={data?.timeline || []}>
                                             <defs>
                                                 <linearGradient id="gradReview" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="var(--brand-500)" stopOpacity={0.2} />
-                                                    <stop offset="100%" stopColor="var(--brand-500)" stopOpacity={0} />
+                                                    <stop offset="0%" stopColor="var(--brand-chart)" stopOpacity={0.2} />
+                                                    <stop offset="100%" stopColor="var(--brand-chart)" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid stroke={GRID_STROKE} vertical={false} />
                                             <XAxis dataKey="date" {...axisProps} />
                                             <YAxis {...axisProps} width={48} tickFormatter={compactINR} />
                                             <Tooltip content={<ChartTooltip />} />
-                                            <Area dataKey="revenue" name="Revenue" stroke="var(--brand-500)" strokeWidth={2} fill="url(#gradReview)" />
+                                            <Area dataKey="revenue" name="Revenue" stroke="var(--brand-chart)" strokeWidth={2} fill="url(#gradReview)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </ChartCard>

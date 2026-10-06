@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import Icons from "../../Components/Icons";
 import InputText from "../../Components/InputText";
-import { putData, postData } from "../../Services/ApiServices";
+import { putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
@@ -79,7 +79,7 @@ const ColorField = ({ id, label, value, onChange }: { id: string; label: string;
 };
 
 const SettingsPage = () => {
-    const { settings, loading: settingsLoading, refreshSettings } = useSettings();
+    const { settings, loading: settingsLoading, loaded: settingsLoaded, refreshSettings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const phone = usePhone();
 
@@ -90,6 +90,7 @@ const SettingsPage = () => {
     const [newService, setNewService] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("company");
     const serverProblem = serverAddressProblem();
+    const anyUploading = Object.values(uploading).some(Boolean);
     const brokenHint = serverProblem || `Check that ${BACKEND} is reachable from this device.`;
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
@@ -102,13 +103,15 @@ const SettingsPage = () => {
     const auto = draft.automobile;
     const isEngineering = draft.businessType === "engineering";
 
-    // After an upload the settings are re-fetched (so the header logo updates); keep the user's unsaved edits then,
-    // instead of resetting the whole form to what the server has.
-    const keepDraft = useRef<AppSettings | null>(null);
+    // The form is filled once, from the first successful load. Later refreshes (after an upload, so the header logo
+    // updates, or after Save) don't reset it, so unsaved edits are never thrown away.
+    const seeded = useRef(false);
     useEffect(() => {
-        if (keepDraft.current) { setDraft(keepDraft.current); keepDraft.current = null; return; }
-        setDraft(settings);
-    }, [settings]);
+        if (settingsLoaded && !seeded.current) {
+            seeded.current = true;
+            setDraft(settings);
+        }
+    }, [settings, settingsLoaded]);
 
     const set = (path: string, value: unknown) => {
         setDraft((prev) => {
@@ -130,11 +133,24 @@ const SettingsPage = () => {
             fd.append("logo", file); // the upload field is named "logo" on the backend for every kind
             const res = await postData(endpoint, fd);
             set(path, res[urlField]);
-            setDraft((d) => { keepDraft.current = d; return d; });
             await refreshSettings();
             callAlertMsg(res.message || okMsg, "success");
         } catch (err: any) {
             callAlertMsg(err?.message || failMsg, "error");
+        } finally {
+            setUploading((u) => ({ ...u, [key]: false }));
+        }
+    };
+    // Remove deletes the stored image right away (like upload), so it can't be undone by a later Save.
+    const removeAsset = async (key: string, kind: string, path: string) => {
+        setUploading((u) => ({ ...u, [key]: true }));
+        try {
+            const res = await deleteData(`settings/asset/${kind}`);
+            set(path, "");
+            await refreshSettings();
+            callAlertMsg(res?.message || "Image removed", "success");
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Couldn't remove the image", "error");
         } finally {
             setUploading((u) => ({ ...u, [key]: false }));
         }
@@ -348,7 +364,7 @@ const SettingsPage = () => {
     const workerLabel = isAutomobile ? auto.labels.worker : draft.labels.worker;
 
     const saveButton = (
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving || settingsLoading}>
+        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving || settingsLoading || !settingsLoaded || anyUploading}>
             <BtnSpinner show={saving} />
             {saving ? "Saving..." : "Save All Settings"}
         </button>
@@ -357,6 +373,14 @@ const SettingsPage = () => {
     return (
         <>
             <PageHeader title="Settings" primary={saveButton} />
+            {!settingsLoading && !settingsLoaded && (
+                <div className="mb-3">
+                    <Callout tone="error" title="Couldn't load your settings">
+                        Saving is turned off so the defaults shown here can't overwrite your real settings.{" "}
+                        <button type="button" className="btn btn-link p-0 align-baseline" onClick={() => refreshSettings()}>Try again</button>
+                    </Callout>
+                </div>
+            )}
 
             {/* Tabbed sections: Save All Settings persists every tab at once. */}
             <div className="settings-nav">
@@ -396,24 +420,24 @@ const SettingsPage = () => {
                                 <div>
                                     <Upload id="upload-logo" brokenHint={brokenHint} label="Business logo" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.logoUrl)} uploading={!!uploading.logo}
-                                        emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => set("company.logoUrl", "")} />
+                                        emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => removeAsset("logo", "logo", "company.logoUrl")} />
                                 </div>
                                 <div>
                                     <Upload id="upload-qr" brokenHint={brokenHint} label="Payment QR (printed on the bill)" hint="PNG, JPG, SVG or WebP."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.qrUrl)} uploading={!!uploading.qr}
-                                        emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => set("company.qrUrl", "")} />
+                                        emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => removeAsset("qr", "qr", "company.qrUrl")} />
                                     <span className="field-help">Upload your UPI/payment QR image. If set, it's printed on the invoice instead of the auto-generated one.</span>
                                 </div>
                                 <div>
                                     <Upload id="upload-signature" brokenHint={brokenHint} label="Authorised signature (printed on the bill)" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.signatureUrl)} uploading={!!uploading.signature}
-                                        emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => set("company.signatureUrl", "")} />
+                                        emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => removeAsset("signature", "signature", "company.signatureUrl")} />
                                     <span className="field-help">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</span>
                                 </div>
                                 <div>
                                     <Upload id="upload-login-bg" brokenHint={brokenHint} label="Login background (shown on your login page)" hint="PNG, JPG or WebP, up to 4 MB."
                                         accept="image/png,image/jpeg,image/webp" previewUrl={resolveLogo(draft.company.loginBgUrl)} uploading={!!uploading.bg}
-                                        cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => set("company.loginBgUrl", "")} />
+                                        cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => removeAsset("bg", "login-bg", "company.loginBgUrl")} />
                                     <span className="field-help">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</span>
                                 </div>
                             </div>
@@ -768,7 +792,7 @@ const SettingsPage = () => {
                                 </Field>
                                 {fixed ? (
                                     <Field label="Mechanic bonus per bill" htmlFor="eng-mech-amt">
-                                        <AffixInput id="eng-mech-amt" name="eng-mech-amt" type="number" className="num" prefix="₹" min={0} step={10} value={eb.mechanicAmount}
+                                        <AffixInput id="eng-mech-amt" name="eng-mech-amt" type="number" className="num" prefix="₹" min={0} step={10} value={eb.mechanicAmount || ""} placeholder="0"
                                             onChange={(e) => setEb({ mechanicAmount: Math.max(Number(e.target.value || 0), 0) })} />
                                     </Field>
                                 ) : (

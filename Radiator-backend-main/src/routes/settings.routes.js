@@ -1,8 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
-import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl, setCompanySignatureUrl } from "../dao/settings.dao.js";
-import { saveLogo, saveQr, saveLoginBg, saveSignature } from "../dao/logo.dao.js";
+import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl, setCompanySignatureUrl, clearCompanyAssetUrl } from "../dao/settings.dao.js";
+import { saveLogo, saveQr, saveLoginBg, saveSignature, deleteLogo, deleteQr, deleteLoginBg, deleteSignature } from "../dao/logo.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
 
 const router = Router();
@@ -61,12 +61,42 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+const ASSET_URL_FIELDS = ["logoUrl", "qrUrl", "signatureUrl", "loginBgUrl"];
+const ASSETS = {
+  logo: { field: "logoUrl", remove: deleteLogo },
+  qr: { field: "qrUrl", remove: deleteQr },
+  signature: { field: "signatureUrl", remove: deleteSignature },
+  "login-bg": { field: "loginBgUrl", remove: deleteLoginBg },
+};
+
+// Removes an uploaded image: clears its link and deletes the stored file.
+router.delete("/asset/:kind", async (req, res, next) => {
+  try {
+    const a = ASSETS[req.params.kind];
+    if (!a) return res.status(404).json({ success: false, message: "Unknown image" });
+    await clearCompanyAssetUrl(req.user.clientId, a.field);
+    await a.remove(req.user.clientId);
+    await auditClient(req, "settings.upload", { asset: req.params.kind, removed: true });
+    res.json({ success: true, message: "Image removed", [a.field]: "" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put("/", async (req, res, next) => {
   try {
     if (!req.body || typeof req.body !== "object") {
       return res.status(400).json({ success: false, message: "Settings body is required" });
     }
-    const settings = await updateSettings(req.user.clientId, req.body);
+    // Image links are owned by the upload / remove endpoints. A Save from a stale tab (or one racing an upload)
+    // must not put back an old link or blank a new one, so the stored values always win here.
+    const body = { ...req.body };
+    if (body.company && typeof body.company === "object") {
+      const current = await getSettings(req.user.clientId);
+      body.company = { ...body.company };
+      for (const k of ASSET_URL_FIELDS) body.company[k] = current?.company?.[k] || "";
+    }
+    const settings = await updateSettings(req.user.clientId, body);
     await auditClient(req, "settings.update", {});
     res.json({ success: true, settings, message: "Settings updated ✅" });
   } catch (error) {

@@ -189,7 +189,8 @@ async function run(type) {
     return { inputs: [...new Set(inputs)], selects: [...new Set(selects)] };
   });
   ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
-  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l, i) => ({ sep: i === 0 ? "1px" : getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('[aria-label="Remove item"]'), amt: !!l.querySelector(".eng-line-amt") })));
+  const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l, i) => ({ sep: i === 0 ? "1px" : getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('.eng-line-x[aria-label^="Remove "]'), amt: !!l.querySelector(".eng-line-amt") })));
+  ok("eng: each remove button names its item (screen readers can tell them apart)", (await page.getByRole("button", { name: "Remove Hold set" }).count()) === 1);
   ok("eng: item rows are separated lines with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.sep === "1px" && l.hasX && l.amt), JSON.stringify(lineShape));
 
   // Rows line up as a table: column headers, and every row's qty / rate / amount share the header's x positions.
@@ -664,6 +665,19 @@ async function run(type) {
   ok("eng: bonus year start follows the Settings financial-year month", bonusFrom2 === fyExpect(fyMonth), `${bonusFrom2} vs ${fyExpect(fyMonth)}`);
   fyMonth = null;
 
+  // Settings that fail to load must not be saveable: the page would otherwise save the built-in defaults over them.
+  const failSettings = async (route) => {
+    const u = new URL(route.request().url());
+    if (route.request().method() === "GET" && u.pathname === "/settings") return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "boom" }) });
+    return route.fallback();
+  };
+  await page.route("http://localhost:5000/**", failSettings);
+  await page.goto(BASE + "/settings");
+  await page.getByText("Couldn't load your settings").waitFor({ timeout: 10000 }).catch(() => {});
+  const saveBtn = page.locator(".page-header .btn-primary").filter({ hasText: /Save/ }).first();
+  ok("eng: Settings that failed to load show an error and keep Save disabled", (await page.getByText("Couldn't load your settings").count()) === 1 && (await saveBtn.isDisabled()));
+  await page.unroute("http://localhost:5000/**", failSettings);
+
   // Theme: Light / Dark / System in the account menu, remembered on this device; System follows the device setting.
   await page.goto(BASE + "/engineering/billing");
   await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
@@ -706,7 +720,7 @@ async function run(type) {
   await page.getByPlaceholder("Enter Truck Number").waitFor({ timeout: 10000 });
   await page.waitForTimeout(800);
   ok("eng: view mode disables inputs and hides save", (await page.getByPlaceholder("Enter Truck Number").isDisabled()) && (await page.getByRole("button", { name: /Save service|Update service/ }).count()) === 0);
-  ok("eng: view mode has no remove-item / remove-service buttons", (await page.getByRole("button", { name: /Remove (item|service)/ }).count()) === 0);
+  ok("eng: view mode has no remove-item / remove-service buttons", (await page.locator(".eng-line-x, .eng-svc-remove").filter({ has: page.locator("svg") }).count()) === 0 && (await page.getByRole("button", { name: /^Remove / }).count()) === 0);
 
   // Print from billing downloads a PDF without errors.
   await page.goto(BASE + "/engineering/billing");
@@ -799,7 +813,7 @@ async function run(type) {
   await browser.close();
 }
 
-try { await run("engineering"); } catch (e) { results.push("ERROR eng: " + e.message.split("\n")[0]); }
+try { await run("engineering"); } catch (e) { results.push("ERROR eng: " + e.message.split("\n").slice(0, 6).join(" | ")); }
 try { await run("radiator"); } catch (e) { results.push("ERROR rad: " + e.message.split("\n")[0]); }
 console.log(results.join("\n"));
 if (results.some((r) => !r.startsWith("PASS"))) process.exit(1);

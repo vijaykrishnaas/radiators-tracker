@@ -100,3 +100,14 @@ test("dark theme keeps the light solid button colours (already contrast-checked)
   assert.equal(d.onBrand, l.onBrand);
   assert.notEqual(d.scale[50], l.scale[50]);
 });
+
+test("chart colours stay visible: ≥ 3:1 on the card in both themes for the main series (sweep)", () => {
+  const surface = parseHex(DARK_SURFACE)!;
+  for (let r = 0; r < 256; r += 51) for (let g = 0; g < 256; g += 51) for (let bl = 0; bl < 256; bl += 51) {
+    const hex = "#" + [r, g, bl].map((v) => v.toString(16).padStart(2, "0")).join("");
+    const d = buildBrand(hex, "dark");
+    assert.ok(contrast(parseHex(d.chart)!, surface) >= 3, `${hex} dark chart`);
+    assert.ok(contrast(parseHex(d.chart2)!, surface) >= 1.8, `${hex} dark chart-2 distinguishable`);
+  }
+  assert.equal(buildBrand("#12467A").chart, "#12467A");
+});

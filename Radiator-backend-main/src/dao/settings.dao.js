@@ -63,6 +63,13 @@ export async function updateSettings(clientId, data) {
   return getSettings(clientId);
 }
 
+// Clears one image link (company.logoUrl / qrUrl / signatureUrl / loginBgUrl) after its image is removed.
+export async function clearCompanyAssetUrl(clientId, field) {
+  if (!["logoUrl", "qrUrl", "signatureUrl", "loginBgUrl"].includes(field)) throw new Error("Unknown image field");
+  const db = await connectDB();
+  await db.collection("settings").updateOne({ _id: toClientId(clientId) }, { $set: { [`company.${field}`]: "" } });
+}
+
 // Sets only company.logoUrl (after a logo upload) without replacing the rest.
 export async function setCompanyLogoUrl(clientId, url) {
   const db = await connectDB();

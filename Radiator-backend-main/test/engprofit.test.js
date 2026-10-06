@@ -22,6 +22,11 @@ const catalog = {
         { label: "Other", value: "other", prices: { bs3: 0 }, requiresComment: true },
       ],
     },
+    {
+      label: "Air Compressor",
+      value: "compressor",
+      items: [{ label: "Piston", value: "piston", prices: { bs3: 900 }, costs: { bs3: 500 } }],
+    },
   ],
 };
 mock.module("../src/config/db.js", { namedExports: { connectDB: async () => fakeDb } });
@@ -91,4 +96,30 @@ test("profit: fully paid bills are earned, the rest expected; discount and bonus
   assert.deepEqual({ qty: hold.qty, sales: hold.sales, cost: hold.cost, gross: hold.gross, margin: hold.margin }, { qty: 3, sales: 1500, cost: 900, gross: 600, margin: 40 });
   const turbo = p.byServiceType.find((r) => r.type === "turbo");
   assert.equal(turbo.gross, 800);
+});
+
+test("a bill discounted to zero counts as earned (nothing left to collect)", async () => {
+  const C = new ObjectId().toString();
+  await createEngBill(C, bill([{ item: "hold-set", qty: 1, rate: 500 }], { discount: 500 }));
+  const p = await getEngProfit(C, {});
+  assert.equal(p.earned.bills, 1);
+  assert.equal(p.expected.bills, 0);
+  assert.equal(p.earned.afterDiscount, 200 - 500);
+});
+
+test("a service-type filter counts only matching cards and shares the bill discount by sales", async () => {
+  const C = new ObjectId().toString();
+  // Turbo card: sale 500 cost 300. Compressor card: sale 900 cost 500. Discount 140 → turbo share 500/1400 = 50.
+  await createEngBill(C, {
+    billDate: "2026-06-10", vehicleNo: "TN01AB1234", mechanic: "Ravi", discount: 140,
+    services: [
+      { type: "turbo", bsModel: "bs3", items: [{ item: "hold-set", qty: 1, rate: 500 }] },
+      { type: "compressor", bsModel: "bs3", items: [{ item: "piston", qty: 1, rate: 900 }] },
+    ],
+  });
+  const p = await getEngProfit(C, { serviceType: "turbo" });
+  assert.equal(p.expected.sales, 500);
+  assert.equal(p.expected.cost, 300);
+  assert.equal(p.expected.discount, 50);
+  assert.deepEqual(p.byItem.map((r) => r.item), ["hold-set"]);
 });

@@ -3,8 +3,20 @@
 // against fake collections, without a live MongoDB connection.
 import { ObjectId } from "mongodb";
 
+// Values at a dotted path, descending into arrays the way MongoDB does ("services.type" over services[]).
+function valuesAt(doc, path) {
+  let vals = [doc];
+  for (const part of path.split(".")) {
+    vals = vals.flatMap((v) => (Array.isArray(v) ? v : [v])).map((v) => (v == null ? undefined : v[part]));
+  }
+  return vals.flatMap((v) => (Array.isArray(v) ? v : [v]));
+}
+
 function matches(doc, query) {
   return Object.entries(query).every(([key, val]) => {
+    if (key.includes(".") && !(val && typeof val === "object" && !(val instanceof ObjectId))) {
+      return valuesAt(doc, key).some((v) => String(v) === String(val));
+    }
     const docVal = doc[key];
     if (val && typeof val === "object" && !(val instanceof ObjectId)) {
       if ("$nin" in val) {

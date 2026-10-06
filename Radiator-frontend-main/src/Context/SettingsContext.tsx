@@ -195,18 +195,23 @@ const applyBranding = (settings: AppSettings) => {
 type SettingsContextValue = {
     settings: AppSettings;
     loading: boolean;
+    /** True once the tenant's settings have actually been fetched. Until then `settings` is the built-in fallback,
+     *  which must never be saved over the real ones (e.g. after a failed load). */
+    loaded: boolean;
     refreshSettings: () => Promise<void>;
 };
 
 const SettingsContext = createContext<SettingsContextValue>({
     settings: FALLBACK_SETTINGS,
     loading: true,
+    loaded: false,
     refreshSettings: async () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [loaded, setLoaded] = useState(false);
 
     const refreshSettings = useCallback(async () => {
         // Super-admins have no client tenant, so /settings 403s for them.
@@ -223,6 +228,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (res?.settings) {
                 const merged = { ...FALLBACK_SETTINGS, ...res.settings };
                 setSettings(merged);
+                setLoaded(true);
                 applyBranding(merged);
                 // Browser tab title follows the client's company name (white-label).
                 document.title = merged.company?.name?.trim() || APP_TITLE;
@@ -239,7 +245,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, [refreshSettings]);
 
     return (
-        <SettingsContext.Provider value={{ settings, loading, refreshSettings }}>
+        <SettingsContext.Provider value={{ settings, loading, loaded, refreshSettings }}>
             {children}
         </SettingsContext.Provider>
     );

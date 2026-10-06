@@ -44,6 +44,8 @@
   --brand-text: #12467A;
   --brand-solid-border: transparent;
   --focus-ring-color: rgba(18, 70, 122, 0.2);
+  --brand-chart: var(--brand-500);      /* chart series / loaders (lifted in dark by applyTenantBrand) */
+  --brand-chart-2: var(--brand-300);
   --accent: #F47F6B;
   --accent-solid: #F47F6B;
   --on-accent: #101828;
@@ -150,6 +152,8 @@
   --text-subtle: var(--gray-400);       /* placeholders, sidebar group titles (decorative only) */
   --overlay: rgba(152, 162, 179, 0.5);  /* gray-400 @ 50% — modal backdrop */
   --overlay-nav: rgba(16, 24, 40, 0.5); /* gray-900 @ 50% — mobile sidebar backdrop */
+  --overlay-busy: rgba(16, 24, 40, 0.3); /* full-screen "working…" veil */
+  --photo-base: #0c111d;                /* behind the login photo / gradient: dark in both themes */
   --focus-ring-error: rgba(240, 68, 56, 0.16); /* error-500 @ 16% — focus ring on invalid fields, danger buttons */
 
   /* ---------- Typography ---------- */
@@ -281,6 +285,7 @@
   --text-subtle: var(--gray-400);
   --overlay: rgba(2, 6, 12, 0.6);
   --overlay-nav: rgba(2, 6, 12, 0.6);
+  --overlay-busy: rgba(2, 6, 12, 0.5);
   --focus-ring-error: rgba(249, 112, 102, 0.3);
 
   --shadow-theme-xs: 0px 1px 2px 0px rgba(0, 0, 0, 0.4);
@@ -295,7 +300,10 @@
 :root[data-theme="dark"] .field-error,
 :root[data-theme="dark"] .kpi-value.is-error,
 :root[data-theme="dark"] .form-label .req,
-:root[data-theme="dark"] .btn-outline-danger { color: var(--error-400); }
+:root[data-theme="dark"] .btn-outline-danger,
+:root[data-theme="dark"] .invalid-feedback,
+:root[data-theme="dark"] .menu-item.is-danger,
+:root[data-theme="dark"] .btn-icon.is-danger { color: var(--error-400); }
 :root[data-theme="dark"] .t-success { color: var(--success-400); }
 :root[data-theme="dark"] .btn-danger { --bs-btn-hover-bg: var(--error-500); --bs-btn-hover-border-color: var(--error-500); --bs-btn-active-bg: var(--error-500); }
 :root[data-theme="dark"] img { color-scheme: light; }

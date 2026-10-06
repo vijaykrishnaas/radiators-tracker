@@ -35,7 +35,7 @@
 /* Amount reads as text (qty × rate) but stays editable for a hand-agreed price. */
 .memo-row .memo-amt-input { text-align: right; font-size: 15px; font-weight: var(--weight-semibold); color: var(--text-strong); background: transparent; border-color: transparent; box-shadow: none; padding: 0 4px; }
 .memo-row .memo-amt-input:hover:not(:disabled) { border-color: var(--border-control); background: var(--surface); }
-.memo-row .memo-amt-input:focus { border-color: var(--brand-300); background: var(--surface); }
+.memo-row .memo-amt-input:focus { border-color: var(--brand-300); background: var(--surface); box-shadow: 0 0 0 4px var(--focus-ring-color); }
 .memo-row .memo-amt-input:disabled { background: transparent; border-color: transparent; }
 .memo-row .memo-amt-input.is-invalid { border-color: var(--error-300); }
 .memo-amt-input::-webkit-outer-spin-button, .memo-amt-input::-webkit-inner-spin-button { appearance: none; margin: 0; }

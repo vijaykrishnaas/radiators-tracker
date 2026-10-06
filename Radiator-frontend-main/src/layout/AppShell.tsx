@@ -198,7 +198,7 @@ function ThemeSwitch() {
     const [pref, setPref] = useThemePref();
     return (
         <div className="user-menu-theme" role="presentation">
-            <span className="user-menu-theme-label" id="theme-switch-label">Theme</span>
+            <span className="user-menu-theme-label" aria-hidden="true">Theme</span>
             <SegmentedControl<ThemePref>
                 label="Theme"
                 radio
