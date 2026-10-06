@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Icons from "../../Components/Icons";
 import InputText from "../../Components/InputText";
@@ -6,13 +6,29 @@ import { putData, postData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
-import { Badge, BtnSpinner, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
+import { Badge, BtnSpinner, Callout, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
 import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Inputs";
 import { usePhone } from "../../Components/ui/hooks";
 import { buildBrand, parseHex, toHex } from "../../theme/applyTenantBrand";
+import { assetUrl, BACKEND } from "../../Utils/pdfImage";
 
-const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
-const resolveLogo = (url?: string) => (url && url.startsWith("/") ? `${BACKEND}${url}` : url || "");
+const resolveLogo = assetUrl;
+
+// Uploaded images are served by the backend, so a deployed site with a missing or http backend address shows blank
+// images even though the upload succeeded. Spot the two setups that always break it.
+function serverAddressProblem(): string | null {
+    try {
+        const u = new URL(BACKEND);
+        const local = (h: string) => /^(localhost|127\.0\.0\.1)$/.test(h);
+        if (local(u.hostname) && !local(window.location.hostname))
+            return `This site is pointing at ${u.origin}. Set VITE_BACKEND_BASE_URL to your server's address and redeploy.`;
+        if (window.location.protocol === "https:" && u.protocol === "http:")
+            return `The server address (${u.origin}) uses http on an https site, so browsers block the images. Use https in VITE_BACKEND_BASE_URL.`;
+    } catch {
+        return `The server address "${BACKEND}" is not a valid URL. Fix VITE_BACKEND_BASE_URL and redeploy.`;
+    }
+    return null;
+}
 
 const slugify = (label: string) =>
     label.toLowerCase().replace(/[^a-z0-9]+/g, "").trim() || label.toLowerCase();
@@ -62,7 +78,7 @@ const ColorField = ({ id, label, value, onChange }: { id: string; label: string;
 };
 
 const SettingsPage = () => {
-    const { settings, refreshSettings } = useSettings();
+    const { settings, loading: settingsLoading, refreshSettings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const phone = usePhone();
 
@@ -72,6 +88,8 @@ const SettingsPage = () => {
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("company");
+    const serverProblem = serverAddressProblem();
+    const brokenHint = serverProblem || `Check that ${BACKEND} is reachable from this device.`;
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
@@ -83,7 +101,11 @@ const SettingsPage = () => {
     const auto = draft.automobile;
     const isEngineering = draft.businessType === "engineering";
 
+    // After an upload the settings are re-fetched (so the header logo updates); keep the user's unsaved edits then,
+    // instead of resetting the whole form to what the server has.
+    const keepDraft = useRef<AppSettings | null>(null);
     useEffect(() => {
+        if (keepDraft.current) { setDraft(keepDraft.current); keepDraft.current = null; return; }
         setDraft(settings);
     }, [settings]);
 
@@ -107,6 +129,7 @@ const SettingsPage = () => {
             fd.append("logo", file); // the upload field is named "logo" on the backend for every kind
             const res = await postData(endpoint, fd);
             set(path, res[urlField]);
+            setDraft((d) => { keepDraft.current = d; return d; });
             await refreshSettings();
             callAlertMsg(res.message || okMsg, "success");
         } catch (err: any) {
@@ -323,7 +346,7 @@ const SettingsPage = () => {
     const workerLabel = isAutomobile ? auto.labels.worker : draft.labels.worker;
 
     const saveButton = (
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving || settingsLoading}>
             <BtnSpinner show={saving} />
             {saving ? "Saving..." : "Save All Settings"}
         </button>
@@ -357,6 +380,7 @@ const SettingsPage = () => {
                 {/* ---- Company ---- */}
                 {activeTab === "company" && (
                     <>
+                        {serverProblem && <Callout tone="warning">{serverProblem}</Callout>}
                         <SectionCard title="Company profile" subtitle="Shown on printed bills, the sign-in page and reports.">
                             <div className="form-grid">
                                 {textField("Company name", "company.name", draft.company.name)}
@@ -368,24 +392,24 @@ const SettingsPage = () => {
                             </div>
                             <div className="settings-uploads">
                                 <div>
-                                    <Upload id="upload-logo" label="Business logo" hint="PNG, JPG, SVG or WebP, up to 1 MB."
+                                    <Upload id="upload-logo" brokenHint={brokenHint} label="Business logo" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.logoUrl)} uploading={!!uploading.logo}
                                         emptyText="No logo uploaded" onFile={uploadLogo} onRemove={() => set("company.logoUrl", "")} />
                                 </div>
                                 <div>
-                                    <Upload id="upload-qr" label="Payment QR (printed on the bill)" hint="PNG, JPG, SVG or WebP."
+                                    <Upload id="upload-qr" brokenHint={brokenHint} label="Payment QR (printed on the bill)" hint="PNG, JPG, SVG or WebP."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.qrUrl)} uploading={!!uploading.qr}
                                         emptyText="No QR uploaded" onFile={uploadQr} onRemove={() => set("company.qrUrl", "")} />
                                     <span className="field-help">Upload your UPI/payment QR image. If set, it's printed on the invoice instead of the auto-generated one.</span>
                                 </div>
                                 <div>
-                                    <Upload id="upload-signature" label="Authorised signature (printed on the bill)" hint="PNG, JPG, SVG or WebP, up to 1 MB."
+                                    <Upload id="upload-signature" brokenHint={brokenHint} label="Authorised signature (printed on the bill)" hint="PNG, JPG, SVG or WebP, up to 1 MB."
                                         accept={IMAGE_ACCEPT} previewUrl={resolveLogo(draft.company.signatureUrl)} uploading={!!uploading.signature}
                                         emptyText="No signature uploaded" onFile={uploadSignature} onRemove={() => set("company.signatureUrl", "")} />
                                     <span className="field-help">Upload a signature image (png with transparency works best, ≤1MB). It's printed above "Authorised signatory" when enabled in Invoice Options below.</span>
                                 </div>
                                 <div>
-                                    <Upload id="upload-login-bg" label="Login background (shown on your login page)" hint="PNG, JPG or WebP, up to 4 MB."
+                                    <Upload id="upload-login-bg" brokenHint={brokenHint} label="Login background (shown on your login page)" hint="PNG, JPG or WebP, up to 4 MB."
                                         accept="image/png,image/jpeg,image/webp" previewUrl={resolveLogo(draft.company.loginBgUrl)} uploading={!!uploading.bg}
                                         cover emptyText="Using default background" onFile={uploadLoginBg} onRemove={() => set("company.loginBgUrl", "")} />
                                     <span className="field-help">Upload a full-screen background image (png/jpeg/webp, ≤4MB) for your branded login page. Your brand colours are layered over it automatically.</span>

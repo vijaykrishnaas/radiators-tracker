@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
+import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
 
 type RGB = [number, number, number];
@@ -14,24 +15,8 @@ const hexToRgb = (hex: string): RGB => {
 
 const money = (n: number) => `${Number(n || 0).toLocaleString("en-IN")}`;
 
-const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
 
 // Fetches an uploaded image (e.g. the payment QR) as a base64 data URL for jsPDF.
-async function fetchImageDataUrl(url: string): Promise<{ dataUrl: string; format: string }> {
-    const full = url.startsWith("/") ? `${BACKEND}${url}` : url;
-    const resp = await fetch(full);
-    if (!resp.ok) throw new Error("image fetch failed");
-    const blob = await resp.blob();
-    const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onloadend = () => res(r.result as string);
-        r.onerror = rej;
-        r.readAsDataURL(blob);
-    });
-    const mime = dataUrl.match(/^data:(image\/[a-z+]+);/)?.[1] || "image/png";
-    const format = /jpe?g/.test(mime) ? "JPEG" : "PNG";
-    return { dataUrl, format };
-}
 
 // "Other" services print their comment text instead of the word "Other"
 const particularText = (s: { type: string; comments?: string }) =>
@@ -196,7 +181,7 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     };
     if (settings.company.qrUrl) {
         try {
-            const { dataUrl, format } = await fetchImageDataUrl(settings.company.qrUrl);
+            const { dataUrl, format } = await fetchPdfImage(settings.company.qrUrl);
             doc.addImage(dataUrl, format, M, sectionY, QR, QR);
             drawQrCaption(); qrShown = true;
         } catch { /* fall through */ }
@@ -225,7 +210,7 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.text(fitOneLine(`For ${settings.company.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
     if (settings.invoice.showSignature && settings.company.signatureUrl) {
         try {
-            const { dataUrl, format } = await fetchImageDataUrl(settings.company.signatureUrl);
+            const { dataUrl, format } = await fetchPdfImage(settings.company.signatureUrl);
             doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
         } catch { /* fall through to a blank signing space */ }
     }
@@ -391,7 +376,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     };
     if (settings.company.qrUrl) {
         try {
-            const { dataUrl, format } = await fetchImageDataUrl(settings.company.qrUrl);
+            const { dataUrl, format } = await fetchPdfImage(settings.company.qrUrl);
             doc.addImage(dataUrl, format, M, sectionY, QR, QR);
             drawQrCaption(); qrShown = true;
         } catch { /* fall through */ }
@@ -417,7 +402,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     doc.text(fitOneLine(`For ${settings.company.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
     if (invoiceSettings.showSignature && settings.company.signatureUrl) {
         try {
-            const { dataUrl, format } = await fetchImageDataUrl(settings.company.signatureUrl);
+            const { dataUrl, format } = await fetchPdfImage(settings.company.signatureUrl);
             doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
         } catch { /* fall through to a blank signing space */ }
     }

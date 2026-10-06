@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icons from "../../Components/Icons";
 import { Popover, MenuItems } from "./Menu";
 
@@ -122,7 +122,7 @@ export function ChipInput({ id, values, onChange, placeholder = "Type and press 
 }
 
 /* ---------------- Upload with preview (§4.18) ---------------- */
-export function Upload({ id, label, hint, accept, previewUrl, uploading, onFile, onRemove, cover = false, emptyText }: {
+export function Upload({ id, label, hint, accept, previewUrl, uploading, onFile, onRemove, cover = false, emptyText, brokenHint }: {
     id: string;
     label: string;
     hint: string;
@@ -133,8 +133,12 @@ export function Upload({ id, label, hint, accept, previewUrl, uploading, onFile,
     onRemove?: () => void;
     cover?: boolean;
     emptyText?: string;
+    /** Shown when the saved image URL fails to load (usually a wrong server address on the deployed site). */
+    brokenHint?: string;
 }) {
     const [isOver, setOver] = useState(false);
+    const [broken, setBroken] = useState(false);
+    useEffect(() => setBroken(false), [previewUrl]);
     const inputRef = useRef<HTMLInputElement>(null);
     return (
         <div className="field">
@@ -156,7 +160,7 @@ export function Upload({ id, label, hint, accept, previewUrl, uploading, onFile,
                 {previewUrl ? (
                     <div className="d-flex flex-column align-items-center gap-1">
                         <div className={`upload-preview${cover ? " is-cover" : ""}`}>
-                            <img src={previewUrl} alt={`${label} preview`} />
+                            <img src={previewUrl} alt={`${label} preview`} onError={() => setBroken(true)} onLoad={() => setBroken(false)} />
                             {onRemove && (
                                 <button type="button" className="btn btn-icon" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}>
                                     <Icons iconName="x" />
@@ -169,6 +173,11 @@ export function Upload({ id, label, hint, accept, previewUrl, uploading, onFile,
                     emptyText && <span className="t-sm t-muted">{emptyText}</span>
                 )}
             </div>
+            {previewUrl && broken && (
+                <span className="field-error" role="alert">
+                    The image is saved, but it can't be loaded from the server.{brokenHint ? ` ${brokenHint}` : ""}
+                </span>
+            )}
         </div>
     );
 }

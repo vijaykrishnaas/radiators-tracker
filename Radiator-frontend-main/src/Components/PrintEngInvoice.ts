@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
+import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
 import type { EngBill } from "../Pages/Engineering/types";
 import { bsLabel, itemText, typeLabel } from "../Pages/Engineering/types";
@@ -12,22 +13,8 @@ const hexToRgb = (hex: string): RGB => {
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [18, 70, 130];
 };
 
-const BACKEND = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5000";
 const rs = (n: number) => `Rs ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`; // radiator format: no forced decimals
 
-async function fetchImage(url: string): Promise<{ dataUrl: string; format: string }> {
-    const resp = await fetch(url.startsWith("/") ? `${BACKEND}${url}` : url);
-    if (!resp.ok) throw new Error("image fetch failed");
-    const blob = await resp.blob();
-    const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onloadend = () => res(r.result as string);
-        r.onerror = rej;
-        r.readAsDataURL(blob);
-    });
-    const mime = dataUrl.match(/^data:(image\/[a-z+]+);/)?.[1] || "image/png";
-    return { dataUrl, format: /jpe?g/.test(mime) ? "JPEG" : "PNG" };
-}
 
 // "TN52J2622" -> "TN 52 J 2622" (reads like the plate); anything else is left as typed.
 const spacedPlate = (v: string) => {
@@ -192,7 +179,7 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     };
     if (co.qrUrl) {
         try {
-            const { dataUrl, format } = await fetchImage(co.qrUrl);
+            const { dataUrl, format } = await fetchPdfImage(co.qrUrl);
             doc.addImage(dataUrl, format, M, sectionY, QR, QR);
             drawQrCaption(); qrShown = true;
         } catch { /* fall through */ }
@@ -218,7 +205,7 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     if (co.name) doc.text(fitOneLine(`For ${co.name}`, 58, 7.5), W - M, sectionY + 5, { align: "right" });
     if (inv?.showSignature && co.signatureUrl) {
         try {
-            const { dataUrl, format } = await fetchImage(co.signatureUrl);
+            const { dataUrl, format } = await fetchPdfImage(co.signatureUrl);
             doc.addImage(dataUrl, format, W - 46, sectionY + 8, 34, 14);
         } catch { /* blank signing space */ }
     }

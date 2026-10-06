@@ -671,6 +671,32 @@ async function run(type) {
     ok("eng: bill PDF without a company name downloads", false, "no download");
   }
   await page.unroute("http://localhost:5000/**", noNameHandler);
+
+  // An SVG payment QR and a WebP signature still print (jsPDF only takes PNG/JPEG; they are redrawn as PNG first).
+  const WEBP_1PX = Buffer.from("UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=", "base64");
+  const SVG_QR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/><rect x="2" y="2" width="6" height="6" fill="#fff"/></svg>';
+  const imgHandler = async (route) => {
+    const u = new URL(route.request().url());
+    if (u.pathname === "/public/clients/acme/qr") return route.fulfill({ status: 200, contentType: "image/svg+xml", body: SVG_QR });
+    if (u.pathname === "/public/clients/acme/signature") return route.fulfill({ status: 200, contentType: "image/webp", body: WEBP_1PX });
+    if (route.request().method() !== "GET" || u.pathname !== "/settings") return route.fallback();
+    const st = settingsFor("engineering");
+    st.company.qrUrl = "/public/clients/acme/qr";
+    st.company.signatureUrl = "/public/clients/acme/signature";
+    st.engineering.invoice = { ...(st.engineering.invoice || {}), showQr: true, showSignature: true };
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ settings: st }) });
+  };
+  await page.route("http://localhost:5000/**", imgHandler);
+  await page.goto(BASE + "/engineering/billing");
+  await page.getByText("TN52J2622").first().waitFor({ timeout: 10000 });
+  const dl3 = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
+  await page.getByRole("button", { name: "Actions for TN52J2622" }).click();
+  await page.getByRole("menuitem", { name: "Print" }).click();
+  const download3 = await dl3;
+  const raw3 = download3 ? (await import("node:fs")).readFileSync(await download3.path()).toString("latin1") : "";
+  const imgCount = (raw3.match(/\/Subtype \/Image/g) || []).length;
+  ok("eng: bill PDF prints an SVG QR and a WebP signature", imgCount >= 2, `images=${imgCount}`);
+  await page.unroute("http://localhost:5000/**", imgHandler);
   // Phone layouts: bills become cards, filters collapse into a sheet, Save stays reachable on the form.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/engineering/billing");
