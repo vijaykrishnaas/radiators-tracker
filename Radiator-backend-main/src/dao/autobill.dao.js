@@ -67,6 +67,14 @@ async function nextBillNo(cid) {
   return doc.autobill;
 }
 
+// Items can be grouped into memos (the supplier memos the parts came on). An
+// item stores its memo's index; bills saved before memos existed omit it (memo 0).
+const MAX_MEMO = 49;
+function toMemoIndex(val) {
+  const n = Math.trunc(Number(val));
+  return Number.isFinite(n) ? Math.min(Math.max(n, 0), MAX_MEMO) : 0;
+}
+
 function buildRecordFields(data) {
   return {
     billDate: toValidDate(data.billDate, "billDate"),
@@ -94,6 +102,7 @@ function buildRecordFields(data) {
         unit: i.unit || "",
         rate,
         amount,
+        ...(i.memo != null ? { memo: toMemoIndex(i.memo) } : {}),
       };
     }),
   };

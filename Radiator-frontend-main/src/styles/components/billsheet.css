@@ -1,0 +1,78 @@
+/* Bill sheet: the memo-based bill form (automobile create / edit / view). Tokens only: no hex, no !important. */
+
+.bill-sheet .card-body { display: flex; flex-direction: column; gap: 20px; }
+.bill-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bill-sheet-title { margin: 0; font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.bill-sheet-sub { margin: 2px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.bill-no { flex: 0 0 auto; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); font-family: var(--font-mono); font-size: 13px; color: var(--text-strong); white-space: nowrap; }
+
+/* Header fields: small tracked caps labels (this page follows the paper-bill design). */
+.bill-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.bill-fields .form-label { font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.bill-fields-wide { grid-column: 1 / -1; }
+@media (min-width: 576px) { .bill-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1200px) { .bill-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Memos */
+.memo-stack { display: flex; flex-direction: column; gap: 16px; }
+.memo { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.memo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+.memo-tag { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.memo-empty { margin: 12px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+
+.memo-cols, .memo-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 80px 96px 136px 120px 36px; align-items: center; gap: 10px; }
+.memo-cols { display: none; margin-top: 12px; padding: 0 12px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.memo-cols .num { text-align: right; }
+.memo-rows { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.memo-row { padding: 6px 12px; background: var(--surface-sunken); border-radius: var(--radius-md); }
+.memo-sno { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+.memo-part, .memo-qty, .memo-unit, .memo-rate, .memo-amt { min-width: 0; }
+.memo-row .form-control { height: 42px; min-height: 42px; border-radius: var(--radius-sm); }
+.memo-row .input-group-text { height: 42px; }
+.memo-row-error { grid-column: 2 / -1; margin-top: 0; }
+.memo-mlabel { display: none; }
+
+/* Amount reads as text (qty × rate) but stays editable for a hand-agreed price. */
+.memo-row .memo-amt-input { text-align: right; font-size: 15px; font-weight: var(--weight-semibold); color: var(--text-strong); background: transparent; border-color: transparent; box-shadow: none; padding: 0 4px; }
+.memo-row .memo-amt-input:hover:not(:disabled) { border-color: var(--border-control); background: var(--surface); }
+.memo-row .memo-amt-input:focus { border-color: var(--brand-300); background: var(--surface); }
+.memo-row .memo-amt-input:disabled { background: transparent; border-color: transparent; }
+.memo-row .memo-amt-input.is-invalid { border-color: var(--error-300); }
+.memo-amt-input::-webkit-outer-spin-button, .memo-amt-input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.memo-amt-input { appearance: textfield; }
+.memo-amt-box { display: flex; align-items: center; justify-content: flex-end; gap: 2px; min-width: 0; }
+.memo-amt-box .memo-amt-input { flex: 0 1 auto; max-width: 100%; }
+.memo-amt-cur { font-size: 15px; font-weight: var(--weight-semibold); color: var(--text-strong); }
+
+.memo-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.memo-add { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px dashed var(--border-control); border-radius: var(--radius-md); background: transparent; color: var(--brand-text); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.memo-add:hover { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-text); }
+.memo-subtotal { display: flex; align-items: baseline; gap: 8px; margin-left: auto; font-size: var(--text-sm); color: var(--text-muted); }
+.memo-subtotal strong { font-size: var(--text-md); color: var(--text-strong); }
+.memo-new { align-self: flex-start; }
+
+@media (min-width: 768px) {
+  .memo-cols { display: grid; }
+}
+
+/* Phones: each row stacks into name, qty / unit, rate, then the amount line, so nothing scrolls sideways. */
+@media (max-width: 767.98px) {
+  .memo { padding: 12px; }
+  .memo-row {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 36px;
+    grid-template-areas: "sno part part x" ". qty unit ." ". rate rate ." ". amt amt amt" ". err err err";
+    padding: 10px;
+    gap: 8px;
+  }
+  .memo-sno { grid-area: sno; }
+  .memo-part { grid-area: part; }
+  .memo-x { grid-area: x; }
+  .memo-qty { grid-area: qty; }
+  .memo-unit { grid-area: unit; }
+  .memo-rate { grid-area: rate; }
+  .memo-amt { grid-area: amt; }
+  .memo-row-error { grid-area: err; }
+  .memo-mlabel { display: block; margin-bottom: 2px; font-size: var(--text-xs); color: var(--text-muted); }
+  .memo-amt { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .memo-amt .memo-mlabel { margin: 0; }
+}

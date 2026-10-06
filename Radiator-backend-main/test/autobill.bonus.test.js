@@ -87,3 +87,21 @@ test("tenant isolation: another tenant cannot read or pay the bill", async () =>
   assert.equal(await getById(other, insertedId), null);
   await assert.rejects(() => recordPayment(other, insertedId, 100, 0), /not found/);
 });
+
+test("memos: items keep a clamped memo index; items sent without one are stored as before", async () => {
+  const { insertedId } = await createAutoBill(CLIENT, input({
+    items: [
+      { particulars: "Engine oil", qty: 2, rate: 450, memo: 0 },
+      { particulars: "Filter", qty: 1, rate: 300, memo: "1" },
+      { particulars: "Stray", qty: 1, rate: 10, memo: 999 },
+      { particulars: "Junk", qty: 1, rate: 10, memo: "abc" },
+    ],
+  }));
+  const bill = await getById(CLIENT, insertedId);
+  assert.deepEqual(bill.items.map((i) => i.memo), [0, 1, 49, 0]);
+  assert.equal(bill.totalAmount, 1220);
+
+  const { insertedId: plainId } = await createAutoBill(CLIENT, input());
+  const plain = await getById(CLIENT, plainId);
+  assert.ok(plain.items.every((i) => !("memo" in i)));
+});
