@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (tenth lap)
+Next area: **2** (tenth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-07 02:37 UTC — Area 1 (Engineering backend, 10th lap): no new bug; staging unchanged since 59bb5fe (last QA'd in the 22:37 run), nothing new to review. tsc clean, backend 62/62, e2e engineering 158, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-06 22:37 UTC — Merged #70 (squash, 59bb5fe; test-only automobile 390px overflow flake fix; reviewed NO-BLOCKERS at d9e9f9a). Verified the merge result before merging: tsc clean, backend 62/62, e2e engineering 158, radiator 6, automobile 24, salary 6, all PASS. Area 6 (cross-cutting, 9th lap): reviewed the other-session backend changes since e50e7a5 (settings asset DELETE route + PUT keeping stored image links, engineering bonus mode percent|amount with clamping, autobill memo index, ensureIndexes): all clientId-scoped from req.user, same auth as the existing settings routes, bonus math clamped and covered by tests; no bug found. Not reviewed in depth: the large frontend changes (dark mode, tenant switch, a11y) beyond their passing e2e. Notification sent: no (test-only merge).
 - 2026-10-06 18:37 UTC — Step 1a only: reviewed open QA PR #70 (head d9e9f9a, test-only) with a fresh-context subagent -> VERDICT: NO-BLOCKERS posted. Area 6 pass deferred to the run after the merge (Next area stays 6). staging is fae3b37 (several features landed by another session today, not yet QA'd). Merge #70 next run. No notification.
 - 2026-10-06 14:37 UTC — Area 5 (Radiator, 9th lap): no radiator bug; staging unchanged 58e576a. Found a FLAKY e2e: automobile 'no horizontal overflow at 390px' read scrollWidth the instant the first input mounts, when .form-footer is still settling (overflow 6-11px, settles to 0 within 1.5s); failed 2 of 4 runs on an unchanged commit. PR #70 (claude/staging-qa-fix-12, test-only) makes the check poll up to 3s; 8/8 pass after. tsc clean, backend 54/54, e2e engineering 138, radiator 6, automobile 23, salary 6. Note: the footer's brief 6px overflow after load is a small visual flicker in app code — left alone (another session is editing that form). Merge is next run after review. No notification (test-only).
