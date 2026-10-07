@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import Select, { GroupBase, MultiValue, OptionsOrGroups, SingleValue, StylesConfig } from "react-select";
-import type { ActionMeta, SelectInstance } from "react-select";
+import type { ActionMeta, SelectComponentsConfig, SelectInstance } from "react-select";
 import { selectStyles } from "../theme/reactSelectTheme";
 
 interface SelectorProps<SelectOption, IsMulti extends boolean = false> {
@@ -23,6 +23,12 @@ interface SelectorProps<SelectOption, IsMulti extends boolean = false> {
   "aria-invalid"?: boolean;
   onBlur?: () => void;
   noOptionsMessage?: () => React.ReactNode;
+  /** Multi-pickers with checkbox rows: keep the menu open and show chosen options (ticked) instead of hiding them. */
+  closeMenuOnSelect?: boolean;
+  hideSelectedOptions?: boolean;
+  components?: Partial<SelectComponentsConfig<SelectOption, IsMulti, GroupBase<SelectOption>>>;
+  /** Per-use style tweaks layered on top of the shared theme. */
+  styles?: StylesConfig<SelectOption, IsMulti>;
   onChange?: (
     newValue: IsMulti extends true ? MultiValue<SelectOption> : SingleValue<SelectOption>,
     actionMeta: ActionMeta<SelectOption>
@@ -33,6 +39,17 @@ interface SelectorProps<SelectOption, IsMulti extends boolean = false> {
 const MENU_MAX = 260;
 const MENU_GAP = 16;
 const MENU_MIN = 120;
+
+// Layers per-use style functions over the theme: each key runs the theme's function, then the override on its result.
+function mergeStyles<O, M extends boolean>(base: StylesConfig<O, M>, extra?: StylesConfig<O, M>): StylesConfig<O, M> {
+  if (!extra) return base;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, fn] of Object.entries(extra)) {
+    const b = (base as Record<string, unknown>)[k] as ((s: object, st: unknown) => object) | undefined;
+    out[k] = (s: object, st: unknown) => (fn as (s: object, st: unknown) => object)(b ? b(s, st) : s, st);
+  }
+  return out as StylesConfig<O, M>;
+}
 
 /** react-select themed to the form controls (spec §4.5). The menu portals to <body> above modals. */
 const Selector = <SelectOption, IsMulti extends boolean = false>(
@@ -67,7 +84,10 @@ const Selector = <SelectOption, IsMulti extends boolean = false>(
       options={props.options}
       className={props.className}
       classNamePrefix={props.prefixClassName || "rs"}
-      styles={selectStyles as unknown as StylesConfig<SelectOption, IsMulti>}
+      styles={mergeStyles(selectStyles as unknown as StylesConfig<SelectOption, IsMulti>, props.styles)}
+      closeMenuOnSelect={props.closeMenuOnSelect}
+      hideSelectedOptions={props.hideSelectedOptions}
+      components={props.components}
       id={props.id}
       inputId={props.inputId}
       aria-label={props["aria-label"]}

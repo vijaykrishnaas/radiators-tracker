@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Icons from "../../../Components/Icons";
 import InputText from "../../../Components/InputText";
 import Selector from "../../../Components/Selector";
+import ItemMultiSelect from "../Components/ItemMultiSelect";
 import { getData, postData, putData } from "../../../Services/ApiServices";
 import { useAlertMsg } from "../../../Services/AllServices";
 import { useSettings } from "../../../Context/SettingsContext";
@@ -13,8 +14,8 @@ import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { defaultRate, isOffered, round2, type EngBill } from "../types";
 
-// cost: only typed on free-description rows ("Other"); catalog items take their cost from Settings on save.
-type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string; cost: string };
+// Cost prices never appear on the bill form: catalog items take their cost from Settings on save, "Other" has none.
+type Row = { item: string; label: string; comment: string; requiresComment: boolean; qty: string; rate: string };
 type Card = { key: number; type: string; bsModel: string; rows: Row[] };
 
 let keySeq = 1;
@@ -77,7 +78,6 @@ const EngCreate = () => {
                     rows: s.items.map((i) => ({
                         item: i.item, label: i.label, comment: i.comment || "",
                         requiresComment: !!i.requiresComment, qty: String(i.qty), rate: String(i.rate),
-                        cost: i.requiresComment && i.cost ? String(i.cost) : "",
                     })),
                 })));
                 setDiscount(bill.discount ? String(bill.discount) : "");
@@ -102,7 +102,7 @@ const EngCreate = () => {
     const setType = (key: number, type: string) => updateCard(key, (c) => ({ ...c, type, rows: [] }));
 
     // Changing the bill's BS model re-applies the catalog rate on every card and drops items not offered for that model.
-    // Free-description rows ("Other") keep what was typed (description, rate, cost): they have no catalog price.
+    // Free-description rows ("Other") keep what was typed (description and rate): they have no catalog price.
     const setBs = (bsModel: string) => {
         setBillBs(bsModel);
         let dropped: string[] = [];
@@ -139,7 +139,7 @@ const EngCreate = () => {
                     const it = t?.items.find((i) => i.value === v);
                     return {
                         item: v, label: it?.label || v, comment: "", requiresComment: !!it?.requiresComment,
-                        qty: "1", rate: String(defaultRate(it, c.bsModel)), cost: "",
+                        qty: "1", rate: String(defaultRate(it, c.bsModel)),
                     };
                 });
             return { ...c, rows: [...kept, ...added] };
@@ -183,7 +183,7 @@ const EngCreate = () => {
             if (it && !isOffered(it, target.bsModel)) return list;
             const row: Row = {
                 item, label: it?.label || item, comment: "", requiresComment: !!it?.requiresComment,
-                qty: "1", rate: String(defaultRate(it, target.bsModel)), cost: "",
+                qty: "1", rate: String(defaultRate(it, target.bsModel)),
             };
             return list.map((c) => (c.key === target!.key ? { ...c, rows: [...c.rows, row] } : c));
         });
@@ -263,8 +263,6 @@ const EngCreate = () => {
                     items: c.rows.map((r) => ({
                         item: r.item, label: r.label, comment: r.comment, requiresComment: r.requiresComment,
                         qty: Number(r.qty), rate: Number(r.rate) || 0,
-                        // Free-description rows always send their cost (empty = 0), so clearing it really clears it.
-                        ...(r.requiresComment ? { cost: Math.max(Number(r.cost) || 0, 0) } : {}),
                     })),
                 })),
                 // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
@@ -356,35 +354,34 @@ const EngCreate = () => {
                         <CardHead
                             title="Services"
                             actions={!isView && (
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
-                                    <Icons iconName="add" />Add New Service
+                                <button type="button" className="btn btn-primary btn-sm eng-add-service" onClick={() => setCards((cs) => [...cs, newCard("", billBs)])}>
+                                    <Icons iconName="plus-circle" />Add New Service
                                 </button>
                             )}
                         />
                         {!isView && quick.length > 0 && (
-                            <div className="eng-quick-row mt-4">
-                                <span className="t-xs t-muted">Quick add</span>
+                            <div className="eng-quick-row mt-3">
+                                <span className="eng-quick-label">Quick add:</span>
                                 {quick.map((q) => (
-                                    <button key={`${q.type}-${q.item}`} type="button" className="chip-btn" onClick={() => quickAdd(q.type, q.item)}>
-                                        <Icons iconName="add" />{q.text}
+                                    <button key={`${q.type}-${q.item}`} type="button" className="eng-quick-chip" onClick={() => quickAdd(q.type, q.item)}>
+                                        {q.text}
                                     </button>
                                 ))}
                             </div>
                         )}
                         {errors.services && <p className="field-error mt-3" role="alert">{errors.services}</p>}
 
-                        <div className="d-grid gap-3 mt-4">
+                        <div className="d-grid gap-3 mt-3">
                             {cards.map((c, ci) => {
                                 const t = findType(c.type);
-                                const chosen = new Set(c.rows.map((r) => r.item));
-                                const addOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel) && !chosen.has(i.value)).map((i) => ({ label: i.label, value: i.value }));
+                                const itemOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel)).map((i) => ({ label: i.label, value: i.value }));
                                 return (
                                     <section key={c.key} className="nested-card eng-svc" aria-label={`Service ${ci + 1}`}>
                                         <div className="eng-svc-head">
-                                            <span className="eng-svc-tag">Service {ci + 1}</span>
                                             <div className="eng-svc-type">
-                                                <Selector inputId={`eng-type-${c.key}`} aria-label={`Service type for service ${ci + 1}`} options={typeOpts} isDisabled={isView}
-                                                    placeholder="Select service type"
+                                                <label className="eng-cap-label" htmlFor={`eng-type-${c.key}`}>Service type</label>
+                                                <Selector inputId={`eng-type-${c.key}`} options={typeOpts} isDisabled={isView}
+                                                    placeholder="Select type"
                                                     value={c.type ? { label: t?.label || c.type, value: c.type } : null}
                                                     onChange={(o: any) => {
                                                         const v = o ? o.value : "";
@@ -393,19 +390,21 @@ const EngCreate = () => {
                                                         else setType(c.key, v);
                                                     }} />
                                             </div>
+                                            <div className="eng-svc-items">
+                                                <label className="eng-cap-label" htmlFor={`eng-items-${c.key}`}>Work / service items</label>
+                                                <ItemMultiSelect inputId={`eng-items-${c.key}`} options={itemOpts} value={c.rows.map((r) => r.item)}
+                                                    disabled={isView || !c.type}
+                                                    placeholder={c.type ? "Select items" : "Select type first"}
+                                                    onChange={(v) => { setItems(c.key, v); if (v.length) clearErr("services"); }} />
+                                            </div>
                                             {!isView && (
-                                                <button type="button" className="btn btn-icon btn-secondary eng-svc-remove" aria-label={`Remove service ${ci + 1}`} title="Remove service"
+                                                <button type="button" className="btn btn-outline-danger eng-svc-remove" aria-label={`Remove service ${ci + 1}`}
                                                     onClick={() => (c.rows.length ? setConfirm({ kind: "card", key: c.key, n: ci + 1 }) : removeCard(c.key))}>
-                                                    <Icons iconName="delete" />
+                                                    <Icons iconName="delete" /><span aria-hidden="true">Remove</span>
                                                 </button>
                                             )}
                                         </div>
 
-                                        {c.rows.length > 0 && (
-                                            <div className="eng-cols" aria-hidden="true">
-                                                <span>Item</span><span className="num">Qty</span><span>Rate</span><span className="num">Amount</span><span />
-                                            </div>
-                                        )}
                                         {c.rows.length > 0 && (
                                             <ul className="eng-lines" aria-label={`Items for service ${ci + 1}`}>
                                                 {c.rows.map((r) => {
@@ -416,17 +415,10 @@ const EngCreate = () => {
                                                             <div className="eng-line-main">
                                                                 <span className="eng-line-name">{r.label}</span>
                                                                 {r.requiresComment && (
-                                                                    <div className="eng-line-extra">
-                                                                        <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
-                                                                            <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} aria-invalid={!!ce || undefined} disabled={isView}
-                                                                                onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
-                                                                            {ce && <span className="field-error" role="alert">{ce}</span>}
-                                                                        </div>
-                                                                        <div className="eng-line-cost" title="What this work cost you (for profit). Optional.">
-                                                                            <AffixInput prefix="Cost ₹" type="number" min={0} inputMode="decimal" value={r.cost} placeholder="optional" disabled={isView}
-                                                                                aria-label={`Cost for ${r.label}`} className="tabular text-end"
-                                                                                onChange={(e) => setRow(c.key, r.item, { cost: e.target.value })} />
-                                                                        </div>
+                                                                    <div className={`eng-line-comment field${ce ? " has-error" : ""}`}>
+                                                                        <InputText value={r.comment} placeholder="Describe the work" aria-label={`Description for ${r.label}`} aria-invalid={!!ce || undefined} disabled={isView}
+                                                                            onChange={(e) => setRow(c.key, r.item, { comment: e.target.value })} />
+                                                                        {ce && <span className="field-error" role="alert">{ce}</span>}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -436,6 +428,7 @@ const EngCreate = () => {
                                                                     className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { qty: e.target.value })} />
                                                                 {qe && <span className="field-error" role="alert">{qe}</span>}
                                                             </div>
+                                                            <span className="eng-line-times" aria-hidden="true">×</span>
                                                             <div className="eng-line-rate">
                                                                 <span className="eng-mlabel" aria-hidden="true">Rate</span>
                                                                 <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
@@ -458,27 +451,12 @@ const EngCreate = () => {
                                             </ul>
                                         )}
 
-                                        <div className="eng-svc-foot">
-                                            {!isView ? (
-                                                <div className="eng-add">
-                                                    <Selector
-                                                        inputId={`eng-items-${c.key}`}
-                                                        aria-label={`Add item to service ${ci + 1}`}
-                                                        options={addOpts}
-                                                        value={null}
-                                                        isDisabled={!c.type || !addOpts.length}
-                                                        placeholder={!c.type ? "Select type first" : addOpts.length ? "+ Add item" : c.rows.length ? "All items added" : "No items offered for this BS model"}
-                                                        onChange={(o: any) => { if (o) { setItems(c.key, [...c.rows.map((x) => x.item), o.value]); clearErr("services"); } }}
-                                                    />
-                                                </div>
-                                            ) : <span />}
-                                            {c.rows.length > 0 && (
-                                                <div className="eng-subtotal">
-                                                    <span>Subtotal</span>
-                                                    <strong className="tabular">{money(subtotal(c))}</strong>
-                                                </div>
-                                            )}
-                                        </div>
+                                        {c.rows.length > 0 && (
+                                            <div className="eng-subtotal">
+                                                <span>Subtotal:</span>
+                                                <strong className="tabular">{money(subtotal(c))}</strong>
+                                            </div>
+                                        )}
                                     </section>
                                 );
                             })}

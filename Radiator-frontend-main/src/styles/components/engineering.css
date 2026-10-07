@@ -31,54 +31,62 @@
 .profit-lines dd span { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
 .profit-table th.num, .profit-table td.num { text-align: right; white-space: nowrap; }
 
-/* ---- Service form ---- */
+/* ---- Service form (layout from the service-form design) ---- */
+.eng-add-service .icons { width: 16px; height: 16px; }
 .eng-quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-
-/* One card per service: header (tag, type, remove) on one aligned line, then a table of items. */
-.eng-svc-head { display: flex; align-items: center; gap: 12px; }
-.eng-svc-tag { flex: 0 0 auto; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
-.eng-svc-type { flex: 1 1 auto; min-width: 0; max-width: 380px; }
-.eng-svc-remove { flex: 0 0 auto; margin-left: auto; }
-
-.eng-cols, .eng-line { display: grid; grid-template-columns: minmax(0, 1fr) 88px 156px 120px 40px; align-items: center; gap: 12px; }
-.eng-cols { display: none; margin-top: 16px; padding: 0 0 8px; border-bottom: 1px solid var(--border); font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
-.eng-cols .num { text-align: right; }
-.eng-lines { margin: 8px 0 0; padding: 0; list-style: none; }
-.eng-line { padding: 10px 0; border-top: 1px solid var(--border-subtle); }
-.eng-line:first-child { border-top: 0; }
-.eng-line-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.eng-line-name { font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-strong); overflow-wrap: anywhere; }
-.eng-line-qty, .eng-line-rate { min-width: 0; }
-.eng-line-extra { display: flex; flex-wrap: wrap; gap: 8px; }
-.eng-line-extra .eng-line-comment { flex: 1 1 200px; min-width: 0; }
-.eng-line-cost { flex: 0 1 170px; min-width: 140px; }
-.eng-line-cost .input-group-text { font-size: var(--text-xs); color: var(--text-muted); }
-.eng-line-amt { text-align: right; white-space: nowrap; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-strong); }
-.eng-line-x { justify-self: end; }
-.eng-mlabel { display: none; }
-
-.eng-svc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-.eng-add { flex: 0 1 280px; min-width: 200px; }
-.eng-add .rs__control { border-style: dashed; }
-.eng-add .rs__control:not(.rs__control--is-focused) { box-shadow: none; }
-.eng-subtotal { display: flex; align-items: baseline; gap: 12px; margin-left: auto; font-size: var(--text-sm); color: var(--text-muted); }
-.eng-subtotal strong { font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--text-strong); }
-
-@media (min-width: 768px) {
-  .eng-cols { display: grid; }
+.eng-quick-label { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-muted); }
+.eng-quick-chip {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-full); background: var(--brand-50); color: var(--brand-text);
+  font-size: var(--text-xs); font-weight: var(--weight-medium); cursor: pointer;
 }
+.eng-quick-chip:hover { background: var(--brand-100); }
 
-/* Phones: item name and remove on one line, then qty and rate side by side, then the amount. */
+/* One card per service: Service type | Work / service items | Remove, bottom-aligned on one line. */
+.eng-svc-head { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto; align-items: end; gap: 12px 16px; }
+.eng-cap-label { display: block; margin-bottom: 6px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.eng-svc-type, .eng-svc-items { min-width: 0; }
+.eng-svc-remove { display: inline-flex; align-items: center; gap: 6px; min-height: var(--control-h); white-space: nowrap; }
+.eng-svc-remove .icons { width: 16px; height: 16px; }
+.item-check { display: flex; align-items: center; gap: 10px; }
+.item-check.is-all { font-weight: var(--weight-medium); }
+
+/* Item rows: soft grey bars — name, qty × rate, amount, remove. */
+.eng-lines { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.eng-line {
+  display: grid; grid-template-columns: minmax(0, 1fr) 84px 14px 150px 120px 36px; align-items: center; gap: 10px;
+  padding: 8px 8px 8px 14px; background: var(--surface-sunken); border-radius: var(--radius-md);
+}
+.eng-line-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
+.eng-line-name { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
+.eng-line-comment { flex: 1 1 220px; min-width: 0; }
+.eng-line .form-control { background-color: var(--white); }
+.eng-line-qty, .eng-line-rate { min-width: 0; }
+.eng-line-times { color: var(--text-muted); text-align: center; }
+.eng-line-amt { text-align: right; white-space: nowrap; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
+.eng-line-x { justify-self: end; color: var(--text-muted); }
+.eng-mlabel { display: none; }
+.eng-subtotal { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; margin-top: 12px; font-size: var(--text-sm); color: var(--text-muted); }
+.eng-subtotal strong { font-weight: var(--weight-bold); color: var(--text-strong); }
+
+/* Tablets: type + items share the first line, Remove drops under them. */
+@media (max-width: 991.98px) {
+  .eng-svc-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .eng-svc-remove { grid-column: 1 / -1; justify-self: end; }
+}
+/* Phones: everything stacks; each row is name + remove, then qty × rate, then the amount. */
 @media (max-width: 767.98px) {
-  .eng-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 40px; grid-template-areas: "main main x" "qty rate rate" "amt amt amt"; gap: 8px 10px; }
+  .eng-svc-head { grid-template-columns: minmax(0, 1fr); }
+  .eng-svc-remove { justify-self: stretch; justify-content: center; }
+  .eng-line { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1.4fr) 36px; grid-template-areas: "main main main x" "qty times rate rate" "amt amt amt amt"; gap: 8px; padding: 10px; }
   .eng-line-main { grid-area: main; }
   .eng-line-x { grid-area: x; }
   .eng-line-qty { grid-area: qty; }
+  .eng-line-times { grid-area: times; align-self: end; padding-bottom: 12px; }
   .eng-line-rate { grid-area: rate; }
   .eng-line-amt { grid-area: amt; display: flex; justify-content: space-between; align-items: baseline; }
-  .eng-mlabel { display: block; margin-bottom: 4px; font-size: var(--text-xs); font-weight: var(--weight-regular, 400); color: var(--text-muted); }
+  .eng-mlabel { display: block; margin-bottom: 4px; font-size: var(--text-xs); font-weight: var(--weight-regular); color: var(--text-muted); }
   .eng-line-amt .eng-mlabel { margin: 0; }
-  .eng-add { flex-basis: 100%; }
   .eng-line .form-control { padding-left: 10px; padding-right: 10px; }
   .eng-line .input-group-text { padding-left: 10px; padding-right: 10px; }
 }

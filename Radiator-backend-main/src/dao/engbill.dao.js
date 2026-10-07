@@ -87,12 +87,11 @@ function findCatalogItem(catalog, type, item) {
 
 // The bought (cost) price of one unit, saved on the bill so later catalog edits don't rewrite past profit.
 // Catalog items take the catalog cost for the card's BS model; an edit keeps the cost already saved on the bill
-// (when it had one). Free-description items ("Other") have no catalog cost, so the form sends one per row.
-function unitCost(it, itemDef, bsModel, prevCost) {
-  if (!itemDef || itemDef.requiresComment) {
-    if (it?.cost !== undefined && it?.cost !== null && it?.cost !== "") return toMoney(it.cost, "item cost");
-    return prevCost || 0;
-  }
+// (when it had one), also after the item is deleted from the catalog. Free-description items ("Other", mostly
+// labour) have no cost: their whole amount counts as profit.
+function unitCost(itemDef, bsModel, prevCost) {
+  if (!itemDef) return prevCost || 0;
+  if (itemDef.requiresComment) return 0;
   if (prevCost > 0) return prevCost;
   const c = itemDef.costs?.[bsModel];
   return typeof c === "number" && Number.isFinite(c) && c > 0 ? c : 0;
@@ -134,7 +133,7 @@ function buildServices(rawServices, catalog, prevCosts = new Map()) {
       }
       const qty = it?.qty === "" || it?.qty == null ? 1 : toMoney(it.qty, "item qty");
       const rate = toMoney(it?.rate ?? 0, "item rate");
-      const cost = unitCost(it, itemDef, bsModel, prevCosts.get(`${type}|${bsModel}|${itemKey}`) || 0);
+      const cost = unitCost(itemDef, bsModel, prevCosts.get(`${type}|${bsModel}|${itemKey}`) || 0);
       return { item: itemKey, label, comment, requiresComment, qty, rate, amount: round2(qty * rate), cost, costAmount: round2(qty * cost) };
     });
     const subtotal = round2(items.reduce((sum, i) => sum + i.amount, 0));
@@ -361,7 +360,8 @@ export function summarizeProfit(bills, bonusByBill = new Map(), { serviceType = 
         cost += c;
         t.sales += amt;
         t.cost += c;
-        if (amt > 0 && !(Number(i.cost) > 0)) missingCostLines += 1;
+        // "Other"-style rows carry no cost by design, so they are never reported as missing one.
+        if (amt > 0 && !i.requiresComment && !(Number(i.cost) > 0)) missingCostLines += 1;
         // "Other"-style rows are grouped under their item, not their free-text description.
         const key = `${s.type}|${i.item}`;
         const row = byItem.get(key) || { type: s.type, typeLabel: s.typeLabel || s.type, item: i.item, label: i.label, qty: 0, sales: 0, cost: 0 };

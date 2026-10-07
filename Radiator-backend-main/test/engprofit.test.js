@@ -41,7 +41,7 @@ const bill = (items, over = {}) => ({
   ...over,
 });
 
-test("costs come from the catalog for the card's BS model; Other rows use the typed cost; missing cost is 0", async () => {
+test("costs come from the catalog for the card's BS model; Other rows have no cost (even if one is sent); missing cost is 0", async () => {
   const b = await createEngBill(CLIENT, bill([
     { item: "hold-set", qty: 2, rate: 500 },
     { item: "tel", qty: 1, rate: 200 },
@@ -51,10 +51,10 @@ test("costs come from the catalog for the card's BS model; Other rows use the ty
   assert.equal(hold.cost, 300);
   assert.equal(hold.costAmount, 600);
   assert.equal(tel.cost, 0);
-  assert.equal(other.cost, 120);
-  assert.equal(b.services[0].costTotal, 720);
-  assert.equal(b.costTotal, 720);
-  assert.equal(b.grossProfit, 1500 - 720);
+  assert.equal(other.cost, 0);
+  assert.equal(b.services[0].costTotal, 600);
+  assert.equal(b.costTotal, 600);
+  assert.equal(b.grossProfit, 1500 - 600);
 });
 
 test("a client-sent cost on a catalog item is ignored (catalog wins); an edit keeps the cost saved on the bill", async () => {
@@ -72,9 +72,12 @@ test("a client-sent cost on a catalog item is ignored (catalog wins); an edit ke
   }
 });
 
-test("rejects a negative or non-numeric cost on an Other row", async () => {
-  await assert.rejects(createEngBill(CLIENT, bill([{ item: "other", comment: "x", qty: 1, rate: 10, cost: -5 }])), /item cost/);
-  await assert.rejects(createEngBill(CLIENT, bill([{ item: "other", comment: "x", qty: 1, rate: 10, cost: "abc" }])), /item cost/);
+test("Other rows are not counted as missing a cost price", async () => {
+  const C = new ObjectId().toString();
+  await createEngBill(C, bill([{ item: "other", comment: "Welding", qty: 1, rate: 400 }, { item: "tel", qty: 1, rate: 200 }]));
+  const p = await getEngProfit(C, {});
+  assert.equal(p.missingCostLines, 1); // only Tel
+  assert.equal(p.expected.gross, 600);
 });
 
 test("profit: fully paid bills are earned, the rest expected; discount and bonus are shown after gross", async () => {

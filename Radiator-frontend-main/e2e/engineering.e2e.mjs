@@ -156,12 +156,15 @@ async function run(type) {
   await page.getByText("Select BS model").click({ force: true });
   await page.getByText("BS-3", { exact: true }).last().click();
   const card = page.locator(".nested-card").first();
-  await card.getByText("Select service type").first().click({ force: true });
+  await card.getByText("Select type").first().click({ force: true });
   await page.getByText("Turbo", { exact: true }).last().click();
-  for (const it of ["Hold set", "O-ring kit change", "Other"]) {
-    await card.getByText("+ Add item").click({ force: true });
-    await page.getByText(it, { exact: true }).last().click();
-  }
+  // Work / service items: checkbox rows with "Select all"; the menu stays open while several are ticked.
+  await card.getByText("Select items").click({ force: true });
+  const itemMenu = await page.locator(".rs__menu").last().innerText();
+  ok("eng: items picker lists 'Select all' first and shows checkboxes", /^Select all/.test(itemMenu.trim()) && (await page.locator(".rs__menu input[type=checkbox]").count()) > 3, itemMenu.split("\n")[0]);
+  for (const it of ["Hold set", "O-ring kit change", "Other"]) await page.locator(".rs__option").filter({ hasText: new RegExp(`^${it}$`) }).click();
+  ok("eng: items picker stays open after ticking items", (await page.locator(".rs__menu").count()) === 1);
+  await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${S}/eng-form-turbo.png`, fullPage: true });
   const rateInputs = card.locator('input[placeholder="Rate"]');
@@ -178,7 +181,7 @@ async function run(type) {
   const okBorder = await page.locator("#eng-lorry-address").evaluate((el) => getComputedStyle(el).borderTopColor);
   ok("eng: missing description field is marked with the error colour", errBorder !== okBorder, `${errBorder} vs ${okBorder}`);
   await card.getByPlaceholder("Describe the work").fill("Bearing clean");
-  await card.getByLabel("Cost for Other").fill("20");
+  ok("eng: no cost field on the bill form (cost prices live in Settings only)", (await card.getByLabel(/^Cost for/).count()) === 0);
   // 2*500 + 2000 + 50 = 3050
   const subtotalText = await card.locator(".eng-subtotal").innerText();
   ok("eng: card subtotal = ₹3,050.00", subtotalText.includes("3,050.00"), subtotalText);
@@ -190,35 +193,33 @@ async function run(type) {
   });
   ok("eng: dropdowns are the same height as text inputs (no 38px vs 44px mismatch)", heights.inputs.length === 1 && heights.inputs[0] === 44 && heights.selects.length > 0 && heights.selects.every((v) => v >= 44), JSON.stringify(heights));
   const lineShape = await page.evaluate(() => [...document.querySelectorAll(".eng-line")].slice(0, 3).map((l, i) => ({ sep: i === 0 ? "1px" : getComputedStyle(l).borderTopWidth, hasX: !!l.querySelector('.eng-line-x[aria-label^="Remove "]'), amt: !!l.querySelector(".eng-line-amt") })));
-  ok("eng: each remove button names its item (screen readers can tell them apart)", (await page.getByRole("button", { name: "Remove Hold set" }).count()) === 1);
-  ok("eng: item rows are separated lines with amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.sep === "1px" && l.hasX && l.amt), JSON.stringify(lineShape));
+  ok("eng: each remove button names its item (screen readers can tell them apart)", (await page.locator('.eng-line-x[aria-label="Remove Hold set"]').count()) === 1);
+  ok("eng: item rows have an amount and an icon remove button", lineShape.length === 3 && lineShape.every((l) => l.hasX && l.amt), JSON.stringify(lineShape));
 
-  // Rows line up as a table: column headers, and every row's qty / rate / amount share the header's x positions.
-  const align = await page.evaluate(() => {
+  // Layout as in the service-form design: SERVICE TYPE | WORK / SERVICE ITEMS | Remove on one line, bottom-aligned;
+  // grey item rows whose qty / rate / amount columns line up; picked items shown as chips; soft-blue quick-add pills.
+  const lay = await page.evaluate(() => {
     const card = document.querySelector(".eng-svc");
-    const cols = [...card.querySelectorAll(".eng-cols > span")].map((e) => e.getBoundingClientRect());
-    const rows = [...card.querySelectorAll(".eng-line")].map((l) => ["eng-line-qty", "eng-line-rate", "eng-line-amt"].map((k) => l.querySelector("." + k).getBoundingClientRect()));
     const head = card.querySelector(".eng-svc-head");
-    const sel = head.querySelector('div[class*="-control"]').getBoundingClientRect();
-    const bin = head.querySelector(".eng-svc-remove").getBoundingClientRect();
+    const [typeCtl, itemsCtl] = [...head.querySelectorAll('div[class*="__control"]')].map((e) => e.getBoundingClientRect());
+    const rm = head.querySelector(".eng-svc-remove").getBoundingClientRect();
+    const rows = [...card.querySelectorAll(".eng-line")].map((l) => ({ qty: l.querySelector(".eng-line-qty").getBoundingClientRect(), amt: l.querySelector(".eng-line-amt").getBoundingClientRect(), bg: getComputedStyle(l).backgroundColor }));
+    const chip = document.querySelector(".eng-quick-chip");
     return {
-      headers: cols.length,
-      qtyX: [...new Set(rows.map((r) => Math.round(r[0].left)))], qtyHead: Math.round(cols[1]?.left),
-      amtRight: [...new Set(rows.map((r) => Math.round(r[2].right)))], amtHeadRight: Math.round(cols[3]?.right),
-      binCentreGap: Math.abs((sel.top + sel.height / 2) - (bin.top + bin.height / 2)),
-      tagBox: !!card.querySelector(".rs__multi-value"),
+      labels: [...head.querySelectorAll(".eng-cap-label")].map((e) => e.textContent.trim()),
+      sameLine: Math.round(typeCtl.bottom) === Math.round(itemsCtl.bottom) && Math.abs(rm.bottom - itemsCtl.bottom) <= 1 && rm.left > itemsCtl.right,
+      removeText: head.querySelector(".eng-svc-remove").textContent.trim(),
+      qtyX: [...new Set(rows.map((r) => Math.round(r.qty.left)))].length,
+      amtRight: [...new Set(rows.map((r) => Math.round(r.amt.right)))].length,
+      rowBg: rows.every((r) => r.bg !== "rgba(0, 0, 0, 0)"),
+      chips: card.querySelectorAll(".rs__multi-value").length,
+      quickLabel: document.querySelector(".eng-quick-label")?.textContent,
+      quickPill: chip ? parseFloat(getComputedStyle(chip).borderTopLeftRadius) >= 12 && getComputedStyle(chip).backgroundColor !== "rgba(0, 0, 0, 0)" : false,
     };
   });
-  ok("eng: item rows align under the ITEM / QTY / RATE / AMOUNT headers", align.headers === 5 && align.qtyX.length === 1 && align.qtyX[0] === align.qtyHead && align.amtRight.length === 1 && align.amtRight[0] === align.amtHeadRight, JSON.stringify(align));
-  ok("eng: service bin is level with the type dropdown and items are not repeated as tags", align.binCentreGap <= 1 && !align.tagBox, JSON.stringify(align));
-  // Quick-add chips: "Quick add" label + pill chips with a plus icon.
-  const chipStyle = await page.evaluate(() => {
-    const chip = document.querySelector(".eng-quick-row .chip-btn");
-    if (!chip) return { found: false };
-    const cs = getComputedStyle(chip);
-    return { found: true, radius: cs.borderTopLeftRadius, icon: !!chip.querySelector("svg"), label: document.querySelector(".eng-quick-row > span")?.textContent };
-  });
-  ok("eng: quick-add is a 'Quick add' label with pill chips carrying a plus icon", chipStyle.found && chipStyle.icon && chipStyle.label === "Quick add" && parseFloat(chipStyle.radius) >= 12, JSON.stringify(chipStyle));
+  ok("eng: service card head is SERVICE TYPE | WORK / SERVICE ITEMS | Remove on one line", lay.labels.join("|") === "Service type|Work / service items" && lay.sameLine && lay.removeText === "Remove", JSON.stringify(lay));
+  ok("eng: grey item rows with qty and amount columns aligned; items shown as chips in the picker", lay.qtyX === 1 && lay.amtRight === 1 && lay.rowBg && lay.chips === 3, JSON.stringify(lay));
+  ok("eng: quick-add is a 'Quick add:' label with soft pill chips", lay.quickLabel === "Quick add:" && lay.quickPill, JSON.stringify(lay));
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();
   await page.waitForTimeout(300);
@@ -228,7 +229,7 @@ async function run(type) {
   const c2 = page.locator(".nested-card").nth(1);
   await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
   await page.getByText("BS-6", { exact: true }).last().click();
-  await c2.getByText("+ Add item").click({ force: true });
+  await c2.locator('div[class*="__control"]').nth(1).click({ force: true });
   await page.waitForTimeout(300);
   const menu = await page.locator("[class*='menu']").last().innerText();
   ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
@@ -256,7 +257,7 @@ async function run(type) {
     ok("eng: payload 2 services", posted.services.length === 2, JSON.stringify(posted.services.map((s) => [s.type, s.bsModel, s.items.length])));
     ok("eng: payload turbo bsModel bs3, qty 2 on Hold set", posted.services[0].bsModel === "bs3" && posted.services[0].items[0].qty === 2);
     ok("eng: payload Other has comment", posted.services[0].items.some((i) => i.item === "other" && i.comment === "Bearing clean"));
-    ok("eng: payload sends the typed cost on the Other row only", posted.services[0].items.find((i) => i.item === "other")?.cost === 20 && posted.services[0].items.filter((i) => "cost" in i).length === 1, JSON.stringify(posted.services[0].items));
+    ok("eng: payload sends no cost prices (the server takes them from Settings)", posted.services.every((sv) => sv.items.every((i) => !("cost" in i))), JSON.stringify(posted.services[0].items));
     ok("eng: payload discount 0, received 0 (paid later via Record payment)", posted.discount === 0 && posted.amountReceived === 0);
   }
   ok("eng: navigated to billing after save", page.url().endsWith("/engineering/billing"), page.url());
