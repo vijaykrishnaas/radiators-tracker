@@ -438,6 +438,8 @@ async function run(type) {
   await page.setViewportSize({ width: 1500, height: 1000 });
   await page.goto(BASE + "/engineering/dashboard");
   await page.locator(".kpi").first().waitFor({ timeout: 10000 });
+  // The card shells render before the analytics response; the tone class lands with the data, so wait for it.
+  await page.locator(".kpi-value.is-error").first().waitFor({ timeout: 10000 }).catch(() => {});
   const kpiM = await page.evaluate(() => ({ n: document.querySelectorAll(".kpi").length, grid: document.querySelector(".kpi-grid").className,
     outstanding: [...document.querySelectorAll(".kpi")].find((k) => /Outstanding/.test(k.textContent))?.querySelector(".kpi-value")?.className,
     titles: [...document.querySelectorAll(".chart-card .card-title")].map((t) => t.textContent) }));
@@ -580,6 +582,10 @@ async function run(type) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.goto(BASE + "/engineering/dashboard");
     await page.locator(".kpi-value", { hasText: "12,34,56,789" }).first().waitFor({ timeout: 10000 });
+    // While the web fonts (incl. the ₹ fallback) are still loading the value measures wider (170-198 vs 168 at 1280px),
+    // then settles; measure the settled layout. A clip that persists after the fonts are ready still fails.
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(300);
     const clip = await page.evaluate(() => [...document.querySelectorAll(".kpi-value")].filter((e) => e.scrollWidth > e.clientWidth).map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`));
     ok(`eng: 9-digit KPI values are not clipped at ${w}px`, clip.length === 0, clip.join(" | "));
   }
