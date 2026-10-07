@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **3** (tenth lap)
+Next area: **4** (tenth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-07 14:37 UTC — Merged #71 (squash, b90a383; test-only engineering KPI flake fixes; reviewed NO-BLOCKERS at 34b34c8). Verified the merge result first: tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. Area 3 (Automobile, 10th lap): read the new CreateAutoBill form logic (memo grouping/renumbering on remove, qty x rate recompute, hand-set amount kept, payload memo index from used memos, edit load) and the autobill DAO memo handling: no bug found; its e2e (24 checks) covers create/edit/memo indices/phone overflow. No new tests added. No notification (test-only merge).
 - 2026-10-07 10:37 UTC — Step 1a only: reviewed open QA PR #71 (head 34b34c8, test-only engineering KPI flake fix) with a fresh-context subagent -> VERDICT: NO-BLOCKERS posted. Area 3 pass deferred to the run after the merge (Next area stays 3). staging is b268758 (other session reworked the engineering bill form; not yet QA'd). Merge #71 next run. No notification.
 - 2026-10-07 06:37 UTC — Area 2 (Engineering frontend, 10th lap): no app bug; staging unchanged 59bb5fe. Found 2 FLAKY engineering e2e checks (failed in 2 of 7 runs on an unchanged commit, a different one each time): (1) 4-up KPI grid read the Outstanding tone class before the analytics response; (2) 9-digit KPI clip at 1280px measured while web fonts load (170-198 vs 168; settled 168/168 in 8/8 loads). PR #71 (claude/staging-qa-fix-13, test-only) waits for the data / document.fonts.ready; 10/10 runs pass after. Other suites: tsc clean, backend 62/62, radiator 6, automobile 24, salary 6. Note: first cold load can briefly ellipsise a 9-digit KPI until fonts load (app flicker, left alone). Review next run, merge the run after. No notification.
 - 2026-10-07 02:37 UTC — Area 1 (Engineering backend, 10th lap): no new bug; staging unchanged since 59bb5fe (last QA'd in the 22:37 run), nothing new to review. tsc clean, backend 62/62, e2e engineering 158, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
