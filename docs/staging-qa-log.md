@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **6** (tenth lap)
+Next area: **1** (eleventh lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-08 02:37 UTC — Area 6 (Cross-cutting, 10th lap): no new bug; staging unchanged since b90a383 (last reviewed 2026-10-06 22:37), nothing new to review. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-07 22:37 UTC — Area 5 (Radiator, 10th lap): no new bug; staging unchanged since b90a383, no radiator code change. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-07 18:37 UTC — Area 4 (Salary, 10th lap): no new bug; staging unchanged since b90a383 (QA'd at 14:37), no salary code change. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. Known open item unchanged (manual present-days above working days unvalidated). No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-07 14:37 UTC — Merged #71 (squash, b90a383; test-only engineering KPI flake fixes; reviewed NO-BLOCKERS at 34b34c8). Verified the merge result first: tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. Area 3 (Automobile, 10th lap): read the new CreateAutoBill form logic (memo grouping/renumbering on remove, qty x rate recompute, hand-set amount kept, payload memo index from used memos, edit load) and the autobill DAO memo handling: no bug found; its e2e (24 checks) covers create/edit/memo indices/phone overflow. No new tests added. No notification (test-only merge).
