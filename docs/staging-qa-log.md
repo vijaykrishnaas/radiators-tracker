@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (eleventh lap)
+Next area: **2** (eleventh lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-08 06:37 UTC — Area 1 (Engineering backend, 11th lap): no new bug; staging unchanged since b90a383, nothing new to review. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-08 02:37 UTC — Area 6 (Cross-cutting, 10th lap): no new bug; staging unchanged since b90a383 (last reviewed 2026-10-06 22:37), nothing new to review. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-07 22:37 UTC — Area 5 (Radiator, 10th lap): no new bug; staging unchanged since b90a383, no radiator code change. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-07 18:37 UTC — Area 4 (Salary, 10th lap): no new bug; staging unchanged since b90a383 (QA'd at 14:37), no salary code change. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. Known open item unchanged (manual present-days above working days unvalidated). No PR, no notification. Still recommending the user slows/pauses this routine.
