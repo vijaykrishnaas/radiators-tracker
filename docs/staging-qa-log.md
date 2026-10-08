@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **3** (eleventh lap)
+Next area: **4** (eleventh lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-08 14:37 UTC — Area 3 (Automobile, 11th lap): no new bug; automobile code unchanged; staging 8afd61b (engineering-only direct commits since last pass), no open PRs. tsc clean, backend 62/62 (all 9 test files), e2e engineering 168, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
 - 2026-10-08 10:37 UTC — Area 2 (Engineering frontend, 11th lap): no new bug; staging unchanged since b90a383, no open PRs. tsc clean, backend 43/43 (7 files), e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
 - 2026-10-08 06:37 UTC — Area 1 (Engineering backend, 11th lap): no new bug; staging unchanged since b90a383, nothing new to review. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
 - 2026-10-08 02:37 UTC — Area 6 (Cross-cutting, 10th lap): no new bug; staging unchanged since b90a383 (last reviewed 2026-10-06 22:37), nothing new to review. tsc clean, backend 62/62, e2e engineering 161, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification. Still recommending the user slows/pauses this routine.
