@@ -469,6 +469,37 @@ async function run(type) {
   ok("eng: 'This FY' is highlighted for the configured start", (await page.locator('[role="tab"][aria-selected="true"]').innerText()).trim() === "This FY");
   fyMonth = null;
 
+  // FY starting this month: "This FY" and "This month" are the same range, and "This FY" must still be selectable.
+  fyMonth = new Date().getMonth() + 1;
+  await page.goto(BASE + "/engineering/dashboard");
+  await page.locator("#eng-from").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(500);
+  const selTab = async () => (await page.locator('[aria-label="Quick range"] [role="tab"][aria-selected="true"]').innerText()).trim();
+  ok("eng: FY starting this month: 'This FY' is the default selection", (await selTab()) === "This FY", await selTab());
+  await page.getByRole("tab", { name: "Today", exact: true }).click();
+  await page.getByRole("tab", { name: "This FY", exact: true }).click();
+  await page.waitForTimeout(300);
+  ok("eng: FY starting this month: clicking 'This FY' selects it (not 'This month')", (await selTab()) === "This FY" && (await page.locator("#eng-from").inputValue()) === fyExpect(fyMonth), `${await selTab()} ${await page.locator("#eng-from").inputValue()}`);
+  fyMonth = null;
+
+  // Rates come from the Settings prices for the bill's BS model; with none chosen they are left blank (not ₹0).
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-svc").first().waitFor({ timeout: 10000 });
+  const rc = page.locator(".eng-svc").first();
+  await rc.getByText("Select type", { exact: true }).click({ force: true });
+  await page.getByText("Turbo", { exact: true }).last().click();
+  await rc.getByText("Select items").click({ force: true });
+  await page.locator(".rs__option").filter({ hasText: /^Hold set$/ }).click();
+  await page.keyboard.press("Escape");
+  const rate0 = await rc.locator('input[placeholder="Rate"]').first().inputValue();
+  ok("eng: without a BS model the rate is blank (prices differ per model), with a hint to pick one", rate0 === "" && (await page.getByText("Rates are filled from Settings for the chosen BS model.").count()) === 1, JSON.stringify(rate0));
+  await page.getByRole("button", { name: "Save service" }).click();
+  ok("eng: saving with a blank rate asks for a BS model or a rate", (await page.getByText("Choose a BS model or enter a rate").count()) === 1);
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  await page.getByText("BS-3", { exact: true }).last().click();
+  await page.waitForTimeout(200);
+  ok("eng: choosing the BS model fills the rate from Settings (BS-3 Hold set = 500) and clears the error", (await rc.locator('input[placeholder="Rate"]').first().inputValue()) === "500" && (await page.getByText("Choose a BS model or enter a rate").count()) === 0);
+
   // Button/input recipe inside the service form: inputs and dropdowns share one 8px radius, footer buttons are r8 and >= 44px.
   await page.goto(BASE + "/engineering/dashboard/create");
   await page.locator(".form-footer .btn-primary").waitFor({ timeout: 10000 });

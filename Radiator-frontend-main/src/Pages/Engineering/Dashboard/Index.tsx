@@ -73,6 +73,9 @@ const EngDashboard = () => {
     const [fromPick, setFromPick] = useState<string | null>(null);
     const from = fromPick ?? fyFrom;
     const [to, setTo] = useState(today());
+    // The quick-range button the user chose. Kept as state, not worked out from the dates: when the financial year
+    // starts this month, "This month" and "This FY" are the same range and "This FY" could otherwise never be picked.
+    const [chosen, setChosen] = useState<Preset | null>("fy");
 
     useEffect(() => {
         let alive = true;
@@ -98,11 +101,11 @@ const EngDashboard = () => {
 
     const todayStr = today();
     const monthStart = `${todayStr.slice(0, 7)}-01`;
-    const preset: Preset | null = to === todayStr && from === todayStr ? "today"
-        : to === todayStr && from === monthStart ? "month"
-        : to === todayStr && from === fyFrom ? "fy" : null;
+    const preset = chosen;
     const pick = (p: Preset) => {
-        setFromPick(p === "today" ? todayStr : p === "month" ? monthStart : fyFrom);
+        setChosen(p);
+        // "This FY" follows the Settings start month (null), so it stays right if Settings finish loading later.
+        setFromPick(p === "today" ? todayStr : p === "month" ? monthStart : null);
         setTo(todayStr);
     };
 
@@ -122,12 +125,12 @@ const EngDashboard = () => {
                     <div className="eng-range-dates">
                         <div className="field">
                             <label className="form-label" htmlFor="eng-from">From</label>
-                            <input id="eng-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFromPick(e.target.value || null)} />
+                            <input id="eng-from" type="date" className="form-control" value={from} max={to} onChange={(e) => { setFromPick(e.target.value || null); setChosen(e.target.value ? null : "fy"); }} />
                         </div>
                         <Icons iconName="arrow-right" className="eng-range-sep" />
                         <div className="field">
                             <label className="form-label" htmlFor="eng-to">To</label>
-                            <input id="eng-to" type="date" className="form-control" value={to} min={from} onChange={(e) => setTo(e.target.value || today())} />
+                            <input id="eng-to" type="date" className="form-control" value={to} min={from} onChange={(e) => { setTo(e.target.value || today()); setChosen(null); }} />
                         </div>
                     </div>
                 </section>

@@ -118,11 +118,15 @@ const EngCreate = () => {
                 bsModel,
                 rows: c.rows.filter(keep).map((r) => {
                     const it = t?.items.find((i) => i.value === r.item);
-                    return it && !r.requiresComment ? { ...r, rate: String(defaultRate(it, bsModel)) } : r;
+                    // Clearing the BS model keeps the rates already on the bill.
+                    return it && !r.requiresComment && bsModel ? { ...r, rate: defaultRate(it, bsModel) } : r;
                 }),
             };
         });
         setCards(next);
+        // Rates just filled from Settings: drop their "enter a rate" errors.
+        const filledKeys = new Set(next.flatMap((c) => c.rows.filter((r) => String(r.rate).trim() !== "").map((r) => `r${c.key}-${r.item}`)));
+        setErrors((e) => (Object.keys(e).some((k) => filledKeys.has(k)) ? Object.fromEntries(Object.entries(e).filter(([k]) => !filledKeys.has(k))) : e));
         if (dropped.length) {
             const bsName = bsModels.find((b) => b.value === bsModel)?.label || bsModel;
             callAlertMsg(`Removed ${dropped.join(", ")}: not offered for ${bsName}.`, "warning");
@@ -139,7 +143,7 @@ const EngCreate = () => {
                     const it = t?.items.find((i) => i.value === v);
                     return {
                         item: v, label: it?.label || v, comment: "", requiresComment: !!it?.requiresComment,
-                        qty: "1", rate: String(defaultRate(it, c.bsModel)),
+                        qty: "1", rate: defaultRate(it, c.bsModel),
                     };
                 });
             return { ...c, rows: [...kept, ...added] };
@@ -148,7 +152,7 @@ const EngCreate = () => {
     const setRow = (key: number, item: string, patch: Partial<Row>) => {
         updateCard(key, (c) => ({ ...c, rows: c.rows.map((r) => (r.item === item ? { ...r, ...patch } : r)) }));
         setErrors((e) => {
-            const k = patch.comment !== undefined ? `c${key}-${item}` : patch.qty !== undefined ? `q${key}-${item}` : "";
+            const k = patch.comment !== undefined ? `c${key}-${item}` : patch.qty !== undefined ? `q${key}-${item}` : patch.rate !== undefined ? `r${key}-${item}` : "";
             if (!k || !e[k]) return e;
             const { [k]: _drop, ...rest } = e;
             return rest;
@@ -183,7 +187,7 @@ const EngCreate = () => {
             if (it && !isOffered(it, target.bsModel)) return list;
             const row: Row = {
                 item, label: it?.label || item, comment: "", requiresComment: !!it?.requiresComment,
-                qty: "1", rate: String(defaultRate(it, target.bsModel)),
+                qty: "1", rate: defaultRate(it, target.bsModel),
             };
             return list.map((c) => (c.key === target!.key ? { ...c, rows: [...c.rows, row] } : c));
         });
@@ -213,6 +217,7 @@ const EngCreate = () => {
         cards.forEach((c) => c.rows.forEach((r) => {
             if (r.requiresComment && !r.comment.trim()) e[`c${c.key}-${r.item}`] = "Describe the work";
             if (!(Number(r.qty) > 0)) e[`q${c.key}-${r.item}`] = "Qty must be more than 0";
+            if (String(r.rate).trim() === "" || !(Number(r.rate) >= 0)) e[`r${c.key}-${r.item}`] = billBs || r.requiresComment ? "Enter a rate" : "Choose a BS model or enter a rate";
         }));
         setErrors(e);
         return Object.keys(e).length === 0;
@@ -338,7 +343,8 @@ const EngCreate = () => {
                                     <InputText id="eng-phone" type="tel" inputMode="numeric" value={phone} placeholder="Enter Phone Number" disabled={isView}
                                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
                                 </Field>
-                                <Field label="BS model" htmlFor="eng-bs">
+                                <Field label="BS model" htmlFor="eng-bs"
+                                    help={!isView && !billBs && !mixedBs ? "Rates are filled from Settings for the chosen BS model." : undefined}>
                                     <Selector inputId="eng-bs" options={bsOpts} isDisabled={isView} isClearable
                                         placeholder={mixedBs ? "Mixed" : "Select BS model"}
                                         value={billBs ? bsOpts.find((b) => b.value === billBs) || { label: billBs, value: billBs } : null}
@@ -429,10 +435,12 @@ const EngCreate = () => {
                                                                 {qe && <span className="field-error" role="alert">{qe}</span>}
                                                             </div>
                                                             <span className="eng-line-times" aria-hidden="true">×</span>
-                                                            <div className="eng-line-rate">
+                                                            <div className={`eng-line-rate field${errors[`r${c.key}-${r.item}`] ? " has-error" : ""}`}>
                                                                 <span className="eng-mlabel" aria-hidden="true">Rate</span>
                                                                 <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
+                                                                    invalid={!!errors[`r${c.key}-${r.item}`]}
                                                                     className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
+                                                                {errors[`r${c.key}-${r.item}`] && <span className="field-error" role="alert">{errors[`r${c.key}-${r.item}`]}</span>}
                                                             </div>
                                                             <span className="eng-line-amt tabular"><span className="eng-mlabel" aria-hidden="true">Amount</span>{money(amount(r))}</span>
                                                             {!isView ? (

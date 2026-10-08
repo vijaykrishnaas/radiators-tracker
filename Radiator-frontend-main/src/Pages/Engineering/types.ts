@@ -76,10 +76,17 @@ export const isOffered = (item: EngItem, bsModel: string) => {
     return p !== null && p !== undefined && (p as unknown) !== "";
 };
 
-export const defaultRate = (item: EngItem | undefined, bsModel: string) => {
-    if (!item || !bsModel) return 0;
-    const p = item.prices?.[bsModel];
-    return typeof p === "number" ? p : 0;
+// The rate a new bill row starts with, from the Settings catalog price for the bill's BS model.
+// With no BS model chosen yet: the item's price when every BS model has the same one, otherwise blank ("") so the
+// form asks for a BS model (or a typed rate) instead of silently showing ₹0.
+export const defaultRate = (item: EngItem | undefined, bsModel: string): string => {
+    if (!item) return "";
+    if (bsModel) {
+        const p = item.prices?.[bsModel];
+        return typeof p === "number" ? String(p) : "";
+    }
+    const prices = Object.values(item.prices || {}).filter((p): p is number => typeof p === "number");
+    return prices.length && prices.every((p) => p === prices[0]) ? String(prices[0]) : "";
 };
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
