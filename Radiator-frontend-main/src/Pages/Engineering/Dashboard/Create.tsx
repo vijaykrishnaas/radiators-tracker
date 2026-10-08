@@ -77,7 +77,10 @@ const EngCreate = () => {
                     bsModel: s.bsModel || "",
                     rows: s.items.map((i) => ({
                         item: i.item, label: i.label, comment: i.comment || "",
-                        requiresComment: !!i.requiresComment, qty: String(i.qty), rate: String(i.rate),
+                        // "Other" rows have no quantity: an older bill's qty × rate is folded into a single amount.
+                        requiresComment: !!i.requiresComment,
+                        qty: i.requiresComment ? "1" : String(i.qty),
+                        rate: i.requiresComment ? String(round2((Number(i.qty) || 1) * (Number(i.rate) || 0))) : String(i.rate),
                     })),
                 })));
                 setDiscount(bill.discount ? String(bill.discount) : "");
@@ -216,8 +219,8 @@ const EngCreate = () => {
         if (!filled.length) e.services = "Add at least one service with an item";
         cards.forEach((c) => c.rows.forEach((r) => {
             if (r.requiresComment && !r.comment.trim()) e[`c${c.key}-${r.item}`] = "Describe the work";
-            if (!(Number(r.qty) > 0)) e[`q${c.key}-${r.item}`] = "Qty must be more than 0";
-            if (String(r.rate).trim() === "" || !(Number(r.rate) >= 0)) e[`r${c.key}-${r.item}`] = billBs || r.requiresComment ? "Enter a rate" : "Choose a BS model or enter a rate";
+            if (!r.requiresComment && !(Number(r.qty) > 0)) e[`q${c.key}-${r.item}`] = "Qty must be more than 0";
+            if (String(r.rate).trim() === "" || !(Number(r.rate) >= 0)) e[`r${c.key}-${r.item}`] = r.requiresComment ? "Enter the amount" : billBs ? "Enter a rate" : "Choose a BS model or enter a rate";
         }));
         setErrors(e);
         return Object.keys(e).length === 0;
@@ -267,7 +270,7 @@ const EngCreate = () => {
                     bsModel: c.bsModel,
                     items: c.rows.map((r) => ({
                         item: r.item, label: r.label, comment: r.comment, requiresComment: r.requiresComment,
-                        qty: Number(r.qty), rate: Number(r.rate) || 0,
+                        qty: r.requiresComment ? 1 : Number(r.qty), rate: Number(r.rate) || 0,
                     })),
                 })),
                 // Payment fields are no longer on this form. New bills start unpaid; when editing they are left out so the
@@ -417,7 +420,7 @@ const EngCreate = () => {
                                                     const ce = errors[`c${c.key}-${r.item}`];
                                                     const qe = errors[`q${c.key}-${r.item}`];
                                                     return (
-                                                        <li key={r.item} className="eng-line">
+                                                        <li key={r.item} className={`eng-line${r.requiresComment ? " is-other" : ""}`}>
                                                             <div className="eng-line-main">
                                                                 <span className="eng-line-name">{r.label}</span>
                                                                 {r.requiresComment && (
@@ -428,6 +431,10 @@ const EngCreate = () => {
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                            {/* "Other" work has no quantity: just the description and one amount (saved as qty 1). */}
+                                                            {r.requiresComment ? (
+                                                                <><span className="eng-line-qty is-empty" aria-hidden="true" /><span className="eng-line-times" aria-hidden="true" /></>
+                                                            ) : (<>
                                                             <div className={`eng-line-qty field${qe ? " has-error" : ""}`}>
                                                                 <span className="eng-mlabel" aria-hidden="true">Qty</span>
                                                                 <InputText type="number" inputMode="decimal" value={r.qty} placeholder="Qty" aria-label={`Qty for ${r.label}`} aria-invalid={!!qe || undefined} disabled={isView}
@@ -435,9 +442,11 @@ const EngCreate = () => {
                                                                 {qe && <span className="field-error" role="alert">{qe}</span>}
                                                             </div>
                                                             <span className="eng-line-times" aria-hidden="true">×</span>
+                                                            </>)}
                                                             <div className={`eng-line-rate field${errors[`r${c.key}-${r.item}`] ? " has-error" : ""}`}>
-                                                                <span className="eng-mlabel" aria-hidden="true">Rate</span>
-                                                                <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder="Rate" aria-label={`Rate for ${r.label}`} disabled={isView}
+                                                                <span className="eng-mlabel" aria-hidden="true">{r.requiresComment ? "Amount" : "Rate"}</span>
+                                                                <AffixInput prefix="₹" type="number" inputMode="decimal" value={r.rate} placeholder={r.requiresComment ? "Amount" : "Rate"}
+                                                                    aria-label={`${r.requiresComment ? "Amount" : "Rate"} for ${r.label}`} disabled={isView}
                                                                     invalid={!!errors[`r${c.key}-${r.item}`]}
                                                                     className="tabular text-end" onChange={(e) => setRow(c.key, r.item, { rate: e.target.value })} />
                                                                 {errors[`r${c.key}-${r.item}`] && <span className="field-error" role="alert">{errors[`r${c.key}-${r.item}`]}</span>}

@@ -167,8 +167,12 @@ async function run(type) {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${S}/eng-form-turbo.png`, fullPage: true });
-  const rateInputs = card.locator('input[placeholder="Rate"]');
+  // Rate boxes on the catalog rows, one Amount box on the "Other" row (which has no quantity).
+  const rateInputs = card.locator('input[placeholder="Rate"], input[placeholder="Amount"]');
   ok("eng: 3 item rows added", (await rateInputs.count()) === 3, String(await rateInputs.count()));
+  const otherRow = card.locator(".eng-line").nth(2);
+  ok("eng: 'Other' row has no Qty box, just an amount", (await card.locator('input[placeholder="Qty"]').count()) === 2 && (await otherRow.locator('input[placeholder="Qty"]').count()) === 0
+    && (await otherRow.getByLabel("Amount for Other").count()) === 1 && (await otherRow.locator(".eng-line-times").innerText()).trim() === "");
   ok("eng: Hold set rate auto-filled from BS-3 price (500)", (await rateInputs.nth(0).inputValue()) === "500", await rateInputs.nth(0).inputValue());
   ok("eng: O-ring rate auto-filled (2000)", (await rateInputs.nth(1).inputValue()) === "2000");
   await card.locator('input[placeholder="Qty"]').nth(0).fill("2");
@@ -219,6 +223,17 @@ async function run(type) {
   });
   ok("eng: service card head is SERVICE TYPE | WORK / SERVICE ITEMS | Remove on one line", lay.labels.join("|") === "Service type|Work / service items" && lay.sameLine && lay.removeText === "Remove", JSON.stringify(lay));
   ok("eng: grey item rows with qty and amount columns aligned; items shown as chips in the picker", lay.qtyX === 1 && lay.amtRight === 1 && lay.rowBg && lay.chips === 3, JSON.stringify(lay));
+  // Phone: the "Other" row shows its description and one full-width amount box, with nothing spilling sideways.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const phone = await otherRow.evaluate((l) => {
+    const amt = l.querySelector(".eng-line-rate").getBoundingClientRect(), row = l.getBoundingClientRect();
+    return { amtLabel: l.querySelector(".eng-line-rate .eng-mlabel").textContent, qtyShown: getComputedStyle(l.querySelector(".eng-line-qty")).display !== "none", amtW: Math.round(amt.width), rowW: Math.round(row.width), overflow: document.documentElement.scrollWidth - innerWidth };
+  });
+  await otherRow.screenshot({ path: `${S}/eng-other-row-390.png` });
+  ok("eng: at 390px the 'Other' row has an Amount box and no Qty", phone.amtLabel === "Amount" && !phone.qtyShown && phone.overflow <= 0 && phone.amtW > phone.rowW / 2, JSON.stringify(phone));
+  await page.setViewportSize({ width: 1300, height: 1000 });
+  await page.waitForTimeout(300);
   ok("eng: quick-add is a 'Quick add:' label with soft pill chips", lay.quickLabel === "Quick add:" && lay.quickPill, JSON.stringify(lay));
   // Quick add chip (compressor piston) -> new card
   await page.getByRole("button", { name: "Air Compressor · Piston" }).click();

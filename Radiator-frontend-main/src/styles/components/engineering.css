@@ -66,6 +66,8 @@
 .eng-line-amt { text-align: right; white-space: nowrap; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
 .eng-line-x { justify-self: end; color: var(--text-muted); }
 .eng-mlabel { display: none; }
+/* Phone: an "Other" row has no quantity, and its amount box already is the line amount, so skip the repeat below it. */
+@media (max-width: 767.98px) { .eng-line-qty.is-empty, .eng-line.is-other .eng-line-amt { display: none; } }
 .eng-subtotal { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; margin-top: 12px; font-size: var(--text-sm); color: var(--text-muted); }
 .eng-subtotal strong { font-weight: var(--weight-bold); color: var(--text-strong); }
 

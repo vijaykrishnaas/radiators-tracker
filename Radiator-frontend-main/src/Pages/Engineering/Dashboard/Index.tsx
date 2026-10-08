@@ -151,7 +151,7 @@ const EngDashboard = () => {
                 {!!data?.profit?.missingCostLines && (
                     <Callout tone="warning">
                         {data.profit.missingCostLines} bill line{data.profit.missingCostLines === 1 ? " has" : "s have"} no cost price, so the whole amount counts as profit.
-                        Set costs in Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Service Catalog (new bills pick them up), or type a cost on "Other" rows.
+                        Set costs in Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Service Catalog (new bills pick them up).
                     </Callout>
                 )}
 
