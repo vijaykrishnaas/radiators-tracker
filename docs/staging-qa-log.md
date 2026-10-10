@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5** (thirteenth lap)
+Next area: **6** (thirteenth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-10 22:37 UTC — Area 5 (Radiator, 13th lap): no new bug; staging unchanged 8afd61b, no open PRs. tsc clean, backend 62/62 (all 9 test files), e2e engineering 168, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
 - 2026-10-10 18:37 UTC — Area 4 (Salary, 13th lap): no new bug; staging unchanged 8afd61b, no open PRs. tsc clean, backend 62/62 (all 9 test files), e2e engineering 168, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
 - 2026-10-10 14:37 UTC — Area 3 (Automobile, 13th lap): no new bug; staging unchanged 8afd61b, no open PRs. tsc clean, backend 62/62 (all 9 test files), e2e engineering 168, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
 - 2026-10-10 10:37 UTC — Area 2 (Engineering frontend, 13th lap): no new bug; staging unchanged 8afd61b, no open PRs. tsc clean, backend 62/62 (all 9 test files), e2e engineering 168, radiator 6, automobile 24, salary 6, all PASS. No PR, no notification.
