@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **5** (eighteenth lap)
+Next area: **6** (eighteenth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-15 22:37 UTC — Area 5 (Radiator, 18th lap): staging unchanged d6f049a; no open PRs. tsc clean, backend 72/72, e2e radiator 17 / engineering 168 / automobile 45 / salary 6 all PASS (API mocked; no live DB). Radiator bonus/cancel/₹-mode code reviewed last run, unchanged. No bug found. Quiet.
 - 2026-10-15 18:37 UTC — Area 4 (Salary, 18th lap): no new bug; staging unchanged d6f049a, no open PRs. Reviewed the d6f049a salary changes (settlement-history server sort via whitelisted HISTORY_SORT incl. computed adj total, employee search over name/phone/role escaped regex, SettlePeriod useClientSort before any early return, client-side sort on employees/advances). backend 72/72, tsc clean; e2e salary 6, engineering 168, radiator 17, automobile 45 all PASS.
 - 2026-10-15 14:37 UTC — Area 3 (Automobile, 18th lap): no new bug; staging unchanged d6f049a, no open PRs. Reviewed the new automobile inventory (inventory.dao: stock derived from entries + bill partRef lines, never a stored balance; routes: automobile-tenant gate, ObjectId validation, audit; client export + offboard cascade include stockentries) and autobill changes (vehicleNumber uppercased on save + read, server sort/search clause, billNo numeric search). backend 72/72, tsc clean; e2e automobile 45, engineering 168, radiator 17, salary 6 all PASS.
 - 2026-10-15 10:37 UTC — Area 2 (Eng frontend, 18th lap): no new bug; staging unchanged d6f049a, no open PRs. Reviewed the d6f049a engineering-UI diff (DataList sort/phone Sort-by menu, SearchInput numeric search, EngBilling server sort keys match ENG_SORT whitelist, EngDashboard useClientSort called before any early return, profit-row keys exist). backend 72/72, tsc clean; e2e engineering 168, radiator 17, automobile 45, salary 6 all PASS.
