@@ -10,7 +10,7 @@ Branch: `claude/staging-qa` (this file only). Fix branches: `claude/staging-qa-f
 5. Radiator (live in prod) — backend + frontend (`radiator.*`, `Pages/IssueCounter/*`, `printInvoice`), bonus, expenses
 6. Cross-cutting — auth/tenant isolation, admin provisioning, settings, audit, migrations
 
-Next area: **1** (eighteenth lap)
+Next area: **2** (eighteenth lap)
 
 ## Rules
 - At most ONE open QA PR at a time. Fixes are minimal and targeted; no refactors, no new features, no style churn.
@@ -57,6 +57,7 @@ _(the routine keeps this list current: what exists, how to run it, last result)_
   - `e2e/radiator.e2e.mjs` — 6 checks: billing list, header, Record Payment discount (keep existing / add extra), engineering route gating. Run: `node e2e/radiator.e2e.mjs`. Last result (2026-09-27, staging after #29): 6/6 pass.
 
 ## Run log
+- 2026-10-15 06:37 UTC — Area 1 (Eng backend, 18th lap): staging MOVED 8afd61b → d6f049a (other session: list sorting + wider search on all tables, automobile inventory, radiator bonus ₹ mode, cancel paid bonus; 60 files). Reviewed bonus.dao (SETTLED/cancelled never re-created, amount-mode clamp, labour equal split, cancelPaidBonus tenant-scoped + status-guarded), listSort (whitelisted keys, stable _id tiebreak, projection exclusion-only) — no bug found. backend 72/72 (10 new tests), tsc clean, node --check clean; e2e radiator 17, engineering 168, automobile 45, salary 6 all PASS. No PR.
 - 2026-10-15 02:37 UTC — Area 6 (Cross-cutting, 17th lap): no new bug; staging unchanged 8afd61b, no open PRs; backend 62/62, tsc clean; e2e engineering 168, radiator 6, automobile 24, salary 6 all PASS.
 - 2026-10-14 22:37 UTC — Area 5 (Radiator, 17th lap): no new bug; staging unchanged 8afd61b, no open PRs; backend 62/62, tsc clean; e2e radiator 6, engineering 168, automobile 24, salary 6 all PASS.
 - 2026-10-14 18:37 UTC — Area 4 (Salary, 17th lap): no new bug; staging unchanged 8afd61b, no open PRs; backend 62/62, tsc clean; e2e salary 6, engineering 168, radiator 6, automobile 24 all PASS.
