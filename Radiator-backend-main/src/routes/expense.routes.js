@@ -20,7 +20,7 @@ router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query);
     const { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = req.query;
-    const data = await getExpenses(req.user.clientId, { from, to, expenseType, search, minAmount, maxAmount }, page, limit);
+    const data = await getExpenses(req.user.clientId, { from, to, expenseType, search, minAmount, maxAmount }, page, limit, req.query);
     res.json({ success: true, ...data });
   } catch (error) {
     next(error);
@@ -40,7 +40,7 @@ router.get("/analytics", async (req, res, next) => {
 router.get("/export", async (req, res, next) => {
   try {
     const { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = req.query;
-    const expenses = await getExpensesForExport(req.user.clientId, { from, to, expenseType, search, minAmount, maxAmount });
+    const expenses = await getExpensesForExport(req.user.clientId, { from, to, expenseType, search, minAmount, maxAmount }, req.query);
     res.json({ success: true, expenses });
   } catch (error) {
     next(error);

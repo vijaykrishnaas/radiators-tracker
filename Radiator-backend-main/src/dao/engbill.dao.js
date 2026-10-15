@@ -9,6 +9,7 @@ import moment from "moment";
 import { getSettings } from "./settings.dao.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
+import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
 import { removeBonusesForRecord } from "./bonus.dao.js";
 import { syncEngBonusesForRecord } from "./engbonus.dao.js";
 
@@ -279,8 +280,25 @@ export async function getEngBillById(clientId, id) {
   return db.collection(COLLECTION).findOne({ _id: new ObjectId(id), clientId: toClientId(clientId) });
 }
 
-function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "" } = {}) {
+// Sortable list columns (all stored on the bill).
+const ENG_SORT = {
+  date: "billDate", bill: "billNo", truck: "vehicleNo", mech: "mechanic",
+  total: "netTotal", rec: "amountReceived", bal: "balance", status: "paymentStatus",
+};
+
+function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "" } = {}) {
   const query = { clientId: toClientId(clientId) };
+  // One search box over every text field on the bill (and the bill number when the text is a number).
+  const text = String(search || "").trim();
+  if (text) {
+    const rx = { $regex: escapeRegex(text), $options: "i" };
+    query.$or = [
+      { vehicleNo: rx }, { mechanic: rx }, { lorryAddress: rx }, { phone: rx },
+      { "services.typeLabel": rx }, { "services.type": rx }, { "services.bsModel": rx },
+      { "services.items.label": rx }, { "services.items.comment": rx },
+    ];
+    if (/^\d+$/.test(text)) query.$or.push({ billNo: Number(text) });
+  }
   if (vehicleNo) query.vehicleNo = { $regex: escapeRegex(String(vehicleNo).toUpperCase()), $options: "i" };
   if (mechanic) query.mechanic = String(mechanic);
   if (fromDate || toDate) {
@@ -294,19 +312,21 @@ function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", to
   return query;
 }
 
-export async function listEngBills(clientId, filters = {}, page = 1, limit = 10) {
+export async function listEngBills(clientId, filters = {}, page = 1, limit = 10, sortQuery = {}) {
   const db = await connectDB();
   const query = buildQuery(clientId, filters);
+  const order = parseSort(sortQuery, ENG_SORT, { billDate: -1, billNo: -1 });
   const [total, bills] = await Promise.all([
     db.collection(COLLECTION).countDocuments(query),
-    db.collection(COLLECTION).find(query).sort({ billDate: -1, billNo: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
+    findSortedPage(db.collection(COLLECTION), query, order, (page - 1) * limit, limit),
   ]);
   return { total, page, totalPages: Math.ceil(total / limit) || 1, bills };
 }
 
-export async function listEngBillsForExport(clientId, filters = {}) {
+export async function listEngBillsForExport(clientId, filters = {}, sortQuery = {}) {
   const db = await connectDB();
-  return db.collection(COLLECTION).find(buildQuery(clientId, filters)).sort({ billDate: -1, billNo: -1 }).toArray();
+  const { sort } = parseSort(sortQuery, ENG_SORT, { billDate: -1, billNo: -1 });
+  return db.collection(COLLECTION).find(buildQuery(clientId, filters), { collation: SORT_COLLATION }).sort(sort).toArray();
 }
 
 // Autofill for the service form: lorry address + phone from the most recent

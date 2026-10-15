@@ -36,6 +36,8 @@ const P: Record<string, React.ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
     "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
     "arrow-down": <path d="M12 5v14M6 13l6 6 6-6" />,
+    "arrow-up": <path d="M12 19V5M6 11l6-6 6 6" />,
+    "arrow-up-down": <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />,
     table: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18" /></>,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" /></>,
     tag: <><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.82 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z" /><path d="M7 7h.01" /></>,

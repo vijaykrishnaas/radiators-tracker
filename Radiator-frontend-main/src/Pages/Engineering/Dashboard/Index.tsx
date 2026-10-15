@@ -10,6 +10,7 @@ import { PageHeader, KpiCard, KpiGrid, SegmentedControl, Callout, CardHead } fro
 import { ChartCard, DonutWithLegend, SeriesLegend } from "../../../Components/ui/Charts";
 import { HBarChart, PairBarChart } from "../../IssueCounter/Dashboard/Index";
 import { PAIR_COLORS } from "../../../theme/chartTheme";
+import { useClientSort } from "../../../Components/ui/DataList";
 
 type Analytics = {
     kpis: { totalBills: number; totalBilled: number; totalReceived: number; totalOutstanding: number };
@@ -95,6 +96,7 @@ const EngDashboard = () => {
     }, [from, to]);
 
     const first = loading && !data;
+    const itemSort = useClientSort(data?.profit?.byItem || [], (r, k) => (k === "item" ? r.label : (r as Record<string, unknown>)[k]));
     const k = data?.kpis;
     const byType = (data?.byServiceType || []).map((t) => ({ ...t, name: t.label || t.type }));
     const typeTotal = byType.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -171,10 +173,14 @@ const EngDashboard = () => {
                                 <div className="table-wrap">
                                     <table className="table profit-table mb-0">
                                         <thead>
-                                            <tr><th>Item</th><th className="num">Qty</th><th className="num">Sales</th><th className="num">Cost</th><th className="num">Profit</th><th className="num">Margin</th></tr>
+                                            <tr>
+                                                {([["item", "Item"], ["qty", "Qty"], ["sales", "Sales"], ["cost", "Cost"], ["gross", "Profit"], ["margin", "Margin"]] as const).map(([k, label]) => (
+                                                    <th key={k} scope="col" className={k === "item" ? undefined : "num"} aria-sort={itemSort.ariaSort(k)}>{itemSort.header(k, label)}</th>
+                                                ))}
+                                            </tr>
                                         </thead>
                                         <tbody>
-                                            {data.profit.byItem.map((r) => (
+                                            {itemSort.sorted.map((r) => (
                                                 <tr key={`${r.type}-${r.item}`}>
                                                     <td><span className="t-strong t-medium">{r.label}</span><span className="d-block t-xs t-muted">{r.typeLabel}</span></td>
                                                     <td className="num tabular">{r.qty}</td>

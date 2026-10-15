@@ -8,6 +8,10 @@ const COLLECTION = "bonuses";
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
+// Entries that are settled history: paid, or a paid bonus that was later cancelled. Bill edits and Recalculate never
+// rewrite or re-create these (a cancelled bonus must not come back as pending).
+export const SETTLED = ["paid", "cancelled"];
+
 // Records store catalog labels; matrices are keyed by catalog values.
 function catalogValue(options = [], stored) {
   const opt =
@@ -51,12 +55,22 @@ function computeRoleBonus(record, role, settings) {
   const received = Math.min(normalizeReceived(record, totalAmount), totalAmount);
   const ratio = totalAmount > 0 ? Math.min(received / totalAmount, 1) : 0;
 
-  const accruedGross = (record.serviceInfo || []).reduce(
-    (sum, line) =>
-      sum + Number(line.price || 0) * effectivePercent(line, role, settings, productValue) / 100,
-    0
-  );
-  const accrued = grossTotal > 0 ? accruedGross * (totalAmount / grossTotal) : 0;
+  // Each role is either a % matrix of the service prices (default) or a fixed ₹ per bill (bonus.<role>.mode
+  // "amount"; for labour the bill's amount is split equally among its workers by the caller). Either way it becomes
+  // payable in step with collection. Settings are saved without server checks, so the amount is clamped here.
+  const cfg = settings.bonus?.[role] || {};
+  let accrued;
+  if (cfg.mode === "amount") {
+    const perBill = Math.min(Math.max(Number(cfg.amount) || 0, 0), 1_000_000);
+    accrued = totalAmount > 0 ? perBill : 0;
+  } else {
+    const accruedGross = (record.serviceInfo || []).reduce(
+      (sum, line) =>
+        sum + Number(line.price || 0) * effectivePercent(line, role, settings, productValue) / 100,
+      0
+    );
+    accrued = grossTotal > 0 ? accruedGross * (totalAmount / grossTotal) : 0;
+  }
 
   return {
     accrued: round2(accrued),
@@ -86,7 +100,7 @@ export async function syncBonusesForRecord(clientId, record) {
   const mech = computeRoleBonus(record, "mechanic", settings);
   const mechPeriod = yearKey(record.billDate, settings.bonus?.mechanic?.yearStartMonth);
 
-  const paidMech = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: "paid" });
+  const paidMech = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: { $in: SETTLED } });
   if (!paidMech) {
     await collection.updateOne(
       { clientId: cid, recordId, type: "mechanic", status: "pending" },
@@ -121,7 +135,7 @@ export async function syncBonusesForRecord(clientId, record) {
   });
 
   for (const name of labourNames) {
-    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: "paid" });
+    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: { $in: SETTLED } });
     if (paid) continue;
 
     await collection.updateOne(
@@ -195,7 +209,7 @@ export async function syncAutoBonusesForRecord(clientId, record) {
   const mech = computeFlatRoleBonus(record, "mechanic", settings);
   const mechPeriod = yearKey(record.billDate, settings.automobile?.bonus?.yearStartMonth);
 
-  const paidMech = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: "paid" });
+  const paidMech = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: { $in: SETTLED } });
   if (!paidMech) {
     await collection.updateOne(
       { clientId: cid, recordId, type: "mechanic", status: "pending" },
@@ -229,7 +243,7 @@ export async function syncAutoBonusesForRecord(clientId, record) {
   });
 
   for (const name of labourNames) {
-    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: "paid" });
+    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: { $in: SETTLED } });
     if (paid) continue;
 
     await collection.updateOne(
@@ -429,9 +443,14 @@ async function aggregateByBeneficiary(filter) {
           accruedBonus: { $sum: "$accruedAmount" },
           payableBonus: { $sum: "$payableAmount" },
           paidBonus: { $sum: { $ifNull: ["$paidAmount", 0] } },
+          cancelledBonus: { $sum: { $ifNull: ["$cancelled.paidAmount", 0] } },
           pendingCount: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          paidCount: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] } },
           records: {
             $push: {
+              _id: "$_id",
+              manual: { $ifNull: ["$manual", false] },
+              cancelledPaid: { $ifNull: ["$cancelled.paidAmount", 0] },
               billDate: "$billDate",
               accruedAmount: "$accruedAmount",
               payableAmount: "$payableAmount",
@@ -453,7 +472,11 @@ async function aggregateByBeneficiary(filter) {
           accruedBonus: { $round: ["$accruedBonus", 2] },
           payableBonus: { $round: ["$payableBonus", 2] },
           paidBonus: { $round: ["$paidBonus", 2] },
-          status: { $cond: [{ $gt: ["$pendingCount", 0] }, "Pending", "Paid"] },
+          cancelledBonus: { $round: ["$cancelledBonus", 2] },
+          // Any pending entry → Pending; else anything paid → Paid; else everything was cancelled.
+          status: {
+            $cond: [{ $gt: ["$pendingCount", 0] }, "Pending", { $cond: [{ $gt: ["$paidCount", 0] }, "Paid", "Cancelled"] }],
+          },
           records: 1,
         },
       },
@@ -609,6 +632,46 @@ export async function adjustPendingPayable(clientId, type, beneficiary, fromDate
     }))
   );
   return { modified: ops.length, newPayable: target };
+}
+
+// Cancels bonus that was already paid out (issued in error, or taken back). The entries stay as history with status
+// "cancelled" and count as ₹0 everywhere (earned / ready / paid); what they were is kept under `cancelled` for the
+// record. Because cancelled entries are settled, the bill never produces that bonus again (see SETTLED).
+// Matches either explicit entry ids, or every paid entry of a person over a billDate range.
+export async function cancelPaidBonus(clientId, { type, beneficiary = "", from = "", to = "", ids = null, note = "" } = {}) {
+  const db = await connectDB();
+  const coll = db.collection(COLLECTION);
+  const filter = { clientId: toClientId(clientId), type, status: "paid" };
+  if (Array.isArray(ids) && ids.length) {
+    const valid = ids.filter((id) => ObjectId.isValid(String(id))).map((id) => new ObjectId(String(id)));
+    if (!valid.length) return { modified: 0, amount: 0 };
+    filter._id = { $in: valid };
+  } else {
+    if (!beneficiary || !from || !to) throw Object.assign(new Error("beneficiary, from and to are required"), { statusCode: 400 });
+    filter.beneficiary = beneficiary;
+    filter.billDate = { $gte: moment(from).startOf("day").toDate(), $lte: moment(to).endOf("day").toDate() };
+  }
+  const entries = await coll.find(filter).project({ accruedAmount: 1, payableAmount: 1, paidAmount: 1 }).toArray();
+  if (!entries.length) return { modified: 0, amount: 0 };
+  const cancelledAt = new Date();
+  await coll.bulkWrite(entries.map((e) => ({
+    updateOne: {
+      filter: { _id: e._id, status: "paid" },
+      update: {
+        $set: {
+          status: "cancelled",
+          cancelledAt,
+          cancelNote: String(note || "").slice(0, 200),
+          cancelled: { accruedAmount: e.accruedAmount || 0, payableAmount: e.payableAmount || 0, paidAmount: e.paidAmount || 0 },
+          accruedAmount: 0,
+          payableAmount: 0,
+          paidAmount: 0,
+        },
+      },
+    },
+  })));
+  const amount = round2(entries.reduce((s, e) => s + Number(e.paidAmount || 0), 0));
+  return { modified: entries.length, amount };
 }
 
 // A discretionary bonus the owner hands out directly — not tied to any bill.

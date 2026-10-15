@@ -275,8 +275,8 @@ router.delete("/clients/:id", async (req, res, next) => {
 router.get("/audit", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query, { defaultLimit: 20, maxLimit: 100 });
-    const { clientCode = "", action = "", from = "", to = "" } = req.query;
-    const data = await listAudit({ page, limit, clientCode, action, from, to });
+    const { clientCode = "", action = "", from = "", to = "", search = "" } = req.query;
+    const data = await listAudit({ page, limit, clientCode, action, from, to, search: String(search), sortQuery: req.query });
     res.json({ success: true, ...data });
   } catch (error) {
     next(error);

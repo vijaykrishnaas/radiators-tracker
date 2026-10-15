@@ -25,6 +25,7 @@ const CreateRadiators = lazy(() => import("./Pages/IssueCounter/Dashboard/Compon
 const SettingsPage = lazy(() => import("./Pages/Settings/Index"));
 const AutoDashboard = lazy(() => import("./Pages/Automobile/Dashboard/Index"));
 const AutoBillingPage = lazy(() => import("./Pages/Automobile/Billing/Index"));
+const AutoInventory = lazy(() => import("./Pages/Automobile/Inventory/Index"));
 const CreateAutoBill = lazy(() => import("./Pages/Automobile/Dashboard/Components/CreateAutoBill"));
 const MechanicBonus = lazy(() => import("./Pages/Bonus/Mechanic"));
 const LabourBonus = lazy(() => import("./Pages/Bonus/Labour"));
@@ -136,6 +137,7 @@ const AppLayout: React.FC = () => {
           <Route path="/automobile/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/billing" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoBillingPage /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/automobile/inventory" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoInventory /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard" element={<ProtectedRoute><BusinessRoute type="engineering"><EngDashboard /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard/create" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />

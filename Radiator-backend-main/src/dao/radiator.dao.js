@@ -6,6 +6,7 @@ import { getSettings } from "./settings.dao.js";
 import { pendingNetOfDiscount } from "../utils/analytics.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
+import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
 
 export const STATUS = {
   NOT_RECEIVED: "Not Received",
@@ -157,8 +158,41 @@ export async function recordPayment(clientId, id, amount, discount = null) {
   return enrich({ ...existing, receivedAmount, status, discount: appliedDiscount });
 }
 
-function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {
+// Sortable list columns: stored fields, plus the total / received / pending the list shows (worked out like enrich()).
+const RAD_TOTAL = { $sum: "$serviceInfo.price" };
+const RAD_RECEIVED = {
+  $cond: [{ $isNumber: "$receivedAmount" }, "$receivedAmount", { $cond: [{ $eq: ["$status", "Received"] }, RAD_TOTAL, 0] }],
+};
+const RAD_SORT = {
+  date: "billDate",
+  truck: "truckNumber",
+  party: "transportName",
+  product: "radiatorType",
+  mech: "mechanicName",
+  phone: "phoneNumber",
+  status: "status",
+  total: RAD_TOTAL,
+  rec: RAD_RECEIVED,
+  pend: { $max: [{ $subtract: [{ $subtract: [RAD_TOTAL, { $ifNull: ["$discount", 0] }] }, RAD_RECEIVED] }, 0] },
+};
+
+// One search box over every text field on the bill.
+function radiatorSearch(search) {
+  const text = String(search || "").trim();
+  if (!text) return null;
+  const rx = { $regex: escapeRegex(text), $options: "i" };
+  return {
+    $or: [
+      { truckNumber: rx }, { transportName: rx }, { mechanicName: rx }, { phoneNumber: rx }, { radiatorType: rx },
+      { labourName: rx }, { "serviceInfo.type": rx }, { "serviceInfo.comments": rx },
+    ],
+  };
+}
+
+function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = {}) {
   const query = { clientId: toClientId(clientId) };
+  const s = radiatorSearch(search);
+  if (s) Object.assign(query, s);
   if (truckNumber) query.truckNumber = { $regex: escapeRegex(truckNumber), $options: "i" };
   if (mechName) query.mechanicName = mechName;
   if (fromDate || toDate) {
@@ -183,19 +217,15 @@ export async function getAllRadiators(
   toDate = "",
   status = "",
   radiatorType = "",
-  serviceType = ""
+  serviceType = "",
+  { search = "", sortQuery = {} } = {}
 ) {
   const db = await connectDB();
   const collection = db.collection("radiators");
   const skip = (page - 1) * limit;
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
   const total = await collection.countDocuments(query);
-  const radiators = await collection
-    .find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .toArray();
+  const radiators = await findSortedPage(collection, query, parseSort(sortQuery, RAD_SORT, { createdAt: -1 }), skip, limit);
   return {
     total,
     page,
@@ -204,10 +234,13 @@ export async function getAllRadiators(
   };
 }
 
-export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = {}) {
+export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = {}, sortQuery = {}) {
   const db = await connectDB();
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType });
-  const radiators = await db.collection("radiators").find(query).sort({ billDate: -1 }).toArray();
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
+  const order = parseSort(sortQuery, RAD_SORT, { billDate: -1 });
+  const radiators = order.computed
+    ? await findSortedPage(db.collection("radiators"), query, order, 0, 1_000_000)
+    : await db.collection("radiators").find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();
   return radiators.map(enrich);
 }
 

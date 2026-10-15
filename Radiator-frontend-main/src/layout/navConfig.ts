@@ -31,6 +31,9 @@ export function tenantNav(s: AppSettings): NavGroup[] {
         { id: "dashboard", label: "Dashboard", to: `${v}/dashboard`, icon: "grid", match: exact(`${v}/dashboard`) },
         { id: "bills", label: "Bills", to: `${v}/billing`, icon: "receipt-text", match: prefix(`${v}/billing`, `${v}/dashboard/create`, `${v}/dashboard/view`, `${v}/dashboard/edit`) },
     ];
+    if (s.businessType === "automobile") {
+        menu.push({ id: "inventory", label: "Inventory", to: "/automobile/inventory", icon: "package", match: exact("/automobile/inventory") });
+    }
     if (!isEngineering) {
         menu.push({ id: "expenses", label: "Expenses", to: "/issueCounter/expenses", icon: "wallet", match: exact("/issueCounter/expenses") });
         menu.push({

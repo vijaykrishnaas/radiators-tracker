@@ -136,12 +136,12 @@ const LabourReview = () => {
     const clearFilters = () => { setSelectedWorker(null); setFrom(defaultFrom); setTo(today()); };
 
     const billColumns: Column<Bill>[] = [
-        { key: "date", header: "Date", className: "nowrap tabular", cell: (b) => fmtDate(b.billDate) },
-        { key: "veh", header: "Vehicle", className: "key nowrap", cell: (b) => b.truckNumber },
-        { key: "svc", header: "Services", className: "text-wide", cell: (b) => servicesOf(b) },
-        { key: "total", header: "Total", className: "num", cell: (b) => money(b.totalAmount) },
-        { key: "coll", header: "Collected", className: "num", cell: (b) => money(b.receivedAmount) },
-        { key: "bal", header: "Balance", className: "num", cell: (b) => money(balanceOf(b)) },
+        { key: "date", sortValue: (b) => b.billDate, header: "Date", className: "nowrap tabular", cell: (b) => fmtDate(b.billDate) },
+        { key: "veh", sortValue: (b) => b.truckNumber, header: "Vehicle", className: "key nowrap", cell: (b) => b.truckNumber },
+        { key: "svc", sortValue: (b) => servicesOf(b), header: "Services", className: "text-wide", cell: (b) => servicesOf(b) },
+        { key: "total", sortValue: (b) => b.totalAmount, header: "Total", className: "num", cell: (b) => money(b.totalAmount) },
+        { key: "coll", sortValue: (b) => b.receivedAmount, header: "Collected", className: "num", cell: (b) => money(b.receivedAmount) },
+        { key: "bal", sortValue: (b) => balanceOf(b), header: "Balance", className: "num", cell: (b) => money(balanceOf(b)) },
     ];
 
     return (

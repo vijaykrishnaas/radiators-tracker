@@ -38,6 +38,7 @@ const SCREENS = [
   ["radiator", "change-password", "/change-password"],
   ["automobile", "dashboard", "/automobile/dashboard"],
   ["automobile", "bills", "/automobile/billing"],
+  ["automobile", "inventory", "/automobile/inventory"],
   ["automobile", "bill-edit", "/automobile/dashboard/edit/a1"],
   ["automobile", "settings", "/settings"],
   ["engineering", "dashboard", "/engineering/dashboard"],

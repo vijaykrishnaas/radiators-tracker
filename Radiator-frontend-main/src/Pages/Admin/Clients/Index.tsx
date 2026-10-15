@@ -302,19 +302,21 @@ const Clients: React.FC = () => {
         callAlertMsg("Handover details copied", "success");
     };
 
+    const typeName = (t?: BusinessType) => (t === "automobile" ? "Automobile" : t === "engineering" ? "Engineering" : "Radiator");
     const q = search.trim().toLowerCase();
     const filtered = clients.filter((c) => {
         const matchSearch = !q ||
             c.name.toLowerCase().includes(q) ||
             c.code.toLowerCase().includes(q) ||
-            c.adminUserId.toLowerCase().includes(q);
+            c.adminUserId.toLowerCase().includes(q) ||
+            typeName(c.businessType).toLowerCase().includes(q) ||
+            (c.status === "active" ? "active" : "suspended").includes(q);
         const matchStatus = !statusFilter || c.status === statusFilter;
         return matchSearch && matchStatus;
     });
     const activeCount = clients.filter((c) => c.status === "active").length;
     const suspendedCount = clients.length - activeCount;
 
-    const typeName = (t?: BusinessType) => (t === "automobile" ? "Automobile" : t === "engineering" ? "Engineering" : "Radiator");
     const statusBadge = (c: ClientRow) => <Badge tone={c.status === "active" ? "success" : "neutral"} dot>{c.status === "active" ? "Active" : "Suspended"}</Badge>;
     const rowMenu = (c: ClientRow) => (
         <RowActions ariaLabel={`Actions for ${c.name}`} items={[
@@ -330,13 +332,13 @@ const Clients: React.FC = () => {
 
     const columns: Column<ClientRow>[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_c, i) => i + 1 },
-        { key: "name", header: "Business Name", className: "key text", cell: (c) => c.name },
-        { key: "code", header: "Code", className: "nowrap", cell: (c) => <span className="t-mono">{c.code}</span> },
-        { key: "type", header: "Type", className: "nowrap", cell: (c) => <Badge>{typeName(c.businessType)}</Badge> },
-        { key: "admin", header: "Admin Login", cell: (c) => c.adminUserId },
-        { key: "status", header: "Status", className: "nowrap", cell: statusBadge },
-        { key: "last", header: "Last Login", className: "nowrap tabular", cell: (c) => fmtDate(c.lastLoginAt) },
-        { key: "created", header: "Created", className: "nowrap tabular", cell: (c) => fmtDate(c.createdAt) },
+        { key: "name", sortValue: (c) => c.name, header: "Business Name", className: "key text", cell: (c) => c.name },
+        { key: "code", sortValue: (c) => c.code, header: "Code", className: "nowrap", cell: (c) => <span className="t-mono">{c.code}</span> },
+        { key: "type", sortValue: (c) => typeName(c.businessType), header: "Type", className: "nowrap", cell: (c) => <Badge>{typeName(c.businessType)}</Badge> },
+        { key: "admin", sortValue: (c) => c.adminUserId, header: "Admin Login", cell: (c) => c.adminUserId },
+        { key: "status", sortValue: (c) => c.status, header: "Status", className: "nowrap", cell: statusBadge },
+        { key: "last", sortValue: (c) => c.lastLoginAt || "", header: "Last Login", className: "nowrap tabular", cell: (c) => fmtDate(c.lastLoginAt) },
+        { key: "created", sortValue: (c) => c.createdAt || "", header: "Created", className: "nowrap tabular", cell: (c) => fmtDate(c.createdAt) },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: rowMenu },
     ];
     const statusOptions = [{ value: "", label: "All statuses" }, { value: "active", label: "Active" }, { value: "suspended", label: "Suspended" }];
@@ -373,7 +375,7 @@ const Clients: React.FC = () => {
                     <FilterBar
                         activeCount={filterCount}
                         onClear={() => { setSearch(""); setStatusFilter(""); setClearKey((k) => k + 1); }}
-                        search={<SearchInput value={search} key={clearKey} id="client-search" placeholder="Search name, code, or username…" onSearch={setSearch} />}
+                        search={<SearchInput value={search} key={clearKey} id="client-search" placeholder="Search name, code, username or type…" onSearch={setSearch} />}
                         filters={[
                             {
                                 id: "client-status", label: "Status", primary: true,

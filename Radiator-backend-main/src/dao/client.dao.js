@@ -102,7 +102,8 @@ export async function exportClientData(clientId) {
     db.collection("salaryPeriods").find({ clientId: cid }).sort({ periodKey: 1 }).toArray(),
   ]);
   const engbills = await db.collection("engbills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
-  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills };
+  const stockEntries = await db.collection("stockentries").find({ clientId: cid }).sort({ date: 1 }).toArray();
+  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills, stockEntries };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -117,6 +118,7 @@ export async function offboardClient(clientId) {
   counts.radiators = (await db.collection("radiators").deleteMany({ clientId: cid })).deletedCount;
   counts.autobills = (await db.collection("autobills").deleteMany({ clientId: cid })).deletedCount;
   counts.engbills = (await db.collection("engbills").deleteMany({ clientId: cid })).deletedCount;
+  counts.stockEntries = (await db.collection("stockentries").deleteMany({ clientId: cid })).deletedCount;
   counts.bonuses = (await db.collection("bonuses").deleteMany({ clientId: cid })).deletedCount;
   counts.expenses = (await db.collection("expenses").deleteMany({ clientId: cid })).deletedCount;
   counts.employees = (await db.collection("employees").deleteMany({ clientId: cid })).deletedCount;

@@ -8,6 +8,7 @@ import {
   markPaidByRange,
   addManualBonus,
   adjustPendingPayable,
+  cancelPaidBonus,
   getReviewData,
   getAutoReviewData,
   backfill,
@@ -161,6 +162,24 @@ router.post("/adjust", async (req, res, next) => {
     }
     await auditClient(req, "bonus.adjust", { type, beneficiary, amount: result.newPayable, count: result.modified });
     res.json({ success: true, message: `Bonus for ${beneficiary} corrected to ₹${result.newPayable} ✅`, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Cancel bonus already paid out: by entry ids, or all of a person's paid entries in a billDate range.
+router.post("/cancel", async (req, res, next) => {
+  try {
+    const { type, beneficiary = "", from = "", to = "", ids = null, note = "" } = req.body || {};
+    if (!["mechanic", "labour"].includes(type)) {
+      return res.status(400).json({ success: false, message: "type ('mechanic' | 'labour') is required" });
+    }
+    const result = await cancelPaidBonus(req.user.clientId, { type, beneficiary: String(beneficiary).trim(), from, to, ids, note });
+    if (result.modified === 0) {
+      return res.status(404).json({ success: false, message: "No paid bonus to cancel here" });
+    }
+    await auditClient(req, "bonus.cancel", { type, beneficiary, count: result.modified, amount: result.amount, note });
+    res.json({ success: true, message: `Cancelled ${result.modified} paid bonus entr${result.modified === 1 ? "y" : "ies"} (₹${result.amount}) ✅`, ...result });
   } catch (error) {
     next(error);
   }

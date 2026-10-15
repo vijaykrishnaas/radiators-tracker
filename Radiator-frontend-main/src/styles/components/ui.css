@@ -612,3 +612,14 @@ html:has(.form-footer) { scroll-padding-bottom: 120px; }
 
 /* List cards clip their table (and totals row) to the rounded corners; menus render in portals. */
 .list-card { overflow: hidden; overflow: clip; }
+
+/* ---------- Sortable headers (DataList / useClientSort) ---------- */
+.th-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; margin: 0; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; text-align: inherit; cursor: pointer; white-space: nowrap; }
+.th-sort:hover, .th-sort.is-active { color: var(--text-strong); }
+.th-sort:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; border-radius: var(--radius-xs, 4px); }
+.th-sort-icon { width: 14px; height: 14px; flex: none; opacity: 0.45; }
+.th-sort.is-active .th-sort-icon { opacity: 1; color: var(--brand-text); }
+th.num .th-sort { flex-direction: row-reverse; }
+.m-sort { display: flex; align-items: center; gap: 8px; margin: 12px 12px 0; }
+.m-sort-label { margin: 0; font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; }
+.m-sort .form-select { flex: 1 1 auto; min-width: 0; }

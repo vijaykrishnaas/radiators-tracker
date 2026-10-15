@@ -14,7 +14,7 @@ import { AutoBillRecord, itemsText } from "../types";
 import { PageHeader, PaymentBadge, BusyOverlay } from "../../../Components/ui/Basics";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
-import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../../Components/ui/DataList";
+import { DataList, MobileCard, Pagination, emptyCopy, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 import * as XLSX from "xlsx";
@@ -45,13 +45,15 @@ const AutoBilling = () => {
     const [toDate, setToDate] = useState("");
     const [status, setStatus] = useState("");
     const [filtersKey, setFiltersKey] = useState(0);
+    const [sort, setSort] = useState<SortState | null>(null);
     const [mechanics, setMechanics] = useState<string[]>([]);
 
     const [paymentItem, setPaymentItem] = useState<AutoBillRecord | null>(null);
     const [deleteItem, setDeleteItem] = useState<AutoBillRecord | null>(null);
 
     const buildParams = () => ({
-        vehicleNumber: searchText,
+        // One box searches bill no, vehicle, customer, phone, mechanic, workers, items and notes.
+        search: searchText,
         mechanicName: mechanic,
         fromDate,
         toDate,
@@ -59,9 +61,9 @@ const AutoBilling = () => {
     });
 
     const list = useRemoteList<AutoBillRecord>(async () => {
-        const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams() } });
+        const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.autoBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, sort], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("auto-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
@@ -74,7 +76,7 @@ const AutoBilling = () => {
     const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     const fetchAllForExport = async (): Promise<AutoBillRecord[]> => {
-        const res = await getData("autobills/export", { params: buildParams() });
+        const res = await getData("autobills/export", { params: { ...buildParams(), ...sortParams(sort) } });
         return res.autoBillData || [];
     };
 
@@ -83,9 +85,9 @@ const AutoBilling = () => {
         try {
             const all = await fetchAllForExport();
             const exportData = all.map((x) => ({
-                "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
                 "Bill No": x.billNo,
-                [labels.vehicleNo]: x.vehicleNumber,
+                "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
+                [labels.vehicleNo]: String(x.vehicleNumber || "").toUpperCase(),
                 [labels.customer]: x.customerName || "",
                 "Mechanic": x.mechanicName,
                 "Items": itemsText(x),
@@ -163,17 +165,16 @@ const AutoBilling = () => {
     );
 
     const columns: Column<AutoBillRecord>[] = [
-        { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
-        { key: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
-        { key: "billNo", header: "Bill No", className: "num", cell: (o) => o.billNo },
-        { key: "vehicle", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNumber },
-        { key: "customer", header: labels.customer, className: "text", cell: (o) => o.customerName || "—" },
-        { key: "agent", header: labels.agent, className: "text", cell: (o) => o.mechanicName },
+        { key: "billNo", sortKey: "billNo", header: "Bill No", className: "nowrap tabular t-semibold", cell: (o) => o.billNo },
+        { key: "date", sortKey: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "vehicle", sortKey: "vehicle", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNumber },
+        { key: "customer", sortKey: "customer", header: labels.customer, className: "text", cell: (o) => o.customerName || "—" },
+        { key: "agent", sortKey: "agent", header: labels.agent, className: "text", cell: (o) => o.mechanicName },
         { key: "items", header: "Items", className: "text-wide", cell: (o) => itemsText(o) },
-        { key: "total", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
-        { key: "rec", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
-        { key: "pend", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
-        { key: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "total", sortKey: "total", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
+        { key: "rec", sortKey: "rec", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
+        { key: "pend", sortKey: "pend", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
+        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
 
@@ -183,7 +184,7 @@ const AutoBilling = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder="Search bill no, vehicle, customer, part…" onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },
@@ -211,6 +212,8 @@ const AutoBilling = () => {
 
             <DataList<AutoBillRecord>
                 caption="Bills"
+                sort={sort}
+                onSort={(next) => { setSort(next); setCurrentPage(1); }}
                 toolbar={filterBar}
                 rows={list.rows}
                 rowKey={(o) => o._id}
@@ -223,7 +226,7 @@ const AutoBilling = () => {
                     filtered,
                     noun: "bills",
                     noDataText: "Create your first bill and it will show up here.",
-                    noMatchText: `Try a different ${labels.vehicleNo}, ${labels.agent} or date range.`,
+                    noMatchText: `Try a different search, ${labels.agent} or date range.`,
                     onClear: clearFilters,
                     action: <button type="button" className="btn btn-primary" onClick={() => navigate("/automobile/dashboard/create")}><Icons iconName="add" />Add New</button>,
                 })}

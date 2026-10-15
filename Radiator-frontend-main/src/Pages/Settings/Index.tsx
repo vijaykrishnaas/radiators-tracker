@@ -94,7 +94,6 @@ const SettingsPage = () => {
     const anyUploading = Object.values(uploading).some(Boolean);
     const brokenHint = serverProblem || `Check that ${BACKEND} is reachable from this device.`;
     const [newPartLabel, setNewPartLabel] = useState("");
-    const [newPartUnit, setNewPartUnit] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
 
     // Automobile tenants get a parallel set of settings tabs (parts catalog,
@@ -269,16 +268,16 @@ const SettingsPage = () => {
         if (auto.parts.some((p) => p.value === value)) return;
         set("automobile.parts", [
             ...auto.parts,
-            { label: newPartLabel.trim(), value, unit: newPartUnit.trim(), rate: Number(newPartRate || 0) },
+            { label: newPartLabel.trim(), value, rate: Number(newPartRate || 0) },
         ]);
-        setNewPartLabel(""); setNewPartUnit(""); setNewPartRate("");
+        setNewPartLabel(""); setNewPartRate("");
     };
 
     const removePart = (value: string) => {
         set("automobile.parts", auto.parts.filter((p) => p.value !== value));
     };
 
-    const updatePartField = (value: string, field: "label" | "unit" | "rate", fieldValue: string) => {
+    const updatePartField = (value: string, field: "label" | "rate", fieldValue: string) => {
         set(
             "automobile.parts",
             auto.parts.map((p) =>
@@ -473,18 +472,14 @@ const SettingsPage = () => {
                     </>
                 )}
 
-                {/* ---- Automobile: Parts Catalog & Units ---- */}
+                {/* ---- Automobile: Parts Catalog ---- */}
                 {activeTab === "catalog" && isAutomobile && (
                     <>
-                        <SectionCard title="Parts catalog" subtitle="Parts you sell, with a default unit and rate.">
+                        <SectionCard title="Parts catalog" subtitle="Parts you sell, with a default rate. Track their stock under Inventory.">
                             <div className="settings-add-row">
                                 <Field label="Part name" htmlFor="new-part-label">
                                     <InputText id="new-part-label" value={newPartLabel} placeholder="e.g. Engine Oil 15W40"
                                         onChange={(e) => setNewPartLabel(e.target.value)} />
-                                </Field>
-                                <Field label="Unit" htmlFor="new-part-unit">
-                                    <InputText id="new-part-unit" value={newPartUnit} placeholder="e.g. L"
-                                        onChange={(e) => setNewPartUnit(e.target.value)} />
                                 </Field>
                                 <Field label="Default rate (₹)" htmlFor="new-part-rate">
                                     <InputText id="new-part-rate" type="number" className="num" value={newPartRate} placeholder="e.g. 450"
@@ -500,7 +495,6 @@ const SettingsPage = () => {
                                     <thead>
                                         <tr>
                                             <th scope="col">Part name</th>
-                                            <th scope="col">Unit</th>
                                             <th scope="col">Rate (₹)</th>
                                             <th scope="col"><span className="visually-hidden">Actions</span></th>
                                         </tr>
@@ -513,10 +507,6 @@ const SettingsPage = () => {
                                                         onChange={(e) => updatePartField(p.value, "label", e.target.value)} />
                                                 </th>
                                                 <td>
-                                                    <input type="text" className="form-control" aria-label={`${p.label} unit`} value={p.unit}
-                                                        onChange={(e) => updatePartField(p.value, "unit", e.target.value)} />
-                                                </td>
-                                                <td>
                                                     <AffixInput prefix="₹" type="number" className="num" aria-label={`${p.label} rate`} value={p.rate}
                                                         onChange={(e) => updatePartField(p.value, "rate", e.target.value)} />
                                                 </td>
@@ -528,19 +518,14 @@ const SettingsPage = () => {
                                             </tr>
                                         ))}
                                         {!auto.parts.length && (
-                                            <tr><td colSpan={4} className="t-muted text-center py-3">No parts yet</td></tr>
+                                            <tr><td colSpan={3} className="t-muted text-center py-3">No parts yet</td></tr>
                                         )}
                                     </tbody>
                                 </table>
                             </div>
                             <span className="field-help">
-                                Picking a part on the bill form auto-fills its unit and rate; one-off items can still be typed freely.
+                                Picking a part on the bill form auto-fills its rate; one-off items can still be typed freely.
                             </span>
-                        </SectionCard>
-
-                        <SectionCard title="Units" subtitle="Units offered on the bill form.">
-                            <ChipInput id="auto-units" label="Units" values={auto.units} onChange={(v) => set("automobile.units", v)}
-                                placeholder="e.g. pcs, set, L, kg, hrs" />
                         </SectionCard>
                     </>
                 )}
@@ -655,25 +640,66 @@ const SettingsPage = () => {
                 )}
 
                 {/* ---- Bonus (radiator) ---- */}
-                {activeTab === "bonus" && !isAutomobile && (
-                    <>
-                        <SectionCard title="Mechanic bonus" subtitle="Settled yearly. Bonus = service price × percent, paid in proportion to the amount collected on the bill.">
-                            {bonusMatrixGrid("mechanic")}
-                            <div className="form-grid settings-three mt-3">
-                                {pctField("mech-default-pct", "Default % (Other / unmatched)", draft.bonus.mechanic.defaultPercent,
-                                    (n) => set("bonus.mechanic.defaultPercent", n))}
-                                {monthSelect("year-start-month", draft.bonus.mechanic.yearStartMonth, (n) => set("bonus.mechanic.yearStartMonth", n))}
-                            </div>
-                        </SectionCard>
-                        <SectionCard title={`${draft.labels.worker} bonus`} subtitle="Settled daily, split equally per bill.">
-                            {bonusMatrixGrid("labour")}
-                            <div className="form-grid settings-three mt-3">
-                                {pctField("labour-default-pct", "Default % (Other / unmatched)", draft.bonus.labour.defaultPercent,
-                                    (n) => set("bonus.labour.defaultPercent", n))}
-                            </div>
-                        </SectionCard>
-                    </>
-                )}
+                {activeTab === "bonus" && !isAutomobile && (() => {
+                    // Each role: % of the service prices (matrix) or a fixed ₹ per bill. Older settings have no mode yet.
+                    const modeSwitch = (role: "mechanic" | "labour") => (
+                        <Field label="Bonus type" labelId={`${role}-mode-label`}>
+                            <SegmentedControl<"percent" | "amount">
+                                label={`${role === "mechanic" ? "Mechanic" : draft.labels.worker} bonus type`}
+                                radio
+                                full
+                                options={[{ value: "percent", label: "% of service price" }, { value: "amount", label: "₹ per bill" }]}
+                                value={draft.bonus[role].mode === "amount" ? "amount" : "percent"}
+                                onChange={(v) => set(`bonus.${role}.mode`, v)}
+                            />
+                        </Field>
+                    );
+                    const amountField = (role: "mechanic" | "labour", label: string) => (
+                        <Field label={label} htmlFor={`${role}-bonus-amt`}>
+                            <AffixInput id={`${role}-bonus-amt`} name={`${role}-bonus-amt`} type="number" className="num" prefix="₹" min={0} step={10}
+                                value={draft.bonus[role].amount || ""} placeholder="0"
+                                onChange={(e) => set(`bonus.${role}.amount`, Math.max(Number(e.target.value || 0), 0))} />
+                        </Field>
+                    );
+                    const mechFixed = draft.bonus.mechanic.mode === "amount";
+                    const labFixed = draft.bonus.labour.mode === "amount";
+                    return (
+                        <>
+                            <SectionCard title="Mechanic bonus" subtitle={mechFixed
+                                ? "Settled yearly. A fixed amount per bill, paid in proportion to the amount collected on the bill."
+                                : "Settled yearly. Bonus = service price × percent, paid in proportion to the amount collected on the bill."}>
+                                <div className="form-grid settings-three mb-3">
+                                    {modeSwitch("mechanic")}
+                                    {mechFixed && amountField("mechanic", "Mechanic bonus per bill")}
+                                </div>
+                                {!mechFixed && bonusMatrixGrid("mechanic")}
+                                <div className="form-grid settings-three mt-3">
+                                    {!mechFixed && pctField("mech-default-pct", "Default % (Other / unmatched)", draft.bonus.mechanic.defaultPercent,
+                                        (n) => set("bonus.mechanic.defaultPercent", n))}
+                                    {monthSelect("year-start-month", draft.bonus.mechanic.yearStartMonth, (n) => set("bonus.mechanic.yearStartMonth", n))}
+                                </div>
+                            </SectionCard>
+                            <SectionCard title={`${draft.labels.worker} bonus`} subtitle={labFixed
+                                ? "Settled daily. A fixed amount per bill, split equally among the workers on the bill."
+                                : "Settled daily, split equally per bill."}>
+                                <div className="form-grid settings-three mb-3">
+                                    {modeSwitch("labour")}
+                                    {labFixed && amountField("labour", `${draft.labels.worker} bonus per bill (shared)`)}
+                                </div>
+                                {!labFixed && (
+                                    <>
+                                        {bonusMatrixGrid("labour")}
+                                        <div className="form-grid settings-three mt-3">
+                                            {pctField("labour-default-pct", "Default % (Other / unmatched)", draft.bonus.labour.defaultPercent,
+                                                (n) => set("bonus.labour.defaultPercent", n))}
+                                        </div>
+                                    </>
+                                )}
+                            </SectionCard>
+                            <span className="field-help">Bills with a zero total earn nothing. After changing the bonus, use Recalculate on the Bonus page to re-price bills that are not paid out yet.</span>
+                        </>
+                    );
+                })()}
 
                 {/* ---- Automobile: Labels & Invoice ---- */}
                 {activeTab === "invoice" && isAutomobile && (

@@ -317,7 +317,7 @@ async function run(type) {
   await page.waitForTimeout(1500);
   const emptyTxt = await page.locator(".list-body").innerText();
   ok("eng: billing empty state (no filters) says 'No bills yet' and offers New service", /No bills yet/.test(emptyTxt) && /Create your first service bill and it will show up here\./.test(emptyTxt) && (await page.locator(".empty-state").getByRole("button", { name: "New service" }).count()) === 1, emptyTxt.replace(/\s+/g, " "));
-  await page.getByPlaceholder(/Search Truck/).fill("ZZZ");
+  await page.locator("#bill-search").fill("ZZZ");
   await page.waitForTimeout(1900);
   const filteredTxt = await page.locator(".list-body").innerText();
   ok("eng: billing empty state with a filter says 'No bills match' and offers Clear filters", /No bills match these filters/.test(filteredTxt) && /Try a different truck number, mechanic or date range\./.test(filteredTxt) && (await page.locator(".empty-state").getByRole("button", { name: "Clear filters" }).count()) === 1, filteredTxt.replace(/\s+/g, " "));

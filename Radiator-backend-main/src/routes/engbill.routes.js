@@ -42,8 +42,8 @@ function validId(req, res, next) {
 }
 
 function filtersFrom(q) {
-  const { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "" } = q;
-  return { vehicleNo, mechanic, fromDate, toDate, status, serviceType, bsModel };
+  const { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "" } = q;
+  return { vehicleNo, mechanic, fromDate, toDate, status, serviceType, bsModel, search: String(search) };
 }
 
 router.get("/analytics", async (req, res, next) => {
@@ -57,7 +57,7 @@ router.get("/analytics", async (req, res, next) => {
 
 router.get("/export", async (req, res, next) => {
   try {
-    const bills = await listEngBillsForExport(req.user.clientId, filtersFrom(req.query));
+    const bills = await listEngBillsForExport(req.user.clientId, filtersFrom(req.query), req.query);
     res.json({ success: true, bills });
   } catch (error) {
     next(error);
@@ -86,7 +86,7 @@ router.get("/mechanics", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query);
-    const data = await listEngBills(req.user.clientId, filtersFrom(req.query), page, limit);
+    const data = await listEngBills(req.user.clientId, filtersFrom(req.query), page, limit, req.query);
     res.json({
       success: true,
       currentPage: data.page,

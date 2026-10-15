@@ -16,7 +16,7 @@ export function settingsFor(type, overrides = {}) {
   s.labour = ["Kannan", "Selvam"];
   s.loginHighlights = ["Every payment, tracked"];
   if (s.automobile) {
-    s.automobile.parts = [{ label: "Engine Oil 15W40", value: "engine-oil-15w40", unit: "L", rate: 450 }, { label: "Oil Filter", value: "oil-filter", unit: "pcs", rate: 320 }];
+    s.automobile.parts = [{ label: "Engine Oil 15W40", value: "engine-oil-15w40", rate: 450 }, { label: "Oil Filter", value: "oil-filter", rate: 320 }];
   }
   if (overrides.primary) s.branding.primaryColor = overrides.primary;
   if (overrides.accent) s.branding.accentColor = overrides.accent;
@@ -168,6 +168,15 @@ export async function mockApi(page, type, opts = {}) {
     if (p === "/expenses" && m === "GET") return json({ expenses: fixtures.expenses, totalRecords: 3, totalPages: 1, periodTotal: 14690 });
     if (p === "/expenses/export") return json({ expenses: fixtures.expenses });
     if (p === "/bonus/pending") return json({ rows: fixtures.bonusRows });
+    if (p === "/inventory/levels") return json({ success: true, levels: { "engine-oil-15w40": 12, "oil-filter": -1 } });
+    if (p === "/inventory/summary") return json({ success: true, totals: { parts: 2, inStock: 12, stockValue: 4320, sales: 23140, profit: 6020, outOfStock: 1 }, rows: [
+      { partRef: "engine-oil-15w40", label: "Engine Oil 15W40", inCatalog: true, rate: 450, added: 60, sold: 48, remaining: 12, avgCost: 360, stockValue: 4320, sales: 21600, costOfSales: 17280, profit: 4320, bills: 22, lastIn: null, lastSold: null },
+      { partRef: "oil-filter", label: "Oil Filter", inCatalog: true, rate: 320, added: 4, sold: 5, remaining: -1, avgCost: 200, stockValue: 0, sales: 1540, costOfSales: 1000, profit: 540, bills: 5, lastIn: null, lastSold: null },
+    ] });
+    if (p === "/inventory/entries") return json({ success: true, totalPages: 1, totalRecords: 2, entries: [
+      { _id: "s1", partRef: "engine-oil-15w40", partLabel: "Engine Oil 15W40", date: "2026-09-01T00:00:00.000Z", qty: 60, buyPrice: 360, supplier: "Sri Lubes", note: "INV-2231" },
+      { _id: "s2", partRef: "oil-filter", partLabel: "Oil Filter", date: "2026-09-03T00:00:00.000Z", qty: 4, buyPrice: 200, supplier: "", note: "" },
+    ] });
     if (p === "/bonus/review") return json(fixtures.review);
     if (p === "/employees" && m === "GET") return json({ employees: fixtures.employees });
     if (p === "/salary/attendance" && m === "GET") return json({ days: [{ _id: "d1", date: d(1), status: "present" }, { _id: "d2", date: d(2), status: "half" }, { _id: "d3", date: d(3), status: "absent" }, { _id: "d4", date: d(4), status: "leave" }] });

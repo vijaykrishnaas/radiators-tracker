@@ -15,7 +15,7 @@ import { RadiatorRecord, serviceDisplay } from "../Dashboard/Index";
 import { PageHeader, PaymentBadge, BusyOverlay } from "../../../Components/ui/Basics";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
-import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../../Components/ui/DataList";
+import { DataList, MobileCard, Pagination, emptyCopy, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { Popover } from "../../../Components/ui/Menu";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 import { storage } from "../../../Components/ui/hooks";
@@ -70,6 +70,7 @@ const Billing = () => {
     const [product, setProduct] = useState("");
     const [service, setService] = useState("");
     const [filtersKey, setFiltersKey] = useState(0);
+    const [sort, setSort] = useState<SortState | null>(null);
     const [mechanics, setMechanics] = useState<string[]>([]);
 
     const [paymentItem, setPaymentItem] = useState<RadiatorRecord | null>(null);
@@ -83,7 +84,8 @@ const Billing = () => {
     const setCols = (next: Record<ColKey, boolean>) => { setVisible(next); storage.set(colsKey, JSON.stringify(next)); };
 
     const buildParams = () => ({
-        truckNumber: searchText,
+        // One box searches vehicle, party, mechanic, phone, product, workers, services and comments.
+        search: searchText,
         mechanicName: mechanic,
         fromDate,
         toDate,
@@ -93,9 +95,9 @@ const Billing = () => {
     });
 
     const list = useRemoteList<RadiatorRecord>(async () => {
-        const res = await getData("radiators", { params: { page: currentPage, limit, ...buildParams() } });
+        const res = await getData("radiators", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.radiatorData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service, sort], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
@@ -108,7 +110,7 @@ const Billing = () => {
     const setFilter = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     const fetchAllForExport = async (): Promise<RadiatorRecord[]> => {
-        const res = await getData("radiators/export", { params: buildParams() });
+        const res = await getData("radiators/export", { params: { ...buildParams(), ...sortParams(sort) } });
         return res.radiatorData || [];
     };
 
@@ -236,17 +238,17 @@ const Billing = () => {
 
     const allColumns: (Column<RadiatorRecord> & { col?: ColKey })[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
-        { key: "date", col: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
-        { key: "truck", col: "truckNumber", header: L.vehicleNo, className: "key nowrap", cell: (o) => o.truckNumber },
-        { key: "party", col: "transportName", header: L.party, className: "text", cell: (o) => o.transportName },
-        { key: "product", col: "radiatorType", header: L.product, cell: (o) => o.radiatorType },
-        { key: "mech", col: "mechanicName", header: "Mechanic", className: "text", cell: (o) => o.mechanicName },
+        { key: "date", sortKey: "date", col: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "truck", sortKey: "truck", col: "truckNumber", header: L.vehicleNo, className: "key nowrap", cell: (o) => o.truckNumber },
+        { key: "party", sortKey: "party", col: "transportName", header: L.party, className: "text", cell: (o) => o.transportName },
+        { key: "product", sortKey: "product", col: "radiatorType", header: L.product, cell: (o) => o.radiatorType },
+        { key: "mech", sortKey: "mech", col: "mechanicName", header: "Mechanic", className: "text", cell: (o) => o.mechanicName },
         { key: "svc", col: "services", header: "Services", className: "text-wide", cell: (o) => servicesText(o) },
-        { key: "total", col: "totalAmount", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
-        { key: "rec", col: "receivedAmount", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
-        { key: "pend", col: "pendingAmount", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
-        { key: "phone", col: "phoneNumber", header: "Phone", className: "nowrap tabular", cell: (o) => o.phoneNumber || "—" },
-        { key: "status", col: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "total", sortKey: "total", col: "totalAmount", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
+        { key: "rec", sortKey: "rec", col: "receivedAmount", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
+        { key: "pend", sortKey: "pend", col: "pendingAmount", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
+        { key: "phone", sortKey: "phone", col: "phoneNumber", header: "Phone", className: "nowrap tabular", cell: (o) => o.phoneNumber || "—" },
+        { key: "status", sortKey: "status", col: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
     const columns = allColumns.filter((c) => !c.col || visible[c.col]);
@@ -286,7 +288,7 @@ const Billing = () => {
             activeCount={activeCount}
             onClear={clearFilters}
             tools={colsPicker}
-            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${L.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder="Search truck, party, mechanic, phone…" onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: "Mechanic", primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "f-product", label: L.product, node: <Selector inputId="f-product" isClearable options={productOptions} placeholder="-- All --" value={opt(productOptions, product)} onChange={(o: any) => setFilter(setProduct)(o ? o.value : "")} /> },
@@ -318,6 +320,8 @@ const Billing = () => {
 
             <DataList<RadiatorRecord>
                 caption="Bills"
+                sort={sort}
+                onSort={(next) => { setSort(next); setCurrentPage(1); }}
                 toolbar={filterBar}
                 rows={list.rows}
                 rowKey={(o) => o._id}

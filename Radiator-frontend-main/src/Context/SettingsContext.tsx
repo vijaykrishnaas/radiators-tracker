@@ -34,7 +34,8 @@ export type EngServiceType = {
 export type AutoPart = {
     label: string;
     value: string;
-    unit: string;
+    /** No longer shown or edited; older settings may still carry one. */
+    unit?: string;
     rate: number;
 };
 
@@ -101,11 +102,17 @@ export type AppSettings = {
     };
     bonus: {
         mechanic: {
+            /** "percent" (default): the matrix of % of service prices. "amount": a fixed ₹ per bill. */
+            mode?: "percent" | "amount";
+            amount?: number;
             matrix: Record<string, Record<string, number>>;
             defaultPercent: number;
             yearStartMonth: number;
         };
         labour: {
+            /** "amount": a fixed ₹ per bill, split equally among the bill's workers. */
+            mode?: "percent" | "amount";
+            amount?: number;
             matrix: Record<string, Record<string, number>>;
             defaultPercent: number;
         };
@@ -166,8 +173,8 @@ export const FALLBACK_SETTINGS: AppSettings = {
     },
     invoice: { billTitle: "BILL", footerNote: "", showQr: false, showSignature: false },
     bonus: {
-        mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
-        labour: { matrix: {}, defaultPercent: 0 },
+        mechanic: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
+        labour: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0 },
     },
     engineering: {
         bsModels: [],

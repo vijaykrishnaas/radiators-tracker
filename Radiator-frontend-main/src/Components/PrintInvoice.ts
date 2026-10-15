@@ -306,7 +306,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     doc.text(String(o.customerName || "—").trim(), M, y + 5);
     if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
 
-    const details: [string, string][] = [[labels.vehicleNo || "Vehicle", o.vehicleNumber || "—"]];
+    const details: [string, string][] = [[labels.vehicleNo || "Vehicle", String(o.vehicleNumber || "—").toUpperCase()]];
     if (o.mechanicName) details.push([labels.agent || "Mechanic", o.mechanicName]);
     doc.setFontSize(7.5);
     let dy = y + 5;
@@ -323,7 +323,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
         head: [["Particulars", "Qty", "Rate", "Amount"]],
         body: (o.items || []).map((i: any) => [
             i.particulars,
-            `${i.qty}${i.unit ? " " + i.unit : ""}`,
+            String(i.qty),
             rs(Number(i.rate || 0)),
             rs(Number(i.amount || 0)),
         ]),

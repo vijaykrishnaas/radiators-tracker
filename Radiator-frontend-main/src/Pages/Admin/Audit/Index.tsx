@@ -4,8 +4,8 @@ import { useAlertMsg } from "../../../Services/AllServices";
 import { listAudit, listClients, type ClientRow } from "../../../Services/AdminApi";
 import { actionLabel, adminActionOptions, detailText, type AuditEntry } from "../../../Constants/auditActions";
 import { PageHeader, Badge } from "../../../Components/ui/Basics";
-import { FilterBar } from "../../../Components/ui/Filters";
-import { DataList, MobileCard, Pagination, type Column } from "../../../Components/ui/DataList";
+import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
+import { DataList, MobileCard, Pagination, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN");
@@ -26,16 +26,19 @@ const Audit: React.FC = () => {
     const [toDate, setToDate] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(20);
+    const [search, setSearch] = useState("");
+    const [filtersKey, setFiltersKey] = useState(0);
+    const [sort, setSort] = useState<SortState | null>(null);
 
     const list = useRemoteList<AuditEntry>(async () => {
         try {
-            const res = await listAudit({ page: currentPage, limit, clientCode, action, from: fromDate, to: toDate });
+            const res = await listAudit({ page: currentPage, limit, clientCode, action, from: fromDate, to: toDate, search, ...sortParams(sort) });
             return { rows: res.entries || [], total: res.total || 0, totalPages: res.totalPages || 1 };
         } catch (err: any) {
             callAlertMsg(err?.message || "Failed to load audit log", "error");
             throw err;
         }
-    }, [currentPage, limit, clientCode, action, fromDate, toDate], { page: currentPage, setPage: setCurrentPage });
+    }, [currentPage, limit, clientCode, action, fromDate, toDate, search, sort], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => {
         listClients().then((r) => setClients(r.clients || [])).catch(() => {});
@@ -43,15 +46,15 @@ const Audit: React.FC = () => {
 
     const clientOptions = clients.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` }));
     const actionOptions = adminActionOptions();
-    const activeCount = [clientCode, action, fromDate, toDate].filter(Boolean).length;
-    const clear = () => { setClientCode(""); setAction(""); setFromDate(""); setToDate(""); setCurrentPage(1); };
+    const activeCount = [clientCode, action, fromDate, toDate, search].filter(Boolean).length;
+    const clear = () => { setClientCode(""); setAction(""); setFromDate(""); setToDate(""); setSearch(""); setFiltersKey((k) => k + 1); setCurrentPage(1); };
     const set = (fn: (v: string) => void) => (v: string) => { fn(v); setCurrentPage(1); };
 
     const columns: Column<AuditEntry>[] = [
-        { key: "when", header: "When", className: "nowrap tabular", cell: (e) => <>{fmtDate(e.at)}<span className="d-block t-xs t-muted">{fmtTime(e.at)}</span></> },
-        { key: "action", header: "Action", className: "nowrap", cell: (e) => <ActionBadge action={e.action} /> },
-        { key: "client", header: "Client", className: "nowrap", cell: (e) => (e.clientCode ? <span className="t-mono">{e.clientCode}</span> : "—") },
-        { key: "by", header: "By", cell: (e) => e.actorUserId || "—" },
+        { key: "when", sortKey: "when", header: "When", className: "nowrap tabular", cell: (e) => <>{fmtDate(e.at)}<span className="d-block t-xs t-muted">{fmtTime(e.at)}</span></> },
+        { key: "action", sortKey: "action", header: "Action", className: "nowrap", cell: (e) => <ActionBadge action={e.action} /> },
+        { key: "client", sortKey: "client", header: "Client", className: "nowrap", cell: (e) => (e.clientCode ? <span className="t-mono">{e.clientCode}</span> : "—") },
+        { key: "by", sortKey: "by", header: "By", cell: (e) => e.actorUserId || "—" },
         { key: "details", header: "Details", className: "text-wide", cell: (e) => detailText(e) || "—" },
     ];
 
@@ -60,10 +63,13 @@ const Audit: React.FC = () => {
             <PageHeader title="Audit Log" back={{ to: "/admin/clients", label: "Clients" }} />
             <DataList<AuditEntry>
                 caption="Audit log"
+                sort={sort}
+                onSort={(next) => { setSort(next); setCurrentPage(1); }}
                 toolbar={
                     <FilterBar
                         activeCount={activeCount}
                         onClear={clear}
+                        search={<SearchInput value={search} key={filtersKey} id="au-search" label="Search" placeholder="Search client, user, vehicle, name…" onSearch={set(setSearch)} />}
                         filters={[
                             { id: "au-client", label: "Filter by client", primary: true, node: <Selector inputId="au-client" isClearable options={clientOptions} placeholder="-- All Clients --" value={opt(clientOptions, clientCode)} onChange={(o: any) => set(setClientCode)(o ? o.value : "")} /> },
                             { id: "au-action", label: "Action", primary: true, node: <Selector inputId="au-action" isClearable options={actionOptions} placeholder="-- All Actions --" value={opt(actionOptions, action)} onChange={(o: any) => set(setAction)(o ? o.value : "")} /> },
@@ -80,7 +86,7 @@ const Audit: React.FC = () => {
                 onRetry={list.reload}
                 errorTitle="Couldn't load the audit log"
                 empty={activeCount
-                    ? { icon: "history", title: "No records match these filters", text: "Try a different client, action or date range.", action: <button type="button" className="btn btn-link" onClick={clear}>Clear filters</button> }
+                    ? { icon: "history", title: "No records match these filters", text: "Try a different search, client, action or date range.", action: <button type="button" className="btn btn-link" onClick={clear}>Clear filters</button> }
                     : { icon: "history", title: "No audit entries yet" }}
                 mobileCard={(e) => (
                     <MobileCard

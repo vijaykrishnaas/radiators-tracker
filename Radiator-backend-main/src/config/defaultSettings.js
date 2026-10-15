@@ -72,8 +72,11 @@ export const defaultSettings = {
   // Bonus configuration. Percentages of each service line's price.
   // mechanic: settled yearly (year window starts at yearStartMonth, 4 = April).
   // labour: settled daily, the bill's bonus is split equally among its workers.
+  // Either role can instead be a fixed ₹ per bill: mode "amount" + amount (labour's amount is split among the workers).
   bonus: {
     mechanic: {
+      mode: "percent",
+      amount: 0,
       matrix: {
         bs2: { service: 0, new: 0, tank: 0, cover: 0 },
         bs3: { service: 0, new: 0, tank: 0, cover: 0 },
@@ -84,6 +87,8 @@ export const defaultSettings = {
       yearStartMonth: 4,
     },
     labour: {
+      mode: "percent",
+      amount: 0,
       matrix: {
         bs2: { service: 0, new: 0, tank: 0, cover: 0 },
         bs3: { service: 0, new: 0, tank: 0, cover: 0 },

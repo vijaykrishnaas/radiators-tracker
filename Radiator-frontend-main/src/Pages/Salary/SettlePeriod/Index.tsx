@@ -5,7 +5,7 @@ import RowActions from "../../../Components/RowActions";
 import Selector from "../../../Components/Selector";
 import { PageHeader, CardHead, Field, Badge, EmptyState, SegmentedControl, BusyOverlay, type Tone } from "../../../Components/ui/Basics";
 import Modal from "../../../Components/ui/Modal";
-import { DataList, MobileCard, Pagination, type Column } from "../../../Components/ui/DataList";
+import { DataList, MobileCard, Pagination, sortParams, useClientSort, type Column, type SortState } from "../../../Components/ui/DataList";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 import { printPayslip } from "../../../Components/PrintPayslip";
@@ -101,13 +101,15 @@ const SettlePeriod = () => {
     const [adjustAmount, setAdjustAmount] = useState("");
     const [adjustReason, setAdjustReason] = useState("");
 
+    const [historySort, setHistorySort] = useState<SortState | null>(null);
+    const advSort = useClientSort(advances, (a, k) => (a as Record<string, unknown>)[k]);
     const history = useRemoteList<HistoryRow>(async () => {
         if (!selectedEmployee) return { rows: [], total: 0, totalPages: 1 };
         const res = await getData("salary/history", {
-            params: { employeeId: selectedEmployee.value, page: historyPage, limit: historyLimit },
+            params: { employeeId: selectedEmployee.value, page: historyPage, limit: historyLimit, ...sortParams(historySort) },
         });
         return { rows: res.rows || [], total: res.total || 0, totalPages: res.totalPages || 1 };
-    }, [selectedEmployee, historyPage, historyLimit], { page: historyPage, setPage: setHistoryPage });
+    }, [selectedEmployee, historyPage, historyLimit, historySort], { page: historyPage, setPage: setHistoryPage });
 
     // Jump to page 1 and make sure the list reloads even when already there.
     const refreshHistoryFirstPage = () => { if (historyPage === 1) history.reload(); else setHistoryPage(1); };
@@ -287,10 +289,10 @@ const SettlePeriod = () => {
     );
 
     const historyColumns: Column<HistoryRow>[] = [
-        { key: "period", header: "Period", className: "key nowrap", cell: (h) => h.periodKey },
-        { key: "net", header: "Net Paid", className: "num t-semibold", cell: (h) => money(h.netAmount) },
-        { key: "adj", header: "Adjustments", className: "num", cell: (h) => (adjTotalOf(h) ? `+ ${money(adjTotalOf(h))}` : "—") },
-        { key: "paid", header: "Paid On", className: "nowrap tabular", cell: (h) => fmtDate(h.paidAt) },
+        { key: "period", sortKey: "period", header: "Period", className: "key nowrap", cell: (h) => h.periodKey },
+        { key: "net", sortKey: "net", header: "Net Paid", className: "num t-semibold", cell: (h) => money(h.netAmount) },
+        { key: "adj", sortKey: "adj", header: "Adjustments", className: "num", cell: (h) => (adjTotalOf(h) ? `+ ${money(adjTotalOf(h))}` : "—") },
+        { key: "paid", sortKey: "paid", header: "Paid On", className: "nowrap tabular", cell: (h) => fmtDate(h.paidAt) },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: historyMenu },
     ];
 
@@ -400,10 +402,14 @@ const SettlePeriod = () => {
                                     <div className="table-wrap">
                                         <table className="table">
                                             <thead>
-                                                <tr><th scope="col">Date</th><th scope="col" className="num">Amount</th><th scope="col">Reason</th></tr>
+                                                <tr>
+                                                    <th scope="col" aria-sort={advSort.ariaSort("date")}>{advSort.header("date", "Date")}</th>
+                                                    <th scope="col" className="num" aria-sort={advSort.ariaSort("amount")}>{advSort.header("amount", "Amount")}</th>
+                                                    <th scope="col" aria-sort={advSort.ariaSort("reason")}>{advSort.header("reason", "Reason")}</th>
+                                                </tr>
                                             </thead>
                                             <tbody>
-                                                {advances.length ? advances.map((a) => (
+                                                {advances.length ? advSort.sorted.map((a) => (
                                                     <tr key={a._id}>
                                                         <td className="nowrap tabular">{fmtDate(a.date)}</td>
                                                         <td className="num">{money(a.amount)}</td>
@@ -486,6 +492,8 @@ const SettlePeriod = () => {
 
                     <DataList<HistoryRow>
                         caption="Settlement history"
+                        sort={historySort}
+                        onSort={(next) => { setHistorySort(next); setHistoryPage(1); }}
                         toolbar={<div className="list-toolbar-title"><CardHead title="Settlement history" /></div>}
                         rows={history.rows}
                         rowKey={(h) => h._id}

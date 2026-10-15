@@ -11,7 +11,7 @@ import { money, today, monthStart } from "../../../Utils/format";
 import { PageHeader, Badge, BusyOverlay, Field, SegmentedControl } from "../../../Components/ui/Basics";
 import Modal, { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
-import { DataList, MobileCard, Pagination, emptyCopy, type Column } from "../../../Components/ui/DataList";
+import { DataList, MobileCard, Pagination, emptyCopy, sortParams, useClientSort, type Column, type SortState } from "../../../Components/ui/DataList";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 import { usePhone } from "../../../Components/ui/hooks";
@@ -55,6 +55,7 @@ const opt = (options: { value: string; label: string }[], v: string) => options.
 
 const ProductsMini = ({ expense }: { expense: Expense }) => {
     const phone = usePhone();
+    const t = useClientSort(expense.products || [], (p, k) => (p as Record<string, unknown>)[k]);
     return (
     <>
         <p className="t-xs t-muted t-medium mb-2">Products in this expense</p>
@@ -63,14 +64,14 @@ const ProductsMini = ({ expense }: { expense: Expense }) => {
             <table className="table mb-0">
                 <thead>
                     <tr>
-                        <th scope="col">Product</th>
-                        <th scope="col" className="num">Qty</th>
-                        <th scope="col" className="num">Unit Price</th>
-                        <th scope="col" className="num">Amount</th>
+                        <th scope="col" aria-sort={t.ariaSort("name")}>{t.header("name", "Product")}</th>
+                        <th scope="col" className="num" aria-sort={t.ariaSort("quantity")}>{t.header("quantity", "Qty")}</th>
+                        <th scope="col" className="num" aria-sort={t.ariaSort("unitPrice")}>{t.header("unitPrice", "Unit Price")}</th>
+                        <th scope="col" className="num" aria-sort={t.ariaSort("amount")}>{t.header("amount", "Amount")}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {(expense.products || []).map((p, pi) => (
+                    {t.sorted.map((p, pi) => (
                         <tr key={pi}>
                             <td className="text">{p.name}</td>
                             <td className="num">{p.quantity}</td>
@@ -103,6 +104,7 @@ const Expenses = () => {
     const [limit, setLimit] = useState(10);
 
     const [searchText, setSearchText] = useState("");
+    const [sort, setSort] = useState<SortState | null>(null);
     const [fromDate, setFromDate] = useState(monthStart());
     const [toDate, setToDate] = useState(today());
     const [expenseType, setExpenseType] = useState("");
@@ -128,14 +130,14 @@ const Expenses = () => {
     });
 
     const list = useRemoteList<Expense, { periodTotal: number }>(async () => {
-        const res = await getData("expenses", { params: { ...buildParams(), page: currentPage, limit } });
+        const res = await getData("expenses", { params: { ...buildParams(), ...sortParams(sort), page: currentPage, limit } });
         return {
             rows: res.expenses || [],
             total: res.totalRecords || 0,
             totalPages: res.totalPages || 1,
             extra: { periodTotal: res.periodTotal || 0 },
         };
-    }, [currentPage, limit, searchText, fromDate, toDate, expenseType, minAmount, maxAmount], { page: currentPage, setPage: setCurrentPage });
+    }, [currentPage, limit, searchText, fromDate, toDate, expenseType, minAmount, maxAmount, sort], { page: currentPage, setPage: setCurrentPage });
 
     const activeCount =
         [expenseType, minAmount, maxAmount].filter(Boolean).length +
@@ -217,7 +219,7 @@ const Expenses = () => {
     };
 
     const fetchAllForExport = async (): Promise<Expense[]> => {
-        const res = await getData("expenses/export", { params: buildParams() });
+        const res = await getData("expenses/export", { params: { ...buildParams(), ...sortParams(sort) } });
         return res.expenses || [];
     };
 
@@ -315,10 +317,10 @@ const Expenses = () => {
                 </>
             ),
         },
-        { key: "date", header: "Date", className: "nowrap tabular", cell: (e) => fmtDate(e.date) },
-        { key: "type", header: "Type", className: "nowrap", cell: typeBadge },
-        { key: "desc", header: "Description", className: "text", cell: describe },
-        { key: "amt", header: "Amount", className: "num t-semibold t-strong", cell: (e) => money(e.amount) },
+        { key: "date", sortKey: "date", header: "Date", className: "nowrap tabular", cell: (e) => fmtDate(e.date) },
+        { key: "type", sortKey: "type", header: "Type", className: "nowrap", cell: typeBadge },
+        { key: "desc", sortKey: "desc", header: "Description", className: "text", cell: describe },
+        { key: "amt", sortKey: "amt", header: "Amount", className: "num t-semibold t-strong", cell: (e) => money(e.amount) },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: rowMenu },
     ];
 
@@ -326,7 +328,7 @@ const Expenses = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearExpenseFilters}
-            search={<SearchInput value={searchText} key={filtersKey} id="expense-search" label="Search" placeholder="Search reason or product..." onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="expense-search" label="Search" placeholder="Search reason, product or type…" onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "exp-from", label: "From", primary: true, node: <input id="exp-from" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "exp-to", label: "To", primary: true, node: <input id="exp-to" type="date" className="form-control" value={toDate} min={fromDate || undefined} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
@@ -358,6 +360,8 @@ const Expenses = () => {
 
             <DataList<Expense>
                 caption="Expenses"
+                sort={sort}
+                onSort={(next) => { setSort(next); setCurrentPage(1); }}
                 toolbar={filterBar}
                 summary={<>{list.total} expense{list.total !== 1 ? "s" : ""} — <strong>Total: {money(periodTotal)}</strong></>}
                 rows={list.rows}

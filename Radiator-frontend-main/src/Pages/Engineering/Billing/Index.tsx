@@ -14,7 +14,7 @@ import { STATUS_OPTIONS as ENG_STATUS, bsLabel, type EngBill } from "../types";
 import { PageHeader, PaymentBadge, Badge, BusyOverlay } from "../../../Components/ui/Basics";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
-import { DataList, MobileCard, Pagination, type Column } from "../../../Components/ui/DataList";
+import { DataList, MobileCard, Pagination, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
 
 import * as XLSX from "xlsx";
@@ -42,6 +42,7 @@ const EngBilling = () => {
     const [searchType, setSearchType] = useState("");
     const [searchBs, setSearchBs] = useState("");
     const [filtersKey, setFiltersKey] = useState(0);
+    const [sort, setSort] = useState<SortState | null>(null);
 
     const [paymentItem, setPaymentItem] = useState<EngBill | null>(null);
     const [deleteItem, setDeleteItem] = useState<EngBill | null>(null);
@@ -51,7 +52,8 @@ const EngBilling = () => {
     const itemsText = (x: EngBill) => (x.services || []).map((s) => `${s.typeLabel || s.type}${s.bsModel ? " " + bsLabel(settings, s.bsModel) : ""}: ${s.items.map((i) => (i.requiresComment && i.comment ? i.comment : i.label)).join(", ")}`).join(" | ");
 
     const buildParams = () => ({
-        vehicleNo: searchText,
+        // One box searches bill no, truck, mechanic, lorry address, phone, service types and items.
+        search: searchText,
         mechanic: searchMechanicName,
         serviceType: searchType,
         bsModel: searchBs,
@@ -61,9 +63,9 @@ const EngBilling = () => {
     });
 
     const list = useRemoteList<EngBill>(async () => {
-        const res = await getData("engbills", { params: { page: currentPage, limit, ...buildParams() } });
+        const res = await getData("engbills", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.bills || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, searchMechanicName, fromDate, toDate, searchStatus, searchType, searchBs, sort], { page: currentPage, setPage: setCurrentPage });
 
     const activeCount = [searchMechanicName, searchStatus, searchType, searchBs, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
     const hasFilters = activeCount > 0;
@@ -79,7 +81,7 @@ const EngBilling = () => {
     }, []);
 
     const fetchAllForExport = async (): Promise<EngBill[]> => {
-        const res = await getData("engbills/export", { params: buildParams() });
+        const res = await getData("engbills/export", { params: { ...buildParams(), ...sortParams(sort) } });
         return res.bills || [];
     };
 
@@ -171,17 +173,17 @@ const EngBilling = () => {
 
     const columns: Column<EngBill>[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
-        { key: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
-        { key: "bill", header: "Bill No", className: "nowrap tabular", cell: (o) => o.billNo },
-        { key: "truck", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNo },
-        { key: "mech", header: labels.agent, className: "text", cell: (o) => o.mechanic },
+        { key: "date", sortKey: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
+        { key: "bill", sortKey: "bill", header: "Bill No", className: "nowrap tabular", cell: (o) => o.billNo },
+        { key: "truck", sortKey: "truck", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNo },
+        { key: "mech", sortKey: "mech", header: labels.agent, className: "text", cell: (o) => o.mechanic },
         { key: "types", header: "Types", cell: (o) => (
             <span className="d-inline-flex flex-wrap gap-1">{typeNames(o).map((t) => <Badge key={t} tone="neutral">{t}</Badge>)}</span>
         ) },
-        { key: "total", header: "Total", className: "num", cell: (o) => money(o.netTotal) },
-        { key: "rec", header: "Received", className: "num", cell: (o) => money(o.amountReceived) },
-        { key: "bal", header: "Balance", className: "num", cell: (o) => <span className={o.balance > 0 ? "t-error t-semibold" : undefined}>{money(o.balance)}</span> },
-        { key: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.paymentStatus} /> },
+        { key: "total", sortKey: "total", header: "Total", className: "num", cell: (o) => money(o.netTotal) },
+        { key: "rec", sortKey: "rec", header: "Received", className: "num", cell: (o) => money(o.amountReceived) },
+        { key: "bal", sortKey: "bal", header: "Balance", className: "num", cell: (o) => <span className={o.balance > 0 ? "t-error t-semibold" : undefined}>{money(o.balance)}</span> },
+        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.paymentStatus} /> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
 
@@ -193,7 +195,7 @@ const EngBilling = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder={`Search ${labels.vehicleNo}...`} onSearch={setFilter(setSearchText)} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="bill-search" label="Search" placeholder="Search bill no, truck, mechanic, address, item…" onSearch={setFilter(setSearchText)} />}
             filters={[
                 { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, searchMechanicName)} onChange={(o: any) => setFilter(setsearchMechanicName)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={ENG_STATUS} placeholder="-- All Status --" value={opt(ENG_STATUS, searchStatus)} onChange={(o: any) => setFilter(setSearchStatus)(o ? o.value : "")} /> },
@@ -222,6 +224,8 @@ const EngBilling = () => {
 
             <DataList<EngBill>
                 caption="Bills"
+                sort={sort}
+                onSort={(next) => { setSort(next); setCurrentPage(1); }}
                 toolbar={filterBar}
                 rows={list.rows}
                 rowKey={(o) => o._id}

@@ -18,7 +18,6 @@ type ItemRow = {
     particulars: string;
     partRef: string | null;
     qty: number | string;
-    unit: string;
     rate: number | string;
     amount: number | string;
     amountTouched: boolean; // once the user hand-edits amount, qty/rate changes stop overwriting it
@@ -39,7 +38,7 @@ type FormValues = {
     };
 };
 
-const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", unit: "", rate: "", amount: "", amountTouched: false, memo: 0 };
+const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", rate: "", amount: "", amountTouched: false, memo: 0 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 // The server stores memo indexes 0–49 (shown as Memo 1–50).
@@ -59,9 +58,12 @@ const CreateAutoBill = () => {
     const [loadingRecord, setLoadingRecord] = useState(!!id);
     const [mechanicList, setMechanicList] = useState<string[]>([]);
     const [memoCount, setMemoCount] = useState(1);
+    // Stock per catalog part (Inventory), and what this bill already took when it was last saved (edit), so the
+    // warning compares against what is really free. Only a warning: the bill still saves.
+    const [stock, setStock] = useState<Record<string, number> | null>(null);
+    const [savedQty, setSavedQty] = useState<Record<string, number>>({});
 
     const parts = settings.automobile.parts || [];
-    const units = settings.automobile.units || [];
     const labels = settings.automobile.labels;
     const labourOptions = (settings.labour || []).map((name) => ({ label: name, value: name.toLowerCase() }));
 
@@ -96,6 +98,11 @@ const CreateAutoBill = () => {
     const items = watch("autoBill.items") || [];
 
     useEffect(() => {
+        if (isView) return;
+        getData("inventory/levels").then((r) => setStock(r.levels || {})).catch(() => setStock(null));
+    }, [isView]);
+
+    useEffect(() => {
         (async () => {
             try {
                 const res = await getData("auto-mechanic");
@@ -114,7 +121,6 @@ const CreateAutoBill = () => {
                 particulars: i.particulars || "",
                 partRef: i.partRef || null,
                 qty: i.qty ?? "",
-                unit: i.unit || "",
                 rate: i.rate ?? "",
                 amount: i.amount ?? "",
                 // A stored amount that differs from qty × rate was typed by hand: keep it. Otherwise let qty/rate edits recompute it.
@@ -122,11 +128,14 @@ const CreateAutoBill = () => {
                 memo: Number.isInteger(i.memo) && i.memo > 0 ? i.memo : 0, // bills saved before memos are one memo
             }));
             setMemoCount(Math.max(1, ...loadedItems.map((i) => i.memo + 1)));
+            const taken: Record<string, number> = {};
+            loadedItems.forEach((i) => { if (i.partRef) taken[i.partRef] = (taken[i.partRef] || 0) + (Number(i.qty) || 0); });
+            setSavedQty(taken);
             reset({
                 autoBill: {
                     date: data.billDate ? new Date(data.billDate) : null,
                     billNo: data.billNo ?? null,
-                    vehicleNumber: data.vehicleNumber || "",
+                    vehicleNumber: String(data.vehicleNumber || "").toUpperCase(),
                     customerName: data.customerName || "",
                     phoneNumber: data.phoneNumber || "",
                     mechanicName: data.mechanicName || "",
@@ -147,17 +156,16 @@ const CreateAutoBill = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
-    // Values filled in by code (amount from qty × rate, a catalog part's unit and rate) re-run their own validation,
+    // Values filled in by code (amount from qty × rate, a catalog part's rate) re-run their own validation,
     // so an earlier "required" error on that field clears as soon as it has a value.
-    const fill = (path: `autoBill.items.${number}.${"qty" | "unit" | "rate" | "amount"}`, value: string | number) =>
+    const fill = (path: `autoBill.items.${number}.${"qty" | "rate" | "amount"}`, value: string | number) =>
         setValue(path, value, { shouldValidate: isSubmitted });
 
-    // Particulars is free text with the parts catalog as suggestions; an exact catalog name fills unit and rate.
+    // Particulars is free text with the parts catalog as suggestions; an exact catalog name fills the rate.
     const onParticularsChange = (index: number, text: string) => {
         const part = parts.find((p) => p.label.toLowerCase() === text.trim().toLowerCase());
         setValue(`autoBill.items.${index}.partRef`, part ? part.value : null);
         if (!part) return;
-        fill(`autoBill.items.${index}.unit`, part.unit || "");
         fill(`autoBill.items.${index}.rate`, part.rate ?? "");
         setValue(`autoBill.items.${index}.amountTouched`, false);
         const qty = items[index]?.qty || 1;
@@ -213,6 +221,17 @@ const CreateAutoBill = () => {
     };
 
     const total = (items || []).reduce((sum, i) => sum + Number(i.amount || 0), 0);
+    // Catalog parts this bill needs more of than is in stock (all rows of the same part counted together).
+    const neededByPart: Record<string, number> = {};
+    items.forEach((i) => { if (i.partRef) neededByPart[i.partRef] = (neededByPart[i.partRef] || 0) + (Number(i.qty) || 0); });
+    const stockWarning = (partRef: string | null) => {
+        if (!stock || !partRef || !(partRef in stock)) return "";
+        const free = Math.round(((stock[partRef] || 0) + (savedQty[partRef] || 0)) * 100) / 100;
+        const need = Math.round((neededByPart[partRef] || 0) * 100) / 100;
+        if (need <= free) return "";
+        return free <= 0 ? `None in stock (bill needs ${need}). It will still save; stock will show short.`
+            : `Only ${free} in stock (bill needs ${need}). It will still save; stock will show short.`;
+    };
     const memoTotal = (m: number) => round2(items.reduce((sum, i) => sum + ((i.memo || 0) === m ? Number(i.amount || 0) : 0), 0));
 
     const onSubmit = async (data: any) => {
@@ -225,7 +244,7 @@ const CreateAutoBill = () => {
             const ordered = [...ab.items].sort((a: ItemRow, b: ItemRow) => (a.memo || 0) - (b.memo || 0));
             const payload = {
                 billDate: ab.date,
-                vehicleNumber: ab.vehicleNumber,
+                vehicleNumber: String(ab.vehicleNumber || "").trim().toUpperCase(),
                 customerName: ab.customerName,
                 phoneNumber: ab.phoneNumber,
                 mechanicName: ab.mechanicName,
@@ -236,7 +255,6 @@ const CreateAutoBill = () => {
                     particulars: i.particulars,
                     partRef: i.partRef,
                     qty: Number(i.qty || 0),
-                    unit: i.unit,
                     rate: Number(i.rate || 0),
                     amount: Number(i.amount || 0),
                 })),
@@ -276,10 +294,7 @@ const CreateAutoBill = () => {
                 transition={{ duration: reduceMotion ? 0 : 0.2 }}
             >
                 <datalist id="auto-parts">
-                    {parts.map((p) => <option key={p.value} value={p.label} label={`${p.unit ? `${p.unit} · ` : ""}${money(p.rate)}`} />)}
-                </datalist>
-                <datalist id="auto-units">
-                    {units.map((u) => <option key={u} value={u} />)}
+                    {parts.map((p) => <option key={p.value} value={p.label} label={money(p.rate)} />)}
                 </datalist>
 
                 <section className="card bill-sheet">
@@ -319,7 +334,8 @@ const CreateAutoBill = () => {
                                         control={control}
                                         rules={{ required: `${labels.vehicleNo} is required` }}
                                         render={({ field }) => (
-                                            <InputText {...field} id="vehicle-number" placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} />
+                                            <InputText {...field} id="vehicle-number" placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} autoCapitalize="characters"
+                                                onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
                                         )}
                                     />
                                 </Field>
@@ -389,7 +405,7 @@ const CreateAutoBill = () => {
 
                                         {rows.length > 0 && (
                                             <div className="memo-cols" aria-hidden="true">
-                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span>Unit</span><span className="num">Rate</span><span className="num">Amount</span><span />
+                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span className="num">Rate</span><span className="num">Amount</span><span />
                                             </div>
                                         )}
                                         {rows.length > 0 ? (
@@ -442,17 +458,6 @@ const CreateAutoBill = () => {
                                                                             aria-invalid={!!G?.qty || undefined}
                                                                             onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
                                                                         />
-                                                                    )}
-                                                                />
-                                                            </div>
-                                                            <div className="memo-unit">
-                                                                <span className="memo-mlabel" aria-hidden="true">Unit</span>
-                                                                <Controller
-                                                                    name={`autoBill.items.${index}.unit`}
-                                                                    control={control}
-                                                                    render={({ field }) => (
-                                                                        <InputText {...field} id={`unit-${index}`} list="auto-units" autoComplete="off" aria-label={`Unit for ${name}`}
-                                                                            placeholder="Unit" disabled={isView} />
                                                                     )}
                                                                 />
                                                             </div>
@@ -518,6 +523,11 @@ const CreateAutoBill = () => {
                                                                 </button>
                                                             ) : <span className="memo-x" />}
                                                             {rowError && <span className="field-error memo-row-error" role="alert">{rowError}</span>}
+                                                            {!rowError && !isView && stockWarning(items[index]?.partRef) && (
+                                                                <span className="memo-row-error memo-row-warn" role="status">
+                                                                    <Icons iconName="alert-triangle" className="icon-14" />{stockWarning(items[index]?.partRef)}
+                                                                </span>
+                                                            )}
                                                         </li>
                                                     );
                                                 })}

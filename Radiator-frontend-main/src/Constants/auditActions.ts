@@ -27,6 +27,10 @@ const LABELS: Record<string, string> = {
     "engbill.update": "Updated service bill",
     "engbill.delete": "Deleted service bill",
     "engbill.payment": "Recorded payment",
+    // Automobile inventory
+    "inventory.add": "Added stock",
+    "inventory.update": "Updated stock entry",
+    "inventory.delete": "Deleted stock entry",
     // Expenses
     "expense.create": "Added expense",
     "expense.update": "Updated expense",
@@ -39,6 +43,7 @@ const LABELS: Record<string, string> = {
     "bonus.payout": "Issued bonus",
     "bonus.manual": "Manual bonus",
     "bonus.adjust": "Corrected bonus",
+    "bonus.cancel": "Cancelled paid bonus",
     // Salary management
     "employee.create": "Added employee",
     "employee.update": "Updated employee",
@@ -74,6 +79,7 @@ export const clientActionOptions = (businessType: BusinessType) =>
     Object.keys(LABELS)
         .filter((k) => !k.startsWith("client."))
         .filter((k) => !/^(radiator|autobill|engbill)\./.test(k) || k.startsWith(BILL_PREFIX[businessType]))
+        .filter((k) => !k.startsWith("inventory.") || businessType === "automobile")
         .map((value) => ({ value, label: LABELS[value] }));
 
 /** All actions, bill actions qualified by vertical (super-admin audit). */
@@ -104,11 +110,17 @@ export const detailText = (e: AuditEntry): string => {
             return join(d.billNo != null ? `Bill ${d.billNo}` : "", d.vehicleNo, d.netTotal != null ? rs(d.netTotal) : "");
         case "engbill.payment":
             return join(d.billNo != null ? `Bill ${d.billNo}` : "", d.amount ? `paid ${rs(d.amount)}` : "", d.discount ? `discount ${rs(d.discount)}` : "");
+        case "inventory.add":
+        case "inventory.update":
+        case "inventory.delete":
+            return join(d.part, d.qty != null ? `qty ${d.qty}` : "", d.buyPrice != null ? `${rs(d.buyPrice)} each` : "", d.supplier);
         case "expense.create":
         case "expense.update":
             return join(d.expenseType, d.amount ? rs(d.amount) : "");
         case "bonus.payout":
             return join(d.type, d.beneficiary, d.count != null ? `${d.count} entr${d.count === 1 ? "y" : "ies"}` : "", d.amount ? rs(d.amount) : "");
+        case "bonus.cancel":
+            return join(d.type, d.beneficiary, d.count != null ? `${d.count} entr${d.count === 1 ? "y" : "ies"}` : "", d.amount ? rs(d.amount) : "", d.note);
         case "bonus.manual":
         case "bonus.adjust":
             return join(d.type, d.beneficiary, d.amount ? rs(d.amount) : "");

@@ -6,6 +6,7 @@
 // its own module.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
+import { parseSort, findSortedPage } from "../utils/listSort.js";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { toMoney, toValidDate } from "../utils/sanitize.js";
@@ -213,7 +214,10 @@ export async function addAdjustment(clientId, salaryPeriodId, { type = "correcti
   return entry;
 }
 
-export async function getSettlementHistory(clientId, { employeeId = "", from = "", to = "", page = 1, limit = 10 } = {}) {
+// Sortable settlement-history columns.
+const HISTORY_SORT = { period: "periodStart", net: "netAmount", adj: { $sum: "$adjustments.amount" }, paid: "paidAt" };
+
+export async function getSettlementHistory(clientId, { employeeId = "", from = "", to = "", page = 1, limit = 10, sortQuery = {} } = {}) {
   const db = await connectDB();
   const query = { clientId: toClientId(clientId) };
   if (employeeId) query.employeeId = new ObjectId(employeeId);
@@ -224,7 +228,7 @@ export async function getSettlementHistory(clientId, { employeeId = "", from = "
   }
   const skip = (page - 1) * limit;
   const [rows, total] = await Promise.all([
-    db.collection(PERIODS).find(query).sort({ periodStart: -1 }).skip(skip).limit(limit).toArray(),
+    findSortedPage(db.collection(PERIODS), query, parseSort(sortQuery, HISTORY_SORT, { periodStart: -1 }), skip, limit),
     db.collection(PERIODS).countDocuments(query),
   ]);
   return { rows, total, page, totalPages: Math.ceil(total / limit) || 1 };

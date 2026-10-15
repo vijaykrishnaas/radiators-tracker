@@ -11,7 +11,7 @@ import { money, today, fyStart } from "../../Utils/format";
 import { PageHeader, Badge, Callout, Field } from "../../Components/ui/Basics";
 import Modal from "../../Components/ui/Modal";
 import { FilterBar } from "../../Components/ui/Filters";
-import { DataList, MobileCard, type Column } from "../../Components/ui/DataList";
+import { DataList, MobileCard, useClientSort, type Column } from "../../Components/ui/DataList";
 import { AffixInput } from "../../Components/ui/Inputs";
 import { useRemoteList } from "../../Components/ui/useRemoteList";
 import { usePhone } from "../../Components/ui/hooks";
@@ -21,13 +21,17 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export type BonusRecord = {
+    _id?: string;
+    manual?: boolean;
+    /** What a cancelled entry had paid before it was cancelled. */
+    cancelledPaid?: number;
     billDate: string;
     billAmount: number;
     receivedAmount: number;
     accruedAmount: number;
     payableAmount: number;
     paidAmount?: number;
-    status: "pending" | "paid";
+    status: "pending" | "paid" | "cancelled";
 };
 
 export type BonusRow = {
@@ -38,23 +42,37 @@ export type BonusRow = {
     accruedBonus: number;
     payableBonus: number;
     paidBonus: number;
-    status: "Pending" | "Paid";
+    /** Paid bonus that was later cancelled (now counted as ₹0). */
+    cancelledBonus?: number;
+    status: "Pending" | "Paid" | "Cancelled";
     records: BonusRecord[];
 };
 
 const STATUS_OPTIONS = [
     { value: "pending", label: "Pending" },
     { value: "paid", label: "Paid" },
+    { value: "cancelled", label: "Cancelled" },
     { value: "", label: "All" },
 ];
 
 // Shared by Mechanic & Labour bonus pages. `type` switches the role; `defaultFrom`
 // sets the start of the default range (FY for mechanic, month for labour).
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("en-IN") : "—");
-const statusBadge = (paid: boolean) => <Badge tone={paid ? "success" : "warning"} dot>{paid ? "Paid" : "Pending"}</Badge>;
+const statusBadge = (status: string) => {
+    const s = status.toLowerCase();
+    return s === "paid" ? <Badge tone="success" dot>Paid</Badge>
+        : s === "cancelled" ? <Badge tone="neutral" dot>Cancelled</Badge>
+            : <Badge tone="warning" dot>Pending</Badge>;
+};
 
-const BillsBehind = ({ row }: { row: BonusRow }) => {
+const BILL_SORT: Record<string, (r: BonusRecord) => string | number> = {
+    date: (r) => r.billDate, work: (r) => r.billAmount, coll: (r) => r.receivedAmount, earned: (r) => r.accruedAmount,
+    ready: (r) => r.payableAmount, paid: (r) => (r.status === "paid" ? r.paidAmount || 0 : -1), status: (r) => r.status,
+};
+
+const BillsBehind = ({ row, onCancel }: { row: BonusRow; onCancel?: (rec: BonusRecord) => void }) => {
     const phone = usePhone();
+    const t = useClientSort(row.records, (r, k) => BILL_SORT[k]?.(r));
     return (
     <>
         <p className="t-xs t-muted t-medium mb-2">Bills behind {row.beneficiary}'s bonus</p>
@@ -63,25 +81,39 @@ const BillsBehind = ({ row }: { row: BonusRow }) => {
                 <table className="table mb-0">
                     <thead>
                         <tr>
-                            <th scope="col">Date</th>
-                            <th scope="col" className="num">Work value</th>
-                            <th scope="col" className="num">Collected</th>
-                            <th scope="col" className="num">Bonus earned</th>
-                            <th scope="col" className="num">Ready to pay</th>
-                            <th scope="col" className="num">Paid</th>
-                            <th scope="col">Status</th>
+                            <th scope="col" aria-sort={t.ariaSort("date")}>{t.header("date", "Date")}</th>
+                            <th scope="col" className="num" aria-sort={t.ariaSort("work")}>{t.header("work", "Work value")}</th>
+                            <th scope="col" className="num" aria-sort={t.ariaSort("coll")}>{t.header("coll", "Collected")}</th>
+                            <th scope="col" className="num" aria-sort={t.ariaSort("earned")}>{t.header("earned", "Bonus earned")}</th>
+                            <th scope="col" className="num" aria-sort={t.ariaSort("ready")}>{t.header("ready", "Ready to pay")}</th>
+                            <th scope="col" className="num" aria-sort={t.ariaSort("paid")}>{t.header("paid", "Paid")}</th>
+                            <th scope="col" aria-sort={t.ariaSort("status")}>{t.header("status", "Status")}</th>
+                            {onCancel && <th scope="col"><span className="visually-hidden">Action</span></th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {row.records.map((rec, i) => (
+                        {t.sorted.map((rec, i) => (
                             <tr key={i}>
                                 <td className="nowrap tabular">{fmtDate(rec.billDate)}</td>
                                 <td className="num">{money(rec.billAmount)}</td>
                                 <td className="num">{money(rec.receivedAmount)}</td>
                                 <td className="num">{money(rec.accruedAmount)}</td>
                                 <td className="num">{money(rec.payableAmount)}</td>
-                                <td className="num">{rec.status === "paid" ? money(rec.paidAmount || 0) : "—"}</td>
-                                <td>{statusBadge(rec.status === "paid")}</td>
+                                <td className="num">
+                                    {rec.status === "paid" ? money(rec.paidAmount || 0)
+                                        : rec.status === "cancelled" ? <s className="t-muted" title="Cancelled">{money(rec.cancelledPaid || 0)}</s> : "—"}
+                                </td>
+                                <td>{statusBadge(rec.status)}{rec.manual && <span className="d-block t-xs t-muted">Manual bonus</span>}</td>
+                                {onCancel && (
+                                    <td className="num">
+                                        {rec.status === "paid" && rec._id && (
+                                            <button type="button" className="btn btn-link btn-sm p-0 t-error" style={{ minHeight: 0 }}
+                                                aria-label={`Cancel paid bonus of ${money(rec.paidAmount || 0)} from ${fmtDate(rec.billDate)}`} onClick={() => onCancel(rec)}>
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
@@ -135,6 +167,10 @@ export function BonusPage({
     const [manualName, setManualName] = useState("");
     const [manualAmount, setManualAmount] = useState("");
     const [manualNote, setManualNote] = useState("");
+
+    // Cancel bonus already paid out: a whole person over the range, or one entry from the bills behind it.
+    const [cancelTarget, setCancelTarget] = useState<{ row: BonusRow; entry?: BonusRecord } | null>(null);
+    const [cancelNote, setCancelNote] = useState("");
 
     const list = useRemoteList<BonusRow>(async () => {
         const res = await getData("bonus/pending", { params: { type, from, to, beneficiary: name, status } });
@@ -271,6 +307,26 @@ export function BonusPage({
         }
     };
 
+    const openCancel = (row: BonusRow, entry?: BonusRecord) => { setCancelNote(""); setCancelTarget({ row, entry }); };
+    const cancelAmount = cancelTarget ? (cancelTarget.entry ? cancelTarget.entry.paidAmount || 0 : cancelTarget.row.paidBonus) : 0;
+    const confirmCancel = async () => {
+        if (!cancelTarget) return;
+        try {
+            setSaving(true);
+            const { row, entry } = cancelTarget;
+            const res = await postData("bonus/cancel", entry
+                ? { type, ids: [entry._id], note: cancelNote }
+                : { type, beneficiary: row.beneficiary, from, to, note: cancelNote });
+            callAlertMsg(res.message || "Bonus cancelled", "success");
+            setCancelTarget(null);
+            await list.reload();
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Couldn't cancel the bonus", "error");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const totals = rows.reduce(
         (a, r) => ({
             operations: a.operations + r.operations,
@@ -322,6 +378,7 @@ export function BonusPage({
         <RowActions ariaLabel={`Actions for ${r.beneficiary}`} items={[
             { label: expanded === r.beneficiary ? "Hide" : "Details", icon: <Icons iconName="view" />, onClick: () => setExpanded(expanded === r.beneficiary ? null : r.beneficiary) },
             ...(r.status === "Pending" ? [{ label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(r) }] : []),
+            ...(r.paidBonus > 0 ? [{ label: "Cancel paid bonus", icon: <Icons iconName="x" />, danger: true, onClick: () => openCancel(r) }] : []),
         ]} />
     );
 
@@ -333,13 +390,13 @@ export function BonusPage({
                 onChange={toggleAll} aria-label="Select all pending" />,
             width: 1,
             cell: (r) => (
-                <input type="checkbox" className="form-check-input" disabled={r.status === "Paid"}
+                <input type="checkbox" className="form-check-input" disabled={r.status !== "Pending"}
                     checked={selected.has(r.beneficiary)} onChange={() => toggleSel(r.beneficiary)}
                     aria-label={`Select ${r.beneficiary}`} />
             ),
         },
         {
-            key: "name", header: nameLabel, className: "key nowrap",
+            key: "name", sortValue: (r) => r.beneficiary, header: nameLabel, className: "key nowrap",
             cell: (r) => (
                 <>
                     <button type="button" className="expand-btn" aria-expanded={expanded === r.beneficiary}
@@ -351,13 +408,13 @@ export function BonusPage({
                 </>
             ),
         },
-        { key: "jobs", header: "Jobs", className: "num", cell: (r) => r.operations },
-        { key: "work", header: "Work value", className: "num", cell: (r) => money(r.totalBusiness) },
-        { key: "coll", header: "Collected", className: "num", cell: (r) => money(r.totalCollected) },
-        { key: "earned", header: "Bonus earned", className: "num", cell: (r) => money(r.accruedBonus) },
-        { key: "ready", header: "Ready to pay", className: "num t-semibold t-strong", cell: (r) => money(r.payableBonus) },
-        { key: "paid", header: "Paid", className: "num", cell: (r) => (r.status === "Paid" ? money(r.paidBonus) : "—") },
-        { key: "status", header: "Status", className: "nowrap", cell: (r) => statusBadge(r.status === "Paid") },
+        { key: "jobs", sortValue: (r) => r.operations, header: "Jobs", className: "num", cell: (r) => r.operations },
+        { key: "work", sortValue: (r) => r.totalBusiness, header: "Work value", className: "num", cell: (r) => money(r.totalBusiness) },
+        { key: "coll", sortValue: (r) => r.totalCollected, header: "Collected", className: "num", cell: (r) => money(r.totalCollected) },
+        { key: "earned", sortValue: (r) => r.accruedBonus, header: "Bonus earned", className: "num", cell: (r) => money(r.accruedBonus) },
+        { key: "ready", sortValue: (r) => r.payableBonus, header: "Ready to pay", className: "num t-semibold t-strong", cell: (r) => money(r.payableBonus) },
+        { key: "paid", sortValue: (r) => r.paidBonus, header: "Paid", className: "num", cell: (r) => (r.paidBonus > 0 ? money(r.paidBonus) : "—") },
+        { key: "status", sortValue: (r) => r.status, header: "Status", className: "nowrap", cell: (r) => statusBadge(r.status) },
         {
             key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num",
             cell: (r) => (
@@ -463,7 +520,7 @@ export function BonusPage({
                 onRetry={list.reload}
                 errorTitle="Couldn't load bonus data"
                 empty={{ icon: "wallet", title: "No bonuses in this range", text: "Try a different date range or status.", action: activeCount > 0 ? <button type="button" className="btn btn-link" onClick={clearFilters}>Clear filters</button> : undefined }}
-                expanded={(r) => (expanded === r.beneficiary ? <BillsBehind row={r} /> : null)}
+                expanded={(r) => (expanded === r.beneficiary ? <BillsBehind row={r} onCancel={(rec) => openCancel(r, rec)} /> : null)}
                 footer={totalsFooter}
                 mobileSummary={mobileTotals}
                 mobileCard={(r) => (
@@ -475,7 +532,7 @@ export function BonusPage({
                         ) : undefined}
                         menu={rowMenu(r)}
                         right={<span className="t-md t-semibold t-strong tabular">{money(r.payableBonus)}</span>}
-                        meta={[statusBadge(r.status === "Paid"), `Jobs ${r.operations}`, `Collected ${money(r.totalCollected)}`]}
+                        meta={[statusBadge(r.status), `Jobs ${r.operations}`, `Collected ${money(r.totalCollected)}`]}
                     >
                         <div className="d-flex align-items-center gap-2">
                             {r.status === "Pending" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => openIssue(r)}>Issue</button>}
@@ -484,10 +541,46 @@ export function BonusPage({
                                 {expanded === r.beneficiary ? "Hide bills" : "Show bills"}
                             </button>
                         </div>
-                        {expanded === r.beneficiary && <div className="mt-2"><BillsBehind row={r} /></div>}
+                        {expanded === r.beneficiary && <div className="mt-2"><BillsBehind row={r} onCancel={(rec) => openCancel(r, rec)} /></div>}
                     </MobileCard>
                 )}
             />
+
+            {/* Cancel a paid bonus */}
+            <Modal
+                open={!!cancelTarget}
+                onClose={() => !saving && setCancelTarget(null)}
+                title={`Cancel paid bonus — ${cancelTarget?.row.beneficiary ?? ""}`}
+                busy={saving}
+                danger
+                as="form"
+                onSubmit={issueSubmit(confirmCancel)}
+                footer={
+                    <>
+                        <button type="button" className="btn btn-secondary" onClick={() => setCancelTarget(null)} disabled={saving}>Keep bonus</button>
+                        <button type="submit" className="btn btn-danger" disabled={saving}>
+                            {saving && <span className="spinner" aria-hidden="true" />}{saving ? "Cancelling..." : `Cancel ${money(cancelAmount)}`}
+                        </button>
+                    </>
+                }
+            >
+                {cancelTarget && (
+                    <div className="d-grid gap-3">
+                        <p className="t-sm mb-0">
+                            {cancelTarget.entry
+                                ? <>Cancel the <strong className="t-strong">{money(cancelAmount)}</strong> paid for the bill of {fmtDate(cancelTarget.entry.billDate)}?</>
+                                : <>Cancel all <strong className="t-strong">{money(cancelAmount)}</strong> paid to {cancelTarget.row.beneficiary} for bills from {from} to {to}?</>}
+                        </p>
+                        <p className="t-sm t-muted mb-0">
+                            The bonus stays in the history as <strong>Cancelled</strong> and counts as ₹0. Those bills will not earn this bonus again,
+                            even after Recalculate. This cannot be undone.
+                        </p>
+                        <Field label="Reason (optional)" htmlFor="cancel-note">
+                            <input id="cancel-note" type="text" className="form-control" maxLength={200} value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} placeholder="e.g. paid by mistake" />
+                        </Field>
+                    </div>
+                )}
+            </Modal>
 
             {/* Single issue modal */}
             <Modal

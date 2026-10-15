@@ -30,6 +30,18 @@ const page = await browser.newPage({ viewport: { width: 1300, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 const payments = [];
+const listParams = [];
+const cancels = [];
+// Bonus page: Ramesh was paid ₹500 for one bill; the other bill is still pending.
+const bonusRow = {
+  beneficiary: "Ramesh", operations: 2, totalBusiness: 4000, totalCollected: 4000, accruedBonus: 900, payableBonus: 400, paidBonus: 500, cancelledBonus: 0, status: "Pending",
+  records: [
+    { _id: "b1", billDate: "2026-09-10T00:00:00.000Z", billAmount: 2000, receivedAmount: 2000, accruedAmount: 500, payableAmount: 500, paidAmount: 500, status: "paid" },
+    { _id: "b2", billDate: "2026-09-20T00:00:00.000Z", billAmount: 2000, receivedAmount: 2000, accruedAmount: 400, payableAmount: 400, paidAmount: 0, status: "pending" },
+  ],
+};
+const cancelledRow = { ...bonusRow, beneficiary: "Kumar", accruedBonus: 0, payableBonus: 0, paidBonus: 0, cancelledBonus: 300, status: "Cancelled",
+  records: [{ _id: "b3", billDate: "2026-09-12T00:00:00.000Z", billAmount: 2000, receivedAmount: 2000, accruedAmount: 0, payableAmount: 0, paidAmount: 0, cancelledPaid: 300, status: "cancelled" }] };
 
 await page.route("http://localhost:5000/**", async (route) => {
   const req = route.request();
@@ -38,6 +50,9 @@ await page.route("http://localhost:5000/**", async (route) => {
   if (p === "/settings") return json({ settings });
   if (p === "/mechanic") return json({ success: true, mechdata: ["Ramesh"] });
   if (p === "/radiators/r1/payment") { payments.push(req.postDataJSON()); return json({ success: true, message: "ok", radiator: bill }); }
+  if (p === "/bonus/pending") return json({ success: true, rows: [bonusRow, cancelledRow] });
+  if (p === "/bonus/cancel") { cancels.push(req.postDataJSON()); return json({ success: true, message: "Cancelled ✅" }); }
+  if (p === "/radiators") listParams.push(Object.fromEntries(new URL(req.url()).searchParams));
   if (p === "/radiators") return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: 1, radiatorData: [bill] });
   return json({ success: true, data: [], mechdata: [], records: [] });
 });
@@ -69,6 +84,55 @@ const p1 = await recordPayment(null, 500);
 ok("radiator: payment without discount keeps existing ₹100 discount", p1?.discount === 100 && p1?.amount === 500, JSON.stringify(p1));
 const p2 = await recordPayment(50, null);
 ok("radiator: extra ₹50 discount is added to existing (150)", p2?.discount === 150, JSON.stringify(p2));
+
+// Bills list: headers sort on the server, one search box.
+await page.goto(BASE + "/issueCounter/billing");
+await page.getByText("TN52R0001").first().waitFor({ timeout: 10000 });
+await page.locator("thead").getByRole("button", { name: "Total" }).click();
+await page.waitForTimeout(400);
+let lp = listParams[listParams.length - 1];
+ok("radiator: clicking Total sorts the whole list on the server", lp.sortBy === "total" && lp.sortDir === "asc", JSON.stringify(lp));
+await page.locator("#bill-search").fill("velu");
+await page.waitForTimeout(600);
+lp = listParams[listParams.length - 1];
+ok("radiator: search sends one term across all fields (not just the truck no)", lp.search === "velu" && !("truckNumber" in lp), JSON.stringify(lp));
+
+// Settings → Bonus: each role can be % of the service price (matrix) or a fixed ₹ per bill.
+await page.goto(BASE + "/settings");
+await page.getByRole("tab", { name: "Bonus" }).click();
+await page.waitForTimeout(300);
+ok("radiator: bonus defaults to the % matrix", (await page.locator('[id^="bonus-mechanic-"]').count()) > 0 && (await page.locator("#mechanic-bonus-amt").count()) === 0);
+await page.getByRole("radiogroup", { name: "Mechanic bonus type" }).getByRole("radio", { name: "₹ per bill" }).click();
+ok("radiator: '₹ per bill' swaps the mechanic matrix for one amount", (await page.locator('[id^="bonus-mechanic-"]').count()) === 0 && (await page.locator("#mechanic-bonus-amt").count()) === 1);
+await page.locator("#mechanic-bonus-amt").fill("300");
+const putReq = page.waitForRequest((r) => r.method() === "PUT" && new URL(r.url()).pathname === "/settings", { timeout: 5000 }).catch(() => null);
+await page.locator(".page-header .btn-primary, .form-footer .btn-primary").filter({ hasText: /Save/ }).first().click();
+const put = await putReq;
+const rb = put ? put.postDataJSON()?.bonus : null;
+ok("radiator: saving sends mechanic mode 'amount' ₹300; labour stays on %", rb?.mechanic?.mode === "amount" && rb?.mechanic?.amount === 300 && rb?.labour?.mode !== "amount", JSON.stringify({ m: rb?.mechanic?.mode, a: rb?.mechanic?.amount, l: rb?.labour?.mode }));
+
+// Bonus page: cancel a paid bonus (whole person for the range, or one entry); cancelled rows read as Cancelled.
+await page.goto(BASE + "/bonus/mechanics");
+await page.getByText("Ramesh").first().waitFor({ timeout: 10000 });
+ok("radiator: a fully cancelled person shows a Cancelled status", (await page.locator("tbody").getByText("Cancelled", { exact: true }).count()) >= 1);
+await page.getByRole("button", { name: "Actions for Ramesh" }).click();
+await page.getByRole("menuitem", { name: "Cancel paid bonus" }).click();
+const dlg = page.getByRole("alertdialog");
+ok("radiator: cancel dialog names the amount and that it can't be undone", /₹500\.00/.test(await dlg.innerText()) && /cannot be undone/.test(await dlg.innerText()));
+await page.locator("#cancel-note").fill("paid twice");
+await dlg.getByRole("button", { name: /Cancel ₹500/ }).click();
+for (let i = 0; i < 30 && !cancels.length; i++) await page.waitForTimeout(100);
+ok("radiator: cancelling a person's paid bonus posts type, person, range and reason", cancels[0]?.type === "mechanic" && cancels[0]?.beneficiary === "Ramesh" && !!cancels[0]?.from && !!cancels[0]?.to && cancels[0]?.note === "paid twice", JSON.stringify(cancels[0]));
+await page.getByRole("button", { name: "Show bills for Ramesh" }).click();
+const entryCancel = page.getByRole("button", { name: /Cancel paid bonus of ₹500\.00/ });
+ok("radiator: only the paid entry has a Cancel button", (await entryCancel.count()) === 1);
+await entryCancel.click();
+await page.getByRole("alertdialog").getByRole("button", { name: /Cancel ₹500/ }).click();
+for (let i = 0; i < 30 && cancels.length < 2; i++) await page.waitForTimeout(100);
+ok("radiator: cancelling one entry posts just its id", JSON.stringify(cancels[1]?.ids) === '["b1"]' && !cancels[1]?.beneficiary, JSON.stringify(cancels[1]));
+await page.locator("#bonus-status").click({ force: true }).catch(() => {});
+ok("radiator: status filter offers Cancelled", (await page.locator(".rs__option").filter({ hasText: /^Cancelled$/ }).count()) === 1 || (await page.getByText("Cancelled", { exact: true }).count()) > 0);
+await page.keyboard.press("Escape");
 
 // Engineering routes stay gated away from radiator tenants.
 await page.goto(BASE + "/engineering/dashboard");

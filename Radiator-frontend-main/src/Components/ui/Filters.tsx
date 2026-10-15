@@ -23,16 +23,18 @@ export function SearchInput({
 }) {
     const [text, setText] = useState(value ?? defaultValue);
     useEffect(() => {
-        if (value !== undefined && value !== text.trim() && (value === "" || value.length > 2)) setText(value);
+        if (value !== undefined && value !== text.trim() && (value === "" || value.length > 2 || /^\d+$/.test(value))) setText(value);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value]);
     const cb = useRef(onSearch);
     cb.current = onSearch;
+    // Words need 3+ characters to search; a number (a bill no.) searches from the first digit.
+    const searchable = (v: string) => v.length > 2 || v.length === 0 || /^\d+$/.test(v);
     const fire = useMemo(() => debounce((v: string) => {
-        if (v.length > 2 || v.length === 0) cb.current(v);
+        if (searchable(v)) cb.current(v);
     }, 200), []);
     useEffect(() => () => fire.cancel(), [fire]);
-    const hint = text.length > 0 && text.length < 3;
+    const hint = !searchable(text.trim());
     return (
         <div className="filter-search">
             <label className="form-label" htmlFor={id}>{label || "Search"}</label>

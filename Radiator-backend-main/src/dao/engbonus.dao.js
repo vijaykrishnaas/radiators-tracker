@@ -7,7 +7,7 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { getSettings } from "./settings.dao.js";
 import { toClientId } from "../utils/tenant.js";
-import { yearKey } from "./bonus.dao.js";
+import { yearKey, SETTLED } from "./bonus.dao.js";
 
 const COLLECTION = "bonuses";
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -43,7 +43,7 @@ export async function syncEngBonusesForRecord(clientId, bill) {
   const cid = toClientId(clientId);
   const recordId = new ObjectId(bill._id);
 
-  const paid = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: "paid" });
+  const paid = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: { $in: SETTLED } });
   if (paid) return;
 
   const calc = computeEngMechanicBonus(bill, settings);

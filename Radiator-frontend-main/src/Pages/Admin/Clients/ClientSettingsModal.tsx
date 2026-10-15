@@ -189,6 +189,8 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
 
                                 <Section title="Bonus Configuration">
                                     <dl className="kv-list mb-3">
+                                        <KV label="Mechanic — Bonus type" value={bonus?.mechanic?.mode === "amount" ? `₹${bonus?.mechanic?.amount ?? 0} per bill` : "% of service price"} />
+                                        <KV label="Labour — Bonus type" value={bonus?.labour?.mode === "amount" ? `₹${bonus?.labour?.amount ?? 0} per bill (shared)` : "% of service price"} />
                                         <KV label="Mechanic — Default %" value={bonus?.mechanic?.defaultPercent} />
                                         <KV label="Mechanic — Year Starts (month)" value={bonus?.mechanic?.yearStartMonth} />
                                         <KV label="Labour — Default %" value={bonus?.labour?.defaultPercent} />

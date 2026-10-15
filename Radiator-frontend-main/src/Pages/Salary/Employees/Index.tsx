@@ -161,11 +161,11 @@ const Employees = () => {
 
     const columns: Column<Employee>[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_e, i) => i + 1 },
-        { key: "name", header: "Name", className: "key text", cell: (e) => e.name },
-        { key: "role", header: "Role", className: "nowrap", cell: (e) => <Badge tone="neutral">{roleLabel(e.role)}</Badge> },
-        { key: "phone", header: "Phone", className: "nowrap tabular", cell: (e) => e.phone || "—" },
-        { key: "salary", header: "Base Salary", className: "num", cell: (e) => money(e.baseSalary) },
-        { key: "status", header: "Status", className: "nowrap", cell: statusBadge },
+        { key: "name", sortValue: (e) => e.name, header: "Name", className: "key text", cell: (e) => e.name },
+        { key: "role", sortValue: (e) => roleLabel(e.role), header: "Role", className: "nowrap", cell: (e) => <Badge tone="neutral">{roleLabel(e.role)}</Badge> },
+        { key: "phone", sortValue: (e) => e.phone || "", header: "Phone", className: "nowrap tabular", cell: (e) => e.phone || "—" },
+        { key: "salary", sortValue: (e) => Number(e.baseSalary) || 0, header: "Base Salary", className: "num", cell: (e) => money(e.baseSalary) },
+        { key: "status", sortValue: (e) => (e.active ? 0 : 1), header: "Status", className: "nowrap", cell: statusBadge },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: rowMenu },
     ];
 
@@ -173,7 +173,7 @@ const Employees = () => {
         <FilterBar
             activeCount={activeCount}
             onClear={clearFilters}
-            search={<SearchInput value={searchText} key={filtersKey} id="emp-search" label="Search" placeholder="Search by name..." onSearch={setSearchText} />}
+            search={<SearchInput value={searchText} key={filtersKey} id="emp-search" label="Search" placeholder="Search name, phone or role…" onSearch={setSearchText} />}
             filters={[
                 {
                     id: "emp-status", label: "Status", primary: true,

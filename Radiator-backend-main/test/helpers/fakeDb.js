@@ -46,6 +46,7 @@ function matches(doc, query) {
 // Tiny evaluator for the one aggregation-pipeline update used by nextBillNo:
 // [{ $set: { engbill: { $add: [{ $max: [{ $ifNull: ["$engbill", 0] }, start-1] }, 1] } } }]
 function evalExpr(expr, doc) {
+  if (expr instanceof Date || expr instanceof ObjectId) return expr; // literal values, not expressions
   if (expr && typeof expr === "object" && !Array.isArray(expr)) {
     if ("$ifNull" in expr) {
       const [field, fallback] = expr.$ifNull;
@@ -169,6 +170,7 @@ class FakeCollection {
     this.docs = this.docs.map((d) => {
       if (!matches(d, query)) return d;
       modifiedCount++;
+      if (Array.isArray(update)) return applyPipelineUpdate(d, update);
       return update.$set ? { ...d, ...update.$set } : d;
     });
     return { matchedCount: modifiedCount, modifiedCount };
@@ -202,6 +204,17 @@ class FakeCollection {
     this.docs[idx] = updated;
     // Mimic mongodb driver v7: findOneAndUpdate resolves to the document itself.
     return updated;
+  }
+
+  // updateOne operations only (all bulkWrite callers in the DAOs use $set updates).
+  async bulkWrite(ops) {
+    let modifiedCount = 0;
+    for (const op of ops) {
+      if (!op.updateOne) throw new Error("fakeDb.bulkWrite supports updateOne only");
+      const r = await this.updateOne(op.updateOne.filter, op.updateOne.update);
+      modifiedCount += r.modifiedCount;
+    }
+    return { modifiedCount };
   }
 
   aggregate() {

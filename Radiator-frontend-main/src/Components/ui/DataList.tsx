@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Icons from "../../Components/Icons";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "./Basics";
@@ -97,7 +97,54 @@ export type Column<T> = {
     className?: string;
     headerClassName?: string;
     width?: number | string;
+    /** Server-sorted lists (DataList gets `onSort`): the sortBy key the API understands. */
+    sortKey?: string;
+    /** Lists sorted in the browser: the value this column sorts by. */
+    sortValue?: (row: T) => string | number | null | undefined;
+    /** Name for the phone "Sort by" menu when the header is not plain text. */
+    sortLabel?: string;
 };
+
+export type SortState = { key: string; dir: "asc" | "desc" };
+/** Query params for a server-sorted list (empty = the list's default order). */
+export const sortParams = (s: SortState | null) => (s ? { sortBy: s.key, sortDir: s.dir } : {});
+/** One click sorts A→Z / low→high, the next Z→A / high→low, the third goes back to the list's default order. */
+export const nextSort = (cur: SortState | null, key: string): SortState | null =>
+    cur?.key !== key ? { key, dir: "asc" } : cur.dir === "asc" ? { key, dir: "desc" } : null;
+
+const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+export function compareValues(a: unknown, b: unknown) {
+    const blank = (v: unknown) => v === null || v === undefined || v === "";
+    if (blank(a) || blank(b)) return blank(a) === blank(b) ? 0 : blank(a) ? 1 : -1; // blanks last
+    if (typeof a === "number" && typeof b === "number") return a - b;
+    return collator.compare(String(a), String(b));
+}
+
+/** Header cell content: a button that cycles the sort, with an arrow for the current direction. */
+export function SortButton({ label, active, onClick }: { label: React.ReactNode; active?: "asc" | "desc"; onClick: () => void }) {
+    return (
+        <button type="button" className={`th-sort${active ? " is-active" : ""}`} onClick={onClick}>
+            <span>{label}</span>
+            <Icons iconName={active === "asc" ? "arrow-up" : active === "desc" ? "arrow-down" : "arrow-up-down"} className="th-sort-icon" />
+        </button>
+    );
+}
+
+/** Browser-side sorting for small tables outside DataList (e.g. a dashboard table). */
+export function useClientSort<T>(rows: T[], value: (row: T, key: string) => unknown, initial: SortState | null = null) {
+    const [sort, setSort] = useState<SortState | null>(initial);
+    const sorted = useMemo(() => {
+        if (!sort) return rows;
+        const out = [...rows].sort((a, b) => compareValues(value(a, sort.key), value(b, sort.key)));
+        return sort.dir === "desc" ? out.reverse() : out;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows, sort]);
+    const header = (key: string, label: React.ReactNode) => (
+        <SortButton label={label} active={sort?.key === key ? sort.dir : undefined} onClick={() => setSort((s) => nextSort(s, key))} />
+    );
+    const ariaSort = (key: string) => (sort?.key === key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined);
+    return { sorted, sort, setSort, header, ariaSort };
+}
 
 export type ListStatus = "loading" | "error" | "ready";
 
@@ -119,6 +166,8 @@ export function DataList<T>({
     above,
     pagination,
     caption,
+    sort,
+    onSort,
 }: {
     rows: T[];
     rowKey: (row: T, index: number) => string;
@@ -137,9 +186,50 @@ export function DataList<T>({
     above?: React.ReactNode;
     pagination?: React.ReactNode;
     caption?: string;
+    /** Server-sorted list: the current order and a setter (reset to page 1 and refetch on change). */
+    sort?: SortState | null;
+    onSort?: (s: SortState | null) => void;
 }) {
     const phone = usePhone();
     const showRows = status === "ready" && rows.length > 0;
+
+    // Without onSort, columns with a sortValue sort the rows here in the browser.
+    const serverSort = !!onSort;
+    const [localSort, setLocalSort] = useState<SortState | null>(null);
+    const active = serverSort ? sort ?? null : localSort;
+    const setActive = serverSort ? onSort! : setLocalSort;
+    const sortKeyOf = (c: Column<T>) => (serverSort ? c.sortKey : c.sortValue ? c.key : undefined);
+    const sortable = columns.filter((c) => sortKeyOf(c));
+    const shown = useMemo(() => {
+        if (serverSort || !active) return rows;
+        const col = columns.find((c) => c.key === active.key);
+        if (!col?.sortValue) return rows;
+        const out = [...rows].sort((a, b) => compareValues(col.sortValue!(a), col.sortValue!(b)));
+        return active.dir === "desc" ? out.reverse() : out;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows, active, serverSort]);
+    const labelOf = (c: Column<T>) => c.sortLabel ?? (typeof c.header === "string" ? c.header : c.key);
+    // Phones show cards, not headers: the same sort is a "Sort by" menu above them.
+    const phoneSort = sortable.length > 0 && (
+        <div className="m-sort">
+            <label htmlFor={`${caption || "list"}-sort`.replace(/\s+/g, "-")} className="m-sort-label">Sort by</label>
+            <select id={`${caption || "list"}-sort`.replace(/\s+/g, "-")} className="form-select"
+                value={active ? `${active.key}:${active.dir}` : ""}
+                onChange={(e) => {
+                    const [key, dir] = e.target.value.split(":");
+                    setActive(key ? { key, dir: dir as "asc" | "desc" } : null);
+                }}>
+                <option value="">Default order</option>
+                {sortable.flatMap((c) => {
+                    const k = sortKeyOf(c)!;
+                    return [
+                        <option key={`${k}:asc`} value={`${k}:asc`}>{labelOf(c)} ↑</option>,
+                        <option key={`${k}:desc`} value={`${k}:desc`}>{labelOf(c)} ↓</option>,
+                    ];
+                })}
+            </select>
+        </div>
+    );
 
     let body: React.ReactNode;
     if (status === "loading") body = phone ? <SkeletonCards /> : <SkeletonRows />;
@@ -149,7 +239,8 @@ export function DataList<T>({
         body = (
             <>
                 {mobileSummary && <div className="m-summary">{mobileSummary}</div>}
-                <div className="m-list">{rows.map((r, i) => <React.Fragment key={rowKey(r, i)}>{mobileCard(r, i)}</React.Fragment>)}</div>
+                {phoneSort}
+                <div className="m-list">{shown.map((r, i) => <React.Fragment key={rowKey(r, i)}>{mobileCard(r, i)}</React.Fragment>)}</div>
             </>
         );
     } else {
@@ -159,15 +250,20 @@ export function DataList<T>({
                     {caption && <caption className="visually-hidden">{caption}</caption>}
                     <thead>
                         <tr>
-                            {columns.map((c) => (
-                                <th key={c.key} scope="col" className={c.headerClassName ?? (c.className?.includes("num") ? "num" : undefined)} style={c.width ? { width: c.width } : undefined}>
-                                    {c.header}
-                                </th>
-                            ))}
+                            {columns.map((c) => {
+                                const k = sortKeyOf(c);
+                                const dir = k && active?.key === k ? active.dir : undefined;
+                                return (
+                                    <th key={c.key} scope="col" className={c.headerClassName ?? (c.className?.includes("num") ? "num" : undefined)} style={c.width ? { width: c.width } : undefined}
+                                        aria-sort={dir ? (dir === "asc" ? "ascending" : "descending") : undefined}>
+                                        {k ? <SortButton label={c.header} active={dir} onClick={() => setActive(nextSort(active, k))} /> : c.header}
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((r, i) => {
+                        {shown.map((r, i) => {
                             const extra = expanded?.(r);
                             return (
                                 <React.Fragment key={rowKey(r, i)}>
