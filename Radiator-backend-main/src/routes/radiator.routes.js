@@ -56,8 +56,8 @@ router.get("/analytics", async (req, res, next) => {
 
 router.get("/export", async (req, res, next) => {
   try {
-    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = req.query;
-    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType });
+    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = req.query;
+    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType, search: String(search) }, req.query);
     res.json({ success: true, radiatorData });
   } catch (error) {
     next(error);
@@ -67,9 +67,10 @@ router.get("/export", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query);
-    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "" } = req.query;
+    const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = req.query;
 
-    const data = await getAllRadiators(req.user.clientId, page, limit, truckNumber, mechanicName, fromDate, toDate, status, radiatorType, serviceType);
+    const data = await getAllRadiators(req.user.clientId, page, limit, truckNumber, mechanicName, fromDate, toDate, status, radiatorType, serviceType,
+      { search: String(search), sortQuery: req.query });
 
     res.json({
       success: true,

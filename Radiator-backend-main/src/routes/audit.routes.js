@@ -12,8 +12,8 @@ router.use(authenticate, loadActiveTenant);
 router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query, { defaultLimit: 20, maxLimit: 100 });
-    const { action = "", from = "", to = "" } = req.query;
-    const data = await listAudit({ page, limit, clientId: req.user.clientId, action, from, to });
+    const { action = "", from = "", to = "", search = "" } = req.query;
+    const data = await listAudit({ page, limit, clientId: req.user.clientId, action, from, to, search: String(search), sortQuery: req.query });
     res.json({ success: true, ...data });
   } catch (error) {
     next(error);

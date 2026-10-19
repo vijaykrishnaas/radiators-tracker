@@ -19,14 +19,14 @@ export const monthStart = (): string => {
 };
 
 export const fyStart = (settings: AppSettings): string => {
-    const m = settings.bonus?.mechanic?.yearStartMonth || 4;
+    const m = (settings.businessType === "engineering" ? settings.engineering?.fyStartMonth : settings.bonus?.mechanic?.yearStartMonth) || 4;
     const now = new Date();
     const y = (now.getMonth() + 1) >= m ? now.getFullYear() : now.getFullYear() - 1;
     return `${y}-${String(m).padStart(2, "0")}-01`;
 };
 
 export const fyYear = (settings: AppSettings): string => {
-    const m = settings.bonus?.mechanic?.yearStartMonth || 4;
+    const m = (settings.businessType === "engineering" ? settings.engineering?.fyStartMonth : settings.bonus?.mechanic?.yearStartMonth) || 4;
     const now = new Date();
     return String((now.getMonth() + 1) >= m ? now.getFullYear() : now.getFullYear() - 1);
 };

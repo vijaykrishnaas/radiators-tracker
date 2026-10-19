@@ -9,12 +9,17 @@ export async function ensureIndexes() {
   // Tenant-scoping indexes — every business read filters by clientId.
   await db.collection("radiators").createIndex({ clientId: 1 }, { name: "clientId_1" });
   await db.collection("bonuses").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  // Engineering profit looks up each bill's mechanic bonus entries.
+  await db.collection("bonuses").createIndex({ clientId: 1, type: 1, recordId: 1 }, { name: "clientId_1_type_1_recordId_1" });
   await db.collection("expenses").createIndex({ clientId: 1 }, { name: "clientId_1" });
 
   // Automobile bills — same tenant-scoping index, plus a billDate sort index
   // since the billing list/export default to newest-bill-first.
   await db.collection("autobills").createIndex({ clientId: 1 }, { name: "clientId_1" });
   await db.collection("autobills").createIndex({ clientId: 1, billDate: -1 }, { name: "clientId_1_billDate_-1" });
+  await db.collection("engbills").createIndex({ clientId: 1 }, { name: "clientId_1" });
+  await db.collection("engbills").createIndex({ clientId: 1, billDate: -1 }, { name: "clientId_1_billDate_-1" });
+  await db.collection("engbills").createIndex({ clientId: 1, vehicleNo: 1 }, { name: "clientId_1_vehicleNo_1" });
 
   // Audit log (Stage 2) — harmless to ensure early.
   await db.collection("audit_log").createIndex({ at: -1 }, { name: "at_-1" });

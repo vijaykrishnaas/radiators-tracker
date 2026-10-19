@@ -138,7 +138,7 @@ router.get("/history", async (req, res, next) => {
   try {
     const { employeeId = "", from = "", to = "", page = 1, limit = 10 } = req.query;
     const data = await getSettlementHistory(req.user.clientId, {
-      employeeId, from, to, page: Number(page) || 1, limit: Number(limit) || 10,
+      employeeId, from, to, page: Number(page) || 1, limit: Number(limit) || 10, sortQuery: req.query,
     });
     res.json({ success: true, ...data });
   } catch (error) {

@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toCount, toValidDate } from "../utils/sanitize.js";
+import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
 import { getPayrollTotal } from "./salary.dao.js";
 
 const COLLECTION = "expenses";
@@ -17,7 +18,7 @@ function buildExpenseQuery(clientId, { from = "", to = "", expenseType = "", sea
   if (expenseType) query.expenseType = expenseType;
   if (search) {
     const rx = { $regex: escapeRegex(search), $options: "i" };
-    query.$or = [{ reason: rx }, { "products.name": rx }];
+    query.$or = [{ reason: rx }, { "products.name": rx }, { expenseType: rx }];
   }
   // Every expense stores a top-level `amount` (materials sum their products).
   const min = Number(minAmount), max = Number(maxAmount);
@@ -48,13 +49,16 @@ function sanitizeExpense(data) {
   return clean;
 }
 
-export async function getExpenses(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}, page = 1, limit = 10) {
+// Sortable list columns.
+const EXPENSE_SORT = { date: "date", type: "expenseType", desc: "reason", amt: "amount" };
+
+export async function getExpenses(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}, page = 1, limit = 10, sortQuery = {}) {
   const db = await connectDB();
   const query = buildExpenseQuery(clientId, { from, to, expenseType, search, minAmount, maxAmount });
   const skip = (page - 1) * limit;
 
   const [expenses, totalRecords, [aggResult]] = await Promise.all([
-    db.collection(COLLECTION).find(query).sort({ date: -1 }).skip(skip).limit(limit).toArray(),
+    findSortedPage(db.collection(COLLECTION), query, parseSort(sortQuery, EXPENSE_SORT, { date: -1 }), skip, limit),
     db.collection(COLLECTION).countDocuments(query),
     db.collection(COLLECTION).aggregate([
       { $match: query },
@@ -71,10 +75,11 @@ export async function getExpenses(clientId, { from = "", to = "", expenseType = 
   };
 }
 
-export async function getExpensesForExport(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}) {
+export async function getExpensesForExport(clientId, { from = "", to = "", expenseType = "", search = "", minAmount = "", maxAmount = "" } = {}, sortQuery = {}) {
   const db = await connectDB();
   const query = buildExpenseQuery(clientId, { from, to, expenseType, search, minAmount, maxAmount });
-  return db.collection(COLLECTION).find(query).sort({ date: -1 }).toArray();
+  const { sort } = parseSort(sortQuery, EXPENSE_SORT, { date: -1 });
+  return db.collection(COLLECTION).find(query, { collation: SORT_COLLATION }).sort(sort).toArray();
 }
 
 export async function getExpenseAnalytics(clientId, { from = "", to = "" } = {}) {

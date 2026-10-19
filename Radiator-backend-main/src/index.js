@@ -17,11 +17,13 @@ import publicRoutes from "./routes/public.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import radiatorRoutes, { mechanicRouter } from "./routes/radiator.routes.js";
 import autobillRoutes, { autoMechanicRouter } from "./routes/autobill.routes.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
 import bonusRoutes from "./routes/bonus.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import salaryRoutes from "./routes/salary.routes.js";
+import engbillRoutes from "./routes/engbill.routes.js";
 import { backfillSettingsShape } from "./migrations/backfillSettingsShape.js";
 
 const app = express();
@@ -69,11 +71,13 @@ app.use("/radiators", radiatorRoutes);
 app.use("/mechanic", mechanicRouter);
 app.use("/autobills", autobillRoutes);
 app.use("/auto-mechanic", autoMechanicRouter);
+app.use("/inventory", inventoryRoutes);
 app.use("/bonus", bonusRoutes);
 app.use("/expenses", expenseRoutes);
 app.use("/audit", auditRoutes);
 app.use("/employees", employeeRoutes);
 app.use("/salary", salaryRoutes);
+app.use("/engbills", engbillRoutes);
 
 // 404 for unknown routes
 app.use((req, res) => {

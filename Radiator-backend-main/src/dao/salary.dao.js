@@ -6,6 +6,7 @@
 // its own module.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
+import { parseSort, findSortedPage } from "../utils/listSort.js";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { toMoney, toValidDate } from "../utils/sanitize.js";
@@ -42,6 +43,15 @@ export function getWorkingDays(periodStart, periodEnd, settings) {
   return Math.max(totalDays - offCount, 1);
 }
 
+// Advances can only be recovered up to the gross earned this period. Anything
+// beyond that is carried forward (as a new unapplied advance) instead of being
+// marked repaid and lost when net clamps at 0.
+export function splitAdvances(unappliedAdvances, grossAmount) {
+  const total = round2((unappliedAdvances || []).reduce((s, a) => s + Number(a.amount || 0), 0));
+  const deducted = round2(Math.min(total, Math.max(Number(grossAmount) || 0, 0)));
+  return { total, deducted, carryForward: round2(total - deducted) };
+}
+
 async function computeSettlementFigures(clientId, employeeId, periodStart, periodEnd, presentDaysManual) {
   const db = await connectDB();
   const cid = toClientId(clientId);
@@ -65,13 +75,13 @@ async function computeSettlementFigures(clientId, employeeId, periodStart, perio
   const unappliedAdvances = await db.collection(ADVANCES)
     .find({ clientId: cid, employeeId: eid, status: "unapplied" })
     .toArray();
-  const advancesDeducted = round2(unappliedAdvances.reduce((s, a) => s + Number(a.amount || 0), 0));
+  const { deducted: advancesDeducted, carryForward: advancesCarriedForward } = splitAdvances(unappliedAdvances, grossAmount);
 
   return {
     employee, settings, workingDays,
     presentDaysComputed, presentDaysMode, presentDaysUsed,
     baseSalary, grossAmount,
-    unappliedAdvances, advancesDeducted,
+    unappliedAdvances, advancesDeducted, advancesCarriedForward,
   };
 }
 
@@ -94,6 +104,7 @@ export async function previewSettlement(clientId, employeeId, periodStart, perio
       advanceId: a._id, amount: a.amount, date: a.date, reason: a.reason,
     })),
     advancesDeducted: figures.advancesDeducted,
+    advancesCarriedForward: figures.advancesCarriedForward,
     deductions,
     deductionsTotal,
     netAmount,
@@ -145,6 +156,7 @@ export async function settlePeriod(clientId, employeeId, periodStart, periodEnd,
     grossAmount: figures.grossAmount,
     advancesApplied,
     advancesDeducted: figures.advancesDeducted,
+    advancesCarriedForward: figures.advancesCarriedForward,
     deductions: cleanDeductions,
     deductionsTotal,
     netAmount,
@@ -163,6 +175,21 @@ export async function settlePeriod(clientId, employeeId, periodStart, periodEnd,
       { _id: { $in: figures.unappliedAdvances.map((a) => a._id) } },
       { $set: { status: "applied", appliedToPeriodId: result.insertedId, appliedAt: new Date() } }
     );
+  }
+
+  if (figures.advancesCarriedForward > 0) {
+    await db.collection(ADVANCES).insertOne({
+      clientId: cid,
+      employeeId: eid,
+      date: end,
+      amount: figures.advancesCarriedForward,
+      reason: `Carried forward from ${periodKey} settlement`,
+      status: "unapplied",
+      appliedToPeriodId: null,
+      appliedAt: null,
+      carriedFromPeriodId: result.insertedId,
+      createdAt: new Date(),
+    });
   }
 
   return { ...doc, _id: result.insertedId };
@@ -187,7 +214,10 @@ export async function addAdjustment(clientId, salaryPeriodId, { type = "correcti
   return entry;
 }
 
-export async function getSettlementHistory(clientId, { employeeId = "", from = "", to = "", page = 1, limit = 10 } = {}) {
+// Sortable settlement-history columns.
+const HISTORY_SORT = { period: "periodStart", net: "netAmount", adj: { $sum: "$adjustments.amount" }, paid: "paidAt" };
+
+export async function getSettlementHistory(clientId, { employeeId = "", from = "", to = "", page = 1, limit = 10, sortQuery = {} } = {}) {
   const db = await connectDB();
   const query = { clientId: toClientId(clientId) };
   if (employeeId) query.employeeId = new ObjectId(employeeId);
@@ -198,7 +228,7 @@ export async function getSettlementHistory(clientId, { employeeId = "", from = "
   }
   const skip = (page - 1) * limit;
   const [rows, total] = await Promise.all([
-    db.collection(PERIODS).find(query).sort({ periodStart: -1 }).skip(skip).limit(limit).toArray(),
+    findSortedPage(db.collection(PERIODS), query, parseSort(sortQuery, HISTORY_SORT, { periodStart: -1 }), skip, limit),
     db.collection(PERIODS).countDocuments(query),
   ]);
   return { rows, total, page, totalPages: Math.ceil(total / limit) || 1 };

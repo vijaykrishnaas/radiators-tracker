@@ -7,8 +7,10 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { syncAutoBonusesForRecord, removeBonusesForRecord } from "./bonus.dao.js";
 import { getSettings } from "./settings.dao.js";
+import { pendingNetOfDiscount } from "../utils/analytics.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
+import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
 
 export const STATUS = {
   NOT_RECEIVED: "Not Received",
@@ -40,6 +42,8 @@ function enrich(doc) {
   const receivedAmount = Math.min(normalizeReceivedAmount(doc), netAmount);
   return {
     ...doc,
+    // Bills saved before numbers were stored in capitals still read as capitals everywhere.
+    vehicleNumber: String(doc.vehicleNumber || "").toUpperCase(),
     totalAmount,
     discount,
     netAmount,
@@ -66,10 +70,19 @@ async function nextBillNo(cid) {
   return doc.autobill;
 }
 
+// Items can be grouped into memos (the supplier memos the parts came on). An
+// item stores its memo's index; bills saved before memos existed omit it (memo 0).
+const MAX_MEMO = 49;
+function toMemoIndex(val) {
+  const n = Math.trunc(Number(val));
+  return Number.isFinite(n) ? Math.min(Math.max(n, 0), MAX_MEMO) : 0;
+}
+
 function buildRecordFields(data) {
   return {
     billDate: toValidDate(data.billDate, "billDate"),
-    vehicleNumber: String(data.vehicleNumber || "").trim(),
+    // Vehicle numbers are always stored in capitals.
+    vehicleNumber: String(data.vehicleNumber || "").trim().toUpperCase(),
     customerName: data.customerName || "",
     phoneNumber: data.phoneNumber || "",
     mechanicName: data.mechanicName,
@@ -90,9 +103,9 @@ function buildRecordFields(data) {
         particulars: i.particulars || "",
         partRef: i.partRef || null,
         qty,
-        unit: i.unit || "",
         rate,
         amount,
+        ...(i.memo != null ? { memo: toMemoIndex(i.memo) } : {}),
       };
     }),
   };
@@ -183,8 +196,39 @@ export async function recordPayment(clientId, id, amount, discount = null) {
   return enrich({ ...existing, receivedAmount, status, discount: appliedDiscount });
 }
 
-function buildAutoBillQuery(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "" } = {}) {
+// Sortable list columns: stored fields, plus the bill total / pending worked out from the items.
+const AUTO_TOTAL = { $sum: "$items.amount" };
+const AUTO_SORT = {
+  billNo: "billNo",
+  date: "billDate",
+  vehicle: "vehicleNumber",
+  customer: "customerName",
+  agent: "mechanicName",
+  status: "status",
+  rec: "receivedAmount",
+  total: AUTO_TOTAL,
+  pend: {
+    $max: [{ $subtract: [{ $subtract: [AUTO_TOTAL, { $ifNull: ["$discount", 0] }] }, { $ifNull: ["$receivedAmount", 0] }] }, 0],
+  },
+};
+
+// One search box over every text field on the bill (and the bill number when the text is a number).
+function searchClause(search) {
+  const text = String(search || "").trim();
+  if (!text) return null;
+  const rx = { $regex: escapeRegex(text), $options: "i" };
+  const or = [
+    { vehicleNumber: rx }, { customerName: rx }, { phoneNumber: rx }, { mechanicName: rx },
+    { labourName: rx }, { "items.particulars": rx }, { notes: rx },
+  ];
+  if (/^\d+$/.test(text)) or.push({ billNo: Number(text) });
+  return { $or: or };
+}
+
+function buildAutoBillQuery(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = {}) {
   const query = { clientId: toClientId(clientId) };
+  const s = searchClause(search);
+  if (s) Object.assign(query, s);
   if (vehicleNumber) query.vehicleNumber = { $regex: escapeRegex(vehicleNumber), $options: "i" };
   if (customerName) query.customerName = { $regex: escapeRegex(customerName), $options: "i" };
   if (mechName) query.mechanicName = mechName;
@@ -208,19 +252,15 @@ export async function getAllAutoBills(
   toDate = "",
   status = "",
   customerName = "",
-  partRef = ""
+  partRef = "",
+  { search = "", sortQuery = {} } = {}
 ) {
   const db = await connectDB();
   const collection = db.collection("autobills");
   const skip = (page - 1) * limit;
-  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef });
+  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
   const total = await collection.countDocuments(query);
-  const bills = await collection
-    .find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .toArray();
+  const bills = await findSortedPage(collection, query, parseSort(sortQuery, AUTO_SORT, { createdAt: -1 }), skip, limit);
   return {
     total,
     page,
@@ -229,10 +269,14 @@ export async function getAllAutoBills(
   };
 }
 
-export async function getAllAutoBillsForExport(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "" } = {}) {
+export async function getAllAutoBillsForExport(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = {}, sortQuery = {}) {
   const db = await connectDB();
-  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef });
-  const bills = await db.collection("autobills").find(query).sort({ billDate: -1 }).toArray();
+  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
+  // The export follows the order chosen on screen (newest first by default).
+  const order = parseSort(sortQuery, AUTO_SORT, { billDate: -1 });
+  const bills = order.computed
+    ? await findSortedPage(db.collection("autobills"), query, order, 0, 1_000_000)
+    : await db.collection("autobills").find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();
   return bills.map(enrich);
 }
 
@@ -251,6 +295,17 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
     { $match: query },
     { $addFields: computedFields },
     {
+      $addFields: {
+        // Discount capped at the bill total (mirrors enrich()), so Pending is net of discounts.
+        discountAmt: {
+          $min: [
+            { $max: [{ $cond: [{ $isNumber: "$discount" }, "$discount", 0] }, 0] },
+            "$totalAmount",
+          ],
+        },
+      },
+    },
+    {
       $facet: {
         kpis: [
           {
@@ -259,6 +314,7 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
               totalBills: { $sum: 1 },
               totalRevenue: { $sum: "$totalAmount" },
               totalCollected: { $sum: "$receivedAmt" },
+              totalDiscount: { $sum: "$discountAmt" },
             },
           },
         ],
@@ -293,7 +349,7 @@ export async function getAutoAnalytics(clientId, { vehicleNumber = "", customerN
     totalBills: raw.totalBills,
     totalRevenue: raw.totalRevenue,
     totalCollected: raw.totalCollected,
-    totalPending: raw.totalRevenue - raw.totalCollected,
+    totalPending: pendingNetOfDiscount(raw),
     collectionRate: raw.totalRevenue > 0
       ? Math.round((raw.totalCollected / raw.totalRevenue) * 1000) / 10
       : 0,

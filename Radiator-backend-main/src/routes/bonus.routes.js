@@ -8,11 +8,13 @@ import {
   markPaidByRange,
   addManualBonus,
   adjustPendingPayable,
+  cancelPaidBonus,
   getReviewData,
   getAutoReviewData,
   backfill,
   backfillAuto,
 } from "../dao/bonus.dao.js";
+import { getEngReviewData, backfillEng } from "../dao/engbonus.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
 import { getClientById } from "../dao/client.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
@@ -79,6 +81,10 @@ router.get("/review", async (req, res, next) => {
     // live in `autobills` and bonus is a flat %, so review data is sourced
     // from a parallel aggregation. Radiator tenants take the existing path.
     const client = await getClientById(req.user.clientId);
+    // Engineering tenants: flat-% mechanic bonus over `engbills` (see dao/engbonus.dao.js).
+    if (client?.businessType === "engineering") {
+      return res.json({ success: true, ...(await getEngReviewData(req.user.clientId, type, name, from, to, settings)) });
+    }
     const data = client?.businessType === "automobile"
       ? await getAutoReviewData(req.user.clientId, type, name, from, to, settings)
       : await getReviewData(req.user.clientId, type, name, from, to, settings);
@@ -161,13 +167,33 @@ router.post("/adjust", async (req, res, next) => {
   }
 });
 
+// Cancel bonus already paid out: by entry ids, or all of a person's paid entries in a billDate range.
+router.post("/cancel", async (req, res, next) => {
+  try {
+    const { type, beneficiary = "", from = "", to = "", ids = null, note = "" } = req.body || {};
+    if (!["mechanic", "labour"].includes(type)) {
+      return res.status(400).json({ success: false, message: "type ('mechanic' | 'labour') is required" });
+    }
+    const result = await cancelPaidBonus(req.user.clientId, { type, beneficiary: String(beneficiary).trim(), from, to, ids, note });
+    if (result.modified === 0) {
+      return res.status(404).json({ success: false, message: "No paid bonus to cancel here" });
+    }
+    await auditClient(req, "bonus.cancel", { type, beneficiary, count: result.modified, amount: result.amount, note });
+    res.json({ success: true, message: `Cancelled ${result.modified} paid bonus entr${result.modified === 1 ? "y" : "ies"} (₹${result.amount}) ✅`, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/sync", async (req, res, next) => {
   try {
     const { fromDate = "", toDate = "" } = req.body || {};
     const client = await getClientById(req.user.clientId);
-    const count = client?.businessType === "automobile"
-      ? await backfillAuto(req.user.clientId, fromDate, toDate)
-      : await backfill(req.user.clientId, fromDate, toDate);
+    const count = client?.businessType === "engineering"
+      ? await backfillEng(req.user.clientId, fromDate, toDate)
+      : client?.businessType === "automobile"
+        ? await backfillAuto(req.user.clientId, fromDate, toDate)
+        : await backfill(req.user.clientId, fromDate, toDate);
     res.json({ success: true, message: `Synced bonuses for ${count} bill(s) ✅`, count });
   } catch (error) {
     next(error);

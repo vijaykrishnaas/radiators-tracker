@@ -71,8 +71,8 @@ router.get("/analytics", async (req, res, next) => {
 
 router.get("/export", async (req, res, next) => {
   try {
-    const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "" } = req.query;
-    const autoBillData = await getAllAutoBillsForExport(req.user.clientId, { vehicleNumber, customerName, mechName: mechanicName, fromDate, toDate, status, partRef });
+    const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = req.query;
+    const autoBillData = await getAllAutoBillsForExport(req.user.clientId, { vehicleNumber, customerName, mechName: mechanicName, fromDate, toDate, status, partRef, search: String(search) }, req.query);
     res.json({ success: true, autoBillData });
   } catch (error) {
     next(error);
@@ -82,9 +82,10 @@ router.get("/export", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const { page, limit } = parsePaging(req.query);
-    const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "" } = req.query;
+    const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = req.query;
 
-    const data = await getAllAutoBills(req.user.clientId, page, limit, vehicleNumber, mechanicName, fromDate, toDate, status, customerName, partRef);
+    const data = await getAllAutoBills(req.user.clientId, page, limit, vehicleNumber, mechanicName, fromDate, toDate, status, customerName, partRef,
+      { search: String(search), sortQuery: req.query });
 
     res.json({
       success: true,

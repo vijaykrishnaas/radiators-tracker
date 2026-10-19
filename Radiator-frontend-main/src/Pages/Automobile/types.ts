@@ -6,7 +6,8 @@ export type AutoBillItem = {
     particulars: string;
     partRef?: string | null;
     qty: number;
-    unit: string;
+    /** Bills saved before units were dropped may still carry one; it is no longer shown. */
+    unit?: string;
     rate: number;
     amount: number;
 };
@@ -31,4 +32,4 @@ export type AutoBillRecord = {
 };
 
 export const itemsText = (record: AutoBillRecord) =>
-    (record.items || []).map((i) => `${i.particulars} (${i.qty}${i.unit ? " " + i.unit : ""})`).join(", ") || "—";
+    (record.items || []).map((i) => `${i.particulars} (${i.qty})`).join(", ") || "—";

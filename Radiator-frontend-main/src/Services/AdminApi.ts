@@ -2,7 +2,7 @@
 // JWT (a super-admin token) is attached automatically by the request interceptor.
 import { getData, postData, patchData, deleteData } from "./ApiServices";
 
-export type BusinessType = "radiator" | "automobile";
+export type BusinessType = "radiator" | "automobile" | "engineering";
 
 export type ClientRow = {
     _id: string;
@@ -79,7 +79,7 @@ export type AuditEntry = {
 };
 
 export const listAudit = (
-    params: { page?: number; limit?: number; clientCode?: string; action?: string; from?: string; to?: string } = {}
+    params: { page?: number; limit?: number; clientCode?: string; action?: string; from?: string; to?: string; search?: string; sortBy?: string; sortDir?: string } = {}
 ): Promise<{ entries: AuditEntry[]; total: number; totalPages: number; currentPage: number }> =>
     getData("admin/audit", { params });
 

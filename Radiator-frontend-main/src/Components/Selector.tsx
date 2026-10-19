@@ -1,79 +1,7 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import Select, { GroupBase, MultiValue, OptionsOrGroups, SingleValue, StylesConfig } from "react-select";
-import type { ActionMeta } from "react-select";
-import { SelectOption } from "../Types/common";
-
-const selectStyles: StylesConfig<SelectOption, boolean> = {
-  valueContainer: (base) => ({
-    ...base,
-    padding: '1px 6px 3px',
-  }),
-  control: (base, state) => ({
-    ...base,
-    fontSize: '14px',
-    padding: '0px 5px',
-    minHeight: '38px',
-    borderRadius: 'var(--r-sm)',
-    border: state.isFocused ? '1px solid var(--primary) !important' : '1px solid var(--line-strong) !important',
-    boxShadow: state.isFocused ? 'var(--focus-ring)' : 'none',
-    ':hover': {
-      border: '1px solid var(--primary) !important',
-    },
-  }),
-  option: (base, state) => ({
-    ...base,
-    zIndex: 99999,
-    backgroundColor: state.isSelected ? 'var(--navMenuActiveColor)' : '#FFFFFF',
-    color: 'var(--ink-700)',
-    cursor: 'pointer',
-    ':hover': {
-      backgroundColor: 'var(--canvas)',
-    },
-  }),
-  multiValue: (base) => ({
-    ...base,
-    backgroundColor: 'var(--canvas)',
-    padding: '0.2rem 0.3rem',
-    border: '1px solid var(--primary) !important',
-    marginRight: '5px',
-    borderRadius: 'var(--r-sm)',
-    color: 'var(--primary) !important',
-  }),
-  multiValueLabel: (base) => ({
-    ...base,
-    padding: '0px 3px',
-  }),
-  multiValueRemove: (base) => ({
-    ...base,
-    color: "#D0D5DD",
-    marginLeft: '5px',
-    padding: '0 2px',
-    marginRight: '-4px',
-    opacity: '0.75',
-    borderLeft: '1px solid #D0D5DD !important',
-    svg: {
-      fill: "#B0B4B9",
-    },
-    ':hover': {
-      backgroundColor: '#e4e4e4',
-      opacity: '1',
-      borderRadius: '3px',
-    },
-  }),
-  menuList: (base) => ({
-    ...base,
-    maxHeight: 200,
-    overflowY: 'auto'
-  }),
-  menuPortal: (base) => ({
-    ...base,
-    zIndex: 999999,
-  }),
-  menu: (base) => ({
-    ...base,
-    zIndex: 999999,
-  })
-};
+import type { ActionMeta, SelectComponentsConfig, SelectInstance } from "react-select";
+import { selectStyles } from "../theme/reactSelectTheme";
 
 interface SelectorProps<SelectOption, IsMulti extends boolean = false> {
   isMulti?: IsMulti;
@@ -89,17 +17,62 @@ interface SelectorProps<SelectOption, IsMulti extends boolean = false> {
   className?: string;
   prefixClassName?: string;
   id?: string;
+  /** id of the inner <input>, so a <label htmlFor> points at it. */
+  inputId?: string;
+  "aria-label"?: string;
+  "aria-invalid"?: boolean;
+  onBlur?: () => void;
+  noOptionsMessage?: () => React.ReactNode;
+  /** Multi-pickers with checkbox rows: keep the menu open and show chosen options (ticked) instead of hiding them. */
+  closeMenuOnSelect?: boolean;
+  hideSelectedOptions?: boolean;
+  components?: Partial<SelectComponentsConfig<SelectOption, IsMulti, GroupBase<SelectOption>>>;
+  /** Per-use style tweaks layered on top of the shared theme. */
+  styles?: StylesConfig<SelectOption, IsMulti>;
   onChange?: (
     newValue: IsMulti extends true ? MultiValue<SelectOption> : SingleValue<SelectOption>,
     actionMeta: ActionMeta<SelectOption>
   ) => void;
 }
 
+// Menu list height cap (matches menuList maxHeight in the theme), the space kept from the viewport edge, and a floor.
+const MENU_MAX = 260;
+const MENU_GAP = 16;
+const MENU_MIN = 120;
+
+// Layers per-use style functions over the theme: each key runs the theme's function, then the override on its result.
+function mergeStyles<O, M extends boolean>(base: StylesConfig<O, M>, extra?: StylesConfig<O, M>): StylesConfig<O, M> {
+  if (!extra) return base;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, fn] of Object.entries(extra)) {
+    const b = (base as Record<string, unknown>)[k] as ((s: object, st: unknown) => object) | undefined;
+    out[k] = (s: object, st: unknown) => (fn as (s: object, st: unknown) => object)(b ? b(s, st) : s, st);
+  }
+  return out as StylesConfig<O, M>;
+}
+
+/** react-select themed to the form controls (spec §4.5). The menu portals to <body> above modals. */
 const Selector = <SelectOption, IsMulti extends boolean = false>(
   props: SelectorProps<SelectOption, IsMulti>
 ) => {
+  // The menu is position:fixed (portal), where react-select neither flips nor caps its height, so a control near
+  // the bottom of the viewport opened a menu whose last options were off-screen. Measure on open and fit it.
+  const ref = useRef<SelectInstance<SelectOption, IsMulti>>(null);
+  const [fit, setFit] = useState<{ placement: "bottom" | "top"; max: number }>({ placement: "bottom", max: MENU_MAX });
+  const onMenuOpen = () => {
+    const r = ref.current?.controlRef?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom - MENU_GAP;
+    const above = r.top - MENU_GAP;
+    if (below >= MENU_MAX || below >= above) setFit({ placement: "bottom", max: Math.max(MENU_MIN, Math.min(MENU_MAX, below)) });
+    else setFit({ placement: "top", max: Math.max(MENU_MIN, Math.min(MENU_MAX, above)) });
+  };
   return (
     <Select<SelectOption, IsMulti>
+      ref={ref}
+      onMenuOpen={onMenuOpen}
+      menuPlacement={fit.placement}
+      maxMenuHeight={fit.max}
       isMulti={props.isMulti}
       placeholder={props.placeholder}
       isDisabled={props.disabled || props.isDisabled}
@@ -110,12 +83,21 @@ const Selector = <SelectOption, IsMulti extends boolean = false>(
       name={props.name}
       options={props.options}
       className={props.className}
-      classNamePrefix={props.prefixClassName}
-      styles={selectStyles as unknown as StylesConfig<SelectOption, IsMulti>}
+      classNamePrefix={props.prefixClassName || "rs"}
+      styles={mergeStyles(selectStyles as unknown as StylesConfig<SelectOption, IsMulti>, props.styles)}
+      closeMenuOnSelect={props.closeMenuOnSelect}
+      hideSelectedOptions={props.hideSelectedOptions}
+      components={props.components}
       id={props.id}
+      inputId={props.inputId}
+      aria-label={props["aria-label"]}
+      aria-invalid={props["aria-invalid"]}
+      onBlur={props.onBlur}
+      noOptionsMessage={props.noOptionsMessage}
       onChange={props.onChange}
       menuPortalTarget={document.body}
       menuPosition="fixed"
+      menuShouldBlockScroll={false}
     />
   );
 };

@@ -37,7 +37,10 @@ export async function listEmployees(clientId, { active = "", role = "", search =
   if (active === "true") query.active = true;
   if (active === "false") query.active = false;
   if (role) query.role = role;
-  if (search) query.name = { $regex: escapeRegex(search), $options: "i" };
+  if (search) {
+    const rx = { $regex: escapeRegex(search), $options: "i" };
+    query.$or = [{ name: rx }, { phone: rx }, { role: rx }];
+  }
   return db.collection(COLLECTION).find(query).sort({ name: 1 }).toArray();
 }
 

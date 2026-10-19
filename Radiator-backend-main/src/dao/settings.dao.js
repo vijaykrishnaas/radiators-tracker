@@ -11,6 +11,7 @@ function freshDefaults(clientId, companyName, businessType) {
   doc._id = toClientId(clientId);
   if (companyName) doc.company.name = companyName;
   if (businessType === "automobile") doc.businessType = "automobile";
+  if (businessType === "engineering") doc.businessType = "engineering";
   return doc;
 }
 
@@ -60,6 +61,13 @@ export async function updateSettings(clientId, data) {
 
   await collection.updateOne({ _id }, { $set: update }, { upsert: true });
   return getSettings(clientId);
+}
+
+// Clears one image link (company.logoUrl / qrUrl / signatureUrl / loginBgUrl) after its image is removed.
+export async function clearCompanyAssetUrl(clientId, field) {
+  if (!["logoUrl", "qrUrl", "signatureUrl", "loginBgUrl"].includes(field)) throw new Error("Unknown image field");
+  const db = await connectDB();
+  await db.collection("settings").updateOne({ _id: toClientId(clientId) }, { $set: { [`company.${field}`]: "" } });
 }
 
 // Sets only company.logoUrl (after a logo upload) without replacing the rest.

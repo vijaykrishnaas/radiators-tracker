@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
-import AlertComponent from "../../../../Components/AlertComponent";
-import Loader from "../../../../Components/Loader";
 import Icons from "../../../../Components/Icons";
 import InputText from "../../../../Components/InputText";
 import Selector from "../../../../Components/Selector";
@@ -12,16 +10,18 @@ import DateCalendar from "../../../../Components/DateCalendar";
 import { getData, postData, putData } from "../../../../Services/ApiServices";
 import { useAlertMsg } from "../../../../Services/AllServices";
 import { useSettings } from "../../../../Context/SettingsContext";
+import { PageHeader, Field, FormFooter, SkeletonRows } from "../../../../Components/ui/Basics";
 import { money } from "../../../../Utils/format";
+import { ConfirmDialog } from "../../../../Components/ui/Modal";
 
 type ItemRow = {
     particulars: string;
     partRef: string | null;
     qty: number | string;
-    unit: string;
     rate: number | string;
     amount: number | string;
     amountTouched: boolean; // once the user hand-edits amount, qty/rate changes stop overwriting it
+    memo: number; // which memo (group of rows) the item sits in
 };
 
 type FormValues = {
@@ -38,35 +38,45 @@ type FormValues = {
     };
 };
 
-const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", unit: "", rate: "", amount: "", amountTouched: false };
+const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", rate: "", amount: "", amountTouched: false, memo: 0 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+// The server stores memo indexes 0–49 (shown as Memo 1–50).
+const MAX_MEMOS = 50;
 
 const CreateAutoBill = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { id } = useParams();
     const { settings } = useSettings();
-    const { alert, alertMessage, callAlertMsg } = useAlertMsg();
+    const { callAlertMsg } = useAlertMsg();
+    const reduceMotion = useReducedMotion();
 
     const isView = location.pathname.includes("/view/");
     const isEdit = !!id && !isView;
     const [loading, setLoading] = useState(false);
+    const [loadingRecord, setLoadingRecord] = useState(!!id);
     const [mechanicList, setMechanicList] = useState<string[]>([]);
+    const [memoCount, setMemoCount] = useState(1);
+    // Stock per catalog part (Inventory), and what this bill already took when it was last saved (edit), so the
+    // warning compares against what is really free. Only a warning: the bill still saves.
+    const [stock, setStock] = useState<Record<string, number> | null>(null);
+    const [savedQty, setSavedQty] = useState<Record<string, number>>({});
 
     const parts = settings.automobile.parts || [];
-    const units = settings.automobile.units || [];
     const labels = settings.automobile.labels;
     const labourOptions = (settings.labour || []).map((name) => ({ label: name, value: name.toLowerCase() }));
-    const partOptions = parts.map((p) => ({ label: p.label, value: p.value }));
 
     const {
         control,
         handleSubmit,
         watch,
         setValue,
+        getValues,
         reset,
-        formState: { errors },
+        clearErrors,
+        trigger,
+        formState: { errors, isSubmitted },
     } = useForm<FormValues>({
         mode: "onChange",
         defaultValues: {
@@ -84,8 +94,13 @@ const CreateAutoBill = () => {
         },
     });
 
-    const { fields, append, remove } = useFieldArray({ control, name: "autoBill.items" });
+    const { fields, append, remove, replace } = useFieldArray({ control, name: "autoBill.items" });
     const items = watch("autoBill.items") || [];
+
+    useEffect(() => {
+        if (isView) return;
+        getData("inventory/levels").then((r) => setStock(r.levels || {})).catch(() => setStock(null));
+    }, [isView]);
 
     useEffect(() => {
         (async () => {
@@ -99,23 +114,28 @@ const CreateAutoBill = () => {
     }, []);
 
     const loadRecord = async () => {
-        setLoading(true);
+        setLoadingRecord(true);
         try {
             const data = await getData(`autobills/${id}`);
             const loadedItems: ItemRow[] = (data.items || []).map((i: any) => ({
                 particulars: i.particulars || "",
                 partRef: i.partRef || null,
                 qty: i.qty ?? "",
-                unit: i.unit || "",
                 rate: i.rate ?? "",
                 amount: i.amount ?? "",
-                amountTouched: true, // preserve exactly what was stored, don't auto-recompute on load
+                // A stored amount that differs from qty × rate was typed by hand: keep it. Otherwise let qty/rate edits recompute it.
+                amountTouched: Number(i.amount) !== round2((Number(i.qty) || 0) * (Number(i.rate) || 0)),
+                memo: Number.isInteger(i.memo) && i.memo > 0 ? i.memo : 0, // bills saved before memos are one memo
             }));
+            setMemoCount(Math.max(1, ...loadedItems.map((i) => i.memo + 1)));
+            const taken: Record<string, number> = {};
+            loadedItems.forEach((i) => { if (i.partRef) taken[i.partRef] = (taken[i.partRef] || 0) + (Number(i.qty) || 0); });
+            setSavedQty(taken);
             reset({
                 autoBill: {
                     date: data.billDate ? new Date(data.billDate) : null,
                     billNo: data.billNo ?? null,
-                    vehicleNumber: data.vehicleNumber || "",
+                    vehicleNumber: String(data.vehicleNumber || "").toUpperCase(),
                     customerName: data.customerName || "",
                     phoneNumber: data.phoneNumber || "",
                     mechanicName: data.mechanicName || "",
@@ -127,7 +147,7 @@ const CreateAutoBill = () => {
         } catch (err: any) {
             callAlertMsg(err?.message || "Error loading record", "error");
         } finally {
-            setLoading(false);
+            setLoadingRecord(false);
         }
     };
 
@@ -136,25 +156,53 @@ const CreateAutoBill = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
-    const onPartChange = (index: number, opt: any) => {
-        setValue(`autoBill.items.${index}.partRef`, opt ? opt.value : null);
-        setValue(`autoBill.items.${index}.particulars`, opt ? opt.label : "");
-        if (opt) {
-            const part = parts.find((p) => p.value === opt.value);
-            if (part) {
-                setValue(`autoBill.items.${index}.unit`, part.unit || "");
-                setValue(`autoBill.items.${index}.rate`, part.rate ?? "");
-                setValue(`autoBill.items.${index}.amountTouched`, false);
-                recomputeAmount(index, items[index]?.qty, part.rate);
-            }
-        }
+    // Values filled in by code (amount from qty × rate, a catalog part's rate) re-run their own validation,
+    // so an earlier "required" error on that field clears as soon as it has a value.
+    const fill = (path: `autoBill.items.${number}.${"qty" | "rate" | "amount"}`, value: string | number) =>
+        setValue(path, value, { shouldValidate: isSubmitted });
+
+    // Particulars is free text with the parts catalog as suggestions; an exact catalog name fills the rate.
+    const onParticularsChange = (index: number, text: string) => {
+        const part = parts.find((p) => p.label.toLowerCase() === text.trim().toLowerCase());
+        setValue(`autoBill.items.${index}.partRef`, part ? part.value : null);
+        if (!part) return;
+        fill(`autoBill.items.${index}.rate`, part.rate ?? "");
+        setValue(`autoBill.items.${index}.amountTouched`, false);
+        const qty = items[index]?.qty || 1;
+        fill(`autoBill.items.${index}.qty`, qty);
+        fill(`autoBill.items.${index}.amount`, round2((Number(qty) || 0) * (Number(part.rate) || 0)));
+    };
+
+    const addRow = (memo: number) => append({ ...emptyItem, qty: 1, memo });
+    const addMemo = () => {
+        if (memoCount >= MAX_MEMOS) return;
+        addRow(memoCount);
+        setMemoCount((n) => n + 1);
+    };
+    // Removing a memo drops its rows and closes the gap so memo numbers stay 1..n. replace() re-indexes the rows, so
+    // any validation errors (keyed by row index) are cleared and re-run instead of landing on the wrong rows.
+    const removeMemo = (memo: number) => {
+        const rest = (getValues("autoBill.items") || [])
+            .filter((i) => (i.memo || 0) !== memo)
+            .map((i) => ({ ...i, memo: (i.memo || 0) > memo ? i.memo - 1 : i.memo || 0 }));
+        replace(rest.length ? rest : [{ ...emptyItem }]);
+        setMemoCount((n) => Math.max(1, n - 1));
+        clearErrors("autoBill.items");
+        if (isSubmitted) setTimeout(() => trigger("autoBill.items"), 0);
+    };
+    // A memo with anything typed in it asks first: one click would otherwise wipe a whole supplier memo.
+    const [confirmMemo, setConfirmMemo] = useState<number | null>(null);
+    const askRemoveMemo = (memo: number) => {
+        const hasData = items.some((i) => (i.memo || 0) === memo && (String(i.particulars || "").trim() || Number(i.amount) > 0));
+        if (hasData) setConfirmMemo(memo);
+        else removeMemo(memo);
     };
 
     const recomputeAmount = (index: number, qty: any, rate: any) => {
         if (items[index]?.amountTouched) return;
-        const q = Number(qty) || 0;
-        const r = Number(rate) || 0;
-        setValue(`autoBill.items.${index}.amount`, q && r ? round2(q * r) : "");
+        // A ₹0 rate is valid (free item): compute whenever both are entered, blank only while one is missing.
+        const filled = (v: any) => v !== "" && v !== null && v !== undefined;
+        fill(`autoBill.items.${index}.amount`, filled(qty) && filled(rate) ? round2((Number(qty) || 0) * (Number(rate) || 0)) : "");
     };
 
     const onQtyChange = (index: number, val: string) => {
@@ -173,25 +221,40 @@ const CreateAutoBill = () => {
     };
 
     const total = (items || []).reduce((sum, i) => sum + Number(i.amount || 0), 0);
+    // Catalog parts this bill needs more of than is in stock (all rows of the same part counted together).
+    const neededByPart: Record<string, number> = {};
+    items.forEach((i) => { if (i.partRef) neededByPart[i.partRef] = (neededByPart[i.partRef] || 0) + (Number(i.qty) || 0); });
+    const stockWarning = (partRef: string | null) => {
+        if (!stock || !partRef || !(partRef in stock)) return "";
+        const free = Math.round(((stock[partRef] || 0) + (savedQty[partRef] || 0)) * 100) / 100;
+        const need = Math.round((neededByPart[partRef] || 0) * 100) / 100;
+        if (need <= free) return "";
+        return free <= 0 ? `None in stock (bill needs ${need}). It will still save; stock will show short.`
+            : `Only ${free} in stock (bill needs ${need}). It will still save; stock will show short.`;
+    };
+    const memoTotal = (m: number) => round2(items.reduce((sum, i) => sum + ((i.memo || 0) === m ? Number(i.amount || 0) : 0), 0));
 
     const onSubmit = async (data: any) => {
         if (isView) return;
         setLoading(true);
         try {
             const ab = data.autoBill;
+            const usedMemos = [...new Set<number>(ab.items.map((i: ItemRow) => i.memo || 0))].sort((a, b) => a - b);
+            // Saved in memo order (rows added to an earlier memo later on are appended at the end of the form array).
+            const ordered = [...ab.items].sort((a: ItemRow, b: ItemRow) => (a.memo || 0) - (b.memo || 0));
             const payload = {
                 billDate: ab.date,
-                vehicleNumber: ab.vehicleNumber,
+                vehicleNumber: String(ab.vehicleNumber || "").trim().toUpperCase(),
                 customerName: ab.customerName,
                 phoneNumber: ab.phoneNumber,
                 mechanicName: ab.mechanicName,
                 labourName: ab.labourName,
                 notes: ab.notes,
-                items: ab.items.map((i: ItemRow) => ({
+                items: ordered.map((i: ItemRow) => ({
+                    memo: usedMemos.indexOf(i.memo || 0), // empty memos are dropped, so renumber from 0
                     particulars: i.particulars,
                     partRef: i.partRef,
                     qty: Number(i.qty || 0),
-                    unit: i.unit,
                     rate: Number(i.rate || 0),
                     amount: Number(i.amount || 0),
                 })),
@@ -210,310 +273,316 @@ const CreateAutoBill = () => {
         }
     };
 
-    const pageTitle = isView ? "View Bill" : isEdit ? "Edit Bill" : "Create Bill";
+    const pageTitle = isView ? "View bill" : isEdit ? "Edit bill" : "Create bill";
+    const E = errors.autoBill;
+    const billNo = watch("autoBill.billNo");
+    const memos = Array.from({ length: memoCount }, (_, m) => m);
+    // Up to 4 memos the footer spells the sum out; beyond that it would crowd the sticky bar, so it just counts them.
+    const breakdown = memoCount > 4 ? `${memoCount} memos · subtotals shown on each memo`
+        : memoCount > 1 ? memos.map((m) => `Memo ${m + 1}: ${money(memoTotal(m))}`).join(" + ") : undefined;
+    let serial = 0; // S.No runs on across memos, as on the paper bill
 
     return (
         <>
-            <AlertComponent alertMessage={alertMessage} alert={alert} />
-            <Loader loading={loading} />
+            <PageHeader title={pageTitle} back={{ onClick: () => navigate(-1), label: "Bills" }} />
+            <motion.form
+                key={pageTitle}
+                onSubmit={handleSubmit(onSubmit)}
+                noValidate
+                initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            >
+                <datalist id="auto-parts">
+                    {parts.map((p) => <option key={p.value} value={p.label} label={money(p.rate)} />)}
+                </datalist>
 
-            <div className="mt-2 overflow-hidden">
-                <div className="base-title">
-                    <div className="d-flex justify-content-start align-items-center">
-                        <div className="resp-bar" />
-                        <span className="card-sub-title">{pageTitle}</span>
-                    </div>
-                </div>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="row bg-white py-4">
-                        <div className="col-12 pt-4 px-3 px-md-5">
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={pageTitle}
-                                    initial={{ opacity: 0, x: 100 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">Bill Date</label>
-                                            <Controller
-                                                name="autoBill.date"
-                                                control={control}
-                                                rules={{ required: "Date is required" }}
-                                                render={({ field }) => <DateCalendar {...field} disabled={isView} />}
+                <section className="card bill-sheet">
+                    <div className="card-body">
+                        <div className="bill-sheet-head">
+                            <div>
+                                <h2 className="bill-sheet-title">{isView ? "Bill details" : "Spare parts bill"}</h2>
+                                <p className="bill-sheet-sub">Parts and work for one {labels.vehicleNo.toLowerCase()}, grouped by memo</p>
+                            </div>
+                            <span className="bill-no" title={billNo == null && !id ? "The number is assigned when the bill is saved" : undefined}>
+                                Bill No. {billNo != null ? billNo : id ? "…" : "[AUTO]"}
+                            </span>
+                        </div>
+
+                        {loadingRecord ? <SkeletonRows rows={3} /> : (
+                            <div className="bill-fields">
+                                <Field label="Bill date" htmlFor="bill-date" required error={E?.date?.message}>
+                                    <Controller
+                                        name="autoBill.date"
+                                        control={control}
+                                        rules={{ required: "Date is required" }}
+                                        render={({ field }) => <DateCalendar {...field} id="bill-date" disabled={isView} />}
+                                    />
+                                </Field>
+                                <Field label={labels.customer} htmlFor="customer">
+                                    <Controller
+                                        name="autoBill.customerName"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <InputText {...field} id="customer" placeholder={`Enter ${labels.customer}`} disabled={isView} />
+                                        )}
+                                    />
+                                </Field>
+                                <Field label={labels.vehicleNo} htmlFor="vehicle-number" required error={E?.vehicleNumber?.message}>
+                                    <Controller
+                                        name="autoBill.vehicleNumber"
+                                        control={control}
+                                        rules={{ required: `${labels.vehicleNo} is required` }}
+                                        render={({ field }) => (
+                                            <InputText {...field} id="vehicle-number" placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} autoCapitalize="characters"
+                                                onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                                        )}
+                                    />
+                                </Field>
+                                <Field label="Phone number" htmlFor="phone" error={E?.phoneNumber?.message}>
+                                    <Controller
+                                        name="autoBill.phoneNumber"
+                                        control={control}
+                                        rules={{ pattern: { value: /^[0-9]{10}$/, message: "Enter valid 10 digit Mobile Number" } }}
+                                        render={({ field }) => (
+                                            <InputText {...field} id="phone" type="tel" inputMode="numeric" placeholder="Enter Phone Number" disabled={isView} />
+                                        )}
+                                    />
+                                </Field>
+                                <Field label={labels.agent} htmlFor="agent" required error={E?.mechanicName?.message}>
+                                    <Controller
+                                        name="autoBill.mechanicName"
+                                        control={control}
+                                        rules={{ required: `${labels.agent} is required` }}
+                                        render={({ field }) => (
+                                            <Selector
+                                                inputId="agent"
+                                                options={mechanicList.map((m) => ({ label: m, value: m }))}
+                                                value={field.value ? { label: field.value, value: field.value } : null}
+                                                isDisabled={isView}
+                                                placeholder={`Select ${labels.agent}`}
+                                                aria-invalid={!!E?.mechanicName}
+                                                onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
                                             />
-                                            {errors.autoBill?.date && (
-                                                <div className="text-danger">{errors.autoBill.date.message}</div>
+                                        )}
+                                    />
+                                </Field>
+                                <Field label={labels.worker} htmlFor="worker">
+                                    <Controller
+                                        name="autoBill.labourName"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <Selector {...field} inputId="worker" isMulti options={labourOptions} disabled={isView} placeholder={`Select ${labels.worker}`} />
+                                        )}
+                                    />
+                                </Field>
+                                <Field label="Notes" htmlFor="notes" className="bill-fields-wide">
+                                    <Controller
+                                        name="autoBill.notes"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <InputText {...field} id="notes" placeholder="Optional notes" disabled={isView} />
+                                        )}
+                                    />
+                                </Field>
+                            </div>
+                        )}
+
+                        {loadingRecord ? <SkeletonRows rows={4} /> : (
+                        <div className="memo-stack">
+                            {memos.map((m) => {
+                                const rows = fields.map((f, index) => ({ f, index })).filter(({ index }) => (items[index]?.memo || 0) === m);
+                                return (
+                                    <section key={m} className="memo" aria-label={`Memo ${m + 1}`}>
+                                        <div className="memo-head">
+                                            <span className="memo-tag">Memo {m + 1}</span>
+                                            {!isView && memoCount > 1 && (
+                                                <button type="button" className="btn btn-icon memo-remove" aria-label={`Remove memo ${m + 1}`} title="Remove memo" onClick={() => askRemoveMemo(m)}>
+                                                    <Icons iconName="delete" />
+                                                </button>
                                             )}
                                         </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Bill No</label>
-                                            <InputText value={watch("autoBill.billNo") ?? "auto-assigned"} disabled readOnly />
-                                        </div>
-                                    </div>
 
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">{labels.vehicleNo}</label>
-                                            <Controller
-                                                name="autoBill.vehicleNumber"
-                                                control={control}
-                                                rules={{ required: `${labels.vehicleNo} is required` }}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder={`Enter ${labels.vehicleNo}`} disabled={isView} />
-                                                )}
-                                            />
-                                            {errors.autoBill?.vehicleNumber && (
-                                                <span className="text-danger">{errors.autoBill.vehicleNumber.message}</span>
-                                            )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">{labels.customer}</label>
-                                            <Controller
-                                                name="autoBill.customerName"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder={`Enter ${labels.customer}`} disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label label-required">{labels.agent}</label>
-                                            <Controller
-                                                name="autoBill.mechanicName"
-                                                control={control}
-                                                rules={{ required: `${labels.agent} is required` }}
-                                                render={({ field }) => (
-                                                    <Selector
-                                                        options={mechanicList.map((m) => ({ label: m, value: m }))}
-                                                        value={field.value ? { label: field.value, value: field.value } : null}
-                                                        isDisabled={isView}
-                                                        placeholder={`Select ${labels.agent}`}
-                                                        onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
-                                                    />
-                                                )}
-                                            />
-                                            {errors.autoBill?.mechanicName && (
-                                                <span className="text-danger">{errors.autoBill.mechanicName.message}</span>
-                                            )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">{labels.worker}</label>
-                                            <Controller
-                                                name="autoBill.labourName"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <Selector {...field} isMulti options={labourOptions} disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="row form-group g-3">
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Phone Number</label>
-                                            <Controller
-                                                name="autoBill.phoneNumber"
-                                                control={control}
-                                                rules={{ pattern: { value: /^[0-9]{10}$/, message: "Enter valid 10 digit Mobile Number" } }}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder="Enter Phone Number" disabled={isView} />
-                                                )}
-                                            />
-                                            {errors.autoBill?.phoneNumber && (
-                                                <span className="text-danger">{errors.autoBill.phoneNumber.message}</span>
-                                            )}
-                                        </div>
-                                        <div className="col-xl-6">
-                                            <label className="form-label">Notes</label>
-                                            <Controller
-                                                name="autoBill.notes"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <InputText {...field} placeholder="Optional notes" disabled={isView} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="col-md-12 d-flex align-items-center mt-5 mb-4 gap-3">
-                                        <label className="font-s16 mb-1 font-w500">Items</label>
-                                        <div className="session-custom-border flex-grow-1" />
-                                    </div>
-
-                                    {!isView && (
-                                        <div className="d-flex justify-content-end mb-3">
-                                            <button type="button" className="btn btn-sm btn-gradient"
-                                                onClick={() => append({ ...emptyItem })}>
-                                                <Icons iconName="addcircle" className="icon-15 icon-white" /> Add Item
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {fields.map((fieldItem, index) => (
-                                        <div key={fieldItem.id} className="mb-4 p-3 border rounded">
-                                            <div className="row align-items-start g-3">
-                                                <div className="col-xl-4">
-                                                    <label className="form-label label-required">Particulars</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.partRef`}
-                                                        control={control}
-                                                        render={() => (
-                                                            <Selector
-                                                                options={partOptions}
-                                                                isClearable
-                                                                isDisabled={isView}
-                                                                value={
-                                                                    items[index]?.partRef
-                                                                        ? { label: items[index]?.particulars, value: items[index]?.partRef }
-                                                                        : null
-                                                                }
-                                                                placeholder="Pick a part, or type free text below"
-                                                                onChange={(opt: any) => onPartChange(index, opt)}
-                                                            />
-                                                        )}
-                                                    />
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.particulars`}
-                                                        control={control}
-                                                        rules={{ required: "Particulars is required" }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                className="mt-2"
-                                                                placeholder="Or type item name freely"
-                                                                disabled={isView}
-                                                                onChange={(e) => {
-                                                                    field.onChange(e);
-                                                                    setValue(`autoBill.items.${index}.partRef`, null);
-                                                                }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.particulars && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].particulars.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Qty</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.qty`}
-                                                        control={control}
-                                                        rules={{ required: "Qty is required", min: { value: 0.01, message: "Must be > 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Qty"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.qty && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].qty.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label">Unit</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.unit`}
-                                                        control={control}
-                                                        render={({ field }) => (
-                                                            <Selector
-                                                                options={units.map((u) => ({ label: u, value: u }))}
-                                                                value={field.value ? { label: field.value, value: field.value } : null}
-                                                                isDisabled={isView}
-                                                                isClearable
-                                                                placeholder="Unit"
-                                                                onChange={(opt: any) => field.onChange(opt ? opt.value : "")}
-                                                            />
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Rate (₹)</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.rate`}
-                                                        control={control}
-                                                        rules={{ required: "Rate is required", min: { value: 0, message: "Must be ≥ 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Rate"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onRateChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.rate && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].rate.message}</span>
-                                                    )}
-                                                </div>
-                                                <div className="col-xl-2">
-                                                    <label className="form-label label-required">Amount (₹)</label>
-                                                    <Controller
-                                                        name={`autoBill.items.${index}.amount`}
-                                                        control={control}
-                                                        rules={{ required: "Amount is required", min: { value: 0, message: "Must be ≥ 0" } }}
-                                                        render={({ field }) => (
-                                                            <InputText
-                                                                {...field}
-                                                                type="number"
-                                                                placeholder="Amount"
-                                                                disabled={isView}
-                                                                onChange={(e) => { field.onChange(e); onAmountChange(index, e.target.value); }}
-                                                            />
-                                                        )}
-                                                    />
-                                                    {errors.autoBill?.items?.[index]?.amount && (
-                                                        <span className="text-danger">{errors.autoBill.items[index].amount.message}</span>
-                                                    )}
-                                                </div>
+                                        {rows.length > 0 && (
+                                            <div className="memo-cols" aria-hidden="true">
+                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span className="num">Rate</span><span className="num">Amount</span><span />
                                             </div>
-                                            {!isView && fields.length > 1 && (
-                                                <div className="d-flex justify-content-end mt-2">
-                                                    <button type="button" className="btn btn-outline-danger btn-sm d-inline-flex align-items-center"
-                                                        onClick={() => remove(index)}>
-                                                        <Icons iconName="delete" className="icon-15 me-1" /> Remove
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        )}
+                                        {rows.length > 0 ? (
+                                            <ul className="memo-rows" aria-label={`Items in memo ${m + 1}`}>
+                                                {rows.map(({ f, index }) => {
+                                                    const G = E?.items?.[index];
+                                                    const rowError = G?.particulars?.message || G?.qty?.message || G?.rate?.message || G?.amount?.message;
+                                                    const name = items[index]?.particulars || `item ${serial + 1}`;
+                                                    serial += 1;
+                                                    return (
+                                                        <li key={f.id} className="memo-row">
+                                                            <span className="memo-sno tabular">{serial}</span>
+                                                            <div className="memo-part">
+                                                                <Controller
+                                                                    name={`autoBill.items.${index}.particulars`}
+                                                                    control={control}
+                                                                    rules={{ required: "Particulars is required" }}
+                                                                    render={({ field }) => (
+                                                                        <InputText
+                                                                            {...field}
+                                                                            id={`particulars-${index}`}
+                                                                            list="auto-parts"
+                                                                            autoComplete="off"
+                                                                            aria-label={`Particulars, row ${serial}`}
+                                                                            placeholder="Type part name, pick from list"
+                                                                            disabled={isView}
+                                                                            className={G?.particulars ? "is-invalid" : undefined}
+                                                                            aria-invalid={!!G?.particulars || undefined}
+                                                                            onChange={(e) => { field.onChange(e); onParticularsChange(index, e.target.value); }}
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="memo-qty">
+                                                                <span className="memo-mlabel" aria-hidden="true">Qty</span>
+                                                                <Controller
+                                                                    name={`autoBill.items.${index}.qty`}
+                                                                    control={control}
+                                                                    rules={{ required: "Qty is required", min: { value: 0.01, message: "Qty must be more than 0" } }}
+                                                                    render={({ field }) => (
+                                                                        <InputText
+                                                                            {...field}
+                                                                            id={`qty-${index}`}
+                                                                            type="number"
+                                                                            inputMode="decimal"
+                                                                            className={`tabular text-end${G?.qty ? " is-invalid" : ""}`}
+                                                                            aria-label={`Qty for ${name}`}
+                                                                            placeholder="Qty"
+                                                                            disabled={isView}
+                                                                            aria-invalid={!!G?.qty || undefined}
+                                                                            onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="memo-rate">
+                                                                <span className="memo-mlabel" aria-hidden="true">Rate</span>
+                                                                <Controller
+                                                                    name={`autoBill.items.${index}.rate`}
+                                                                    control={control}
+                                                                    rules={{ required: "Rate is required", min: { value: 0, message: "Rate must be 0 or more" } }}
+                                                                    render={({ field }) => (
+                                                                        <InputText
+                                                                            {...field}
+                                                                            id={`rate-${index}`}
+                                                                            prefix="₹"
+                                                                            type="number"
+                                                                            inputMode="decimal"
+                                                                            className={`tabular text-end${G?.rate ? " is-invalid" : ""}`}
+                                                                            aria-label={`Rate for ${name}`}
+                                                                            placeholder="Rate"
+                                                                            disabled={isView}
+                                                                            aria-invalid={!!G?.rate || undefined}
+                                                                            onChange={(e) => { field.onChange(e); onRateChange(index, e.target.value); }}
+                                                                        />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="memo-amt">
+                                                                <span className="memo-mlabel" aria-hidden="true">Amount</span>
+                                                                <div className="memo-amt-box">
+                                                                <span className="memo-amt-cur" aria-hidden="true">₹</span>
+                                                                <Controller
+                                                                    name={`autoBill.items.${index}.amount`}
+                                                                    control={control}
+                                                                    rules={{ required: "Amount is required", min: { value: 0, message: "Amount must be 0 or more" } }}
+                                                                    render={({ field }) => (
+                                                                        // Reads as the computed amount; still editable for a hand-agreed price.
+                                                                        <InputText
+                                                                            {...field}
+                                                                            id={`amount-${index}`}
+                                                                            type="number"
+                                                                            inputMode="decimal"
+                                                                            className={`memo-amt-input tabular${G?.amount ? " is-invalid" : ""}`}
+                                                                            // Sized to its digits so the ₹ sits beside the number, like printed text.
+                                                                            style={{ width: `calc(${Math.max(String(field.value ?? "").length, 4)}ch + 12px)` }}
+                                                                            aria-label={`Amount for ${name} (₹)`}
+                                                                            title="Qty × rate. Type to override."
+                                                                            placeholder="0.00"
+                                                                            disabled={isView}
+                                                                            aria-invalid={!!G?.amount || undefined}
+                                                                            onChange={(e) => { field.onChange(e); onAmountChange(index, e.target.value); }}
+                                                                        />
+                                                                    )}
+                                                                />
+                                                                </div>
+                                                            </div>
+                                                            {!isView && fields.length > 1 ? (
+                                                                <button type="button" className="btn btn-icon memo-x" aria-label={`Remove ${name}`} onClick={() => {
+                                                                    remove(index);
+                                                                    // The button disappears with its row: keep keyboard focus in this memo.
+                                                                    setTimeout(() => document.getElementById(`memo-add-${m}`)?.focus(), 0);
+                                                                }}>
+                                                                    <Icons iconName="x" />
+                                                                </button>
+                                                            ) : <span className="memo-x" />}
+                                                            {rowError && <span className="field-error memo-row-error" role="alert">{rowError}</span>}
+                                                            {!rowError && !isView && stockWarning(items[index]?.partRef) && (
+                                                                <span className="memo-row-error memo-row-warn" role="status">
+                                                                    <Icons iconName="alert-triangle" className="icon-14" />{stockWarning(items[index]?.partRef)}
+                                                                </span>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        ) : (
+                                            <p className="memo-empty">No items in this memo yet.</p>
+                                        )}
 
-                                    {fields.length > 0 && (
-                                        <div className="d-flex justify-content-end align-items-baseline gap-3 mt-2 pe-1">
-                                            <span className="font-s14" style={{ color: "var(--ink-500)" }}>Bill total</span>
-                                            <span className="font-s20 fw-semibold" style={{ color: "var(--ink-900)" }}>
-                                                {money(total)}
-                                            </span>
+                                        <div className="memo-foot">
+                                            {!isView ? (
+                                                <button type="button" id={`memo-add-${m}`} className="btn memo-add" onClick={() => addRow(m)}>
+                                                    <Icons iconName="add" />Add item
+                                                </button>
+                                            ) : <span />}
+                                            <div className="memo-subtotal">
+                                                <span>Subtotal ({rows.length} item{rows.length === 1 ? "" : "s"}):</span>
+                                                <strong className="tabular">{money(memoTotal(m))}</strong>
+                                            </div>
                                         </div>
-                                    )}
-                                </motion.div>
-                            </AnimatePresence>
+                                    </section>
+                                );
+                            })}
                         </div>
-                    </div>
+                        )}
 
-                    <div className="row mt-3 me-3">
-                        <div className="col-xl-12 d-flex justify-content-end gap-2">
-                            <button type="button" className="btn btn-cancel" onClick={() => navigate(-1)}>
-                                {isView ? "Back" : "Cancel"}
+                        {!isView && !loadingRecord && (
+                            <button type="button" className="btn btn-secondary memo-new" onClick={addMemo} disabled={memoCount >= MAX_MEMOS}
+                                title={memoCount >= MAX_MEMOS ? `A bill can have up to ${MAX_MEMOS} memos` : undefined}>
+                                <Icons iconName="add" />Add memo
                             </button>
-                            {!isView && (
-                                <button type="submit" className="btn btn-primary" disabled={loading}>
-                                    {loading ? "Saving..." : isEdit ? "Update" : "Save"}
-                                </button>
-                            )}
-                        </div>
+                        )}
                     </div>
-                </form>
-            </div>
+                </section>
+
+                <FormFooter totalLabel="Bill total" total={money(total)} totalNote={breakdown}>
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+                        {isView ? "Back" : "Cancel"}
+                    </button>
+                    {!isView && (
+                        <button type="submit" className="btn btn-primary" disabled={loading || loadingRecord}>
+                            {loading && <span className="spinner" aria-hidden="true" />}
+                            {loading ? "Saving..." : isEdit ? "Update bill" : "Create bill"}
+                        </button>
+                    )}
+                </FormFooter>
+            </motion.form>
+
+            <ConfirmDialog
+                open={confirmMemo !== null}
+                title={`Remove memo ${(confirmMemo ?? 0) + 1}?`}
+                message="Its items will be removed from this bill."
+                confirmLabel="Remove memo"
+                onConfirm={() => { if (confirmMemo !== null) removeMemo(confirmMemo); setConfirmMemo(null); }}
+                onCancel={() => setConfirmMemo(null)}
+            />
         </>
     );
 };

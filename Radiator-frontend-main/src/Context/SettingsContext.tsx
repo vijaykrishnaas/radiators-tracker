@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { getData } from "../Services/ApiServices";
-import { isLoggedIn, isSuperAdmin } from "../Services/Auth";
+import { getUser, isLoggedIn, isSuperAdmin } from "../Services/Auth";
+import { applyTenantBrand, DEFAULT_ACCENT, DEFAULT_PRIMARY } from "../theme/applyTenantBrand";
 
 // Generic, white-label default for the browser tab title.
 const APP_TITLE = "Radiator Management";
@@ -11,12 +12,30 @@ export type CatalogOption = {
     requiresComment?: boolean;
 };
 
-export type BusinessType = "radiator" | "automobile";
+export type BusinessType = "radiator" | "automobile" | "engineering";
+
+// Engineering vertical: a null/undefined price means the item is not offered
+// for that BS model; 0 is offered.
+export type EngItem = {
+    label: string;
+    value: string;
+    prices: Record<string, number | null>;
+    /** What one unit costs you to buy, per BS model (for profit). Missing = no cost set. */
+    costs?: Record<string, number | null>;
+    requiresComment?: boolean;
+};
+
+export type EngServiceType = {
+    label: string;
+    value: string;
+    items: EngItem[];
+};
 
 export type AutoPart = {
     label: string;
     value: string;
-    unit: string;
+    /** No longer shown or edited; older settings may still carry one. */
+    unit?: string;
     rate: number;
 };
 
@@ -83,13 +102,33 @@ export type AppSettings = {
     };
     bonus: {
         mechanic: {
+            /** "percent" (default): the matrix of % of service prices. "amount": a fixed ₹ per bill. */
+            mode?: "percent" | "amount";
+            amount?: number;
             matrix: Record<string, Record<string, number>>;
             defaultPercent: number;
             yearStartMonth: number;
         };
         labour: {
+            /** "amount": a fixed ₹ per bill, split equally among the bill's workers. */
+            mode?: "percent" | "amount";
+            amount?: number;
             matrix: Record<string, Record<string, number>>;
             defaultPercent: number;
+        };
+    };
+    engineering: {
+        bsModels: { label: string; value: string }[];
+        serviceTypes: EngServiceType[];
+        quickAdd: { type: string; item: string }[];
+        billStartNumber: number;
+        fyStartMonth?: number;
+        bonus?: { mechanicMode?: "percent" | "amount"; mechanicPercent: number; mechanicAmount?: number };
+        invoice: {
+            billTitle: string;
+            footerNote: string;
+            showQr: boolean;
+            showSignature: boolean;
         };
     };
     // Salary Management — applies to every tenant regardless of businessType.
@@ -120,7 +159,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     company: { name: "", address: "", phone1: "", phone2: "", upiId: "", upiDisplay: "", logoUrl: "" },
-    branding: { primaryColor: "#12467A", accentColor: "#f47f6b", loginTextColor: "#FFFFFF" },
+    branding: { primaryColor: DEFAULT_PRIMARY, accentColor: DEFAULT_ACCENT, loginTextColor: "#FFFFFF" },
     catalog: { productTypes: [], serviceTypes: [], priceMatrix: {} },
     labour: [],
     mechanics: [],
@@ -134,8 +173,17 @@ export const FALLBACK_SETTINGS: AppSettings = {
     },
     invoice: { billTitle: "BILL", footerNote: "", showQr: false, showSignature: false },
     bonus: {
-        mechanic: { matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
-        labour: { matrix: {}, defaultPercent: 0 },
+        mechanic: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
+        labour: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0 },
+    },
+    engineering: {
+        bsModels: [],
+        serviceTypes: [],
+        quickAdd: [],
+        billStartNumber: 1,
+        fyStartMonth: 4,
+        bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0 },
+        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     salary: {
         payCycle: "monthly",
@@ -145,40 +193,50 @@ export const FALLBACK_SETTINGS: AppSettings = {
     },
 };
 
-// Pushes branding colors into the CSS custom properties the theme is built on,
-// so the whole UI follows the Settings page without code changes.
+// Derives the full brand scale + contrast-safe companions from the tenant colours (spec D3) and
+// writes them as CSS custom properties, so the whole UI follows the Settings page.
 const applyBranding = (settings: AppSettings) => {
-    const root = document.documentElement;
-    if (settings.branding.primaryColor) {
-        root.style.setProperty("--primary", settings.branding.primaryColor);
-    }
-    if (settings.branding.accentColor) {
-        root.style.setProperty("--accentColor", settings.branding.accentColor);
-    }
+    applyTenantBrand(settings.branding?.primaryColor, settings.branding?.accentColor);
 };
 
 type SettingsContextValue = {
     settings: AppSettings;
     loading: boolean;
+    /** True once the tenant's settings have actually been fetched. Until then `settings` is the built-in fallback,
+     *  which must never be saved over the real ones (e.g. after a failed load). */
+    loaded: boolean;
     refreshSettings: () => Promise<void>;
 };
 
 const SettingsContext = createContext<SettingsContextValue>({
     settings: FALLBACK_SETTINGS,
     loading: true,
+    loaded: false,
     refreshSettings: async () => {},
 });
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [loaded, setLoaded] = useState(false);
+
+    // Whose settings are in memory. When a different account signs in (logout → login without a page reload), the
+    // previous company's settings are dropped first, so a failed load can never show or save them for the new one.
+    const loadedFor = useRef<string | null>(null);
 
     const refreshSettings = useCallback(async () => {
+        const who = isLoggedIn() ? `${getUser()?.clientId || ""}:${getUser()?.userId || ""}` : null;
+        if (loadedFor.current !== who) {
+            loadedFor.current = who;
+            setSettings(FALLBACK_SETTINGS);
+            setLoaded(false);
+        }
         // Super-admins have no client tenant, so /settings 403s for them.
         // The admin portal doesn't use these settings — skip the fetch.
         if (!isLoggedIn() || isSuperAdmin()) {
             // Keep the browser tab title sensible without a client context.
             document.title = isSuperAdmin() ? "Super Admin Console" : APP_TITLE;
+            applyTenantBrand(DEFAULT_PRIMARY, DEFAULT_ACCENT);
             setLoading(false);
             return;
         }
@@ -187,6 +245,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (res?.settings) {
                 const merged = { ...FALLBACK_SETTINGS, ...res.settings };
                 setSettings(merged);
+                setLoaded(true);
                 applyBranding(merged);
                 // Browser tab title follows the client's company name (white-label).
                 document.title = merged.company?.name?.trim() || APP_TITLE;
@@ -203,7 +262,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, [refreshSettings]);
 
     return (
-        <SettingsContext.Provider value={{ settings, loading, refreshSettings }}>
+        <SettingsContext.Provider value={{ settings, loading, loaded, refreshSettings }}>
             {children}
         </SettingsContext.Provider>
     );
