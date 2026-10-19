@@ -6,7 +6,7 @@
 // its own module.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
-import { parseSort, findSortedPage } from "../utils/listSort.js";
+import { parseSort, findSortedPage, countMatching } from "../utils/listSort.js";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { toMoney, toValidDate } from "../utils/sanitize.js";
@@ -229,7 +229,7 @@ export async function getSettlementHistory(clientId, { employeeId = "", from = "
   const skip = (page - 1) * limit;
   const [rows, total] = await Promise.all([
     findSortedPage(db.collection(PERIODS), query, parseSort(sortQuery, HISTORY_SORT, { periodStart: -1 }), skip, limit),
-    db.collection(PERIODS).countDocuments(query),
+    countMatching(db.collection(PERIODS), query),
   ]);
   return { rows, total, page, totalPages: Math.ceil(total / limit) || 1 };
 }

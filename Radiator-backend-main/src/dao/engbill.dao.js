@@ -9,7 +9,7 @@ import moment from "moment";
 import { getSettings } from "./settings.dao.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
-import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
+import { parseSort, findSortedPage, SORT_COLLATION, countMatching } from "../utils/listSort.js";
 import { removeBonusesForRecord } from "./bonus.dao.js";
 import { syncEngBonusesForRecord } from "./engbonus.dao.js";
 
@@ -317,7 +317,7 @@ export async function listEngBills(clientId, filters = {}, page = 1, limit = 10,
   const query = buildQuery(clientId, filters);
   const order = parseSort(sortQuery, ENG_SORT, { billDate: -1, billNo: -1 });
   const [total, bills] = await Promise.all([
-    db.collection(COLLECTION).countDocuments(query),
+    countMatching(db.collection(COLLECTION), query),
     findSortedPage(db.collection(COLLECTION), query, order, (page - 1) * limit, limit),
   ]);
   return { total, page, totalPages: Math.ceil(total / limit) || 1, bills };

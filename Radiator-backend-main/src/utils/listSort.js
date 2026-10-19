@@ -21,6 +21,12 @@ export function parseSort(query = {}, fields = {}, fallback = { _id: -1 }) {
   return { sort: { __sort: dir, _id: dir }, computed: field };
 }
 
+// Row count for the same filter as findSortedPage. The page query runs with SORT_COLLATION, which also makes exact-match
+// filters case-insensitive; counting without it would undercount ("ravi" vs "Ravi") and the last pages become unreachable.
+export function countMatching(coll, query) {
+  return coll.countDocuments(query, { collation: SORT_COLLATION });
+}
+
 // One page of `coll` matching `query` in the parsed order.
 export function findSortedPage(coll, query, { sort, computed }, skip, limit, projection = null) {
   if (!computed) {

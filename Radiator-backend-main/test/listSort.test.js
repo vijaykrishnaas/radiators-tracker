@@ -22,3 +22,11 @@ test("stored field: direction from sortDir (desc unless 'asc'), _id breaks ties"
 test("computed value sorts on __sort with its expression", () => {
   assert.deepEqual(parseSort({ sortBy: "total", sortDir: "desc" }, FIELDS), { sort: { __sort: -1, _id: -1 }, computed: { $sum: "$items.amount" } });
 });
+
+test("countMatching counts with the same collation as the page query (case-insensitive filters)", async () => {
+  const { countMatching, SORT_COLLATION } = await import("../src/utils/listSort.js");
+  let seen;
+  const coll = { countDocuments: async (q, opts) => { seen = { q, opts }; return 7; } };
+  assert.equal(await countMatching(coll, { mechanicName: "ravi" }), 7);
+  assert.deepEqual(seen, { q: { mechanicName: "ravi" }, opts: { collation: SORT_COLLATION } });
+});

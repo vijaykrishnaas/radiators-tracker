@@ -10,7 +10,7 @@ import { getSettings } from "./settings.dao.js";
 import { pendingNetOfDiscount } from "../utils/analytics.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
-import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
+import { parseSort, findSortedPage, SORT_COLLATION, countMatching } from "../utils/listSort.js";
 
 export const STATUS = {
   NOT_RECEIVED: "Not Received",
@@ -259,7 +259,7 @@ export async function getAllAutoBills(
   const collection = db.collection("autobills");
   const skip = (page - 1) * limit;
   const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
-  const total = await collection.countDocuments(query);
+  const total = await countMatching(collection, query);
   const bills = await findSortedPage(collection, query, parseSort(sortQuery, AUTO_SORT, { createdAt: -1 }), skip, limit);
   return {
     total,
