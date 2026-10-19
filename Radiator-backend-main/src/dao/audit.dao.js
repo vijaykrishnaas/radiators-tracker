@@ -1,7 +1,7 @@
 import { connectDB } from "../config/db.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex } from "../utils/sanitize.js";
-import { parseSort, findSortedPage } from "../utils/listSort.js";
+import { parseSort, findSortedPage, countMatching } from "../utils/listSort.js";
 
 const COLLECTION = "audit_log";
 
@@ -50,7 +50,7 @@ export async function listAudit({ page = 1, limit = 20, clientCode = "", clientI
       ...["vehicleNumber", "truckNumber", "vehicleNo", "mechanicName", "name", "code", "note", "beneficiary", "id"].map((k) => ({ [`details.${k}`]: rx })),
     ];
   }
-  const total = await coll.countDocuments(query);
+  const total = await countMatching(coll, query);
   const entries = await findSortedPage(coll, query, parseSort(sortQuery, AUDIT_SORT, { at: -1 }), (page - 1) * limit, limit, { _id: 0 });
   return { entries, total, totalPages: Math.ceil(total / limit) || 1, currentPage: page };
 }

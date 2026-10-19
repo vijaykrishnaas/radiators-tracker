@@ -6,7 +6,7 @@ import { getSettings } from "./settings.dao.js";
 import { pendingNetOfDiscount } from "../utils/analytics.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
-import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
+import { parseSort, findSortedPage, SORT_COLLATION, countMatching } from "../utils/listSort.js";
 
 export const STATUS = {
   NOT_RECEIVED: "Not Received",
@@ -224,7 +224,7 @@ export async function getAllRadiators(
   const collection = db.collection("radiators");
   const skip = (page - 1) * limit;
   const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
-  const total = await collection.countDocuments(query);
+  const total = await countMatching(collection, query);
   const radiators = await findSortedPage(collection, query, parseSort(sortQuery, RAD_SORT, { createdAt: -1 }), skip, limit);
   return {
     total,

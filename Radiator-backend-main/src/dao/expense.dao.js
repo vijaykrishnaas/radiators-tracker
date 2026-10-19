@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import moment from "moment";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toCount, toValidDate } from "../utils/sanitize.js";
-import { parseSort, findSortedPage, SORT_COLLATION } from "../utils/listSort.js";
+import { parseSort, findSortedPage, SORT_COLLATION, countMatching } from "../utils/listSort.js";
 import { getPayrollTotal } from "./salary.dao.js";
 
 const COLLECTION = "expenses";
@@ -59,7 +59,7 @@ export async function getExpenses(clientId, { from = "", to = "", expenseType = 
 
   const [expenses, totalRecords, [aggResult]] = await Promise.all([
     findSortedPage(db.collection(COLLECTION), query, parseSort(sortQuery, EXPENSE_SORT, { date: -1 }), skip, limit),
-    db.collection(COLLECTION).countDocuments(query),
+    countMatching(db.collection(COLLECTION), query),
     db.collection(COLLECTION).aggregate([
       { $match: query },
       { $group: { _id: null, periodTotal: { $sum: "$amount" } } },

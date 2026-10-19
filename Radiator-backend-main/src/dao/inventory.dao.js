@@ -10,7 +10,7 @@ import moment from "moment";
 import { getSettings } from "./settings.dao.js";
 import { toClientId } from "../utils/tenant.js";
 import { escapeRegex, toMoney, toValidDate } from "../utils/sanitize.js";
-import { parseSort, findSortedPage } from "../utils/listSort.js";
+import { parseSort, findSortedPage, countMatching } from "../utils/listSort.js";
 
 const COLLECTION = "stockentries";
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -90,7 +90,7 @@ export async function listStockEntries(clientId, { partRef = "", search = "", fr
   }
   const coll = db.collection(COLLECTION);
   const [total, entries] = await Promise.all([
-    coll.countDocuments(query),
+    countMatching(coll, query),
     findSortedPage(coll, query, parseSort(sortQuery, ENTRY_SORT, { date: -1, createdAt: -1 }), (page - 1) * limit, limit),
   ]);
   return { total, page, totalPages: Math.ceil(total / limit) || 1, entries };
