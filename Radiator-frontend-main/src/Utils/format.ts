@@ -18,15 +18,21 @@ export const monthStart = (): string => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
 };
 
+// Month (1-12) the tenant's year starts in: the financial year (engineering), else the mechanic-bonus year.
+const yearStartMonth = (settings: AppSettings): number =>
+    (settings.businessType === "engineering" ? settings.engineering?.fyStartMonth
+        : settings.businessType === "tyre" ? settings.tyre?.bonus?.yearStartMonth
+            : settings.bonus?.mechanic?.yearStartMonth) || 4;
+
 export const fyStart = (settings: AppSettings): string => {
-    const m = (settings.businessType === "engineering" ? settings.engineering?.fyStartMonth : settings.bonus?.mechanic?.yearStartMonth) || 4;
+    const m = yearStartMonth(settings);
     const now = new Date();
     const y = (now.getMonth() + 1) >= m ? now.getFullYear() : now.getFullYear() - 1;
     return `${y}-${String(m).padStart(2, "0")}-01`;
 };
 
 export const fyYear = (settings: AppSettings): string => {
-    const m = (settings.businessType === "engineering" ? settings.engineering?.fyStartMonth : settings.bonus?.mechanic?.yearStartMonth) || 4;
+    const m = yearStartMonth(settings);
     const now = new Date();
     return String((now.getMonth() + 1) >= m ? now.getFullYear() : now.getFullYear() - 1);
 };

@@ -203,6 +203,41 @@ export const defaultSettings = {
     },
   },
 
+  // Tyre-dealer vertical (delivery challans). Only read when businessType is "tyre".
+  // Catalog is brand → model/size, each model with a default rate the challan form fills in (still editable per
+  // line). No BS-model matrix. Inventory counts stock per brand+model ("<brand>:<model>").
+  tyre: {
+    // [{ label: "MRF", value: "mrf", models: [{ label: "10.00-20 Steel Muscle", value: "10-00-20-steel-muscle", rate: 24250 }] }]
+    brands: [],
+    defaultTubeType: "tube",
+    // First D.C. number for a tenant continuing from a paper challan book.
+    billStartNumber: 1,
+    // Flat % (or fixed ₹ per challan when mode is "amount") of the TYRE amount — installment interest is excluded —
+    // payable in proportion to the amount collected. Labour's share is split equally among the challan's workers.
+    bonus: {
+      mechanicMode: "percent",
+      mechanicPercent: 0,
+      mechanicAmount: 0,
+      labourMode: "percent",
+      labourPercent: 0,
+      labourAmount: 0,
+      yearStartMonth: 4,
+    },
+    labels: {
+      vehicleNo: "Vehicle Number",
+      customer: "Customer Name",
+      agent: "Mechanic",
+      worker: "Labour",
+    },
+    invoice: {
+      billTitle: "DELIVERY CHALLAN",
+      subtitle: "Goods delivered. Not a tax invoice (no GST).",
+      footerNote: "Goods received in good condition",
+      showQr: false,
+      showSignature: false,
+    },
+  },
+
   labels: {
     vehicleNo: "Truck Number",
     party: "Lorry Address",

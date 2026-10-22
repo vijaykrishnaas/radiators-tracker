@@ -686,7 +686,7 @@ export async function addManualBonus(clientId, type, beneficiary, amount, note =
   const settings = await getSettings(clientId);
   const period =
     type === "mechanic"
-      ? yearKey(when, settings.bonus?.mechanic?.yearStartMonth)
+      ? yearKey(when, settings.businessType === "tyre" ? settings.tyre?.bonus?.yearStartMonth : settings.bonus?.mechanic?.yearStartMonth)
       : dayKey(when);
   const doc = {
     clientId: cid,

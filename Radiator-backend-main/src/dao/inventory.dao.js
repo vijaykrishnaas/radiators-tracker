@@ -4,6 +4,9 @@
 // deleting a bill (or an entry) can never leave the count out of step. Selling more than is in stock is allowed (the
 // bill form only warns); the part then shows a negative stock until the missing purchase is entered.
 // Collection: "stockentries". Never referenced by radiator / engineering code paths.
+// Tyre tenants use the same code: their catalog is the brand → model list (a "part" is one brand + model, keyed
+// "<brand>:<model>") and their bills are the delivery challans in "tyrebills", whose lines carry the same
+// partRef / particulars / qty / amount fields.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
 import moment from "moment";
@@ -23,15 +26,31 @@ function badRequest(message) {
 
 const cleanText = (v, max = 200) => String(v ?? "").trim().slice(0, max);
 
-// Validates a stock entry against the tenant's parts catalog. Quantities may be fractional (litres of oil).
+// The tenant's sellable catalog as flat { value, label, rate } parts, and the collection its bills live in.
+export function inventorySource(settings) {
+  if (settings?.businessType === "tyre") {
+    const parts = [];
+    for (const b of settings?.tyre?.brands || []) {
+      for (const m of b.models || []) {
+        parts.push({ value: `${b.value}:${m.value}`, label: `${b.label} ${m.label}`.trim(), rate: Number(m.rate) || 0 });
+      }
+    }
+    return { parts, bills: "tyrebills", wholeUnits: true };
+  }
+  return { parts: settings?.automobile?.parts || [], bills: "autobills", wholeUnits: false };
+}
+
+// Validates a stock entry against the tenant's parts catalog. Quantities may be fractional (litres of oil), except
+// tyres, which are counted whole.
 async function buildEntry(clientId, data) {
   const settings = await getSettings(clientId);
-  const parts = settings?.automobile?.parts || [];
+  const { parts, wholeUnits } = inventorySource(settings);
   const partRef = String(data.partRef || "");
   const part = parts.find((p) => p.value === partRef);
   if (!part) throw badRequest("Pick a part from the parts catalog");
   const qty = toMoney(data.qty, "qty");
   if (!(qty > 0)) throw badRequest("qty must be more than 0");
+  if (wholeUnits && !Number.isInteger(qty)) throw badRequest("qty must be a whole number");
   return {
     partRef,
     partLabel: part.label,
@@ -97,11 +116,11 @@ export async function listStockEntries(clientId, { partRef = "", search = "", fr
 }
 
 // Units sold per catalog part, from every bill line that carries a partRef.
-async function salesByPart(db, cid, partRef = null) {
+async function salesByPart(db, cid, billsCollection, partRef = null) {
   // On the bill, $elemMatch: "at least one line has a part" ($nin on the array would drop a bill as soon as ANY of
   // its lines is free-typed). After $unwind each line is checked on its own.
   const linePart = partRef ? partRef : { $nin: [null, ""] };
-  return db.collection("autobills").aggregate([
+  return db.collection(billsCollection).aggregate([
     { $match: { clientId: cid, items: { $elemMatch: { partRef: linePart } } } },
     { $unwind: "$items" },
     { $match: { "items.partRef": linePart } },
@@ -126,7 +145,7 @@ export async function getInventorySummary(clientId) {
   const db = await connectDB();
   const cid = toClientId(clientId);
   const settings = await getSettings(clientId);
-  const catalog = settings?.automobile?.parts || [];
+  const { parts: catalog, bills } = inventorySource(settings);
 
   const [ins, outs] = await Promise.all([
     db.collection(COLLECTION).aggregate([
@@ -143,7 +162,7 @@ export async function getInventorySummary(clientId) {
         },
       },
     ]).toArray(),
-    salesByPart(db, cid),
+    salesByPart(db, cid, bills),
   ]);
 
   const inBy = new Map(ins.map((r) => [r._id, r]));
@@ -195,9 +214,10 @@ export async function getPartMovements(clientId, partRef, limit = 100) {
   const db = await connectDB();
   const cid = toClientId(clientId);
   const ref = String(partRef || "");
+  const source = inventorySource(await getSettings(clientId));
   const [ins, bills] = await Promise.all([
     db.collection(COLLECTION).find({ clientId: cid, partRef: ref }).sort({ date: -1 }).limit(limit).toArray(),
-    db.collection("autobills").find({ clientId: cid, "items.partRef": ref }).sort({ billDate: -1 }).limit(limit).toArray(),
+    db.collection(source.bills).find({ clientId: cid, "items.partRef": ref }).sort({ billDate: -1 }).limit(limit).toArray(),
   ]);
   const moves = [
     ...ins.map((e) => ({ kind: "in", date: e.date, qty: e.qty, buyPrice: e.buyPrice, supplier: e.supplier, note: e.note, id: String(e._id) })),

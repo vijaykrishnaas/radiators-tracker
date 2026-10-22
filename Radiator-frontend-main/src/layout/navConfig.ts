@@ -18,21 +18,22 @@ const exact = (p: string) => (path: string) => path === p;
 const prefix = (...ps: string[]) => (path: string) => ps.some((p) => path === p || path.startsWith(`${p}/`));
 
 export const verticalBase = (s: AppSettings) =>
-    s.businessType === "engineering" ? "/engineering" : s.businessType === "automobile" ? "/automobile" : "/issueCounter";
+    s.businessType === "engineering" ? "/engineering" : s.businessType === "automobile" ? "/automobile" : s.businessType === "tyre" ? "/tyre" : "/issueCounter";
 
 /** Tenant navigation per vertical (spec §3.2.4). Labels keep their current text. */
 export function tenantNav(s: AppSettings): NavGroup[] {
     const v = verticalBase(s);
     const isEngineering = s.businessType === "engineering";
-    const workerName = (s.businessType === "automobile" ? s.automobile?.labels?.worker : s.labels?.worker) || "Labour";
+    const workerName = (s.businessType === "automobile" ? s.automobile?.labels?.worker
+        : s.businessType === "tyre" ? s.tyre?.labels?.worker : s.labels?.worker) || "Labour";
     const workerBonusLabel = `${workerName.replace(/\s*Name$/i, "")} Bonus`;
 
     const menu: NavItem[] = [
         { id: "dashboard", label: "Dashboard", to: `${v}/dashboard`, icon: "grid", match: exact(`${v}/dashboard`) },
-        { id: "bills", label: "Bills", to: `${v}/billing`, icon: "receipt-text", match: prefix(`${v}/billing`, `${v}/dashboard/create`, `${v}/dashboard/view`, `${v}/dashboard/edit`) },
+        { id: "bills", label: s.businessType === "tyre" ? "Challans" : "Bills", to: `${v}/billing`, icon: "receipt-text", match: prefix(`${v}/billing`, `${v}/dashboard/create`, `${v}/dashboard/view`, `${v}/dashboard/edit`) },
     ];
-    if (s.businessType === "automobile") {
-        menu.push({ id: "inventory", label: "Inventory", to: "/automobile/inventory", icon: "package", match: exact("/automobile/inventory") });
+    if (s.businessType === "automobile" || s.businessType === "tyre") {
+        menu.push({ id: "inventory", label: "Inventory", to: `${v}/inventory`, icon: "package", match: exact(`${v}/inventory`) });
     }
     if (!isEngineering) {
         menu.push({ id: "expenses", label: "Expenses", to: "/issueCounter/expenses", icon: "wallet", match: exact("/issueCounter/expenses") });

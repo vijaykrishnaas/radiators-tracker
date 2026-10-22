@@ -5,6 +5,7 @@ import InputText from "../../Components/InputText";
 import { putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
+import { TyreBonusTab, TyreCatalogTab, TyreInvoiceTab } from "../Tyre/Settings/TyreSettingsTabs";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
 import { Badge, BtnSpinner, Callout, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
 import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Inputs";
@@ -39,7 +40,8 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp";
 const DEFAULT_LOGIN_TEXT = toHex([255, 255, 255]);
 
-type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice";
+type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice"
+    | "tyreCatalog" | "tyreBonus" | "tyreInvoice";
 
 /** One card per sub-section: title + one-line description, then the body. */
 const SectionCard = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
@@ -102,6 +104,7 @@ const SettingsPage = () => {
     const isAutomobile = draft.businessType === "automobile";
     const auto = draft.automobile;
     const isEngineering = draft.businessType === "engineering";
+    const isTyre = draft.businessType === "tyre";
 
     // The form is filled once, from the first successful load. Later refreshes (after an upload, so the header logo
     // updates, or after Save) don't reset it, so unsaved edits are never thrown away.
@@ -331,6 +334,13 @@ const SettingsPage = () => {
         ["engPeople", "Mechanics"],
         ["engBonus", "Bonus"],
         ["engInvoice", "Invoice"],
+    ] : isTyre ? [
+        ["company", "Company"],
+        ["tyreCatalog", "Tyre Catalog"],
+        ["people", `${draft.tyre.labels.agent} & ${draft.tyre.labels.worker}`],
+        ["tyreBonus", "Bonus"],
+        ["tyreInvoice", "Labels & Challan"],
+        ["salary", "Salary"],
     ] : isAutomobile ? [
         ["company", "Company"],
         ["catalog", "Parts Catalog"],
@@ -361,8 +371,8 @@ const SettingsPage = () => {
         "--brand-solid-border": brand.solidBorder,
     } as React.CSSProperties;
 
-    const agentLabel = isAutomobile ? auto.labels.agent : draft.labels.agent;
-    const workerLabel = isAutomobile ? auto.labels.worker : draft.labels.worker;
+    const agentLabel = isAutomobile ? auto.labels.agent : isTyre ? draft.tyre.labels.agent : draft.labels.agent;
+    const workerLabel = isAutomobile ? auto.labels.worker : isTyre ? draft.tyre.labels.worker : draft.labels.worker;
 
     const saveButton = (
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving || settingsLoading || !settingsLoaded || anyUploading}>
@@ -775,7 +785,7 @@ const SettingsPage = () => {
                             </div>
                             <span className="field-help">
                                 Working days control the salary formula: net = base salary × present days / working days
-                                in the settlement period. Applies identically to radiator and automobile tenants.
+                                in the settlement period. Applies identically to radiator, automobile and tyre tenants.
                             </span>
                         </SectionCard>
                         <SectionCard title="Payslip" subtitle="Heading and footer printed on each payslip.">
@@ -786,6 +796,11 @@ const SettingsPage = () => {
                         </SectionCard>
                     </>
                 )}
+
+                {/* ---- Tyre tenants only ---- */}
+                {isTyre && activeTab === "tyreCatalog" && <TyreCatalogTab tyre={draft.tyre} set={set} />}
+                {isTyre && activeTab === "tyreBonus" && <TyreBonusTab tyre={draft.tyre} set={set} />}
+                {isTyre && activeTab === "tyreInvoice" && <TyreInvoiceTab tyre={draft.tyre} set={set} />}
 
                 {/* ---- Engineering tenants only ---- */}
                 {isEngineering && draft.engineering && activeTab === "engCatalog" && (

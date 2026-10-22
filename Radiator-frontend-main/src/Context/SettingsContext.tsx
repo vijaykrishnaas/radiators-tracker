@@ -12,7 +12,28 @@ export type CatalogOption = {
     requiresComment?: boolean;
 };
 
-export type BusinessType = "radiator" | "automobile" | "engineering";
+export type BusinessType = "radiator" | "automobile" | "engineering" | "tyre";
+
+// Tyre vertical: brand → model/size, each model with a default rate for the challan form.
+export type TyreModel = { label: string; value: string; rate: number };
+export type TyreBrand = { label: string; value: string; models: TyreModel[] };
+
+export type TyreSettings = {
+    brands: TyreBrand[];
+    defaultTubeType: "tube" | "tubeless";
+    billStartNumber: number;
+    bonus: {
+        mechanicMode: "percent" | "amount";
+        mechanicPercent: number;
+        mechanicAmount: number;
+        labourMode: "percent" | "amount";
+        labourPercent: number;
+        labourAmount: number;
+        yearStartMonth: number;
+    };
+    labels: { vehicleNo: string; customer: string; agent: string; worker: string };
+    invoice: { billTitle: string; subtitle: string; footerNote: string; showQr: boolean; showSignature: boolean };
+};
 
 // Engineering vertical: a null/undefined price means the item is not offered
 // for that BS model; 0 is offered.
@@ -131,6 +152,7 @@ export type AppSettings = {
             showSignature: boolean;
         };
     };
+    tyre: TyreSettings;
     // Salary Management — applies to every tenant regardless of businessType.
     salary: {
         payCycle: string;
@@ -184,6 +206,14 @@ export const FALLBACK_SETTINGS: AppSettings = {
         fyStartMonth: 4,
         bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0 },
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
+    },
+    tyre: {
+        brands: [],
+        defaultTubeType: "tube",
+        billStartNumber: 1,
+        bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0, labourMode: "percent", labourPercent: 0, labourAmount: 0, yearStartMonth: 4 },
+        labels: { vehicleNo: "Vehicle Number", customer: "Customer Name", agent: "Mechanic", worker: "Labour" },
+        invoice: { billTitle: "DELIVERY CHALLAN", subtitle: "Goods delivered. Not a tax invoice (no GST).", footerNote: "Goods received in good condition", showQr: false, showSignature: false },
     },
     salary: {
         payCycle: "monthly",
@@ -244,6 +274,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const res = await getData("settings");
             if (res?.settings) {
                 const merged = { ...FALLBACK_SETTINGS, ...res.settings };
+                // Nested tyre blocks fall back key by key, so a partly-saved tyre block never leaves labels undefined.
+                const t = res.settings.tyre || {};
+                const ft = FALLBACK_SETTINGS.tyre;
+                merged.tyre = {
+                    ...ft, ...t,
+                    bonus: { ...ft.bonus, ...(t.bonus || {}) },
+                    labels: { ...ft.labels, ...(t.labels || {}) },
+                    invoice: { ...ft.invoice, ...(t.invoice || {}) },
+                    brands: Array.isArray(t.brands) ? t.brands : [],
+                };
                 setSettings(merged);
                 setLoaded(true);
                 applyBranding(merged);

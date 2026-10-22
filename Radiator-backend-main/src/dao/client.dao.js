@@ -33,7 +33,7 @@ export async function getClientStatus(clientId) {
 
 // Tenant verticals. Fixed at provisioning; a missing field means "radiator"
 // so every pre-existing client keeps its exact current behavior.
-export const BUSINESS_TYPES = ["radiator", "automobile", "engineering"];
+export const BUSINESS_TYPES = ["radiator", "automobile", "engineering", "tyre"];
 
 export function normalizeBusinessType(businessType) {
   return BUSINESS_TYPES.includes(businessType) ? businessType : "radiator";
@@ -103,7 +103,8 @@ export async function exportClientData(clientId) {
   ]);
   const engbills = await db.collection("engbills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
   const stockEntries = await db.collection("stockentries").find({ clientId: cid }).sort({ date: 1 }).toArray();
-  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills, stockEntries };
+  const tyrebills = await db.collection("tyrebills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
+  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills, stockEntries, tyrebills };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -118,6 +119,7 @@ export async function offboardClient(clientId) {
   counts.radiators = (await db.collection("radiators").deleteMany({ clientId: cid })).deletedCount;
   counts.autobills = (await db.collection("autobills").deleteMany({ clientId: cid })).deletedCount;
   counts.engbills = (await db.collection("engbills").deleteMany({ clientId: cid })).deletedCount;
+  counts.tyrebills = (await db.collection("tyrebills").deleteMany({ clientId: cid })).deletedCount;
   counts.stockEntries = (await db.collection("stockentries").deleteMany({ clientId: cid })).deletedCount;
   counts.bonuses = (await db.collection("bonuses").deleteMany({ clientId: cid })).deletedCount;
   counts.expenses = (await db.collection("expenses").deleteMany({ clientId: cid })).deletedCount;

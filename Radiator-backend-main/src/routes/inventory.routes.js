@@ -17,12 +17,12 @@ import {
 const router = Router();
 router.use(authenticate, loadActiveTenant);
 
-// Inventory belongs to the automobile vertical (its parts catalog); other tenants get a 403.
+// Inventory belongs to the automobile (parts catalog) and tyre (brand → model catalog) verticals; others get a 403.
 router.use(async (req, res, next) => {
   try {
     const client = await getClientById(req.user.clientId);
-    if (!client || client.businessType !== "automobile") {
-      return res.status(403).json({ success: false, message: "Inventory is only available to automobile tenants" });
+    if (!client || !["automobile", "tyre"].includes(client.businessType)) {
+      return res.status(403).json({ success: false, message: "Inventory is only available to automobile and tyre tenants" });
     }
     next();
   } catch (error) {

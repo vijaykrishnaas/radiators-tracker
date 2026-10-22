@@ -252,7 +252,7 @@ const Clients: React.FC = () => {
                         code: String(r["Business Code"] ?? r["code"] ?? "").trim(),
                         adminUserId: String(r["Admin Username"] ?? r["adminUserId"] ?? "").trim(),
                         adminPassword: String(r["Admin Password"] ?? r["adminPassword"] ?? ""),
-                        businessType: (rawType === "automobile" ? "automobile" : rawType === "engineering" ? "engineering" : "radiator") as BusinessType,
+                        businessType: (rawType === "automobile" ? "automobile" : rawType === "engineering" ? "engineering" : rawType === "tyre" ? "tyre" : "radiator") as BusinessType,
                     };
                 })
                 .filter((c) => c.name || c.code);
@@ -302,7 +302,7 @@ const Clients: React.FC = () => {
         callAlertMsg("Handover details copied", "success");
     };
 
-    const typeName = (t?: BusinessType) => (t === "automobile" ? "Automobile" : t === "engineering" ? "Engineering" : "Radiator");
+    const typeName = (t?: BusinessType) => (t === "automobile" ? "Automobile" : t === "engineering" ? "Engineering" : t === "tyre" ? "Tyre" : "Radiator");
     const q = search.trim().toLowerCase();
     const filtered = clients.filter((c) => {
         const matchSearch = !q ||
@@ -443,6 +443,7 @@ const Clients: React.FC = () => {
                             <option value="radiator">Radiator</option>
                             <option value="automobile">Automobile</option>
                             <option value="engineering">Engineering Works</option>
+                            <option value="tyre">Tyre</option>
                         </select>
                     </Field>
                 </div>

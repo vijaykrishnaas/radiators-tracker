@@ -15,6 +15,7 @@ import {
   backfillAuto,
 } from "../dao/bonus.dao.js";
 import { getEngReviewData, backfillEng } from "../dao/engbonus.dao.js";
+import { getTyreReviewData, backfillTyre } from "../dao/tyrebonus.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
 import { getClientById } from "../dao/client.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
@@ -84,6 +85,10 @@ router.get("/review", async (req, res, next) => {
     // Engineering tenants: flat-% mechanic bonus over `engbills` (see dao/engbonus.dao.js).
     if (client?.businessType === "engineering") {
       return res.json({ success: true, ...(await getEngReviewData(req.user.clientId, type, name, from, to, settings)) });
+    }
+    // Tyre tenants: flat mechanic / labour bonus over `tyrebills` (see dao/tyrebonus.dao.js).
+    if (client?.businessType === "tyre") {
+      return res.json({ success: true, ...(await getTyreReviewData(req.user.clientId, type, name, from, to, settings)) });
     }
     const data = client?.businessType === "automobile"
       ? await getAutoReviewData(req.user.clientId, type, name, from, to, settings)
@@ -193,7 +198,9 @@ router.post("/sync", async (req, res, next) => {
       ? await backfillEng(req.user.clientId, fromDate, toDate)
       : client?.businessType === "automobile"
         ? await backfillAuto(req.user.clientId, fromDate, toDate)
-        : await backfill(req.user.clientId, fromDate, toDate);
+        : client?.businessType === "tyre"
+          ? await backfillTyre(req.user.clientId, fromDate, toDate)
+          : await backfill(req.user.clientId, fromDate, toDate);
     res.json({ success: true, message: `Synced bonuses for ${count} bill(s) ✅`, count });
   } catch (error) {
     next(error);

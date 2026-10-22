@@ -27,7 +27,12 @@ const LABELS: Record<string, string> = {
     "engbill.update": "Updated service bill",
     "engbill.delete": "Deleted service bill",
     "engbill.payment": "Recorded payment",
-    // Automobile inventory
+    // Tyre delivery challans
+    "tyrebill.create": "Created challan",
+    "tyrebill.update": "Updated challan",
+    "tyrebill.delete": "Deleted challan",
+    "tyrebill.payment": "Recorded payment",
+    // Automobile / tyre inventory
     "inventory.add": "Added stock",
     "inventory.update": "Updated stock entry",
     "inventory.delete": "Deleted stock entry",
@@ -63,7 +68,7 @@ const LABELS: Record<string, string> = {
     "client.delete": "Deleted client",
 };
 
-const VERTICAL_SUFFIX: Record<string, string> = { radiator: " (radiator)", autobill: " (automobile)", engbill: " (engineering)" };
+const VERTICAL_SUFFIX: Record<string, string> = { radiator: " (radiator)", autobill: " (automobile)", engbill: " (engineering)", tyrebill: " (tyre)" };
 
 /** Readable name, or null when the key is unknown (caller shows the raw key in mono). */
 export const actionLabel = (key: string, qualified = false): string | null => {
@@ -72,14 +77,14 @@ export const actionLabel = (key: string, qualified = false): string | null => {
     return qualified ? base + (VERTICAL_SUFFIX[key.split(".")[0]] || "") : base;
 };
 
-const BILL_PREFIX: Record<BusinessType, string> = { radiator: "radiator.", automobile: "autobill.", engineering: "engbill." };
+const BILL_PREFIX: Record<BusinessType, string> = { radiator: "radiator.", automobile: "autobill.", engineering: "engbill.", tyre: "tyrebill." };
 
 /** Action filter options for a tenant: its own bill actions plus the shared ones. */
 export const clientActionOptions = (businessType: BusinessType) =>
     Object.keys(LABELS)
         .filter((k) => !k.startsWith("client."))
-        .filter((k) => !/^(radiator|autobill|engbill)\./.test(k) || k.startsWith(BILL_PREFIX[businessType]))
-        .filter((k) => !k.startsWith("inventory.") || businessType === "automobile")
+        .filter((k) => !/^(radiator|autobill|engbill|tyrebill)\./.test(k) || k.startsWith(BILL_PREFIX[businessType]))
+        .filter((k) => !k.startsWith("inventory.") || businessType === "automobile" || businessType === "tyre")
         .map((value) => ({ value, label: LABELS[value] }));
 
 /** All actions, bill actions qualified by vertical (super-admin audit). */
@@ -110,6 +115,11 @@ export const detailText = (e: AuditEntry): string => {
             return join(d.billNo != null ? `Bill ${d.billNo}` : "", d.vehicleNo, d.netTotal != null ? rs(d.netTotal) : "");
         case "engbill.payment":
             return join(d.billNo != null ? `Bill ${d.billNo}` : "", d.amount ? `paid ${rs(d.amount)}` : "", d.discount ? `discount ${rs(d.discount)}` : "");
+        case "tyrebill.create":
+        case "tyrebill.update":
+            return join(d.billNo != null ? `D.C. ${d.billNo}` : "", d.vehicleNumber, d.paymentType === "installment" ? "installments" : "");
+        case "tyrebill.payment":
+            return join(d.billNo != null ? `D.C. ${d.billNo}` : "", d.installment, d.amount ? `paid ${rs(d.amount)}` : "", d.discount ? `discount ${rs(d.discount)}` : "");
         case "inventory.add":
         case "inventory.update":
         case "inventory.delete":

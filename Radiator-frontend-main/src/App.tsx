@@ -41,6 +41,9 @@ const SalarySettlePeriod = lazy(() => import("./Pages/Salary/SettlePeriod/Index"
 const EngDashboard = lazy(() => import("./Pages/Engineering/Dashboard/Index"));
 const EngCreate = lazy(() => import("./Pages/Engineering/Dashboard/Create"));
 const EngBilling = lazy(() => import("./Pages/Engineering/Billing/Index"));
+const TyreDashboard = lazy(() => import("./Pages/Tyre/Dashboard/Index"));
+const TyreCreate = lazy(() => import("./Pages/Tyre/Dashboard/Create"));
+const TyreBilling = lazy(() => import("./Pages/Tyre/Billing/Index"));
 
 import { SettingsProvider, useSettings } from "./Context/SettingsContext";
 import { isLoggedIn, isSuperAdmin, getUser, clearSession } from "./Services/Auth";
@@ -66,13 +69,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // Gates radiator-only and automobile-only screens by the tenant's businessType
 // (learned from GET /settings). Waits for settings to load before deciding, so
 // a radiator tenant never sees a flash-redirect off their own dashboard.
-const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" | "engineering" }> = ({ children, type }) => {
+const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "automobile" | "engineering" | "tyre" }> = ({ children, type }) => {
   const { settings, loading } = useSettings();
   if (loading) return <PageSpinner />;
   if (settings.businessType !== type) {
     return (
       <Navigate
-        to={settings.businessType === "automobile" ? "/automobile/billing" : settings.businessType === "engineering" ? "/engineering/dashboard" : "/issueCounter/billing"}
+        to={settings.businessType === "automobile" ? "/automobile/billing" : settings.businessType === "engineering" ? "/engineering/dashboard" : settings.businessType === "tyre" ? "/tyre/dashboard" : "/issueCounter/billing"}
         replace
       />
     );
@@ -88,7 +91,7 @@ const RequireSuperAdmin: React.FC<{ children: React.ReactNode }> = ({ children }
   return <>{children}</>;
 };
 
-const VERTICAL_NAME: Record<string, string> = { radiator: "Radiator", automobile: "Automobile", engineering: "Engineering" };
+const VERTICAL_NAME: Record<string, string> = { radiator: "Radiator", automobile: "Automobile", engineering: "Engineering", tyre: "Tyre" };
 
 const AppLayout: React.FC = () => {
   const location = useLocation();
@@ -138,6 +141,13 @@ const AppLayout: React.FC = () => {
           <Route path="/automobile/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="automobile"><CreateAutoBill /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/billing" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoBillingPage /></BusinessRoute></ProtectedRoute>} />
           <Route path="/automobile/inventory" element={<ProtectedRoute><BusinessRoute type="automobile"><AutoInventory /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/tyre/dashboard" element={<ProtectedRoute><BusinessRoute type="tyre"><TyreDashboard /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/tyre/dashboard/create" element={<ProtectedRoute><BusinessRoute type="tyre"><TyreCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/tyre/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="tyre"><TyreCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/tyre/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="tyre"><TyreCreate /></BusinessRoute></ProtectedRoute>} />
+          <Route path="/tyre/billing" element={<ProtectedRoute><BusinessRoute type="tyre"><TyreBilling /></BusinessRoute></ProtectedRoute>} />
+          {/* The inventory screen is shared: automobile parts or tyre brand + model (Pages/Automobile/Inventory). */}
+          <Route path="/tyre/inventory" element={<ProtectedRoute><BusinessRoute type="tyre"><AutoInventory /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard" element={<ProtectedRoute><BusinessRoute type="engineering"><EngDashboard /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard/create" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />

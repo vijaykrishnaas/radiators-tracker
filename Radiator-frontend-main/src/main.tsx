@@ -18,6 +18,7 @@ import "./styles/components/settings.css";
 import "./styles/components/bonus.css";
 import "./styles/components/salary.css";
 import "./styles/components/engineering.css";
+import "./styles/components/tyre.css";
 import "./styles/components/billsheet.css";
 import "./styles/components/admin-console.css";
 

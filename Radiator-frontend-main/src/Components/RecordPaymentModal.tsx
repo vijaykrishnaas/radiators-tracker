@@ -12,9 +12,14 @@ export const PAYMENT_MODE_OPTIONS = [
     { value: "other", label: "Other" },
 ];
 
+/** One installment row the payment can go to (tyre challans). */
+export type PayableInstallment = { id: string; label: string; dueDate: string; balance: number; overdue?: boolean };
+
 /**
  * Record Payment (spec §5): summary strip, optional discount, amount received now, and — for
  * Engineering — payment mode. Validation and the API call stay in each screen (`onSubmit`).
+ * With `installments` (tyre challans on a plan) the discount is replaced by a choice of installment, and the
+ * amount is limited to what is left on it.
  */
 export default function RecordPaymentModal({
     open,
@@ -25,6 +30,8 @@ export default function RecordPaymentModal({
     pending,
     withMode = false,
     discountHelpInline = true,
+    installments,
+    initialInstallmentId,
     busy,
     onClose,
     onSubmit,
@@ -38,17 +45,35 @@ export default function RecordPaymentModal({
     withMode?: boolean;
     /** Radiator/automobile show "— optional, reduces the amount owed" in the label; engineering as helper text. */
     discountHelpInline?: boolean;
+    /** Unpaid installments, earliest first. When given, the payment is recorded against the chosen one. */
+    installments?: PayableInstallment[];
+    initialInstallmentId?: string;
     busy: boolean;
     onClose: () => void;
-    onSubmit: (v: { amount: string; discount: string; mode: string }) => void;
+    onSubmit: (v: { amount: string; discount: string; mode: string; installmentId?: string }) => void;
 }) {
     const [amount, setAmount] = useState("");
     const [discount, setDiscount] = useState("");
     const [mode, setMode] = useState("cash");
-    useEffect(() => { if (open) { setAmount(""); setDiscount(""); setMode("cash"); } }, [open]);
+    const [instId, setInstId] = useState("");
+    const plan = installments && installments.length > 0 ? installments : null;
+    const chosen = plan?.find((r) => r.id === instId) || null;
+    // Opening on an installment pre-fills what is left on it (the usual case: the customer pays the month in full).
+    const pickInstallment = (id: string) => {
+        setInstId(id);
+        const r = plan?.find((x) => x.id === id);
+        setAmount(r ? String(r.balance) : "");
+    };
+    useEffect(() => {
+        if (!open) return;
+        setDiscount(""); setMode("cash");
+        if (plan) pickInstallment(plan.find((r) => r.id === initialInstallmentId)?.id || plan[0].id);
+        else { setAmount(""); setInstId(""); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     const disc = Number(discount) || 0;
-    const upTo = Math.max(pending - disc, 0);
+    const upTo = chosen ? chosen.balance : Math.max(pending - disc, 0);
     return (
         <Modal
             open={open}
@@ -57,7 +82,7 @@ export default function RecordPaymentModal({
             busy={busy}
             initialFocus="#payment-amount"
             as="form"
-            onSubmit={(e) => { e.preventDefault(); onSubmit({ amount, discount, mode }); }}
+            onSubmit={(e) => { e.preventDefault(); onSubmit({ amount, discount: plan ? "" : discount, mode, ...(plan ? { installmentId: instId } : {}) }); }}
             footer={
                 <>
                     <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
@@ -74,6 +99,18 @@ export default function RecordPaymentModal({
                 <div><dt>Pending</dt><dd className="t-error">{money(pending)}</dd></div>
             </dl>
             <div className="d-grid gap-3">
+                {plan && (
+                    <Field label="Installment" htmlFor="payment-installment" help={chosen ? `${money(chosen.balance)} left · due ${new Date(chosen.dueDate).toLocaleDateString("en-IN")}${chosen.overdue ? " (overdue)" : ""}` : undefined}>
+                        <select id="payment-installment" className="form-select" value={instId} onChange={(e) => pickInstallment(e.target.value)}>
+                            {plan.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                    {r.label} · {money(r.balance)}{r.overdue ? " · overdue" : ""}
+                                </option>
+                            ))}
+                        </select>
+                    </Field>
+                )}
+                {!plan && (
                 <Field
                     label={discountHelpInline ? <>Discount (₹) <span className="t-xs t-muted">— optional, reduces the amount owed</span></> : "Discount (₹)"}
                     htmlFor="payment-discount"
@@ -88,6 +125,7 @@ export default function RecordPaymentModal({
                         </p>
                     )}
                 </Field>
+                )}
                 <Field label="Amount received now (₹)" htmlFor="payment-amount">
                     <AffixInput id="payment-amount" prefix="₹" type="number" inputMode="decimal" min={0} max={upTo}
                         value={amount} placeholder={`Up to ${upTo}`} onChange={(e) => setAmount(e.target.value)} />
