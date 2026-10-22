@@ -45,6 +45,17 @@ function httpError(message, statusCode = 400) {
 }
 
 const notFound = () => httpError("Challan not found", 404);
+const changedMeanwhile = () => httpError("This challan was changed by someone else just now. Reload it and try again.", 409);
+
+// Writes only if the challan is still the version that was read (same updatedAt), so a payment and an edit made at
+// the same time can never overwrite each other and lose money.
+async function saveIfUnchanged(db, existing, set) {
+  const res = await db.collection(COLLECTION).updateOne(
+    { _id: existing._id, clientId: existing.clientId, updatedAt: existing.updatedAt },
+    { $set: set }
+  );
+  if (!res.matchedCount) throw changedMeanwhile();
+}
 
 function toPaymentMode(mode) {
   return PAYMENT_MODES.includes(mode) ? mode : "cash";
@@ -140,7 +151,10 @@ function buildInstallments(rawRows, tyreAmount, existingRows = []) {
 
   const byId = new Map(existingRows.map((r) => [r.id, r]));
   const locked = existingRows.filter((r) => sumPaid(r.payments) > 0);
-  const sentIds = new Set(rawRows.map((r) => String(r?.id || "")).filter(Boolean));
+  const ids = rawRows.map((r) => String(r?.id || "")).filter(Boolean);
+  const sentIds = new Set(ids);
+  // A row sent twice would copy its payments and inflate what was received.
+  if (sentIds.size !== ids.length) throw httpError("The same installment was sent twice. Reload the challan and try again.");
   const missing = locked.find((r) => !sentIds.has(r.id));
   if (missing) throw httpError(`"${missing.label}" already has a payment, so it can't be removed`);
 
@@ -343,8 +357,14 @@ export async function updateTyreBill(clientId, id, data) {
     discount: paymentType === "full" ? existing.discount || 0 : 0,
     receivedAmount: paymentType === "full" ? existing.receivedAmount || 0 : 0,
   };
-  const set = { ...base, ...computeTotals(base), updatedAt: new Date() };
-  await db.collection(COLLECTION).updateOne({ _id: existing._id, clientId: cid }, { $set: set });
+  const totals = computeTotals(base);
+  // A full-payment challan can't be cut below what was already collected: that money would vanish from the totals
+  // while still sitting in the payment log.
+  if (paymentType === "full" && round2(Number(existing.receivedAmount) || 0) > totals.payableTotal) {
+    throw httpError(`₹${round2(existing.receivedAmount).toLocaleString("en-IN")} is already received, so the challan total can't go below that`);
+  }
+  const set = { ...base, ...totals, updatedAt: new Date() };
+  await saveIfUnchanged(db, existing, set);
   const saved = { ...existing, ...set };
   await syncBonus(clientId, saved);
   return enrich(saved);
@@ -403,7 +423,8 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
     const prev = computeTotals(existing);
     const next = computeTotals({ ...existing, discount: discountIn, receivedAmount: prev.receivedAmount + pay });
     const applied = round2(next.receivedAmount - Math.min(prev.receivedAmount, next.payableTotal));
-    if (!(applied > 0) && !(discount != null && Number(discount) > 0)) {
+    const discountChanged = discount != null && next.discount !== round2(Number(existing.discount) || 0);
+    if (!(applied > 0) && !discountChanged) {
       throw httpError(prev.pendingAmount <= 0 ? "This challan is already fully paid" : "Enter a payment amount and/or a discount");
     }
     if (applied > 0) log.push({ date: now, amount: applied, mode: paymentMode });
@@ -424,7 +445,7 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
     payments: log,
     updatedAt: now,
   };
-  await db.collection(COLLECTION).updateOne({ _id: existing._id, clientId: cid }, { $set: set });
+  await saveIfUnchanged(db, existing, set);
   const saved = { ...existing, ...set };
   await syncBonus(clientId, saved);
   return enrich(saved);

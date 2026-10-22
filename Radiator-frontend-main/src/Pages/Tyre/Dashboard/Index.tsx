@@ -74,10 +74,9 @@ const TyreDashboard = () => {
                     <div className="card-body">
                         <CardHead title="Installments to collect" subtitle="Overdue and due this month, across all challans" />
                         <KpiGrid count={3}>
-                            <KpiCard loading={first} label="Overdue" value={money(inst?.overdueAmount || 0)} icon="clock" tone="error" valueTone="error"
-                                caption={inst ? `${inst.overdueBills} challan${inst.overdueBills === 1 ? "" : "s"}` : undefined} />
+                            <KpiCard loading={first} label="Overdue" value={money(inst?.overdueAmount || 0)} icon="clock" tone="error" valueTone="error" />
                             <KpiCard loading={first} label="Due this month" value={money(inst?.dueThisMonth || 0)} icon="calendar" tone="brand" />
-                            <KpiCard loading={first} label="Interest (in range)" value={money(k?.interestTotal || 0)} icon="trendingup" tone="success" />
+                            <KpiCard loading={first} label="Challans overdue" value={String(inst?.overdueBills || 0)} icon="receipt-text" />
                         </KpiGrid>
                         {first ? <SkeletonRows rows={3} /> : inst && inst.rows.length > 0 ? (
                             <div className="table-wrap mt-3">

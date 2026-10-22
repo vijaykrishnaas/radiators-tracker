@@ -238,3 +238,49 @@ test("overdue filter and the dashboard follow-up list", async () => {
   assert.equal(f.dueThisMonth, 0);
   assert.deepEqual(f.rows.map((r) => [r.label, r.balance, r.overdue]), [["1st month", 10400, true], ["2nd month", 10400, true]]);
 });
+
+test("review: a row sent twice is refused (it would copy its payments)", async () => {
+  const bill = await createTyreBill(CLIENT, input());
+  const ids = bill.installments.map((r) => r.id);
+  await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: ids[0] });
+  const dup = [
+    { id: ids[0], label: "Initial amount", dueDate: "2026-09-20", principal: 28500, interest: 0 },
+    { id: ids[0], label: "Initial amount", dueDate: "2026-09-20", principal: 28500, interest: 0 },
+  ];
+  await rejects(updateTyreBill(CLIENT, bill._id, input({ items: [tyre({ qty: 1, rate: 57000 })], installments: dup })), /sent twice/);
+});
+
+test("review: a write based on a stale read is refused instead of losing a payment", async () => {
+  const bill = await createTyreBill(CLIENT, input());
+  const coll = fakeDb.collection("tyrebills");
+  // Someone else records a payment between this request's read and its write: simulate by moving updatedAt on.
+  const realFindOne = coll.findOne.bind(coll);
+  let bump = 0;
+  coll.findOne = async (q) => {
+    const doc = await realFindOne(q);
+    // A minute apart each time: the fake DB compares dates as strings, which only carry whole seconds.
+    bump += 60_000;
+    coll.docs[0] = { ...coll.docs[0], updatedAt: new Date(Date.now() + bump) };
+    return doc;
+  };
+  await assert.rejects(recordTyrePayment(CLIENT, bill._id, { amount: 100, installmentId: bill.installments[0].id }), (e) => e.statusCode === 409);
+  await assert.rejects(updateTyreBill(CLIENT, bill._id, input()), (e) => e.statusCode === 409);
+  coll.findOne = realFindOne;
+  const ok = await recordTyrePayment(CLIENT, bill._id, { amount: 100, installmentId: bill.installments[0].id });
+  assert.equal(ok.receivedAmount, 100);
+});
+
+test("review: a full-payment challan can't be edited below what was received", async () => {
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: undefined }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 40000 });
+  await rejects(updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", items: [tyre({ qty: 1, rate: 30000 })] })), /₹40,000 is already received/);
+  const fine = await updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", items: [tyre({ qty: 2, rate: 22000 })] }));
+  assert.equal(fine.payableTotal, 44000);
+  assert.equal(fine.receivedAmount, 40000);
+});
+
+test("review: re-sending the same discount with no amount is not a payment", async () => {
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: undefined }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 1000, discount: 500 });
+  await rejects(recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 500 }), /Enter a payment amount/);
+});
