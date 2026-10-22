@@ -29,6 +29,8 @@ const balanceOf = (b: Bill) => Math.max(b.totalAmount - b.receivedAmount, 0);
 
 const LabourReview = () => {
     const { settings } = useSettings();
+    // Tyre review data: the "service" mix is full payment vs installments, the "product" breakdown is tyre brands.
+    const isTyre = settings.businessType === "tyre";
     const { callAlertMsg } = useAlertMsg();
     const phone = usePhone();
 
@@ -185,12 +187,12 @@ const LabourReview = () => {
 
                         <div className="row g-3 g-md-4">
                             <div className="col-12 col-lg-6">
-                                <ChartCard title="Service type mix" subtitle="Share of jobs, with revenue" loading={first} isEmpty={!data?.byServiceType.length}>
+                                <ChartCard title={isTyre ? "Full vs installments" : "Service type mix"} subtitle={isTyre ? "Share of challans, with sales" : "Share of jobs, with revenue"} loading={first} isEmpty={!data?.byServiceType.length}>
                                     <DonutWithLegend data={data?.byServiceType || []} nameKey="type" valueKey="count" amountKey="revenue" centerLabel="Revenue" />
                                 </ChartCard>
                             </div>
                             <div className="col-12 col-lg-6">
-                                <ChartCard title="Revenue by product model" loading={first} isEmpty={!data?.byProductType.length}>
+                                <ChartCard title={isTyre ? "Sales by brand" : "Revenue by product model"} loading={first} isEmpty={!data?.byProductType.length}>
                                     <HBarChart data={data?.byProductType || []} dataKey="revenue" nameKey="product" name="Revenue" />
                                 </ChartCard>
                             </div>

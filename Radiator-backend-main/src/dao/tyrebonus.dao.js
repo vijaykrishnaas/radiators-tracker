@@ -1,9 +1,9 @@
 // Tyre-vertical mechanic + labour bonus. Same flat model as the automobile / engineering bonus (kept in its own file so
 // their code is not touched): each role gets settings.tyre.bonus.<role>Percent of the challan's TYRE amount (after any
 // discount; installment interest is never part of it), or a fixed <role>Amount per challan when <role>Mode is
-// "amount". It becomes payable in step with collection: payable = accrued × received ÷ amount to collect (interest
-// included in both, so a half-collected installment plan has half the bonus ready). Labour's share is split equally
-// among the challan's workers. Entries live in the shared "bonuses" collection, so the existing pending / payout /
+// "amount". It becomes payable in step with collection of the tyre amount: payable = accrued × received ÷ tyre amount
+// (capped at 1), so interest is ignored on both sides and the bonus is fully ready once the tyre price is paid, even
+// while interest is still owed. Labour's share is split equally among the challan's workers. Entries live in the shared "bonuses" collection, so the existing pending / payout /
 // adjust / manual endpoints work unchanged.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
@@ -26,9 +26,8 @@ export function computeTyreRoleBonus(bill, role, settings) {
   const tyreAmount = Math.max(Number(bill.tyreAmount) || 0, 0);
   const discount = Math.max(Number(bill.discount) || 0, 0);
   const base = Math.max(tyreAmount - discount, 0);
-  const payableTotal = Math.max(Number(bill.payableTotal) || 0, 0);
-  const received = Math.min(Math.max(Number(bill.receivedAmount) || 0, 0), payableTotal);
-  const ratio = payableTotal > 0 ? Math.min(received / payableTotal, 1) : 0;
+  const received = Math.min(Math.max(Number(bill.receivedAmount) || 0, 0), base);
+  const ratio = base > 0 ? Math.min(received / base, 1) : 0;
   const accrued = fixed ? (base > 0 ? perBill : 0) : (base * percent) / 100;
   return { accrued: round2(accrued), payable: round2(accrued * ratio), totalAmount: base, received };
 }

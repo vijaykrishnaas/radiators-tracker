@@ -205,9 +205,10 @@ export function TyreBonusTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }) 
             {role("mechanic", tyre.labels.agent, false)}
             {role("labour", tyre.labels.worker, true)}
             <span className="field-help">
-                The percentage is of the tyre amount (after any discount). Installment interest is not part of it. The bonus becomes
-                payable in step with collection: when half of a challan's amount to collect (interest included) is received, half the
-                bonus is ready to pay. After changing the bonus, use Recalculate on the Bonus page to re-price challans not paid out yet.
+                The percentage is of the tyre amount (after any discount). Installment interest is never counted. The bonus becomes
+                payable as the tyre amount is collected: when half the tyre price is received, half the bonus is ready, and all of it
+                once the tyre price is paid, even if interest is still owed. After changing the bonus, use Recalculate on the Bonus page
+                to re-price challans not paid out yet.
             </span>
         </>
     );

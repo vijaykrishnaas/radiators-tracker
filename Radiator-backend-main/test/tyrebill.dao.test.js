@@ -187,7 +187,7 @@ test("full payment: part payments and discount like the other verticals", async 
   assert.equal(after.payments.reduce((s, p) => s + p.amount, 0), 48000);
 });
 
-test("bonus: % of the tyre amount (interest excluded), payable as the plan is collected; labour fixed ₹ split", async () => {
+test("bonus: % of the tyre amount, payable as the tyre amount is collected (interest ignored); labour fixed ₹ split", async () => {
   const bill = await createTyreBill(CLIENT, input());
   const mech = () => bonuses().find((b) => b.type === "mechanic");
   assert.equal(mech().accruedAmount, 970); // 2% of 48,500 — not of 49,300
@@ -197,8 +197,12 @@ test("bonus: % of the tyre amount (interest excluded), payable as the plan is co
   assert.deepEqual(lab.map((b) => [b.beneficiary, b.accruedAmount]).sort(), [["Kumar", 150], ["Siva", 150]]);
 
   await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: bill.installments[0].id });
-  // 28,500 of 49,300 collected → 970 × 28500/49300
-  assert.equal(mech().payableAmount, Math.round(970 * 28500 / 49300 * 100) / 100);
+  // Interest is ignored: 28,500 of the 48,500 tyre amount collected → 970 × 28500/48500
+  assert.equal(mech().payableAmount, Math.round(970 * 28500 / 48500 * 100) / 100);
+  // Once the tyre price is collected the whole bonus is ready, though 800 of interest is still owed.
+  await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: bill.installments[1].id });
+  await recordTyrePayment(CLIENT, bill._id, { amount: 9600, installmentId: bill.installments[2].id });
+  assert.equal(mech().payableAmount, 970);
 
   await deleteTyreBill(CLIENT, bill._id);
   assert.equal(bonuses().length, 0);
