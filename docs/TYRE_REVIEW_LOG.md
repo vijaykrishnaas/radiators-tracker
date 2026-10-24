@@ -268,3 +268,22 @@ Read through the bonus, inventory and catalog code again for edge cases, then dr
 - Automobile only: a manual mechanic bonus and the Bonus page's "this year" use the radiator year-start setting, not `automobile.bonus.yearStartMonth`. Both are 4 (April) unless changed, and the automobile one has no field in Settings, so in practice they agree.
 
 Gate: backend 96/96; tsc + build OK; e2e tyre 48/48, automobile / engineering / radiator / salary 0 FAIL.
+
+## Run 12 — area (f) regressions in the other verticals, round 2 (behaviour)
+No shared (non-tyre) file has changed since run 6, so its pixel comparison still stands. This round read every shared change made by the tyre work (30 files) for changes in behaviour that screenshots can't show:
+- **Backend:**
+  - `/mechanic` returns the same sorted name list from the radiator, automobile and tyre lookups. Radiator and engineering tenants get exactly what they got before.
+  - `parseSort` only adds a function case, so existing string and expression sort keys are unchanged.
+  - Bonus review and Recalculate only add a tyre branch.
+  - The settings backfill only adds the missing `tyre` key.
+  - The new indexes are on `tyrebills` only.
+  - Client export and offboarding also cover `tyrebills`.
+- **Frontend:**
+  - The payment modal, given no installments, resets, shows the discount and submits exactly as before.
+  - Every automobile inventory string expands to its old wording ("Stock by part", "-- All parts --", "Profit on parts sold", …).
+  - The audit-filter, Settings-tab, navigation, route and year-start helpers only add tyre cases.
+  - `tyre.css` has no selector outside `.tyre-*`.
+
+Nothing new found.
+Seen, pre-existing (not from tyre work): the super-admin "client settings" view shows the radiator bonus / catalog block for every vertical. Automobile and engineering already did this before tyre existed.
+Gate: no code changed this run (last full gate: run 11, all green).
