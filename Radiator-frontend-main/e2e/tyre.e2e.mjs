@@ -63,11 +63,10 @@ await page.route("http://localhost:5000/**", async (route) => {
   if (p === "/inventory/summary") return json({ success: true, rows: [], totals: { parts: 0, inStock: 0, stockValue: 0, sales: 0, profit: 0, outOfStock: 0 } });
   if (p === "/inventory/entries") return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: 0, entries: [] });
   if (p === "/tyrebills/analytics") {
+    // The real aggregation on the fake DB, with the filters mapped as routes/tyrebill.routes.js does.
     return run(async () => ({
       success: true,
-      kpis: { totalBills: 1, tyreRevenue: 48500, interestTotal: 800, payableTotal: 49300, totalCollected: 0, totalPending: 49300, totalDiscount: 0, installmentBills: 1, tyresSold: 2, collectionRate: 0, avgBillValue: 49300 },
-      byMonth: [], byStatus: [], byBrand: [], topMechanics: [],
-      installments: await dao.getInstallmentFollowUp(CLIENT),
+      ...(await dao.getTyreAnalytics(CLIENT, { fromDate: q.fromDate || "", toDate: q.toDate || "", mechName: q.mechanicName || "", status: q.status || "" })),
     }));
   }
   if (p === "/tyrebills/add") return run(async () => { const b = await dao.createTyreBill(CLIENT, req.postDataJSON()); return { success: true, message: "Challan saved ✅", id: b._id }; });
@@ -452,6 +451,20 @@ const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
   return { badge: c.querySelector(".m-card-top .badge")?.textContent, apart: !badge || !menu || Math.abs((badge.top + badge.bottom) / 2 - (menu.top + menu.bottom) / 2) > 6 };
 }));
 ok("tyre: phone challan cards keep the menu beside its badge", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.apart), JSON.stringify(cards));
+
+// ---- Dashboard: the "To collect" breakdown adds up to its figure when a challan has a discount ----
+const disc = await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN01DS0001", mechanicName: "Ramesh",
+  items: [{ brandRef: "apollo", modelRef: "9-00-20-xt-7", qty: 1, rate: 19000 }], paymentType: "full" });
+await dao.recordTyrePayment(CLIENT, disc._id, { amount: 0, discount: 500 });
+await page.goto(BASE + "/tyre/dashboard");
+const collectCard = page.locator(".kpi").filter({ has: page.locator(".kpi-label", { hasText: /^To collect$/ }) });
+await collectCard.locator(".kpi-caption").waitFor({ timeout: 10000 });
+const rupees = (t) => (t.match(/₹[\d,]+(\.\d+)?/g) || []).map((x) => Number(x.replace(/[₹,]/g, "")));
+const [shown] = rupees(await collectCard.locator(".kpi-value").innerText());
+const capText = await collectCard.locator(".kpi-caption").innerText();
+const parts = rupees(capText);
+const sum = /discount/i.test(capText) ? parts[0] + parts[1] - parts[2] : parts[0] + parts[1];
+ok("tyre: dashboard 'To collect' breakdown adds up when a challan has a discount", Math.abs(sum - shown) < 0.01, `${shown} vs "${capText}"`);
 
 ok("tyre: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

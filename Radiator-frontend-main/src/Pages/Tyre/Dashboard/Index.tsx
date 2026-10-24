@@ -145,7 +145,7 @@ const TyreDashboard = () => {
                         caption={k ? `${k.installmentBills} on installments` : undefined} />
                     <KpiCard loading={first} label="Tyres sold" value={String(k?.tyresSold || 0)} icon="package" />
                     <KpiCard loading={first} label="To collect" value={money(k?.payableTotal || 0)} icon="currencyrupee" tone="brand"
-                        caption={k ? `${money(k.tyreRevenue)} tyres + ${money(k.interestTotal)} interest` : undefined} />
+                        caption={k ? `${money(k.tyreRevenue)} tyres + ${money(k.interestTotal)} interest${k.totalDiscount > 0 ? ` − ${money(k.totalDiscount)} discount` : ""}` : undefined} />
                     <KpiCard loading={first} label="Collected" value={money(k?.totalCollected || 0)} icon="trendingup" tone="success" />
                     <KpiCard loading={first} label="Pending" value={money(k?.totalPending || 0)} icon="clock" tone="error" valueTone="error" />
                     <KpiCard loading={first} label="Collection Rate" value={`${k?.collectionRate || 0}%`} icon="bar_chart" />

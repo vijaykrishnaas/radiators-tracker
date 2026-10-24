@@ -317,3 +317,20 @@ Read the plan editing, load and payment paths, then drove the edit screen in the
 - The full-payment discount is sent as existing + new.
 
 Gate: backend 98/98; tsc + build OK; e2e tyre 49, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 15 — area (c) list + dashboard, round 3 (do the numbers add up)
+Checked the list filters, the overdue and follow-up rules, and the analytics pipeline against the challans behind them.
+
+**Bug, reproduced in the browser:**
+- **The dashboard's "To collect" breakdown didn't add up when a challan had a discount.** The card read ₹6,86,853.50 with the caption "₹6,75,503.50 tyres + ₹11,850.00 interest", which is ₹6,87,353.50. The ₹500 discount was in the figure but missing from the caption. Fix: the caption adds "− ₹500.00 discount" when there is one. Test: `tyre: dashboard 'To collect' breakdown adds up when a challan has a discount` (old code: caption ₹500 off).
+- **Test gap found while doing this:** the e2e dashboard used hard-coded KPI numbers, so no dashboard figure was ever checked. It now calls the real `getTyreAnalytics` on the fake DB, with the filters mapped as the route does.
+
+**Checked, fine:**
+- The "Overdue only" list filter and the dashboard's overdue rows use the same calendar-day rule.
+- The follow-up covers all challans (not the date filter) up to the end of this month.
+- The month chart groups by the challan's own date (`billDate` is stored as UTC midnight).
+- Searching a D.C. number also finds it.
+
+**Open (all verticals, server time zone):** the list's From / To dates use the server's local midnight. On a server west of UTC, challans dated on the From day drop out and the day after To comes in. That's correct in UTC and IST, and the other verticals behave the same way.
+
+Gate: backend 98/98; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
