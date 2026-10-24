@@ -47,12 +47,15 @@ function httpError(message, statusCode = 400) {
 const notFound = () => httpError("Challan not found", 404);
 const changedMeanwhile = () => httpError("This challan was changed by someone else just now. Reload it and try again.", 409);
 
-// Writes only if the challan is still the version that was read (same updatedAt), so a payment and an edit made at
-// the same time can never overwrite each other and lose money.
+// Writes only if the challan is still the revision that was read, and moves it to the next revision, so two payments
+// (or a payment and an edit) made at the same moment can never overwrite each other and lose money: the second one is
+// refused. A revision number, not a timestamp: two writes in the same clock tick would carry the same timestamp.
+// Challans saved before revisions existed have none and count as revision 0.
 async function saveIfUnchanged(db, existing, set) {
+  const rev = Number(existing.rev) || 0;
   const res = await db.collection(COLLECTION).updateOne(
-    { _id: existing._id, clientId: existing.clientId, updatedAt: existing.updatedAt },
-    { $set: set }
+    { _id: existing._id, clientId: existing.clientId, rev: rev ? rev : { $exists: false } },
+    { $set: Object.assign(set, { rev: rev + 1 }) }
   );
   if (!res.matchedCount) throw changedMeanwhile();
 }
@@ -331,6 +334,7 @@ export async function createTyreBill(clientId, data) {
     ...computeTotals(base),
     createdAt: now,
     updatedAt: now,
+    rev: 1,
   };
   const result = await db.collection(COLLECTION).insertOne(doc);
   const saved = { ...doc, _id: result.insertedId };

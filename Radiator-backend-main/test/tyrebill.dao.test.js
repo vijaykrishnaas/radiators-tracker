@@ -258,14 +258,12 @@ test("review: a row sent twice is refused (it would copy its payments)", async (
 test("review: a write based on a stale read is refused instead of losing a payment", async () => {
   const bill = await createTyreBill(CLIENT, input());
   const coll = fakeDb.collection("tyrebills");
-  // Someone else records a payment between this request's read and its write: simulate by moving updatedAt on.
+  // Someone else records a payment between this request's read and its write.
   const realFindOne = coll.findOne.bind(coll);
-  let bump = 0;
   coll.findOne = async (q) => {
     const doc = await realFindOne(q);
-    // A minute apart each time: the fake DB compares dates as strings, which only carry whole seconds.
-    bump += 60_000;
-    coll.docs[0] = { ...coll.docs[0], updatedAt: new Date(Date.now() + bump) };
+    // Someone else saves the challan right after this request read it: its revision moves on.
+    coll.docs[0] = { ...coll.docs[0], rev: (Number(coll.docs[0].rev) || 0) + 1 };
     return doc;
   };
   await assert.rejects(recordTyrePayment(CLIENT, bill._id, { amount: 100, installmentId: bill.installments[0].id }), (e) => e.statusCode === 409);
@@ -376,4 +374,32 @@ test("review: a mechanic removed from Settings still appears on the bonus pages 
   // "Kannan" left: not in Settings any more, but his challan (and bonus) remain.
   await createTyreBill(CLIENT, input({ mechanicName: "Kannan" }));
   assert.deepEqual(await listMechanicNames(CLIENT, "tyre"), ["Kannan", "Ramesh"]);
+});
+
+test("review: two payments at the same moment never lose one (the second is refused, not silently dropped)", async () => {
+  const bill = await createTyreBill(CLIENT, input());
+  const row = bill.installments[1].id; // 1st month: 10,400
+  // A double-tapped Record Payment, or two people collecting at once: both read the same challan.
+  const results = await Promise.allSettled([
+    recordTyrePayment(CLIENT, bill._id, { amount: 6000, installmentId: row }),
+    recordTyrePayment(CLIENT, bill._id, { amount: 4000, installmentId: row }),
+  ]);
+  const ok = results.filter((r) => r.status === "fulfilled").length;
+  const refused = results.filter((r) => r.status === "rejected" && r.reason.statusCode === 409).length;
+  const saved = await getTyreBillById(CLIENT, bill._id);
+  const paidOnRow = saved.installments[1].payments.reduce((s, p) => s + p.amount, 0);
+  // Whatever the server reported as recorded must actually be on the challan.
+  const reported = results.reduce((s, r, i) => (r.status === "fulfilled" ? s + [6000, 4000][i] : s), 0);
+  assert.equal(ok + refused, 2);
+  assert.equal(paidOnRow, reported);
+  assert.equal(saved.receivedAmount, reported);
+  assert.equal(saved.payments.reduce((s, p) => s + p.amount, 0), reported);
+});
+
+test("review: a challan saved before revisions existed can still be paid and edited", async () => {
+  const bill = await createTyreBill(CLIENT, input());
+  delete fakeDb.collection("tyrebills").docs[0].rev; // as stored by the first release
+  const paid = await recordTyrePayment(CLIENT, bill._id, { amount: 1000, installmentId: bill.installments[0].id });
+  assert.equal(paid.receivedAmount, 1000);
+  assert.equal(fakeDb.collection("tyrebills").docs[0].rev, 1);
 });

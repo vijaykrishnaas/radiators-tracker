@@ -172,3 +172,25 @@ Method: a visual regression against the code from before any tyre work (`88c407f
 Gate: backend 94/94; tsc + build OK; e2e tyre 40/40, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 This completes the first full rotation (a–f).
+
+## Run 7 — 2026-10-24 — area (a) money logic, second round (concurrency + fuzz)
+
+New angles: payments landing at the same moment, and a random-operation fuzz test. The fuzz ran 40 challans × 12
+random steps (payments, discounts, plan edits, type switches, odd amounts like 0.01 and 19,999.99). After every step it
+checked that received equals the payment log and the sum of installment payments, pending equals to-collect minus
+received, the status matches the amounts, no row is overpaid, and principals still add up to the tyre amount.
+**Result: 217 accepted operations, 0 violations.** Every rejection was a deliberate 400 with a clear message.
+
+1. **Two payments at the same moment both reported success, but only one was saved.** This could happen with a
+   double-tapped Record Payment, or two people collecting at once. Repro: two parallel ₹15,000 payments on a ₹20,400
+   installment → both "recorded", row paid ₹15,000, one log entry, so one customer payment was lost. The run-1 guard
+   compared `updatedAt`, and two writes in the same clock tick carry the same timestamp (milliseconds in MongoDB, whole
+   seconds in the fake DB). Fix: an integer revision (`rev`) that every write must match and then increments, so the
+   second write is refused with "changed by someone else, reload" (409). Challans saved before this have no `rev`
+   and count as revision 0. Tests: "two payments at the same moment never lose one" (fails on the old guard), "a
+   challan saved before revisions existed can still be paid and edited"; the run-1 stale-read test now bumps `rev`.
+
+Also traced, no bug: an edit form left open while someone else records a payment. The server re-reads at save time,
+the newly paid row comes back locked with its payment, and changing it is refused.
+
+Gate: backend 96/96; tsc + build OK; e2e tyre 40/40, automobile / engineering / radiator / salary 0 FAIL.
