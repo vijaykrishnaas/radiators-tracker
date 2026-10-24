@@ -194,3 +194,27 @@ Also traced, no bug: an edit form left open while someone else records a payment
 the newly paid row comes back locked with its payment, and changing it is refused.
 
 Gate: backend 96/96; tsc + build OK; e2e tyre 40/40, automobile / engineering / radiator / salary 0 FAIL.
+
+## Run 8 — 2026-10-24 — area (b) challan form, second round (behaviour)
+
+This round drove the real form instead of judging screenshots (real DAO behind it).
+
+Correct, no change:
+- Due dates clamp at month end (31 Jan → 28 Feb → 31 Mar).
+- A hand-picked due date stays when the challan date changes; the other rows move.
+- Removing a middle installment renumbers the default names and re-dates the untouched rows.
+- Changing the brand clears the model and rate.
+- A quantity of 1.5 is refused.
+- The payment modal won't send more than what is left on the installment (the browser's own limit blocks it).
+
+1. **A failed Save didn't show where the mistake was.** The toast said "Fix the highlighted fields", but the highlighted
+   field was off-screen. On a phone (390×844), Save from the top with an installment mistake left the error 2,229px
+   down; Save from the bottom with no vehicle number left it 1,330px up. Desktop too: 955px in a 900px window. Fix:
+   after a failed Save the first error scrolls into view and the cursor goes into its field. Checks: "phone Save
+   scrolls down to an installment error" and "phone Save scrolls up to a missing vehicle number and puts the cursor
+   there". Both fail on the old code.
+
+Gate: backend 96/96; tsc + build OK; e2e tyre 42/42, automobile / engineering / radiator / salary 0 FAIL.
+
+Seen, not changed: the over-payment message in the payment modal is the browser's own ("Value must be less than or
+equal to …"). It works, but it isn't the app's wording.

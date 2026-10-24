@@ -337,6 +337,31 @@ await page.getByLabel("Interest for 1st month").fill("12400");
 const amountCut = await page.locator(".tyre-plan-row input[type=number]").evaluateAll((els) => els.filter((e) => e.value && e.scrollWidth > e.clientWidth).length);
 ok("tyre: phone installment amounts are fully visible", amountCut === 0, `${amountCut} cut`);
 ok("tyre: phone installment rows are compact, remove sits beside the name", rowBoxes.length > 0 && rowBoxes.every((r) => r.h <= 280 && r.xBeside), JSON.stringify(rowBoxes));
+
+// Phone: a failed Save brings the first error into view (the form is several screens long).
+const firstErrorInView = () => page.evaluate(() => {
+  const e = document.querySelector(".field-error");
+  if (!e) return { error: "none" };
+  const r = e.getBoundingClientRect();
+  return { text: e.textContent.slice(0, 40), inView: r.top >= 0 && r.bottom <= window.innerHeight, focus: document.activeElement?.id || "" };
+});
+await pick("#ty-mechanic", "Ramesh");
+await pick("[id^=ty-brand-]", "MRF");
+await pick("[id^=ty-model-]", "10.00-20");
+await page.getByLabel("Principal for Initial amount").fill("1000");
+await page.locator("#ty-vehicle").fill("TN01AB0001");
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.locator(".form-footer").getByRole("button", { name: "Save challan" }).click();
+await page.waitForTimeout(900);
+const below = await firstErrorInView();
+ok("tyre: phone Save scrolls down to an installment error", below.inView === true, JSON.stringify(below));
+await page.getByLabel("Principal for Initial amount").fill("24250");
+await page.locator("#ty-vehicle").fill("");
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await page.locator(".form-footer").getByRole("button", { name: "Save challan" }).click();
+await page.waitForTimeout(900);
+const above = await firstErrorInView();
+ok("tyre: phone Save scrolls up to a missing vehicle number and puts the cursor there", above.inView === true && above.focus === "ty-vehicle", JSON.stringify(above));
 await page.screenshot({ path: join(OUT, "tyre-create-390.png"), fullPage: true });
 
 // Phone settings: the tyre catalog (brand cards with their model tables) stays inside the screen.

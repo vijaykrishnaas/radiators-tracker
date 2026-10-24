@@ -251,9 +251,22 @@ const TyreCreate = () => {
         navigate("/tyre/billing");
     };
 
+    // After a failed Save, bring the first error on the page into view and put the cursor in its field: on a phone the
+    // form is several screens long and the error can be far above or below where Save was pressed.
+    const showFirstError = () => setTimeout(() => {
+        const err = document.querySelector<HTMLElement>(".field-error");
+        if (!err) return;
+        err.scrollIntoView({ block: "center", behavior: "smooth" });
+        const box = err.closest(".field, .tyre-plan-row, .tyre-item, .card-body");
+        box?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])")?.focus({ preventScroll: true });
+    }, 0);
+
     const save = async () => {
         if (isView || !validate()) {
-            if (!isView) callAlertMsg("Fix the highlighted fields", "error");
+            if (!isView) {
+                callAlertMsg("Fix the highlighted fields", "error");
+                showFirstError();
+            }
             return;
         }
         setLoading(true);
