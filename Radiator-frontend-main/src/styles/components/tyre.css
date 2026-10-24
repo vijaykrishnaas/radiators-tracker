@@ -59,3 +59,11 @@
 
 /* "Delivered to" under the company masthead, as on the paper challan. */
 .tyre-to { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* Dashboard follow-up on a phone: one compact entry per installment instead of a 7-column table. */
+.tyre-due-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tyre-due { display: grid; gap: 4px; padding: 12px; background: var(--surface-sunken); border-radius: var(--radius-md); }
+.tyre-due-top, .tyre-due-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tyre-due-name { min-width: 0; font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
+.tyre-due-meta { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.tyre-due-bottom strong { font-size: var(--text-md); color: var(--text-strong); }

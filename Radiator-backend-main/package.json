@@ -25,6 +25,7 @@
     "multer": "^2.2.0"
   },
   "devDependencies": {
+    "mingo": "^6.5.6",
     "nodemon": "^3.1.11"
   }
 }

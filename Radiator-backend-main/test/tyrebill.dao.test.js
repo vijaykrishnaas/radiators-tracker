@@ -23,7 +23,7 @@ const settings = {
 mock.module("../src/config/db.js", { namedExports: { connectDB: async () => fakeDb } });
 mock.module("../src/dao/settings.dao.js", { namedExports: { getSettings: async () => settings } });
 
-const { createTyreBill, updateTyreBill, recordTyrePayment, getTyreBillById, deleteTyreBill, enrich, buildTyreQuery, getInstallmentFollowUp } =
+const { createTyreBill, updateTyreBill, recordTyrePayment, getTyreBillById, deleteTyreBill, enrich, buildTyreQuery, getInstallmentFollowUp, getTyreAnalytics, getAllTyreBills, getAllTyreBillsForExport } =
   await import("../src/dao/tyrebill.dao.js");
 const { addStockEntry, getStockLevels, getPartMovements } = await import("../src/dao/inventory.dao.js");
 
@@ -328,4 +328,45 @@ test("review: a discount can't cut the total below what was already received", a
   const ok = await recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 8500 });
   assert.equal(ok.status, "Received");
   assert.equal(ok.receivedAmount, 40000);
+});
+
+// Three challans used by the analytics and list-sort tests: an installment plan with the initial amount paid, a full
+// payment fully paid after a ₹500 discount, and an unpaid full payment with no mechanic and two brands.
+async function threeChallans() {
+  const b1 = await createTyreBill(CLIENT, input());
+  await recordTyrePayment(CLIENT, b1._id, { amount: 28500, installmentId: b1.installments[0].id });
+  const b2 = await createTyreBill(CLIENT, input({ billDate: "2026-10-02", mechanicName: "Suresh", labourName: [], paymentType: "full", installments: undefined,
+    items: [tyre({ brandRef: "apollo", modelRef: "9-00-20", qty: 1, rate: 19000 })] }));
+  await recordTyrePayment(CLIENT, b2._id, { amount: 18500, discount: 500 });
+  const b3 = await createTyreBill(CLIENT, input({ billDate: "2026-10-05", mechanicName: "", labourName: [], paymentType: "full", installments: undefined,
+    items: [tyre({ qty: 1, rate: 24250 }), tyre({ brandRef: "apollo", modelRef: "9-00-20", qty: 2, rate: 19000 })] }));
+  return [b1, b2, b3];
+}
+
+test("review: dashboard analytics add up (real aggregation pipeline)", async () => {
+  await threeChallans();
+  const a = await getTyreAnalytics(CLIENT, {});
+  assert.deepEqual(
+    { ...a.kpis },
+    {
+      totalBills: 3, tyreRevenue: 129750, interestTotal: 800, payableTotal: 130050, totalCollected: 47000, totalPending: 83050,
+      totalDiscount: 500, installmentBills: 1, tyresSold: 6, collectionRate: 36.1, avgBillValue: 43350,
+    }
+  );
+  assert.deepEqual(a.byMonth.map((m) => [m.month, m.revenue, m.collected, m.count]), [["2026-09", 49300, 28500, 1], ["2026-10", 80750, 18500, 2]]);
+  assert.deepEqual(a.byBrand.map((x) => [x.brand, x.qty, x.revenue]), [["MRF", 3, 72750], ["Apollo", 3, 57000]]);
+  // A challan with no mechanic is left out of the mechanic chart.
+  assert.deepEqual(a.topMechanics.map((m) => m.mechanic).sort(), ["Ramesh", "Suresh"]);
+});
+
+test("review: sorting by next due puts challans with nothing scheduled last, both ways", async () => {
+  const [b1] = await threeChallans();
+  const b4 = await createTyreBill(CLIENT, input({ installments: plan().map((r, i) => ({ ...r, dueDate: `2026-12-0${i + 1}` })) }));
+  const order = async (dir) => (await getAllTyreBills(CLIENT, {}, 1, 10, { sortBy: "due", sortDir: dir })).tyreBillData.map((x) => x.billNo);
+  // b1's next due is 20 Oct (initial paid), b4's is 1 Dec; the two full-payment challans have none.
+  assert.deepEqual((await order("asc")).slice(0, 2), [b1.billNo, b4.billNo]);
+  assert.deepEqual((await order("desc")).slice(0, 2), [b4.billNo, b1.billNo]);
+  // The Excel export follows the same order as the screen.
+  const exported = (await getAllTyreBillsForExport(CLIENT, {}, { sortBy: "due", sortDir: "asc" })).map((x) => x.billNo);
+  assert.deepEqual(exported.slice(0, 2), [b1.billNo, b4.billNo]);
 });

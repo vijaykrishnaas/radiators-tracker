@@ -2,6 +2,8 @@
 // exported functions (createEngBill, updateEngBill, recordEngPayment, ...)
 // against fake collections, without a live MongoDB connection.
 import { ObjectId } from "mongodb";
+import { Aggregator } from "mingo";
+import "mingo/init/system";
 
 // Values at a dotted path, descending into arrays the way MongoDB does ("services.type" over services[]).
 function valuesAt(doc, path) {
@@ -217,8 +219,11 @@ class FakeCollection {
     return { modifiedCount };
   }
 
-  aggregate() {
-    throw new Error("aggregate() not implemented in fakeDb");
+  // Real aggregation semantics from mingo (an in-memory implementation of MongoDB's pipeline), so DAO pipelines such as
+  // the dashboard analytics run unchanged in tests. Documents are shallow-copied so stages never mutate stored ones.
+  aggregate(pipeline) {
+    const docs = this.docs.map((d) => ({ ...d }));
+    return { toArray: async () => new Aggregator(pipeline).run(docs) };
   }
 }
 

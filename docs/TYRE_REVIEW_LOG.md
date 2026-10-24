@@ -57,3 +57,35 @@ Seen, not changed:
 - Date inputs show mm/dd/yyyy in the test browser. That is its en-US locale; an Indian-locale browser shows dd/mm/yyyy.
 - In view mode, required asterisks and the "Optional notes" placeholder still show. The other verticals' view screens
   do the same.
+
+## Run 3 — 2026-10-24 — area (c) challan list + dashboard
+
+The dashboard analytics pipeline had **never been executed**, because the fake test DB had no aggregate(). Test-only
+change: `mingo` (an in-memory implementation of MongoDB's aggregation) is now a backend devDependency, and FakeDb's
+aggregate() runs pipelines with it. The real pipeline was then run on three hand-checked challans: every KPI, the
+month / status / brand / mechanic breakdowns and the collection rate matched. Test: "dashboard analytics add up".
+The pipeline itself had no bug.
+
+1. **Sorting the list by "Next due" put full-payment challans first.** They have no due date, and MongoDB sorts empty
+   values first, so the challans actually due soonest were buried. Fix: a direction-aware sort key keeps challans with
+   nothing scheduled last in both directions. `parseSort` (utils/listSort.js) now also accepts `(dir) => expression`;
+   existing callers are unchanged. Test: "sorting by next due puts challans with nothing scheduled last, both ways".
+   - While fixing this I found the Excel export ignored computed sort keys, so it would export in a random order under
+     this sort. It now uses the aggregation path, as the automobile export does. The same test covers the export, and it
+     was confirmed to fail without that change.
+2. **The dashboard's "installments to collect" table showed only 3 of 7 columns on a phone.** Balance, phone,
+   installment and the status were off-screen, though chasing customers from a phone is the main use. Fix: on phones it
+   is a compact list (customer, status, installment · due · D.C., balance and a Call button). Check: "phone dashboard
+   shows balance and a call button for each installment".
+3. **On phone challan cards the ⋮ menu dropped to its own line next to a "Not Received" badge.** This is the shared
+   card component and automobile reproduced it too (2 of 10 cards). Fix in `ui.css`: the title shrinks (min 6em) before
+   the badge or menu wrap. Check: "phone challan cards keep the menu on the title line". Automobile, engineering,
+   radiator and salary suites: 0 FAIL.
+
+Gate: backend 93/93; tsc + build OK; e2e tyre 35/35, automobile / engineering / radiator / salary 0 FAIL.
+
+Open — design questions, not tyre bugs (they are the same in every vertical):
+- Desktop lists scroll sideways at 1300px. The money columns (To collect, Received, Pending, Status) start off-screen.
+  Automobile is the same (1559px table in a 960px box).
+- In the "To collect vs collected" monthly chart the two bar colours are hard to tell apart in dark mode. It is the
+  shared chart palette.

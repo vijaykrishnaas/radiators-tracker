@@ -7,7 +7,8 @@ export const SORT_COLLATION = { locale: "en", strength: 2, numericOrdering: true
 
 /**
  * @param query    req.query (reads sortBy / sortDir)
- * @param fields   sort key → stored field path (string) or an aggregation expression for a computed value
+ * @param fields   sort key → stored field path (string), an aggregation expression for a computed value, or a
+ *                 function (dir) → expression when the value depends on the direction (e.g. empty values last both ways)
  * @param fallback the list's default order when no (or an unknown) key is asked for
  * @returns { sort, computed } — `computed` is the expression to $addFields as __sort, or null for a plain find().
  */
@@ -18,7 +19,7 @@ export function parseSort(query = {}, fields = {}, fallback = { _id: -1 }) {
   const field = fields[key];
   // _id as the tie-breaker keeps the order stable across pages when many rows share a value.
   if (typeof field === "string") return { sort: { [field]: dir, _id: dir }, computed: null };
-  return { sort: { __sort: dir, _id: dir }, computed: field };
+  return { sort: { __sort: dir, _id: dir }, computed: typeof field === "function" ? field(dir) : field };
 }
 
 // Row count for the same filter as findSortedPage. The page query runs with SORT_COLLATION, which also makes exact-match

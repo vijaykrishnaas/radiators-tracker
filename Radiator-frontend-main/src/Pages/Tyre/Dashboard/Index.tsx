@@ -78,7 +78,26 @@ const TyreDashboard = () => {
                             <KpiCard loading={first} label="Due this month" value={money(inst?.dueThisMonth || 0)} icon="calendar" tone="brand" />
                             <KpiCard loading={first} label="Challans overdue" value={String(inst?.overdueBills || 0)} icon="receipt-text" />
                         </KpiGrid>
-                        {first ? <SkeletonRows rows={3} /> : inst && inst.rows.length > 0 ? (
+                        {first ? <SkeletonRows rows={3} /> : inst && inst.rows.length > 0 && phone ? (
+                            // Phone: one compact entry per installment, with what is needed to chase it (balance, call).
+                            <ul className="tyre-due-list mt-3">
+                                {inst.rows.map((r) => (
+                                    <li key={`${r.billId}-${r.installmentId}`} className="tyre-due">
+                                        <div className="tyre-due-top">
+                                            <span className="tyre-due-name">{r.customerName || r.vehicleNumber}</span>
+                                            {r.overdue ? <Badge tone="error" dot>Overdue</Badge> : <Badge tone="warning" dot>Due</Badge>}
+                                        </div>
+                                        <p className="tyre-due-meta">
+                                            {r.label} · due {fmtDate(r.dueDate)} · <Link to={`/tyre/dashboard/view/${r.billId}`}>D.C. {r.billNo}</Link>
+                                        </p>
+                                        <div className="tyre-due-bottom">
+                                            <strong className="tabular">{money(r.balance)}</strong>
+                                            {r.phoneNumber && <a className="btn btn-secondary btn-sm" href={`tel:${r.phoneNumber}`}>Call {r.phoneNumber}</a>}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : inst && inst.rows.length > 0 ? (
                             <div className="table-wrap mt-3">
                                 <table className="table">
                                     <thead>

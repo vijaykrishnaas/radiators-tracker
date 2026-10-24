@@ -486,7 +486,9 @@ const TYRE_SORT = {
   rec: "receivedAmount",
   pend: "pendingAmount",
   status: "status",
-  due: "nextDueDate",
+  // Challans with nothing scheduled (full payment, or every installment paid) go last in both directions, so
+  // "next due" always starts with the challans that actually have a due date.
+  due: (dir) => ({ $ifNull: ["$nextDueDate", dir === 1 ? new Date("9999-12-31T00:00:00Z") : new Date(0)] }),
 };
 
 // One search box over every text field on the challan (and the D.C. number when the text is a number).
@@ -541,7 +543,10 @@ export async function getAllTyreBillsForExport(clientId, filters = {}, sortQuery
   const db = await connectDB();
   const query = buildTyreQuery(clientId, filters);
   const order = parseSort(sortQuery, TYRE_SORT, { billDate: -1 });
-  const bills = await db.collection(COLLECTION).find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();
+  // The export follows the order chosen on screen; a computed key (next due) needs the aggregation path.
+  const bills = order.computed
+    ? await findSortedPage(db.collection(COLLECTION), query, order, 0, 1_000_000)
+    : await db.collection(COLLECTION).find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();
   return bills.map((b) => enrich(b));
 }
 

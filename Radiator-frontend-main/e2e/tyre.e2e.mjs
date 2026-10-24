@@ -273,6 +273,30 @@ ok("tyre: phone installment amounts are fully visible", amountCut === 0, `${amou
 ok("tyre: phone installment rows are compact, remove sits beside the name", rowBoxes.length > 0 && rowBoxes.every((r) => r.h <= 280 && r.xBeside), JSON.stringify(rowBoxes));
 await page.screenshot({ path: join(OUT, "tyre-create-390.png"), fullPage: true });
 
+// Phone dashboard: each installment to chase shows its balance and a call button inside the screen (no hidden columns).
+await page.goto(BASE + "/tyre/dashboard");
+await page.locator(".tyre-due").first().waitFor({ timeout: 10000 }).catch(() => {});
+const dues = await page.locator(".tyre-due").evaluateAll((els) => els.map((e) => {
+  const bal = e.querySelector(".tyre-due-bottom strong")?.getBoundingClientRect();
+  const call = e.querySelector("a[href^='tel:']")?.getBoundingClientRect();
+  // A challan saved without a phone number has no call button.
+  return { bal: !!bal && bal.right <= window.innerWidth, call: call ? call.right <= window.innerWidth : null };
+}));
+ok("tyre: phone dashboard shows balance and a call button for each installment",
+  dues.length > 0 && dues.every((d) => d.bal && d.call !== false) && dues.some((d) => d.call === true), JSON.stringify(dues));
+
+// Phone list: the ⋮ menu stays on the title line, also beside the wide "Not Received" badge.
+await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN21AB1011", mechanicName: "Ramesh", paymentType: "full",
+  items: [{ brandRef: "apollo", modelRef: "9-00-20-xt-7", qty: 4, rate: 19000 }] });
+await page.goto(BASE + "/tyre/billing");
+await page.locator(".m-card").first().waitFor({ timeout: 10000 });
+const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
+  const key = c.querySelector(".m-card-key").getBoundingClientRect();
+  const menu = c.querySelector(".m-card-top > :last-child").getBoundingClientRect();
+  return { badge: c.querySelector(".badge")?.textContent, wrapped: menu.top >= key.bottom - 2 };
+}));
+ok("tyre: phone challan cards keep the menu on the title line", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.wrapped), JSON.stringify(cards));
+
 ok("tyre: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(results.join("\n"));
