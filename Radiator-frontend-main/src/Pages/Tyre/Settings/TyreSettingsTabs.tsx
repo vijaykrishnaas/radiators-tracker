@@ -29,6 +29,8 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
     const [newBrand, setNewBrand] = useState("");
     const [newModel, setNewModel] = useState<Record<string, { label: string; rate: string }>>({});
     const [error, setError] = useState("");
+    // A model's error shows in its own brand's card, next to the + the user pressed (not at the top of a long catalog).
+    const [modelError, setModelError] = useState<Record<string, string>>({});
 
     const setBrands = (next: TyreSettings["brands"]) => set("tyre.brands", next);
 
@@ -46,10 +48,10 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
         if (!label) return;
         const value = slugify(label);
         const brand = brands.find((b) => b.value === brandValue);
-        if (brand?.models.some((m) => m.value === value)) { setError(`${brand.label} ${label} is already in the catalog`); return; }
+        if (brand?.models.some((m) => m.value === value)) { setModelError((e) => ({ ...e, [brandValue]: `${label} is already under ${brand.label}` })); return; }
         setBrands(brands.map((b) => (b.value === brandValue ? { ...b, models: [...b.models, { label, value, rate: Math.max(Number(draft.rate) || 0, 0) }] } : b)));
         setNewModel((m) => ({ ...m, [brandValue]: { label: "", rate: "" } }));
-        setError("");
+        setModelError((e) => ({ ...e, [brandValue]: "" }));
     };
     // Renaming keeps the stored value, so challans and stock already saved stay linked to the brand / model.
     const renameBrand = (value: string, label: string) => setBrands(brands.map((b) => (b.value === value ? { ...b, label } : b)));
@@ -66,7 +68,7 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
             <Section title="Tyre catalog" subtitle="Brands and their models / sizes, each with a default rate per tyre. Stock is tracked per model under Inventory.">
                 <div className="settings-add-row">
                     <Field label="Brand" htmlFor="new-tyre-brand">
-                        <InputText id="new-tyre-brand" value={newBrand} placeholder="e.g. MRF" onChange={(e) => setNewBrand(e.target.value)}
+                        <InputText id="new-tyre-brand" value={newBrand} placeholder="e.g. MRF" onChange={(e) => { setNewBrand(e.target.value); setError(""); }}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBrand(); } }} />
                     </Field>
                     <button type="button" className="btn btn-primary" onClick={addBrand}><Icons iconName="plus-circle" />Add brand</button>
@@ -117,7 +119,7 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                                             <tr>
                                                 <th scope="row">
                                                     <input type="text" className="form-control" aria-label={`New ${b.label} model / size`} placeholder="e.g. 10.00-20 Steel Muscle"
-                                                        value={nm.label} onChange={(e) => setNewModel((x) => ({ ...x, [b.value]: { ...nm, label: e.target.value } }))}
+                                                        value={nm.label} onChange={(e) => { setNewModel((x) => ({ ...x, [b.value]: { ...nm, label: e.target.value } })); setModelError((x) => ({ ...x, [b.value]: "" })); }}
                                                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addModel(b.value); } }} />
                                                 </th>
                                                 <td>
@@ -134,6 +136,7 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                                         </tbody>
                                     </table>
                                 </div>
+                                {modelError[b.value] && <p className="field-error mt-2 mb-0" role="alert">{modelError[b.value]}</p>}
                             </section>
                         );
                     })}

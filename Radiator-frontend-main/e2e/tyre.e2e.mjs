@@ -392,6 +392,22 @@ await page.locator(".tyre-brand-card, .nested-card").first().waitFor({ timeout: 
 await page.waitForTimeout(300);
 const catOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 ok("tyre: settings tyre catalog fits a 390px phone", catOverflow <= 0, `overflow ${catOverflow}px`);
+// Each model's rate is on screen and readable, not cut off at the card edge (the table used to need a sideways scroll).
+const rates = await page.locator(".tyre-brand-card").evaluateAll((cards) => cards.map((c) => {
+  const wrap = c.querySelector(".matrix-wrap").getBoundingClientRect();
+  const input = c.querySelector("tbody tr:first-child td input");
+  const r = input.getBoundingClientRect();
+  return { value: input.value, inside: r.left >= wrap.left && r.right <= wrap.right + 0.5, fits: input.scrollWidth <= input.clientWidth, width: Math.round(r.width) };
+}));
+ok("tyre: phone catalog shows each model's rate inside its card", rates.length === 2 && rates.every((r) => r.inside && r.fits && r.width >= 56), JSON.stringify(rates));
+// A duplicate model on the last brand: its error shows next to that brand, not at the top of the catalog off screen.
+const newApollo = page.getByLabel("New Apollo model / size");
+await newApollo.scrollIntoViewIfNeeded();
+await newApollo.fill("9.00-20 XT-7");
+await page.getByRole("button", { name: "Add Apollo model" }).click();
+await page.waitForTimeout(300);
+const dupErr = await page.locator(".field-error[role=alert]").first().evaluate((el) => { const r = el.getBoundingClientRect(); return { text: el.textContent, card: el.closest(".tyre-brand-card")?.getAttribute("aria-label") || null, inView: r.top >= 0 && r.bottom <= innerHeight } }).catch(() => null);
+ok("tyre: a duplicate model's error shows beside its brand, on screen", dupErr?.inView === true && dupErr.card === "Apollo models", JSON.stringify(dupErr));
 
 // Phone dashboard: each installment to chase shows its balance and a call button inside the screen (no hidden columns).
 await page.goto(BASE + "/tyre/dashboard");

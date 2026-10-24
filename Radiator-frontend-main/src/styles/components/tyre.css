@@ -68,5 +68,14 @@
 .tyre-due-meta { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
 .tyre-due-bottom strong { font-size: var(--text-md); color: var(--text-strong); }
 
-/* Settings → Tyre catalog: a brand's card stays inside the page on a phone (its model table scrolls inside it). */
+/* Settings → Tyre catalog: a brand's card stays inside the page on a phone. Its table has one data column, so on a
+   phone it is laid out to fit (name · rate · delete) instead of scrolling sideways with the rate out of sight. */
 .tyre-brand-card { min-width: 0; }
+@media (max-width: 767.98px) {
+  .tyre-brand-card .matrix-parts { table-layout: fixed; }
+  .tyre-brand-card .matrix-parts th, .tyre-brand-card .matrix-parts td { min-width: 0; padding: 6px 4px; white-space: normal; }
+  .tyre-brand-card .matrix-parts thead th:nth-child(2) { width: 124px; }
+  .tyre-brand-card .matrix-parts thead th:nth-child(3) { width: 48px; }
+  .tyre-brand-card .matrix-parts .form-control { padding-inline: 6px; }
+  .tyre-brand-card .matrix-parts .input-group-text { padding-inline: 6px; }
+}

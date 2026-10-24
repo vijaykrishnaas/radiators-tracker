@@ -248,3 +248,23 @@ Printed four new stress cases: 30 installments, Tamil text, crore-sized amounts,
 - **Open (needs a decision): Tamil text prints as garbage.** jsPDF's built-in fonts are Latin-only. This affects every invoice type, not just tyre. Fixing it means embedding a Tamil font (about 200–400 KB more per print bundle).
 - Not changed: amounts of ₹1 crore and up wrap "Rs" onto a second line in the amount column. Unrealistic for one challan.
 Gate: backend 96/96, tsc + build OK, e2e tyre 46/46, automobile / engineering / radiator / salary 0 FAIL.
+
+## Run 11 — area (e) settings, inventory, bonus, round 2 (behaviour)
+Read through the bonus, inventory and catalog code again for edge cases, then drove Settings → Tyre Catalog in the browser at 390px and 1300px.
+
+**Bugs, both reproduced in the browser:**
+1. **A duplicate model's error was shown at the top of the catalog, off screen.** Repro: with four brands, add an existing model under the last brand → nothing visible happens. The error was 1,310px above the screen on a phone and 1,583px above on desktop. Fix: each brand card shows its own model error under its table ("9.00-20 XT-7 is already under Apollo"), and it clears as soon as you type. The brand error at the top now also clears when you type. Test: `tyre: a duplicate model's error shows beside its brand, on screen` (old code: error outside the card, off screen).
+2. **On a phone the catalog's rate column was cut off at the card edge.** Every rate box showed only "₹" and a blank strip, so the rates could only be seen by scrolling each table sideways. The table needed 491px in a 280px card: the header wasn't allowed to wrap, the delete column was 120px wide (the shared table minimum) and the name column had a 200px minimum. Fix (tyre catalog on phones only; automobile's table is unchanged): fixed columns name · rate (124px) · delete (48px), a wrapping header and tighter padding. Rates up to 6 digits are fully visible. Test: `tyre: phone catalog shows each model's rate inside its card` (old code: rate input outside the card). Trade-off: on a phone a long model name shows its first ~12 characters until you tap it.
+
+**Checked, fine:**
+- Old challans stay editable after their brand or model is removed from the catalog (server and form).
+- Tyre stock entries reject fractional quantities with "Whole tyres only".
+- Recalculate, review and manual bonus all use the tyre settings and the tyre bonus-year start.
+- The bonus review lists tyre lines by brand + model.
+
+**Open (all verticals, not tyre-specific):**
+- Settings are saved without checks, so a brand, model or part name can be cleared to blank. The same happens with automobile parts.
+- The bonus % box accepts more than 100. The server caps it at 100, so Settings can show 150% while 100% is paid. Automobile and engineering behave the same way.
+- Automobile only: a manual mechanic bonus and the Bonus page's "this year" use the radiator year-start setting, not `automobile.bonus.yearStartMonth`. Both are 4 (April) unless changed, and the automobile one has no field in Settings, so in practice they agree.
+
+Gate: backend 96/96; tsc + build OK; e2e tyre 48/48, automobile / engineering / radiator / salary 0 FAIL.
