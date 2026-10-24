@@ -66,8 +66,8 @@ export function MobileCard({ title, to, onOpen, badge, menu, meta, meta2, amount
                             : title}
                 </h3>
                 {right && <span className="m-card-right">{right}</span>}
-                {badge}
-                {menu}
+                {/* Badges and the ⋮ menu wrap as one group, so the menu is never left alone on a line. */}
+                {(badge || menu) && <span className="m-card-tail">{badge}{menu}</span>}
             </div>
             {metaParts.length > 0 && (
                 <p className="m-card-meta">{metaParts.map((m, i) => <React.Fragment key={i}>{i > 0 && " · "}{m}</React.Fragment>)}</p>

@@ -76,6 +76,26 @@ if (download) {
   ok("salary: payslip lists the carried-forward advance", pdf.includes("Advance carried forward to next settlement"), pdf.includes("Advance carried forward to next settlement") ? "" : "text not found in PDF");
 }
 
+// Phone employee cards: the role / status badges and the ⋮ menu wrap together as one group (the role badge used to
+// stay up beside the salary while the status and menu dropped to the next line).
+{
+  const { mockApi, loginAs } = await import(pathToFileURL(join(here, "fixtures.mjs")).href);
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  phone.on("pageerror", (e) => errors.push(e.message));
+  await mockApi(phone, "radiator");
+  await loginAs(phone, BASE);
+  await phone.goto(BASE + "/salary/employees");
+  await phone.locator(".m-card").first().waitFor({ timeout: 10000 });
+  const split = await phone.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
+    // Vertical centres (a 20px badge and a 32px button on one line have different tops); within 6px = same line.
+    const ys = [...c.querySelectorAll(".m-card-top .badge, .m-card-top button[aria-label^='Actions']")]
+      .map((e) => { const r = e.getBoundingClientRect(); return (r.top + r.bottom) / 2; }).sort((x, y) => x - y);
+    return { name: c.querySelector(".m-card-key")?.textContent, lines: 1 + ys.filter((y, i) => i > 0 && y - ys[i - 1] > 6).length };
+  }));
+  ok("salary: phone employee badges and menu stay together", split.length > 0 && split.every((c) => c.lines === 1), JSON.stringify(split));
+  await phone.close();
+}
+
 ok("salary: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(results.join("\n"));

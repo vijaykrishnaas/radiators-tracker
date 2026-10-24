@@ -147,3 +147,28 @@ Gate: backend 94/94; tsc + build OK; e2e tyre 40/40, automobile / engineering / 
 
 Open (all verticals, not tyre-specific): the Labour Bonus review picker lists only the Settings labour list, so a worker
 removed from Settings can't be picked for a review. There is no "names on bills" source for labour yet.
+
+## Run 6 — 2026-10-24 — area (f) regressions in the other verticals
+
+Method: a visual regression against the code from before any tyre work (`88c407f`). The repo's own sweep
+(`e2e/screens.mjs`, same mocked data) ran on the old and the current code: all 27 non-tyre screens at 390px and
+1280px, light and dark (108 screenshots each), compared pixel by pixel.
+
+- First pass: every screenshot "differed". That was the harness, not the app: the old copy's fonts were blocked (its
+  linked node_modules was outside Vite's serving allow-list). Fixed in the harness; nothing in the repo.
+- Real comparison: **92 / 108 identical.** The rest:
+  - Chart animation timing on the radiator dashboard and review pages (12–134 pixels). The same spots differ between
+    two shots of the old code, so this is noise.
+  - Phone bill cards (radiator, automobile, engineering) and bonus pages: the intended run-3 fix, where the ⋮ menu is
+    no longer stranded alone under a "Not Received" badge.
+  - **A regression from run 3, now fixed:** on phone Employees cards the role badge rose up beside the salary while the
+    status badge and ⋮ dropped to the next line, splitting the group. Run 3's fix let the card title shrink so more
+    items fit on line 1. Root fix in the shared `MobileCard`: badges and the menu are one group (`.m-card-tail`) that
+    wraps as a whole, and the title-shrink change is reverted. This also fixes a pre-existing split on the old code
+    ("Old Staff": "Other" beside the salary). Check (salary e2e): "phone employee badges and menu stay together". It
+    fails on the pre-tyre code (Old Staff split) and on the run-3 state (every card split), and passes now. The tyre
+    card check is now "menu beside its badge".
+
+Gate: backend 94/94; tsc + build OK; e2e tyre 40/40, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+This completes the first full rotation (a–f).
