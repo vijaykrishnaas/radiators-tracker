@@ -111,6 +111,10 @@ ok("tyre: automobile route redirects away", !page.url().includes("/automobile/")
 // ---- New challan on installments (the paper challan's example) ----
 await page.goto(BASE + "/tyre/dashboard/create");
 await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+// Saving an untouched form: the tyre fields say what to fill in; the empty plan rows don't repeat "enter an amount".
+await page.locator(".form-footer").getByRole("button", { name: "Save challan" }).click();
+await page.waitForTimeout(300);
+ok("tyre: untouched form doesn't flag every installment row", (await page.getByText("Enter an amount").count()) === 0 && (await page.getByText("Choose a brand").count()) === 1);
 await page.locator("#ty-vehicle").fill("tn58ab1234");
 await page.locator("#ty-customer").fill("Murugan");
 await page.locator("#ty-phone").fill("9876543210");
@@ -119,6 +123,11 @@ await pick("#ty-mechanic", "Ramesh");
 await pick("[id^=ty-brand-]", "MRF");
 await pick("[id^=ty-model-]", "10.00-20");
 ok("tyre: picking a model fills its rate from the catalog", (await page.locator("[id^=ty-rate-]").first().inputValue()) === "24250");
+const modelCut = await page.locator(".tyre-item").first().evaluate((f) => {
+  const el = [...f.querySelectorAll("div")].find((d) => d.children.length === 0 && d.textContent.includes("Steel Muscle"));
+  return el ? el.scrollWidth - el.clientWidth : -1;
+});
+ok("tyre: the chosen model / size is shown in full on desktop", modelCut === 0, `cut ${modelCut}px`);
 await page.locator("[id^=ty-qty-]").first().fill("2");
 await page.locator("[id^=ty-serial-]").first().fill("MRF-77881, MRF-77882");
 ok("tyre: stock warning when the challan needs more than is in stock", /Only 1 in stock/.test(await page.locator(".tyre-warn").innerText().catch(() => "")));
@@ -180,6 +189,7 @@ ok("tyre: Print produces the challan PDF", !!download && /^Challan-\d+-.*\.pdf$/
 await page.goto(BASE + `/tyre/dashboard/edit/${saved._id}`);
 await page.getByLabel("Principal for 1st month").waitFor({ timeout: 10000 });
 ok("tyre: the installment with a payment is locked", await page.getByLabel("Principal for 1st month").isDisabled());
+
 ok("tyre: unpaid installments stay editable", !(await page.getByLabel("Principal for 2nd month").isDisabled()));
 ok("tyre: payment type is locked once paid", /payment type can't change/.test(await page.locator(".tyre-paytype").innerText()));
 await page.getByRole("button", { name: "Add month" }).click();
@@ -190,6 +200,29 @@ await page.waitForURL(/\/tyre\/billing/, { timeout: 10000 }).catch(() => {});
 const edited = fakeDb.collection("tyrebills").docs[0];
 ok("tyre: re-planned challan keeps the paid row and its payment", edited.installments.length === 4 && edited.installments[1].id === m1 && edited.receivedAmount === 5000 && edited.payableTotal === 49300,
   JSON.stringify({ n: edited.installments.length, p: edited.payableTotal }));
+
+// ---- Edit with an overdue row: badge + remove button beside each total, which must still fit ----
+const ymdOffset = (months) => { const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0, 10); };
+const overdueBill = await dao.createTyreBill(CLIENT, {
+  billDate: ymdOffset(-2), vehicleNumber: "TN01OD0001", mechanicName: "Ramesh",
+  items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 5, rate: 24250 }],
+  paymentType: "installment",
+  installments: [
+    { label: "Initial amount", dueDate: ymdOffset(-2), principal: 101250, interest: 0 },
+    { label: "1st month", dueDate: ymdOffset(-1), principal: 10000, interest: 1000 },
+    { label: "2nd month", dueDate: ymdOffset(1), principal: 10000, interest: 1000 },
+  ],
+});
+await page.goto(BASE + `/tyre/dashboard/edit/${overdueBill._id}`);
+await page.getByLabel("Principal for 1st month").waitFor({ timeout: 10000 });
+await page.waitForTimeout(300);
+// The status cell overflows to the left when too narrow, painting the badge over the total: compare the boxes.
+const clipped = await page.locator(".tyre-plan-row").evaluateAll((rows) => rows.filter((r) => {
+  const total = r.querySelector(".tyre-plan-total")?.getBoundingClientRect();
+  const first = r.querySelector(".tyre-plan-end > *")?.getBoundingClientRect();
+  return total && first && first.left < total.right - 1;
+}).length);
+ok("tyre: installment totals aren't covered by an Overdue badge", clipped === 0, `${clipped} covered`);
 
 // ---- Dashboard follow-up ----
 await page.goto(BASE + "/tyre/dashboard");
@@ -226,6 +259,18 @@ await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
 await page.waitForTimeout(500);
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 ok("tyre: challan form fits a 390px phone", overflow <= 0, `overflow ${overflow}px`);
+const rowBoxes = await page.locator(".tyre-plan-row").evaluateAll((rows) => rows.map((r) => {
+  const box = r.getBoundingClientRect();
+  const x = r.querySelector(".tyre-plan-end button")?.getBoundingClientRect();
+  const label = r.querySelector(".tyre-plan-label input")?.getBoundingClientRect();
+  return { h: Math.round(box.height), xBeside: !!x && !!label && x.top < label.bottom && x.left >= label.right };
+}));
+// Type a 5-digit amount on the phone plan and make sure it is readable, not cut to a digit.
+await page.getByLabel("Principal for Initial amount").fill("28500");
+await page.getByLabel("Interest for 1st month").fill("12400");
+const amountCut = await page.locator(".tyre-plan-row input[type=number]").evaluateAll((els) => els.filter((e) => e.value && e.scrollWidth > e.clientWidth).length);
+ok("tyre: phone installment amounts are fully visible", amountCut === 0, `${amountCut} cut`);
+ok("tyre: phone installment rows are compact, remove sits beside the name", rowBoxes.length > 0 && rowBoxes.every((r) => r.h <= 280 && r.xBeside), JSON.stringify(rowBoxes));
 await page.screenshot({ path: join(OUT, "tyre-create-390.png"), fullPage: true });
 
 ok("tyre: no page errors", errors.length === 0, errors.join(" | "));

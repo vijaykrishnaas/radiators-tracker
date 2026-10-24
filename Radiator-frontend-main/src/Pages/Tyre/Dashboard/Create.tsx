@@ -232,7 +232,8 @@ const TyreCreate = () => {
                 if (r.paid > 0) return;
                 if (!r.dueDate) e[`d${r.key}`] = "Pick a due date";
                 if (!isNum(r.principal || "0") || !isNum(r.interest || "0")) e[`a${r.key}`] = "Amounts must be 0 or more";
-                else if ((Number(r.principal) || 0) + (Number(r.interest) || 0) <= 0) e[`a${r.key}`] = "Enter an amount (or remove this row)";
+                // Before any tyre is priced the plan can't be filled in yet: the tyre errors say what to do first.
+                else if (tyreAmount > 0 && (Number(r.principal) || 0) + (Number(r.interest) || 0) <= 0) e[`a${r.key}`] = "Enter an amount (or remove this row)";
             });
             if (rows.length && planGap !== 0) {
                 e.plan = planGap > 0
@@ -391,7 +392,7 @@ const TyreCreate = () => {
                                                         value={it.brandLabel ? { label: it.brandLabel, value: it.brandRef } : null}
                                                         onChange={(o: any) => pickBrand(it.key, o ? o.value : "")} />
                                                 </Field>
-                                                <Field label="Model / size" htmlFor={`ty-model-${it.key}`} required error={errors[`m${it.key}`]}>
+                                                <Field label="Model / size" htmlFor={`ty-model-${it.key}`} required error={errors[`m${it.key}`]} className="tyre-item-model">
                                                     <Selector inputId={`ty-model-${it.key}`} options={modelOpts} isDisabled={isView || !it.brandRef}
                                                         placeholder={it.brandRef ? "Model / size" : "Brand first"}
                                                         value={it.modelLabel ? { label: it.modelLabel, value: it.modelRef } : null}
