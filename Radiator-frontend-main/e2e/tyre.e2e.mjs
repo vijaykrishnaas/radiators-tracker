@@ -201,6 +201,25 @@ const edited = fakeDb.collection("tyrebills").docs[0];
 ok("tyre: re-planned challan keeps the paid row and its payment", edited.installments.length === 4 && edited.installments[1].id === m1 && edited.receivedAmount === 5000 && edited.payableTotal === 49300,
   JSON.stringify({ n: edited.installments.length, p: edited.payableTotal }));
 
+// ---- Edit: removing an unpaid row before a paid one must not give two rows the paid row's name and due date ----
+const outOfOrder = await dao.createTyreBill(CLIENT, {
+  billDate: "2026-10-01", vehicleNumber: "TN01OO0001", mechanicName: "Ramesh",
+  items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 2, rate: 24250 }], paymentType: "installment",
+  installments: [
+    { label: "Initial amount", dueDate: "2026-10-01", principal: 28500, interest: 0 },
+    { label: "1st month", dueDate: "2026-11-01", principal: 10000, interest: 400 },
+    { label: "2nd month", dueDate: "2026-12-01", principal: 10000, interest: 400 },
+  ],
+});
+await dao.recordTyrePayment(CLIENT, outOfOrder._id, { amount: 10400, installmentId: outOfOrder.installments[1].id });
+await page.goto(BASE + `/tyre/dashboard/edit/${outOfOrder._id}`);
+await page.getByRole("button", { name: "Remove Initial amount" }).waitFor({ timeout: 10000 });
+await page.getByRole("button", { name: "Remove Initial amount" }).click();
+await page.waitForTimeout(300);
+const planAfter = await page.locator(".tyre-plan-row").evaluateAll((rows) => rows.map((r) => [r.querySelector(".tyre-plan-label input")?.value, r.querySelector("input[type=date]")?.value]));
+ok("tyre: removing a row before a paid one keeps names and due dates distinct",
+  JSON.stringify(planAfter) === JSON.stringify([["1st month", "2026-11-01"], ["2nd month", "2026-12-01"]]), JSON.stringify(planAfter));
+
 // ---- Edit with an overdue row: badge + remove button beside each total, which must still fit ----
 const ymdOffset = (months) => { const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0, 10); };
 const overdueBill = await dao.createTyreBill(CLIENT, {

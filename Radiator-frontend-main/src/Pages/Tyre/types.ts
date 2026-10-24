@@ -116,6 +116,13 @@ export const addMonths = (ymd: string, months: number) => {
     return `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(Math.min(d, last))}`;
 };
 
+/** Whole months from `from` to `to` (both YYYY-MM-DD), by calendar month: 2026-10-31 → 2026-11-01 is 1. */
+export const monthsBetween = (from: string, to: string) => {
+    const [y1, m1] = from.split("-").map(Number);
+    const [y2, m2] = to.split("-").map(Number);
+    return (y2 - y1) * 12 + (m2 - m1);
+};
+
 export const itemsText = (b: TyreBill) =>
     (b.items || []).map((i) => `${i.particulars}${i.qty > 1 ? ` × ${i.qty}` : ""}`).join(", ") || "—";
 

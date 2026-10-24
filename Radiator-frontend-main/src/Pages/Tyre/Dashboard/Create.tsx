@@ -13,7 +13,7 @@ import { money, today } from "../../../Utils/format";
 import { PageHeader, Field, FormFooter, CardHead, SkeletonRows, SegmentedControl, Badge } from "../../../Components/ui/Basics";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
-import { addMonths, fmtDate, round2, rowLabel, rowTone, type RowStatus, type TyreBill } from "../types";
+import { addMonths, fmtDate, monthsBetween, round2, rowLabel, rowTone, type RowStatus, type TyreBill } from "../types";
 import { payableRows, submitTyrePayment } from "../payment";
 
 type ItemRow = {
@@ -63,16 +63,30 @@ const startPlan = (billDate: string) => [0, 1, 2].map((i) => newRow(i, billDate)
 const lineAmount = (r: ItemRow) => round2((Number(r.qty) || 0) * (Number(r.rate) || 0));
 const isNum = (v: string) => String(v).trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0;
 
-// Unlocked rows follow their position: default names renumber and untouched due dates move with the challan date.
-const normalizeRows = (rows: PlanRow[], billDate: string) =>
-    rows.map((r, i) => {
+// Each row's month in the plan (0 = initial amount). Normally its position, but a paid row keeps its own due date, so
+// the rows after it count on from that row's month and never take its name or date (removing an unpaid row before a
+// paid "1st month" used to turn the next row into a second "1st month" due the same day).
+const planSlots = (rows: Pick<PlanRow, "paid" | "dueDate">[], billDate: string) => {
+    let next = 0;
+    return rows.map((r) => {
+        const slot = r.paid > 0 && r.dueDate && billDate ? Math.max(next, monthsBetween(billDate, r.dueDate)) : next;
+        next = slot + 1;
+        return slot;
+    });
+};
+
+// Unlocked rows follow their place in the plan: default names renumber and untouched due dates move with the challan date.
+const normalizeRows = (rows: PlanRow[], billDate: string) => {
+    const slots = planSlots(rows, billDate);
+    return rows.map((r, i) => {
         if (r.paid > 0) return r;
         return {
             ...r,
-            label: !r.label.trim() || DEFAULT_LABEL.test(r.label) ? rowLabel(i) : r.label,
-            dueDate: r.dateTouched ? r.dueDate : addMonths(billDate, i),
+            label: !r.label.trim() || DEFAULT_LABEL.test(r.label) ? rowLabel(slots[i]) : r.label,
+            dueDate: r.dateTouched ? r.dueDate : addMonths(billDate, slots[i]),
         };
     });
+};
 
 const TyreCreate = () => {
     const navigate = useNavigate();
@@ -138,14 +152,15 @@ const TyreCreate = () => {
         (b.items || []).forEach((i) => { if (i.partRef) taken[i.partRef] = (taken[i.partRef] || 0) + (Number(i.qty) || 0); });
         setSavedQty(taken);
         setPaymentType(b.paymentType);
-        setRows(b.paymentType === "installment"
-            ? b.installments.map((r, i) => ({
+        if (b.paymentType === "installment") {
+            const loaded = b.installments.map((r) => ({
                 key: keySeq++, id: r.id, label: r.label, dueDate: String(r.dueDate).slice(0, 10),
-                principal: String(r.principal), interest: String(r.interest),
-                dateTouched: String(r.dueDate).slice(0, 10) !== addMonths(bd, i),
+                principal: String(r.principal), interest: String(r.interest), dateTouched: false,
                 paid: r.paid, balance: r.balance, rowStatus: r.rowStatus,
-            }))
-            : startPlan(bd));
+            }));
+            const slots = planSlots(loaded, bd);
+            setRows(loaded.map((r, i) => ({ ...r, dateTouched: r.dueDate !== addMonths(bd, slots[i]) })));
+        } else setRows(startPlan(bd));
     };
 
     const loadBill = async () => {

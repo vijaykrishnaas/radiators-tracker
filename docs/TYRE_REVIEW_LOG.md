@@ -303,3 +303,17 @@ Looked for ways an edit could change money that was already agreed or collected 
 **Open (needs a decision later, same in every vertical):** a discount, once recorded, can't be reduced from the UI, because Record payment only adds to it. A challan with a wrong discount has to be deleted and re-entered.
 
 Gate: backend 98/98; tsc + build OK; e2e tyre 48, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. (The first e2e pass ran 0 checks because Vite had stopped; it was restarted and every suite re-run.)
+
+## Run 14 — area (b) challan form, round 3 (editing a plan that has payments)
+Read the plan editing, load and payment paths, then drove the edit screen in the browser with the real DAO behind it.
+
+**Bug, reproduced in the browser:**
+- **Removing an unpaid row before a paid one created a duplicate month and moved a due date.** Repro: plan Initial amount (1 Oct, unpaid) · 1st month (1 Nov, paid) · 2nd month (1 Dec). Edit → remove Initial amount. The plan showed "1st month · 1 Nov" twice, and saving stored both. The old 2nd month had silently moved from 1 Dec to 1 Nov, and the payment picker then listed two "1st month" rows. Cause: unpaid rows took their default name and date from their index, but a paid row keeps its own, so the next unpaid row landed on the paid row's month. Fix (`normalizeRows`, and the "date changed by hand" detection on load): each row has a month slot. A paid row's slot comes from its due date, and the rows after it count on from there. With no paid rows, nothing changes. Test: `tyre: removing a row before a paid one keeps names and due dates distinct` (old code: two "1st month · 2026-11-01").
+
+**Checked, fine:**
+- Paid rows are sent back unchanged and accepted by the server.
+- The payment type is locked after a payment.
+- The payment modal lists only rows with a balance, earliest first, and fills in the balance.
+- The full-payment discount is sent as existing + new.
+
+Gate: backend 98/98; tsc + build OK; e2e tyre 49, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
