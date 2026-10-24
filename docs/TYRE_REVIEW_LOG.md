@@ -287,3 +287,19 @@ No shared (non-tyre) file has changed since run 6, so its pixel comparison still
 Nothing new found.
 Seen, pre-existing (not from tyre work): the super-admin "client settings" view shows the radiator bonus / catalog block for every vertical. Automobile and engineering already did this before tyre existed.
 Gate: no code changed this run (last full gate: run 11, all green).
+
+## Run 13 — area (a) money logic, round 3 (edits after a discount)
+Looked for ways an edit could change money that was already agreed or collected on a full-payment challan.
+
+**Bugs, both reproduced with the real DAO:**
+1. **Editing a discounted challan below its discount silently closed it.** Repro: ₹48,500 challan → Record payment with ₹0 and a ₹2,000 discount → edit the line to one ₹1,500 tyre. The edit was accepted. The discount was quietly cut to ₹1,500, the amount to collect became ₹0, and the challan showed **Received** with nothing collected. Fix: an edit can't take a full-payment challan below received + discount. The message for this case is "A ₹2,000 discount is already on this challan, so its total can't go below ₹2,000". Test: "editing a discounted challan below its discount is refused, not silently marked Received" (old code: edit accepted).
+2. **The "can't go below" check ignored the discount, so its message was wrong.** Repro: ₹3,000 received + ₹2,000 discount → edit the total to ₹4,000. It was refused with "₹3,000 is already received, so the challan total can't go below that", though ₹4,000 is above ₹3,000. Now: "₹3,000 received and a ₹2,000 discount are already on this challan, so its total can't go below ₹5,000". ₹5,000 is accepted and the challan is Received. Test: "cutting a challan below received + discount names both amounts".
+
+**Checked, fine:**
+- Installment edits keep paid rows locked and re-check that principals equal the new tyre amount.
+- A payment-type switch is blocked after any payment.
+- A row's label can change after payment (amounts and date can't).
+
+**Open (needs a decision later, same in every vertical):** a discount, once recorded, can't be reduced from the UI, because Record payment only adds to it. A challan with a wrong discount has to be deleted and re-entered.
+
+Gate: backend 98/98; tsc + build OK; e2e tyre 48, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. (The first e2e pass ran 0 checks because Vite had stopped; it was restarted and every suite re-run.)

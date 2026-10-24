@@ -371,10 +371,23 @@ export async function updateTyreBill(clientId, id, data) {
     receivedAmount: paymentType === "full" ? existing.receivedAmount || 0 : 0,
   };
   const totals = computeTotals(base);
-  // A full-payment challan can't be cut below what was already collected: that money would vanish from the totals
-  // while still sitting in the payment log.
-  if (paymentType === "full" && round2(Number(existing.receivedAmount) || 0) > totals.payableTotal) {
-    throw httpError(`₹${round2(existing.receivedAmount).toLocaleString("en-IN")} is already received, so the challan total can't go below that`);
+  // A full-payment challan can't be cut below what was already collected plus the discount already given. Otherwise
+  // collected money would vanish from the totals while still in the payment log, or the discount would be silently
+  // shrunk to fit and the challan shown as Received with nothing collected.
+  if (paymentType === "full") {
+    const received = round2(Number(existing.receivedAmount) || 0);
+    const given = round2(Number(existing.discount) || 0);
+    const floor = round2(received + given);
+    if (floor > round2(tyreAmount)) {
+      const inr = (n) => `₹${n.toLocaleString("en-IN")}`;
+      throw httpError(
+        received > 0 && given > 0
+          ? `${inr(received)} received and a ${inr(given)} discount are already on this challan, so its total can't go below ${inr(floor)}`
+          : given > 0
+            ? `A ${inr(given)} discount is already on this challan, so its total can't go below ${inr(given)}`
+            : `${inr(received)} is already received, so the challan total can't go below that`
+      );
+    }
   }
   const set = { ...base, ...totals, updatedAt: new Date() };
   await saveIfUnchanged(db, existing, set);

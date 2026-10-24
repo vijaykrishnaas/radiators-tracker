@@ -403,3 +403,25 @@ test("review: a challan saved before revisions existed can still be paid and edi
   assert.equal(paid.receivedAmount, 1000);
   assert.equal(fakeDb.collection("tyrebills").docs[0].rev, 1);
 });
+
+test("review: editing a discounted challan below its discount is refused, not silently marked Received", async () => {
+  // ₹48,500 full-payment challan; ₹2,000 discount agreed, nothing collected yet.
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: [] }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 2000 });
+  // The tyre line was wrong: it is really one ₹1,500 tube. The ₹2,000 discount no longer fits.
+  await rejects(updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 1500 })] })), /discount/i);
+  const after = await getTyreBillById(CLIENT, bill._id);
+  assert.equal(after.discount, 2000);
+  assert.equal(after.status, "Not Received");
+});
+
+test("review: cutting a challan below received + discount names both amounts", async () => {
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: [] }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 3000, discount: 2000 });
+  // New total ₹4,000 is above the ₹3,000 received, but after the ₹2,000 discount only ₹2,000 would be owed.
+  await rejects(updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 4000 })] })), /₹3,000 received.*₹2,000 discount.*₹5,000/);
+  // ₹5,000 is the lowest total that still holds both.
+  const ok = await updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 5000 })] }));
+  assert.equal(ok.pendingAmount, 0);
+  assert.equal(ok.status, "Received");
+});
