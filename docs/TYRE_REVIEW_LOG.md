@@ -218,3 +218,25 @@ Gate: backend 96/96; tsc + build OK; e2e tyre 42/42, automobile / engineering / 
 
 Seen, not changed: the over-payment message in the payment modal is the browser's own ("Value must be less than or
 equal to …"). It works, but it isn't the app's wording.
+
+## Run 9 — 2026-10-24 — area (c) list + dashboard, second round (behaviour)
+
+The list's filter queries were checked with real MongoDB matching (mingo), because the fake DB treats an empty
+`nextDueDate` like a date. Correct, no change:
+- Filters: overdue, search by tyre serial and by D.C. number, status, payment type, brand, customer, date range.
+- The dashboard follow-up totals.
+- All 11 sort columns in both directions with no rows lost; paging 3 + 1.
+
+Browser: the dashboard's "Open overdue challans" lists only the overdue challan, on desktop and on a phone (where the
+"Filters 1" badge shows a filter is on). The Excel export has the Challans / Tyres / Installments sheets with real
+numbers (paise exact), the overdue amount and the row statuses.
+
+1. **"Clear filters" left `?overdue=1` in the address**, so a reload, Back or a shared link brought the overdue filter
+   back. Repro: open the overdue list from the dashboard, Clear filters (all challans show), reload → overdue-only again.
+   Fix: the Overdue only tick and the address stay in step (ticking adds `?overdue=1`, unticking or Clear removes it).
+   Check: "after Clear filters a reload doesn't bring the overdue filter back" (fails on the old code), plus "ticking
+   Overdue only puts it in the address".
+
+Gate: backend 96/96; tsc + build OK; e2e tyre 45/45, automobile / engineering / radiator / salary 0 FAIL.
+
+Seen, not changed: Excel dates are text (d/m/yyyy), as in the other verticals' exports.

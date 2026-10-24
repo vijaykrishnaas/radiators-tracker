@@ -46,7 +46,7 @@ const NextDue = ({ b }: { b: TyreBill }) => {
 
 const TyreBilling = () => {
     const navigate = useNavigate();
-    const [params] = useSearchParams();
+    const [params, setParams] = useSearchParams();
     const { settings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const labels = settings.tyre.labels;
@@ -63,7 +63,13 @@ const TyreBilling = () => {
     const [status, setStatus] = useState("");
     const [paymentType, setPaymentType] = useState("");
     // The dashboard's "Overdue" link opens this list already filtered.
-    const [overdue, setOverdue] = useState(params.get("overdue") === "1");
+    const [overdue, setOverdueState] = useState(params.get("overdue") === "1");
+    // The overdue filter lives in the address too (the dashboard links to ?overdue=1), so a reload or a shared link
+    // shows the same list, and clearing it can't be undone by a reload.
+    const setOverdue = (on: boolean) => {
+        setOverdueState(on);
+        setParams((p) => { const n = new URLSearchParams(p); if (on) n.set("overdue", "1"); else n.delete("overdue"); return n; }, { replace: true });
+    };
     const [filtersKey, setFiltersKey] = useState(0);
     const [sort, setSort] = useState<SortState | null>(null);
     const [mechanics, setMechanics] = useState<string[]>([]);

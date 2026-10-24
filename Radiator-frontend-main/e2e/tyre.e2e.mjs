@@ -290,6 +290,19 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   await page.reload();
 }
 
+// ---- Overdue filter and the address bar: Clear filters must not leave ?overdue=1 behind (reload brought it back) ----
+await page.goto(BASE + "/tyre/billing?overdue=1");
+await page.locator("#f-overdue").waitFor({ timeout: 10000 });
+ok("tyre: ?overdue=1 opens the list with Overdue only ticked", await page.locator("#f-overdue").isChecked());
+await page.getByRole("button", { name: "Clear filters" }).click();
+await page.waitForTimeout(400);
+await page.reload();
+await page.locator("#f-overdue").waitFor({ timeout: 10000 });
+ok("tyre: after Clear filters a reload doesn't bring the overdue filter back", !(await page.locator("#f-overdue").isChecked()) && !page.url().includes("overdue=1"), page.url());
+await page.locator("#f-overdue").check();
+await page.waitForTimeout(300);
+ok("tyre: ticking Overdue only puts it in the address (reload / share keeps it)", page.url().includes("overdue=1"), page.url());
+
 // ---- Dashboard follow-up ----
 await page.goto(BASE + "/tyre/dashboard");
 await page.getByText("Installments to collect").waitFor({ timeout: 10000 });
