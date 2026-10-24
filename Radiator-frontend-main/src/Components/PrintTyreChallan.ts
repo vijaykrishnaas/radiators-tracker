@@ -12,7 +12,11 @@ const hexToRgb = (hex: string): RGB => {
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [18, 70, 130];
 };
 
-const rs = (n: number) => `Rs ${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+// Whole rupees print without decimals; an amount with paise always shows both digits (32,750.50, not 32,750.5).
+const rs = (n: number) => {
+    const v = Number(n || 0);
+    return `Rs ${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const d = (s?: string | null) => (s ? new Date(s).toLocaleDateString("en-IN") : "-");
 
 /**
@@ -47,9 +51,13 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     const nameMaxW = Math.max(46, W - 2 * M - titleW - 8);
     const coName = (co.name || "").trim().toUpperCase();
     const nameY = 15.5;
-    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
+    setRGB(ink); doc.setFont("times", "bold");
+    // A long company name steps down from 17pt until it fits two lines (not below 11pt), so it can't eat the page.
+    let nameSize = 17;
+    doc.setFontSize(nameSize);
+    while (nameSize > 11 && doc.splitTextToSize(coName, nameMaxW).length > 2) doc.setFontSize(--nameSize);
     doc.text(coName, M, nameY, { maxWidth: nameMaxW });
-    const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: 17 }).h : 6;
+    const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: nameSize }).h : 6;
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
     doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
@@ -77,8 +85,10 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
-    doc.text(bill.customerName || bill.vehicleNumber || "-", M, y + 5, { maxWidth: colR - M - 6 });
-    let by = y + 9.5;
+    const toName = bill.customerName || bill.vehicleNumber || "-";
+    doc.text(toName, M, y + 5, { maxWidth: colR - M - 6 });
+    // The address starts below however many lines the name took.
+    let by = y + 5 + doc.getTextDimensions(toName, { maxWidth: colR - M - 6, fontSize: 9 }).h + 1;
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
     if (bill.address) {
         doc.text(bill.address, M, by, { maxWidth: colR - M - 6 });
@@ -98,11 +108,23 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     y = Math.max(y + 13, dy + 3, by + 2);
 
     /* ---- Tyres ---- */
-    const plainLines = {
+    const footerLineY = H - 9;
+    // Columns get 1mm of padding on each side (the outer edges stay flush with the margins), and the header of every
+    // column takes the same alignment as its values.
+    const plainLines = (aligns: ("left" | "center" | "right")[]) => ({
         theme: "plain" as const,
-        margin: { left: M, right: M },
-        headStyles: { fontSize: 6.8, fontStyle: "bold" as const, textColor: sub, cellPadding: { top: 1, bottom: 2.2 } },
-        bodyStyles: { fontSize: 7.6, textColor: ink, cellPadding: { top: 2.2, bottom: 2.2 } },
+        // A row is never split across two pages (a tyre's name would print half on each).
+        rowPageBreak: "avoid" as const,
+        // Tables that run onto a new page start below the top margin and stop above the page footer.
+        margin: { left: M, right: M, top: M, bottom: H - footerLineY + 4 },
+        headStyles: { fontSize: 6.8, fontStyle: "bold" as const, textColor: sub, cellPadding: { top: 1, bottom: 2.2, left: 1, right: 1 } },
+        bodyStyles: { fontSize: 7.6, textColor: ink, cellPadding: { top: 2.2, bottom: 2.2, left: 1, right: 1 } },
+        didParseCell: (data: any) => {
+            const i = data.column.index;
+            data.cell.styles.halign = aligns[i];
+            if (i === 0) data.cell.styles.cellPadding = { ...data.cell.styles.cellPadding, left: 0 };
+            if (i === aligns.length - 1) data.cell.styles.cellPadding = { ...data.cell.styles.cellPadding, right: 0 };
+        },
         didDrawCell: (data: any) => {
             if (data.section === "head" || data.section === "body") {
                 drawRGB(hair);
@@ -110,27 +132,21 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
                 doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
             }
         },
-    };
+    });
     autoTable(doc, {
-        ...plainLines,
+        ...plainLines(["left", "left", "left", "center", "right", "right"]),
         startY: y,
-        head: [["Tyre", "Tyre no.", "Tube / flap", "Qty", "Rate", "Amount"]],
+        head: [["Tyre", "Tyre no.", "Tube, flap", "Qty", "Rate", "Amount"]],
         body: (bill.items || []).map((i) => [
             i.particulars,
             i.tyreNumber || "-",
-            `${TUBE_LABEL[i.tubeType] || i.tubeType} / ${i.flap ? "Flap" : "No flap"}`,
+            `${TUBE_LABEL[i.tubeType] || i.tubeType}, ${i.flap ? "flap" : "no flap"}`,
             String(i.qty),
             rs(i.rate),
             rs(i.amount),
         ]),
-        columnStyles: {
-            0: { halign: "left" },
-            1: { halign: "left", cellWidth: 24 },
-            2: { halign: "left", cellWidth: 26 },
-            3: { halign: "center", cellWidth: 9 },
-            4: { halign: "right", cellWidth: 20 },
-            5: { halign: "right", cellWidth: 22 },
-        },
+        // The tyre name gets the remaining width (about 36mm on A5).
+        columnStyles: { 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 8 }, 4: { cellWidth: 19 }, 5: { cellWidth: 21 } },
     });
 
     let ty = (doc as any).lastAutoTable.finalY + 6;
@@ -161,26 +177,24 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
         doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub);
         doc.text("INSTALLMENTS", M, ty);
         autoTable(doc, {
-            ...plainLines,
+            ...plainLines(["left", "left", "right", "right", "right", "right"]),
             startY: ty + 2,
             head: [["Installment", "Due date", "Principal", "Interest", "Total", "Paid"]],
             body: bill.installments.map((r) => [r.label, d(r.dueDate), rs(r.principal), rs(r.interest), rs(r.total), r.paid > 0 ? rs(r.paid) : "-"]),
-            columnStyles: {
-                0: { halign: "left" },
-                1: { halign: "left", cellWidth: 20 },
-                2: { halign: "right", cellWidth: 21 },
-                3: { halign: "right", cellWidth: 18 },
-                4: { halign: "right", cellWidth: 21 },
-                5: { halign: "right", cellWidth: 21 },
-            },
+            columnStyles: { 1: { cellWidth: 20 }, 2: { cellWidth: 21 }, 3: { cellWidth: 18 }, 4: { cellWidth: 21 }, 5: { cellWidth: 21 } },
         });
         ty = (doc as any).lastAutoTable.finalY + 4;
     }
 
     /* ---- Signatures: receiver (left) · company (right) ---- */
-    const footerLineY = H - 9;
-    let sy = Math.max(ty + 8, footerLineY - 30);
-    if (sy + 24 > footerLineY) { doc.addPage(); sy = footerLineY - 30; }
+    // The block is drawn from sy + 4 (signature image) down to its last caption line, kept just above the footer line.
+    // A long "For <company>" wraps, which makes the block taller.
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8);
+    const forLines: string[] = doc.splitTextToSize(co.name ? `For ${co.name}` : "For the company", 60);
+    const extra = (forLines.length - 1) * 3.2;
+    let sy = footerLineY - 30 - extra;
+    // Move to a new page only when the block really doesn't fit under what is already printed.
+    if (ty + 2 > sy + 4) { doc.addPage(); }
     if (inv?.showSignature && co.signatureUrl) {
         try {
             const { dataUrl, format } = await fetchPdfImage(co.signatureUrl);
@@ -193,13 +207,19 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
     doc.text("Receiver's name and signature", M, sy + 24);
     if (inv?.footerNote) doc.text(inv.footerNote, M, sy + 27.5, { maxWidth: 60 });
-    doc.text(co.name ? `For ${co.name}` : "For the company", W - M, sy + 24, { align: "right", maxWidth: 60 });
-    doc.text("Authorised signatory", W - M, sy + 27.5, { align: "right" });
+    forLines.forEach((line, i) => doc.text(line, W - M, sy + 24 + i * 3.2, { align: "right" }));
+    doc.text("Authorised signatory", W - M, sy + 27.5 + extra, { align: "right" });
 
-    drawRGB(hair); doc.setLineWidth(0.3);
-    doc.line(M, footerLineY, W - M, footerLineY);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
-    doc.text([co.name, co.phone1].filter(Boolean).join("  ·  "), W / 2, H - 5, { align: "center" });
+    // Footer on every page; a challan that runs onto more pages says which challan and which page each one is.
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+        doc.setPage(p);
+        drawRGB(hair); doc.setLineWidth(0.3);
+        doc.line(M, footerLineY, W - M, footerLineY);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
+        doc.text([co.name, co.phone1].filter(Boolean).join("  ·  "), M, H - 5, { maxWidth: pages > 1 ? W - 2 * M - 40 : W - 2 * M });
+        if (pages > 1) doc.text(`D.C. No ${bill.billNo ?? "-"}  ·  Page ${p} of ${pages}`, W - M, H - 5, { align: "right" });
+    }
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
     doc.save(`Challan-${bill.billNo ?? ""}-${fileDate}-${bill.vehicleNumber || ""}.pdf`);

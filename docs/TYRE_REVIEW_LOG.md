@@ -89,3 +89,35 @@ Open — design questions, not tyre bugs (they are the same in every vertical):
   Automobile is the same (1559px table in a 960px box).
 - In the "To collect vs collected" monthly chart the two bar colours are hard to tell apart in dark mode. It is the
   shared chart palette.
+
+## Run 4 — 2026-10-24 — area (d) printed challan PDF
+
+Challans were printed through the app's Print button and every page rendered to PNG (`pdftoppm`). Cases: a normal
+installment challan; 14 tyre lines plus 12 installments (multi-page); full payment with a discount and very long
+customer name, address and serials; a bare challan; each with a short and a very long company name / address. New e2e
+checks print real challans and read word positions with `pdftotext -bbox`. They report SKIP, not PASS, when poppler
+isn't installed. All four checks below failed on the old code and pass now.
+
+1. **The signature block went onto its own blank page.** A 3-installment challan with a long company name printed 2
+   pages. The page-break test reserved about 32mm for a block that uses about 24mm. Fix: the block's real extent decides.
+   Check: "a short challan with a long company name is one page" (old: 2 pages).
+2. **Text overprinted in several places**: the tyre name ran into the tyre number ("…S3C8MRF-77882",
+   "…XT-7SN-100001"); a 2-line customer name printed over the address; a long "For <company>" printed over
+   "Authorised signatory". Fix: 1mm cell padding, a wider Tyre column (shorter "Tube, flap" text), the address placed
+   below the name's real height, and the "For" line wraps with the block growing to fit. Check: "no words overprint"
+   (any two words whose boxes overlap; old: many hits).
+3. **Paise printed as "Rs 32,750.5".** Fix: amounts with paise always show two decimals. Check: "paise print as .50".
+4. **Pages 2 and 3 of a long challan had no D.C. number or page number** (a loose page couldn't be matched to its
+   challan), and only the last page had the footer. Fix: a footer on every page with "D.C. No X · Page n of N" when
+   there is more than one page; tables stop above it. Check: "every page of a long challan is numbered".
+5. **A long company name took 4 lines at 17pt** (a third of the page). It now steps down to fit two lines (not below
+   11pt). Covered by check 1.
+6. **Numeric column headers (Rate, Amount, Principal…) didn't line up over their right-aligned values.** Fix: headers
+   take the column's alignment. Seen in the renders; not separately tested.
+7. **A tyre row split across pages** ("…Belted Radial" on page 1, "Tubeless" alone on page 2). Fix: rows never split.
+   Checked in the render of the 14-tyre challan; not separately tested.
+
+Gate: backend 93/93; tsc + build OK; e2e tyre 39/39, automobile / engineering / radiator / salary 0 FAIL.
+
+Left as is: a very long tyre number (many serials in one field) wraps mid-word in its 22mm column. It is readable and
+doesn't overprint.

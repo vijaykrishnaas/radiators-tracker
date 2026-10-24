@@ -224,6 +224,72 @@ const clipped = await page.locator(".tyre-plan-row").evaluateAll((rows) => rows.
 }).length);
 ok("tyre: installment totals aren't covered by an Overdue badge", clipped === 0, `${clipped} covered`);
 
+// ---- Printed challan layout (needs poppler's pdftotext / pdfinfo; reported as SKIP without them) ----
+const hasPoppler = (() => { try { execSync("pdftotext -v", { stdio: "ignore" }); return true; } catch { return false; } })();
+const skip = (name) => results.push(`SKIP  ${name}  — pdftotext not installed`);
+// Words on each page with their boxes, from `pdftotext -bbox`.
+const pdfWords = (file) => {
+  const html = execSync(`pdftotext -bbox "${file}" -`).toString();
+  return html.split("<page").slice(1).map((pg) => [...pg.matchAll(/xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</g)]
+    .map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] })));
+};
+// Two words overprint when their boxes overlap by more than a sliver.
+const overprints = (pages) => pages.flatMap((ws, p) => {
+  const hits = [];
+  for (let i = 0; i < ws.length; i++) for (let j = i + 1; j < ws.length; j++) {
+    const a = ws[i], b = ws[j];
+    const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    if (w > 0.8 && h > 1.5) hits.push(`p${p + 1}: "${a.t}" × "${b.t}"`);
+  }
+  return hits;
+});
+const printPdf = async (id, file) => {
+  await page.goto(BASE + `/tyre/dashboard/view/${id}`);
+  await page.getByRole("button", { name: "Print" }).waitFor({ timeout: 10000 });
+  const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 15000 }), page.getByRole("button", { name: "Print" }).click()]);
+  const out = join(OUT, file);
+  await dl.saveAs(out);
+  return out;
+};
+if (!hasPoppler) {
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50"].forEach((n) => skip(`tyre pdf: ${n}`));
+} else {
+  // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
+  const lines = Array.from({ length: 14 }, (_, i) => ({
+    brandRef: i % 2 ? "apollo" : "mrf", modelRef: i % 2 ? "9-00-20-xt-7" : "10-00-20-steel-muscle",
+    tyreNumber: `SN-2026-${100000 + i}, SN-2026-${200000 + i}`, tubeType: i % 2 ? "tubeless" : "tube", flap: i % 2 === 0, qty: 1, rate: i % 2 ? 19000 : 32750.5,
+  }));
+  const amount = Math.round(lines.reduce((t, l) => t + l.rate, 0) * 100) / 100;
+  const per = Math.floor(amount / 12);
+  const big = await dao.createTyreBill(CLIENT, {
+    billDate: "2026-10-05", vehicleNumber: "KA01MX4521", mechanicName: "Ramesh", phoneNumber: "9843012345",
+    customerName: "Sri Murugan Roadways & Logistics Private Limited, Salem Branch Office",
+    address: "Door No. 221/4, Omalur Main Road, Near New Bus Stand, Opposite Indian Oil Petrol Bunk, Salem, Tamil Nadu 636004",
+    items: lines, paymentType: "installment",
+    installments: Array.from({ length: 12 }, (_, i) => ({ dueDate: `2027-${String(i + 1).padStart(2, "0")}-05`, principal: i === 11 ? Math.round((amount - per * 11) * 100) / 100 : per, interest: i ? 750 : 0 })),
+  });
+  const bigPdf = await printPdf(big._id, "tyre-challan-long.pdf");
+  const bigPages = pdfWords(bigPdf);
+  const bigText = bigPages.map((ws) => ws.map((w) => w.t).join(" "));
+  ok("tyre pdf: every page of a long challan is numbered", bigPages.length > 1 && bigText.every((t, i) => t.includes(`Page ${i + 1} of ${bigPages.length}`) && t.includes(`No ${big.billNo}`)),
+    `${bigPages.length} pages`);
+  ok("tyre pdf: paise print as .50", bigText.join(" ").includes("32,750.50") && !/32,750\.5(?!0)/.test(bigText.join(" ")));
+
+  // A long company name on an ordinary 3-installment challan must still fit one page.
+  const saved = { ...settings.company };
+  settings.company.name = "Sri Murugan Tyres & Wheel Alignment Centre (A Unit of Murugan Group)";
+  settings.company.address = "Plot 14-B, SIDCO Industrial Estate, Kappalur, Thirumangalam Taluk, Madurai District, Tamil Nadu 625008";
+  await page.goto(BASE + "/tyre/billing"); await page.reload();
+  // The first challan of this run: 4 installments, one tyre line.
+const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyre-challan-longco.pdf");
+  const shortPages = pdfWords(shortPdf);
+  ok("tyre pdf: a short challan with a long company name is one page", shortPages.length === 1, `${shortPages.length} pages`);
+  const hits = [...overprints(bigPages), ...overprints(shortPages)];
+  ok("tyre pdf: no words overprint", hits.length === 0, hits.slice(0, 6).join(" | "));
+  Object.assign(settings.company, saved);
+  await page.reload();
+}
+
 // ---- Dashboard follow-up ----
 await page.goto(BASE + "/tyre/dashboard");
 await page.getByText("Installments to collect").waitFor({ timeout: 10000 });
