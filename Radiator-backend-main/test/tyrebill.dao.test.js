@@ -230,7 +230,8 @@ test("tenant isolation: another tenant can't read, pay or edit a challan", async
 test("overdue filter and the dashboard follow-up list", async () => {
   const now = new Date("2026-11-21T09:00:00");
   const q = buildTyreQuery(CLIENT, { overdue: true }, now);
-  assert.ok(q.nextDueDate.$lte < new Date("2026-11-21T00:00:00"));
+  // Overdue = due on a day before today: anything stored before 21 Nov (UTC midnight of each due day).
+  assert.ok(q.nextDueDate.$lte < new Date("2026-11-21T00:00:00Z") && q.nextDueDate.$lte >= new Date("2026-11-20T00:00:00Z"));
 
   const bill = await createTyreBill(CLIENT, input());
   await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: bill.installments[0].id });
@@ -287,4 +288,44 @@ test("review: re-sending the same discount with no amount is not a payment", asy
   const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: undefined }));
   await recordTyrePayment(CLIENT, bill._id, { amount: 1000, discount: 500 });
   await rejects(recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 500 }), /Enter a payment amount/);
+});
+
+test("review: an installment is not overdue on its own due date, whatever the server's time zone", () => {
+  const doc = {
+    paymentType: "installment",
+    installments: [
+      { id: "a", label: "1st month", dueDate: new Date("2026-10-24T00:00:00Z"), principal: 100, interest: 0, payments: [] },
+      { id: "b", label: "Initial amount", dueDate: new Date("2026-10-23T00:00:00Z"), principal: 100, interest: 0, payments: [] },
+    ],
+  };
+  const before = process.env.TZ;
+  try {
+    for (const tz of ["UTC", "Asia/Kolkata", "America/New_York", "Pacific/Honolulu"]) {
+      process.env.TZ = tz;
+      // 9 am on 24 Oct in that zone.
+      const now = new Date(2026, 9, 24, 9, 0, 0);
+      const e = enrich(doc, now);
+      assert.deepEqual(e.installments.map((r) => r.rowStatus), ["Due", "Overdue"], tz);
+    }
+  } finally {
+    process.env.TZ = before;
+  }
+});
+
+test("review: a challan discounted to ₹0 is settled, not 'Not Received'", async () => {
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: undefined, items: [tyre({ qty: 1, rate: 1000 })] }));
+  const after = await recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 1000 });
+  assert.equal(after.payableTotal, 0);
+  assert.equal(after.pendingAmount, 0);
+  assert.equal(after.status, "Received");
+});
+
+test("review: a discount can't cut the total below what was already received", async () => {
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: undefined }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 40000 });
+  // 8,500 is still owed; a 10,000 discount would leave 38,500 to collect against 40,000 received.
+  await rejects(recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 10000 }), /more than the ₹8,500 still owed/);
+  const ok = await recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 8500 });
+  assert.equal(ok.status, "Received");
+  assert.equal(ok.receivedAmount, 40000);
 });

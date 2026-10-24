@@ -62,6 +62,8 @@ function toPaymentMode(mode) {
 }
 
 function deriveStatus(received, payable) {
+  // Nothing to collect (e.g. discounted to ₹0) is settled, not "Not Received".
+  if (payable <= 0) return STATUS.RECEIVED;
   if (received <= 0) return STATUS.NOT_RECEIVED;
   if (received < payable) return STATUS.PARTIAL;
   return STATUS.RECEIVED;
@@ -139,8 +141,15 @@ function buildItems(rawItems, brands = []) {
 
 const newRowId = () => new ObjectId().toHexString();
 
+// Due dates arrive as "YYYY-MM-DD" and are stored as UTC midnight of that calendar day, so a stored date's day is its
+// UTC date. "Today" is the server's calendar day. Comparing days (never instants) keeps an installment from turning
+// overdue on its own due date when the server runs west of UTC.
+const dayOf = (d) => moment.utc(d).format("YYYY-MM-DD");
+const todayOf = (now) => moment(now).format("YYYY-MM-DD");
+const startOfDayUtc = (ymd) => new Date(`${ymd}T00:00:00.000Z`);
+
 function sameDay(a, b) {
-  return moment(a).format("YYYY-MM-DD") === moment(b).format("YYYY-MM-DD");
+  return dayOf(a) === dayOf(b);
 }
 
 // Validates the installment plan against the tyre amount and merges it with the rows already saved: rows that have a
@@ -238,7 +247,7 @@ function hasAnyPayment(doc) {
 // Adds what depends on today's date: each row's status, the next unpaid row, and the overdue amount.
 export function enrich(doc, now = new Date()) {
   if (!doc) return doc;
-  const today = moment(now).startOf("day");
+  const today = todayOf(now);
   let overdueAmount = 0;
   let overdueCount = 0;
   let nextDue = null;
@@ -248,7 +257,7 @@ export function enrich(doc, now = new Date()) {
     const balance = round2(Math.max(total - paid, 0));
     let rowStatus;
     if (balance <= 0) rowStatus = ROW_STATUS.PAID;
-    else if (moment(r.dueDate).isBefore(today)) rowStatus = ROW_STATUS.OVERDUE;
+    else if (dayOf(r.dueDate) < today) rowStatus = ROW_STATUS.OVERDUE;
     else if (paid > 0) rowStatus = ROW_STATUS.PART;
     else rowStatus = ROW_STATUS.DUE;
     if (rowStatus === ROW_STATUS.OVERDUE) {
@@ -421,6 +430,11 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
   } else {
     const discountIn = discount != null ? toMoney(discount, "discount") : existing.discount;
     const prev = computeTotals(existing);
+    // A discount only reduces what is still owed; it can't eat into money already received.
+    const extraDiscount = round2(Math.min(Number(discountIn) || 0, prev.tyreAmount) - prev.discount);
+    if (extraDiscount > prev.pendingAmount) {
+      throw httpError(`A ₹${extraDiscount.toLocaleString("en-IN")} discount is more than the ₹${prev.pendingAmount.toLocaleString("en-IN")} still owed`);
+    }
     const next = computeTotals({ ...existing, discount: discountIn, receivedAmount: prev.receivedAmount + pay });
     const applied = round2(next.receivedAmount - Math.min(prev.receivedAmount, next.payableTotal));
     const discountChanged = discount != null && next.discount !== round2(Number(existing.discount) || 0);
@@ -508,7 +522,7 @@ export function buildTyreQuery(
   if (paymentType === "full" || paymentType === "installment") query.paymentType = paymentType;
   if (brandRef) query["items.brandRef"] = String(brandRef);
   // Overdue: the earliest unpaid installment was due before today.
-  if (overdue) query.nextDueDate = { $lte: moment(now).startOf("day").subtract(1, "ms").toDate() };
+  if (overdue) query.nextDueDate = { $lte: new Date(startOfDayUtc(todayOf(now)).getTime() - 1) };
   return query;
 }
 
@@ -538,8 +552,8 @@ export async function getAllTyreBillsForExport(clientId, filters = {}, sortQuery
  */
 export async function getInstallmentFollowUp(clientId, now = new Date(), limit = 100) {
   const db = await connectDB();
-  const today = moment(now).startOf("day");
-  const monthEnd = moment(now).endOf("month");
+  const today = todayOf(now);
+  const monthEnd = moment.utc(today).endOf("month");
   const bills = await db
     .collection(COLLECTION)
     .find({ clientId: toClientId(clientId), paymentType: "installment", nextDueDate: { $lte: monthEnd.toDate() } })
@@ -552,8 +566,8 @@ export async function getInstallmentFollowUp(clientId, now = new Date(), limit =
   for (const b of bills) {
     const e = enrich(b, now);
     for (const r of e.installments) {
-      if (r.balance <= 0 || moment(r.dueDate).isAfter(monthEnd)) continue;
-      const overdue = moment(r.dueDate).isBefore(today);
+      if (r.balance <= 0 || moment.utc(r.dueDate).isAfter(monthEnd)) continue;
+      const overdue = dayOf(r.dueDate) < today;
       if (overdue) {
         overdueAmount += r.balance;
         overdueBills.add(String(b._id));
