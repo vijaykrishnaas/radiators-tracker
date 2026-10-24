@@ -67,3 +67,6 @@
 .tyre-due-name { min-width: 0; font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
 .tyre-due-meta { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
 .tyre-due-bottom strong { font-size: var(--text-md); color: var(--text-strong); }
+
+/* Settings → Tyre catalog: a brand's card stays inside the page on a phone (its model table scrolls inside it). */
+.tyre-brand-card { min-width: 0; }

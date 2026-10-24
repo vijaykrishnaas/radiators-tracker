@@ -339,6 +339,14 @@ ok("tyre: phone installment amounts are fully visible", amountCut === 0, `${amou
 ok("tyre: phone installment rows are compact, remove sits beside the name", rowBoxes.length > 0 && rowBoxes.every((r) => r.h <= 280 && r.xBeside), JSON.stringify(rowBoxes));
 await page.screenshot({ path: join(OUT, "tyre-create-390.png"), fullPage: true });
 
+// Phone settings: the tyre catalog (brand cards with their model tables) stays inside the screen.
+await page.goto(BASE + "/settings");
+await page.locator("#settings-section").selectOption({ label: "Tyre Catalog" });
+await page.locator(".tyre-brand-card, .nested-card").first().waitFor({ timeout: 10000 });
+await page.waitForTimeout(300);
+const catOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+ok("tyre: settings tyre catalog fits a 390px phone", catOverflow <= 0, `overflow ${catOverflow}px`);
+
 // Phone dashboard: each installment to chase shows its balance and a call button inside the screen (no hidden columns).
 await page.goto(BASE + "/tyre/dashboard");
 await page.locator(".tyre-due").first().waitFor({ timeout: 10000 }).catch(() => {});

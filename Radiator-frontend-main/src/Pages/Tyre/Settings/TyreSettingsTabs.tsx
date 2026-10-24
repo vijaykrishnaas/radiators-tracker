@@ -78,7 +78,7 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                     {brands.map((b) => {
                         const nm = newModel[b.value] || { label: "", rate: "" };
                         return (
-                            <section key={b.value} className="nested-card" aria-label={`${b.label} models`}>
+                            <section key={b.value} className="nested-card tyre-brand-card" aria-label={`${b.label} models`}>
                                 <div className="d-flex gap-2 align-items-end">
                                     <Field label="Brand name" htmlFor={`tyre-brand-${b.value}`} className="flex-grow-1">
                                         <InputText id={`tyre-brand-${b.value}`} value={b.label} onChange={(e) => renameBrand(b.value, e.target.value)} />

@@ -3,12 +3,13 @@ import { ObjectId } from "mongodb";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { parsePaging } from "../utils/sanitize.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { getClientById } from "../dao/client.dao.js";
+import { listMechanicNames } from "../dao/mechanics.dao.js";
 import {
   createRadiator,
   getAllRadiators,
   getAllRadiatorsForExport,
   getRadiatorAnalytics,
-  getAllmechanics,
   getById,
   updateRadiator,
   deleteRadiator,
@@ -153,9 +154,11 @@ export default router;
 
 // Mechanic list lives on a separate path for backward compatibility (GET /mechanic)
 export const mechanicRouter = Router();
+// Shared by every vertical's bonus pages, so the names come from the tenant's own bills (see dao/mechanics.dao.js).
 mechanicRouter.get("/", authenticate, loadActiveTenant, async (req, res, next) => {
   try {
-    const data = await getAllmechanics(req.user.clientId);
+    const client = await getClientById(req.user.clientId);
+    const data = await listMechanicNames(req.user.clientId, client?.businessType);
     res.json({ success: true, mechdata: data });
   } catch (error) {
     next(error);

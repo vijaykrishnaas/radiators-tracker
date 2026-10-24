@@ -370,3 +370,10 @@ test("review: sorting by next due puts challans with nothing scheduled last, bot
   const exported = (await getAllTyreBillsForExport(CLIENT, {}, { sortBy: "due", sortDir: "asc" })).map((x) => x.billNo);
   assert.deepEqual(exported.slice(0, 2), [b1.billNo, b4.billNo]);
 });
+
+test("review: a mechanic removed from Settings still appears on the bonus pages while they have challans", async () => {
+  const { listMechanicNames } = await import("../src/dao/mechanics.dao.js");
+  // "Kannan" left: not in Settings any more, but his challan (and bonus) remain.
+  await createTyreBill(CLIENT, input({ mechanicName: "Kannan" }));
+  assert.deepEqual(await listMechanicNames(CLIENT, "tyre"), ["Kannan", "Ramesh"]);
+});

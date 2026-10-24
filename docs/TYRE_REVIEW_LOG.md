@@ -121,3 +121,29 @@ Gate: backend 93/93; tsc + build OK; e2e tyre 39/39, automobile / engineering / 
 
 Left as is: a very long tyre number (many serials in one field) wraps mid-word in its 22mm column. It is readable and
 doesn't overprint.
+
+## Run 5 — 2026-10-24 — area (e) settings, inventory, bonus
+
+**Logic, run end to end on hand-checked data (now possible because the fake DB runs real aggregations):**
+- Tyre inventory: bought, sold, remaining, average cost, stock value and profit per brand + model are correct. A brand
+  renamed in Settings shows its new name.
+- Bonus: mechanic 2% and labour 1% of the tyre amount are correct. Changing the mechanic on an edit moves the pending
+  entry to the new mechanic, with no duplicate. Removing a worker drops their pending entry. The review data and the
+  pending-by-range rows match.
+
+**Bugs, all reproduced:**
+1. **A mechanic removed from Settings vanished from the bonus pages** (Mechanic Bonus filter and the review picker)
+   while they still had challans and unpaid bonus, so the bonus couldn't be reviewed. `/mechanic` read only radiator
+   bills plus Settings, so a tyre or automobile tenant got the Settings list only. The challan form, on `/tyre-mechanic`,
+   still listed them. Fix: `/mechanic` returns the tenant's own names (new `dao/mechanics.dao.js`: Settings plus that
+   vertical's bills; radiator unchanged, engineering keeps its own route). Test: "a mechanic removed from Settings still
+   appears on the bonus pages while they have challans". It fails with the old radiator-only lookup.
+2. **The Settings → Tyre Catalog tab was 174px wider than a phone**, so the whole page scrolled sideways. Each brand
+   card, a grid item, stretched to its model table's full width. Fix: brand cards may shrink (`min-width: 0`); the table
+   scrolls inside its card as other settings tables do. Check: "settings tyre catalog fits a 390px phone" (old:
+   overflow 174px).
+
+Gate: backend 94/94; tsc + build OK; e2e tyre 40/40, automobile / engineering / radiator / salary 0 FAIL.
+
+Open (all verticals, not tyre-specific): the Labour Bonus review picker lists only the Settings labour list, so a worker
+removed from Settings can't be picked for a review. There is no "names on bills" source for labour yet.
