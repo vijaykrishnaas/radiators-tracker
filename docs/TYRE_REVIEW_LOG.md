@@ -334,3 +334,13 @@ Checked the list filters, the overdue and follow-up rules, and the analytics pip
 **Open (all verticals, server time zone):** the list's From / To dates use the server's local midnight. On a server west of UTC, challans dated on the From day drop out and the day after To comes in. That's correct in UTC and IST, and the other verticals behave the same way.
 
 Gate: backend 98/98; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 16 — area (d) printed challan, round 3 (are the printed figures right)
+Printed three challans through the app's Print button (real DAO behind it) and read the text back with `pdftotext`:
+- **A:** full payment, 2 × ₹24,250, a ₹1,500 discount, ₹20,000 received. It prints Tyre amount ₹48,500, Discount − ₹1,500, Total ₹47,000, Received ₹20,000, Balance ₹27,000. Correct.
+- **B:** installments 28,500 + 10,400 + 10,400, with the initial amount paid and ₹4,000 paid on the 1st month. It prints Amount to collect ₹49,300 (₹48,500 + ₹800 interest), Received ₹32,500, Balance ₹16,800, and a Paid column of ₹28,500 / ₹4,000 / "-". Correct.
+- **C:** no customer, address, phone or mechanic. The vehicle number stands in for the name, and the Mechanic line is left out. No blank labels.
+- All three are one page with 0 overprints, and the render looks clean.
+
+Nothing new found. (Seen, design not bug: the schedule shows Paid but not each row's balance, which the reader works out as Total − Paid.)
+Gate: no code changed this run (last full gate: run 15, all green).
