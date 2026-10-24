@@ -47,7 +47,14 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     /* ---- Masthead ---- */
     const titleText = (inv?.billTitle || "Delivery Challan").toUpperCase();
     doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-    const titleW = doc.getTextWidth(titleText);
+    // The title is editable in Settings: a long one wraps onto two right-aligned lines (stepping down to 10pt) inside a
+    // 62mm block, instead of running left over the company name.
+    const TITLE_MAX = 62;
+    let titleSize = 12;
+    let titleLines: string[] = doc.splitTextToSize(titleText, TITLE_MAX);
+    while (titleSize > 10 && titleLines.length > 2) { doc.setFontSize(--titleSize); titleLines = doc.splitTextToSize(titleText, TITLE_MAX); }
+    const titleW = Math.max(...titleLines.map((l) => doc.getTextWidth(l)));
+    const titleStep = titleSize * 0.42;
     const nameMaxW = Math.max(46, W - 2 * M - titleW - 8);
     const coName = (co.name || "").trim().toUpperCase();
     const nameY = 15.5;
@@ -59,11 +66,12 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     doc.text(coName, M, nameY, { maxWidth: nameMaxW });
     const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: nameSize }).h : 6;
 
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
-    doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(titleSize); setRGB(accent);
+    titleLines.forEach((line, i) => doc.text(line, W - M, nameY - 0.5 + i * titleStep, { align: "right" }));
+    const metaY = nameY + (titleLines.length - 1) * titleStep;
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
-    doc.text(billDate, W - M, nameY + 5, { align: "right" });
-    doc.text(`D.C. No: ${bill.billNo ?? "-"}`, W - M, nameY + 9.5, { align: "right" });
+    doc.text(billDate, W - M, metaY + 5, { align: "right" });
+    doc.text(`D.C. No: ${bill.billNo ?? "-"}`, W - M, metaY + 9.5, { align: "right" });
 
     doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
     let cy = nameY + Math.max(nameH, 6) + 2.5;
@@ -76,7 +84,7 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     if (inv?.subtitle) { doc.setFont("helvetica", "italic"); doc.text(inv.subtitle, M, cy); cy += 1; }
 
     /* ---- Delivered to / Details ---- */
-    let y = Math.max(36, cy + 6);
+    let y = Math.max(36, cy + 6, metaY + 15);
     drawRGB(hair); doc.setLineWidth(0.3);
     doc.line(M, y - 4, W - M, y - 4);
     const colR = W / 2 + 6;

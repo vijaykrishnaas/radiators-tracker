@@ -240,3 +240,11 @@ numbers (paise exact), the overdue amount and the row statuses.
 Gate: backend 96/96; tsc + build OK; e2e tyre 45/45, automobile / engineering / radiator / salary 0 FAIL.
 
 Seen, not changed: Excel dates are text (d/m/yyyy), as in the other verticals' exports.
+
+## Run 10 — area (d) printed PDF, round 2
+Printed four new stress cases: 30 installments, Tamil text, crore-sized amounts, and a long Settings title with signature on.
+- **Bug: a long challan title printed over the company name.** Repro: Settings → invoice title "Delivery Challan cum Installment Agreement" → print → "DELIVERY" overlaps "MURUGAN TYRES". Fix: the title wraps to at most 2 lines (shrinking from 12pt to 10pt if needed), the company name gets the remaining width, and the date / D.C. No move down below the title. Test: `tyre pdf: a long title does not print over the company name` (fails on the old code with 3 overprints, passes now).
+- Fine: 30 installments break cleanly across pages with numbered footers; the signature image prints in place.
+- **Open (needs a decision): Tamil text prints as garbage.** jsPDF's built-in fonts are Latin-only. This affects every invoice type, not just tyre. Fixing it means embedding a Tamil font (about 200–400 KB more per print bundle).
+- Not changed: amounts of ₹1 crore and up wrap "Rs" onto a second line in the amount column. Unrealistic for one challan.
+Gate: backend 96/96, tsc + build OK, e2e tyre 46/46, automobile / engineering / radiator / salary 0 FAIL.

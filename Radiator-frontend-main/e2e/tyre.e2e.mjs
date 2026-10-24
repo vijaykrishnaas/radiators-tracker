@@ -252,7 +252,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "a long title does not print over the company name"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -286,6 +286,14 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   ok("tyre pdf: a short challan with a long company name is one page", shortPages.length === 1, `${shortPages.length} pages`);
   const hits = [...overprints(bigPages), ...overprints(shortPages)];
   ok("tyre pdf: no words overprint", hits.length === 0, hits.slice(0, 6).join(" | "));
+  // A long title from Settings (with the long company name still set) must wrap beside the name, not print over it.
+  const savedTitle = settings.tyre.invoice.billTitle;
+  settings.tyre.invoice.billTitle = "Delivery Challan cum Installment Agreement";
+  await page.reload();
+  const titlePdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyre-challan-longtitle.pdf");
+  const titleHits = overprints(pdfWords(titlePdf));
+  ok("tyre pdf: a long title does not print over the company name", titleHits.length === 0, titleHits.slice(0, 6).join(" | "));
+  settings.tyre.invoice.billTitle = savedTitle;
   Object.assign(settings.company, saved);
   await page.reload();
 }
