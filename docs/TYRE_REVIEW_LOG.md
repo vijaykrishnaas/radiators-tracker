@@ -541,3 +541,10 @@ With a 600ms delay on the save (as on mobile data), real browser double-clicks:
 - Double-click **Record Payment** for ₹100: received ₹100, one payment-log entry, not two.
 
 Nothing new found. No code changed (last full gate: run 30, all green). Fifth run in a row with nothing new (28–32).
+
+## Run 33 — area (c) list + dashboard, round 6 (paging)
+- Deleting the only challan on the last page: the shared list hook (`useRemoteList` with `paging`) steps back a page when the current one comes back empty, so the list never shows an empty page while challans exist.
+- Changing a filter, the sort or the page size goes back to page 1.
+- The tyre list route returns `totalRecords` / `totalPages`, the names the list reads.
+
+Nothing new found. No code changed (last full gate: run 30, all green). Sixth run in a row with nothing new (28–33).
