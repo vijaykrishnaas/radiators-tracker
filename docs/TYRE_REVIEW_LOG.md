@@ -566,3 +566,8 @@ Extended the run-19 money + bonus fuzz: besides payments, payouts and edits, the
 3 seeds: about 1,860 operations, 403 settings changes + recalculations, 638 payouts, **0 violations**.
 
 Nothing new found. No code changed (last full gate: run 30, all green). Eighth run in a row with nothing new (28–35).
+
+## Run 36 — area (f) regressions in the other verticals, round 6
+No code has changed since run 30 (only this log). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Nothing new found. Ninth run in a row with nothing new (28–36).
