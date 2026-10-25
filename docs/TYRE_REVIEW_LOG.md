@@ -502,3 +502,11 @@ Gate: backend 103/103; tsc + build OK; e2e tyre 54, automobile 45, engineering 1
 Open (all verticals): automobile search behaves the same way (spaces kept as typed). Left alone.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 28 — area (d) printed challan, round 5 (longest values the form accepts)
+Printed a challan with a 200-character customer name, a 500-character address and three 60-character installment names (a payment recorded):
+- Page 1: name and address wrap in the "Delivered to" column, with the details beside them; tyres and totals follow. 0 overprints.
+- The installment schedule plus the signature block don't fit under it, so they move to page 2. Each long installment name wraps in its column, and the signature sits at the bottom.
+- Both pages are numbered ("D.C. No 2 · Page n of 2").
+
+Nothing new found. No code changed (last full gate: run 27, all green).
