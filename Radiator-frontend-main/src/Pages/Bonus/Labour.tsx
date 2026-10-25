@@ -1,5 +1,6 @@
 import { useSettings } from "../../Context/SettingsContext";
 import { monthStart } from "../../Utils/format";
+import { workerBonusTitle, workerLabel } from "../../layout/navConfig";
 import { BonusPage } from "./Mechanic";
 
 const LabourBonus = () => {
@@ -7,8 +8,8 @@ const LabourBonus = () => {
     return (
         <BonusPage
             type="labour"
-            title={`${settings.labels.worker.replace(/\s*Name$/i, "")} Bonus`}
-            nameLabel={settings.labels.worker}
+            title={workerBonusTitle(settings)}
+            nameLabel={workerLabel(settings)}
             namesEndpoint=""
             reviewPath="/bonus/labour/review"
             defaultFrom={monthStart()}

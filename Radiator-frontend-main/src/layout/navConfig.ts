@@ -20,13 +20,19 @@ const prefix = (...ps: string[]) => (path: string) => ps.some((p) => path === p 
 export const verticalBase = (s: AppSettings) =>
     s.businessType === "engineering" ? "/engineering" : s.businessType === "automobile" ? "/automobile" : s.businessType === "tyre" ? "/tyre" : "/issueCounter";
 
+/** The tenant's own name for workers (Settings → labels of its vertical), e.g. "Labour" or "Helper". */
+export const workerLabel = (s: AppSettings) =>
+    (s.businessType === "automobile" ? s.automobile?.labels?.worker
+        : s.businessType === "tyre" ? s.tyre?.labels?.worker : s.labels?.worker) || "Labour";
+
+/** Title of the worker bonus page and its menu entry: "<worker> Bonus" (a trailing "Name" is dropped). */
+export const workerBonusTitle = (s: AppSettings) => `${workerLabel(s).replace(/\s*Name$/i, "")} Bonus`;
+
 /** Tenant navigation per vertical (spec §3.2.4). Labels keep their current text. */
 export function tenantNav(s: AppSettings): NavGroup[] {
     const v = verticalBase(s);
     const isEngineering = s.businessType === "engineering";
-    const workerName = (s.businessType === "automobile" ? s.automobile?.labels?.worker
-        : s.businessType === "tyre" ? s.tyre?.labels?.worker : s.labels?.worker) || "Labour";
-    const workerBonusLabel = `${workerName.replace(/\s*Name$/i, "")} Bonus`;
+    const workerBonusLabel = workerBonusTitle(s);
 
     const menu: NavItem[] = [
         { id: "dashboard", label: "Dashboard", to: `${v}/dashboard`, icon: "grid", match: exact(`${v}/dashboard`) },

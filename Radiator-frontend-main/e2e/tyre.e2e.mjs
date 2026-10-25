@@ -464,6 +464,15 @@ const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
 }));
 ok("tyre: phone challan cards keep the menu beside its badge", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.apart), JSON.stringify(cards));
 
+// ---- Bonus page: a renamed worker label (Settings → Labels & Challan) is used on the page as in the menu ----
+const savedWorker = settings.tyre.labels.worker;
+settings.tyre.labels.worker = "Helper";
+await page.goto(BASE + "/bonus/labour");
+await page.locator("h1").first().waitFor({ timeout: 10000 });
+const bonusTitle = (await page.locator("h1").first().innerText()).trim();
+ok("tyre: the worker bonus page uses the tyre worker label, like the menu", bonusTitle === "Helper Bonus", bonusTitle);
+settings.tyre.labels.worker = savedWorker;
+
 // ---- Dashboard: the "To collect" breakdown adds up to its figure when a challan has a discount ----
 const disc = await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN01DS0001", mechanicName: "Ramesh",
   items: [{ brandRef: "apollo", modelRef: "9-00-20-xt-7", qty: 1, rate: 19000 }], paymentType: "full" });

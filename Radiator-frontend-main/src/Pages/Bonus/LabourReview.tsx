@@ -8,6 +8,7 @@ import { getData, postData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import { useSettings } from "../../Context/SettingsContext";
 import { money, today, monthStart } from "../../Utils/format";
+import { workerBonusTitle, workerLabel as workerLabelOf } from "../../layout/navConfig";
 import type { ReviewData } from "../../Types/bonus";
 import { PageHeader, KpiCard, KpiGrid, EmptyState, Field, ProgressBar, BtnSpinner, CardHead } from "../../Components/ui/Basics";
 import { FilterBar } from "../../Components/ui/Filters";
@@ -45,7 +46,7 @@ const LabourReview = () => {
     const [notes, setNotes] = useState("");
 
     const personOptions = settings.labour.map((l) => ({ value: l, label: l }));
-    const workerLabel = settings.labels.worker;
+    const workerLabel = workerLabelOf(settings);
 
     useEffect(() => {
         if (!selectedWorker) return;
@@ -150,7 +151,7 @@ const LabourReview = () => {
         <>
             <PageHeader
                 title={`${workerLabel} performance review`}
-                back={{ to: "/bonus/labour", label: `${settings.labels.worker.replace(/\s*Name$/i, "")} Bonus` }}
+                back={{ to: "/bonus/labour", label: workerBonusTitle(settings) }}
                 actions={data ? [
                     { label: "Excel", icon: "exporticon", tone: "success", onClick: exportExcel, collapse: true },
                     { label: "PDF", icon: "entrolment_download", tone: "danger", onClick: exportPDF, collapse: true },

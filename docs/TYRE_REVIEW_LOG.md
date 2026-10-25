@@ -432,3 +432,11 @@ Printed challans with Settings text earlier rounds never tried:
 - No address or phone just closes the gap.
 
 Gate: backend 101/101; tsc + build OK; e2e tyre 51, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 23 — area (e) settings, round 4 (long and renamed labels)
+Renamed all four tyre labels to long values ("Lorry / Trailer Registration No.", "Customer / Transport Company Name", "Fitter / Mechanic in charge", "Helper / Tyre Fitting Labour"). Loaded the challan form, list, dashboard, both bonus pages and inventory at 390px and 1300px. No page scrolls sideways and nothing is clipped. Brand / model keys: nothing ever splits "brand:model", so odd characters in names can't mix up stock.
+
+**Bug, reproduced in the browser:**
+- **The worker bonus page ignored the tyre (and automobile) worker label.** With the label renamed to "Helper", the menu said "Helper Bonus" but the page title, table header, filters and review back-link said "Labour Bonus" / "Labour". The page read the radiator's `labels.worker`, while the menu read the tenant's own vertical labels. Fix: one helper, `workerLabel` / `workerBonusTitle` in `layout/navConfig.ts`, used by the menu, `Bonus/Labour.tsx` and `Bonus/LabourReview.tsx`. Automobile tenants get the same correction (their page now matches their menu). Test: `tyre: the worker bonus page uses the tyre worker label, like the menu` (old code: "Labour Bonus").
+
+The session's command permission check failed during run 23, so the full gate couldn't run then. It was finished at the start of run 24. Gate: backend 101/101; tsc + build OK; e2e tyre 52, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
