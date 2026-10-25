@@ -510,3 +510,13 @@ Printed a challan with a 200-character customer name, a 500-character address an
 - Both pages are numbered ("D.C. No 2 · Page n of 2").
 
 Nothing new found. No code changed (last full gate: run 27, all green).
+
+## Run 29 — area (e) settings, inventory, bonus, round 5 (unusual input)
+- Mechanic and worker on a challan are picked from a list (no free typing), so bonus entries can't split over "Ramesh" vs "ramesh ".
+- Inventory: whole tyres only (form and server). A 3-decimal buy price only feeds totals that are shown rounded, so nothing on screen disagrees.
+- Seen, shared with automobile (same inventory code), not changed:
+  - The API accepts a stock entry dated in the future (the form stops it).
+  - An entry for a model later removed from the catalog can be deleted but not edited.
+  - A fixed worker bonus split three ways rounds each share (₹100 → 3 × ₹33.33).
+
+Nothing new found. No code changed (last full gate: run 27, all green).
