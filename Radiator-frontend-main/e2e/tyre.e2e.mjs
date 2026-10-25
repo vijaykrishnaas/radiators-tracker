@@ -145,6 +145,14 @@ ok("tyre: a plan that doesn't add up is not saved", page.url().includes("/create
 await fillRow("1st month", 10000, 400);
 ok("tyre: plan check matches once principals add up", /Matches the tyre amount/.test(await page.locator(".tyre-check").innerText()));
 ok("tyre: footer shows tyres + interest", /₹49,300\.00/.test(await page.locator(".form-footer").innerText()));
+// A rate typed with 3 decimals counts to the paisa, as the server stores it: 3 × ₹24,250.56 = ₹72,751.68 (the
+// unrounded 72,751.665 showed ₹72,751.66, so a plan could never match what the server would save).
+await page.locator("[id^=ty-qty-]").first().fill("3");
+await page.locator("[id^=ty-rate-]").first().fill("24250.555");
+const paiseCheck = await page.locator(".tyre-check").innerText();
+ok("tyre: a 3-decimal rate totals to the paisa the server saves", /72,751\.68/.test(paiseCheck), paiseCheck.replace(/\s+/g, " "));
+await page.locator("[id^=ty-qty-]").first().fill("2");
+await page.locator("[id^=ty-rate-]").first().fill("24250");
 await page.screenshot({ path: join(OUT, "tyre-create.png"), fullPage: true });
 await page.locator(".form-footer").getByRole("button", { name: "Save challan" }).click();
 await page.waitForURL(/\/tyre\/billing/, { timeout: 10000 }).catch(() => {});

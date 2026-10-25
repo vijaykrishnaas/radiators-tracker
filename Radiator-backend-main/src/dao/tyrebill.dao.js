@@ -121,7 +121,8 @@ function buildItems(rawItems, brands = []) {
 
     const qty = Number(it?.qty ?? 1);
     if (!Number.isInteger(qty) || qty < 1) throw httpError(`Tyre ${n}: quantity must be a whole number of 1 or more`);
-    const rate = toMoney(it?.rate ?? 0, `Tyre ${n} rate`);
+    // Kept to the paisa, as printed: the line amount is then exactly qty × the rate on the challan.
+    const rate = round2(toMoney(it?.rate ?? 0, `Tyre ${n} rate`));
     const tubeType = it?.tubeType === "tubeless" ? "tubeless" : "tube";
     const flap = it?.flap === true || it?.flap === "Yes" || it?.flap === "yes" || it?.flap === "true";
     return {
@@ -445,7 +446,7 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
     log.push({ date: now, amount: pay, mode: paymentMode, installmentId: row.id, label: row.label });
     base = { ...existing, installments };
   } else {
-    const discountIn = discount != null ? toMoney(discount, "discount") : existing.discount;
+    const discountIn = discount != null ? round2(toMoney(discount, "discount")) : existing.discount;
     const prev = computeTotals(existing);
     // A discount only reduces what is still owed; it can't eat into money already received.
     const extraDiscount = round2(Math.min(Number(discountIn) || 0, prev.tyreAmount) - prev.discount);

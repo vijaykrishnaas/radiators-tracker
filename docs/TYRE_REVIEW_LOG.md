@@ -451,3 +451,23 @@ The session's command permission check failed during run 23, so the full gate co
 - The other shared change since run 18, `test/helpers/fakeDb.js` (run 21), is test-only.
 
 Nothing new found this run.
+
+## Run 25 — area (a) money logic, round 5 (unusual numbers)
+Checked how money inputs are read: three decimals, exponents, `Infinity`/`NaN`, negatives. `toMoney` rejects non-finite and negative values, but it didn't round. Plan amounts and payments were rounded to the paisa; the **tyre rate and the discount were not**.
+
+**Bug, reproduced with the real DAO and in the browser:**
+- **A rate typed with 3 decimals made the challan's figures disagree, and an installment plan with it could not be saved.** Rate ₹24,250.555 × 3:
+  - The server stored the rate as 24250.555 and printed it as ₹24,250.56.
+  - The form showed the tyre amount as ₹72,751.67, from the unrounded rate.
+  - The server computed it from its own rounding.
+  - So the plan check in the form and the server's "principals must equal the tyre amount" rule disagreed by a paisa, and no plan could pass both.
+- A discount of ₹100.555 likewise printed as ₹100.56 while the total used 100.555.
+- **Fix:**
+  - The server rounds the rate and the discount to the paisa when they come in.
+  - The form's line total uses the rate rounded the same way.
+  - Both use the same `round2`, so they always agree.
+- **Tests:**
+  - "rates and discounts are kept to the paisa, so the printed rate × qty and totals add up" (old code: rate 24250.555).
+  - e2e `tyre: a 3-decimal rate totals to the paisa the server saves` (old form: "of ₹72,751.67").
+
+Gate: backend 102/102; tsc + build OK; e2e tyre 53, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

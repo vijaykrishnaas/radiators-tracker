@@ -481,3 +481,16 @@ test("review: the Overdue filter lists only installment challans with an overdue
   const { tyreBillData } = await getAllTyreBills(CLIENT, { overdue: true });
   assert.deepEqual(tyreBillData.map((b) => String(b._id)), [String(late._id)]);
 });
+
+test("review: rates and discounts are kept to the paisa, so the printed rate × qty and totals add up", async () => {
+  // A rate typed with 3 decimals: the challan prints ₹24,250.56, so the line must be 3 × 24,250.56.
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ qty: 3, rate: 24250.555 })] }));
+  assert.equal(bill.items[0].rate, 24250.56);
+  assert.equal(bill.items[0].amount, 72751.68);
+  assert.equal(bill.tyreAmount, 72751.68);
+  // A discount typed with 3 decimals is the ₹100.56 the challan prints, and what is owed follows from it.
+  const paid = await recordTyrePayment(CLIENT, bill._id, { amount: 0, discount: 100.555 });
+  assert.equal(paid.discount, 100.56);
+  assert.equal(paid.payableTotal, 72651.12);
+  assert.equal(paid.pendingAmount, 72651.12);
+});

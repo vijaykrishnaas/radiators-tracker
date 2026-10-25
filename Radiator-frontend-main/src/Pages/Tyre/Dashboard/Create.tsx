@@ -60,7 +60,8 @@ const newRow = (i: number, billDate: string): PlanRow => ({
 // The paper challan's starting plan: an initial amount on the day plus two months.
 const startPlan = (billDate: string) => [0, 1, 2].map((i) => newRow(i, billDate));
 
-const lineAmount = (r: ItemRow) => round2((Number(r.qty) || 0) * (Number(r.rate) || 0));
+// The rate counts to the paisa, as the server stores and prints it, so this total matches the saved one.
+const lineAmount = (r: ItemRow) => round2((Number(r.qty) || 0) * round2(Number(r.rate) || 0));
 const isNum = (v: string) => String(v).trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0;
 
 // Each row's month in the plan (0 = initial amount). Normally its position, but a paid row keeps its own due date, so
