@@ -81,7 +81,13 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     }
     const phone = `${co.phone1 || ""}${co.phone2 ? "  ·  " + co.phone2 : ""}`;
     if (phone.trim()) { doc.text(phone, M, cy); cy += 4; }
-    if (inv?.subtitle) { doc.setFont("helvetica", "italic"); doc.text(inv.subtitle, M, cy); cy += 1; }
+    // The line under the company wraps short of the date / D.C. No column on the right (a long one ran over them).
+    if (inv?.subtitle) {
+        doc.setFont("helvetica", "italic");
+        const subLines: string[] = doc.splitTextToSize(inv.subtitle, W - 2 * M - 32);
+        doc.text(subLines, M, cy);
+        cy += (subLines.length - 1) * 3 + 1;
+    }
 
     /* ---- Delivered to / Details ---- */
     let y = Math.max(36, cy + 6, metaY + 15);
@@ -196,11 +202,13 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
 
     /* ---- Signatures: receiver (left) · company (right) ---- */
     // The block is drawn from sy + 4 (signature image) down to its last caption line, kept just above the footer line.
-    // A long "For <company>" wraps, which makes the block taller.
+    // A long "For <company>" (right) or receiver's note from Settings (left) wraps, which makes the block taller.
     doc.setFont("helvetica", "normal"); doc.setFontSize(6.8);
     const forLines: string[] = doc.splitTextToSize(co.name ? `For ${co.name}` : "For the company", 60);
+    const noteLines: string[] = inv?.footerNote ? doc.splitTextToSize(inv.footerNote, 60) : [];
     const extra = (forLines.length - 1) * 3.2;
-    let sy = footerLineY - 30 - extra;
+    const tall = Math.max(extra, (noteLines.length - 1) * 3.2);
+    let sy = footerLineY - 30 - tall;
     // Move to a new page only when the block really doesn't fit under what is already printed.
     if (ty + 2 > sy + 4) { doc.addPage(); }
     if (inv?.showSignature && co.signatureUrl) {
@@ -214,7 +222,7 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     doc.line(W - M - 52, sy + 20, W - M, sy + 20);
     doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); setRGB(sub);
     doc.text("Receiver's name and signature", M, sy + 24);
-    if (inv?.footerNote) doc.text(inv.footerNote, M, sy + 27.5, { maxWidth: 60 });
+    noteLines.forEach((line, i) => doc.text(line, M, sy + 27.5 + i * 3.2));
     forLines.forEach((line, i) => doc.text(line, W - M, sy + 24 + i * 3.2, { align: "right" }));
     doc.text("Authorised signatory", W - M, sy + 27.5 + extra, { align: "right" });
 

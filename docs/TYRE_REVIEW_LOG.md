@@ -412,3 +412,23 @@ No code changed (last full gate: run 17, all green).
 **After the fix:** export, list and dashboard agree on every filter: counts, to collect, received, pending, discount; overdue 27 challans and the same overdue ₹ in the follow-up and the export.
 
 Gate: backend 101/101; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 22 — area (d) printed challan, round 4 (unusual Settings text)
+Printed challans with Settings text earlier rounds never tried:
+- a company with no address or phone
+- signature on but no image uploaded
+- long renamed labels ("Lorry / Trailer Registration No.", "Fitter / Mechanic in charge")
+- a long line under the company
+- a long receiver's note
+
+**Bugs, both reproduced with `pdftotext -bbox` word boxes:**
+1. **A long receiver's note ran into the page footer.** The note was drawn with a 60mm width but the signature block only made room for a wrapped "For <company>". A 3-line note printed "without fail" over the footer's company name, on every challan. Fix: the block reserves room for whichever side (note or "For …") takes more lines.
+2. **A long line under the company printed over the date and D.C. No.** That line had no width limit. One sentence more than usual printed over "D.C. No: 3" (7 word overlaps). Fix: it wraps short of the date / D.C. No column.
+- Test: `tyre pdf: a long subtitle and receiver's note wrap without printing over anything`. It uses a short company with no address, the tightest case: with the long company name from the previous check, the subtitle sat lower and the bug didn't show. Old code: 6 overlaps.
+
+**Fine:**
+- Signature on with no image leaves a blank signing space.
+- The long labels fit the Details column.
+- No address or phone just closes the gap.
+
+Gate: backend 101/101; tsc + build OK; e2e tyre 51, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

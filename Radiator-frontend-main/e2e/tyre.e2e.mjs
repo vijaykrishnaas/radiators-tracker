@@ -270,7 +270,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "a long title does not print over the company name"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -312,6 +312,18 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   const titleHits = overprints(pdfWords(titlePdf));
   ok("tyre pdf: a long title does not print over the company name", titleHits.length === 0, titleHits.slice(0, 6).join(" | "));
   settings.tyre.invoice.billTitle = savedTitle;
+  Object.assign(settings.company, saved);
+  await page.reload();
+  // A long line under the company and a long receiver's note from Settings wrap; neither prints over anything.
+  // (A short company name with no address puts the line beside the date / D.C. No, the tightest case.)
+  settings.company.address = ""; settings.company.phone1 = ""; settings.company.phone2 = "";
+  const savedInv = { ...settings.tyre.invoice };
+  settings.tyre.invoice.subtitle = "Goods delivered on approval basis only. Not a tax invoice. Subject to Madurai jurisdiction. E. & O.E. Goods once sold will not be taken back.";
+  settings.tyre.invoice.footerNote = "Received the above tyres in good condition and agree to pay the installments on the due dates shown above without fail";
+  await page.reload();
+  const notesHits = overprints(pdfWords(await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyre-challan-longnotes.pdf")));
+  ok("tyre pdf: a long subtitle and receiver's note wrap without printing over anything", notesHits.length === 0, notesHits.slice(0, 6).join(" | "));
+  Object.assign(settings.tyre.invoice, savedInv);
   Object.assign(settings.company, saved);
   await page.reload();
 }
