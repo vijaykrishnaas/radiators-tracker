@@ -471,3 +471,6 @@ Checked how money inputs are read: three decimals, exponents, `Infinity`/`NaN`, 
   - e2e `tyre: a 3-decimal rate totals to the paisa the server saves` (old form: "of ₹72,751.67").
 
 Gate: backend 102/102; tsc + build OK; e2e tyre 53, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Decision — Tamil text on printed challans (open since run 10)
+User: "No Tamil, leave it". Names and addresses are entered in English, so the PDF keeps jsPDF's built-in Latin fonts and no Tamil font is added. Closed.
