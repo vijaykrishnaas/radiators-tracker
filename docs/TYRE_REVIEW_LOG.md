@@ -376,3 +376,19 @@ Shared files changed since run 12: `bonus.dao.js` (the review rows now carry `re
 - **Correction to run 17's open item:** the clipped Status column on the bonus pages is not caused by the expanded row. Measured at 1300px, the bonus list table is 1,089px wide in a 960px frame before any row is opened. It is the same "desktop lists scroll sideways" design question already open since run 3. A CSS change that kept the nested table from widening the list made no difference and was reverted.
 
 Nothing new found. No code changed (last full gate: run 17, all green).
+
+## Run 19 — area (a) money logic, round 4 (fuzz with bonus payouts)
+Run 17 changed how the bonus follows payments, so the money fuzz was re-run with bonuses in it. Real DAOs on the fake DB; 60 challans × 14 random steps per seed, 4 seeds:
+- Steps: installment or full payments (with discounts), bonus payouts to the mechanic or a worker, and edits (quantity re-split over unpaid rows, worker list changed).
+- After every step, for every person on the challan, checked:
+  - at most one pending entry
+  - no negative amounts
+  - paid + pending = the bonus payable now (or what was already paid, if an edit lowered it)
+  - earned adds up the same way
+- **Result:** about 2,040 operations and 869 payouts, 1,150 steps with a rest entry present, **0 violations**. Every rejection was a correct refusal (principal below the paid rows, challan already fully paid, discount over what's owed, total below received + discount).
+- The run-7 money fuzz (received = payment log = paid rows, pending, status, no overpaid row, principal = tyre amount) was re-run on two seeds: 0 violations. Two simultaneous payments on one installment are still refused with a 409, not lost.
+- **Harness bug found and fixed (not app code):** both fuzz scripts sent due dates as `String(Date).slice(0, 10)`, which parses to the wrong year. So edits to plans with paid rows were being refused and never exercised. With ISO dates they now run.
+
+Behaviour to note (from run 17, not a bug): if the owner pays a bonus at a custom amount below what was ready, the shortfall now shows again as "Rest of bonus" pending (before, it was silently dropped). Cancel or adjust it on the Bonus page if the lower amount was meant to be final.
+
+Nothing new found. No code changed (last full gate: run 17, all green).
