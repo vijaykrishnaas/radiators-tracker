@@ -515,12 +515,19 @@ const TYRE_SORT = {
 };
 
 // One search box over every text field on the challan (and the D.C. number when the text is a number).
+// Vehicle numbers are typed both with and without spaces ("TN 58 AB 1234" / "TN58AB1234"), so a search matches
+// either way: the typed characters in order, with any spaces between them.
+const vehicleRx = (text) => {
+  const chars = String(text).replace(/\s+/g, "").split("");
+  return { $regex: chars.map((c) => escapeRegex(c)).join("\\s*"), $options: "i" };
+};
+
 function searchClause(search) {
   const text = String(search || "").trim();
   if (!text) return null;
   const rx = { $regex: escapeRegex(text), $options: "i" };
   const or = [
-    { vehicleNumber: rx }, { customerName: rx }, { phoneNumber: rx }, { address: rx }, { mechanicName: rx },
+    { vehicleNumber: vehicleRx(text) }, { customerName: rx }, { phoneNumber: rx }, { address: rx }, { mechanicName: rx },
     { labourName: rx }, { "items.particulars": rx }, { "items.tyreNumber": rx }, { notes: rx },
   ];
   if (/^\d+$/.test(text)) or.push({ billNo: Number(text) });
@@ -535,7 +542,7 @@ export function buildTyreQuery(
   const query = { clientId: toClientId(clientId) };
   const s = searchClause(search);
   if (s) Object.assign(query, s);
-  if (vehicleNumber) query.vehicleNumber = { $regex: escapeRegex(vehicleNumber), $options: "i" };
+  if (String(vehicleNumber).trim()) query.vehicleNumber = vehicleRx(vehicleNumber);
   if (customerName) query.customerName = { $regex: escapeRegex(customerName), $options: "i" };
   if (mechName) query.mechanicName = String(mechName);
   if (fromDate || toDate) {

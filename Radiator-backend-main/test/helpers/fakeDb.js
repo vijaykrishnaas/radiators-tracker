@@ -16,6 +16,12 @@ function valuesAt(doc, path) {
 
 function matches(doc, query) {
   return Object.entries(query).every(([key, val]) => {
+    if (key === "$or") return val.some((q) => matches(doc, q));
+    // Like MongoDB, a regex matches when any value at the path (array items included) matches.
+    if (val && typeof val === "object" && "$regex" in val) {
+      const rx = val.$regex instanceof RegExp ? val.$regex : new RegExp(val.$regex, val.$options || "");
+      return valuesAt(doc, key).some((v) => typeof v === "string" && rx.test(v));
+    }
     if (key.includes(".") && !(val && typeof val === "object" && !(val instanceof ObjectId))) {
       return valuesAt(doc, key).some((v) => String(v) === String(val));
     }

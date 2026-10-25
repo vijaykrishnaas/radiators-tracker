@@ -502,3 +502,13 @@ test("review: tyre numbers for a 10-tyre line are saved in full, and a too-long 
   assert.equal(bill.items[0].tyreNumber, serials);
   await rejects(createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ tyreNumber: "X".repeat(2001) })] })), /Tyre 1: tyre numbers are too long/);
 });
+
+test("review: vehicle-number search ignores spaces, so a lorry typed both ways is found either way", async () => {
+  const spaced = await createTyreBill(CLIENT, input({ vehicleNumber: "TN 58 AB 1234" }));
+  const tight = await createTyreBill(CLIENT, input({ vehicleNumber: "TN58AB5678" }));
+  const ids = async (f) => (await getAllTyreBills(CLIENT, f)).tyreBillData.map((b) => String(b._id)).sort();
+  assert.deepEqual(await ids({ search: "tn58ab" }), [String(spaced._id), String(tight._id)].sort());
+  assert.deepEqual(await ids({ search: "TN58AB1234" }), [String(spaced._id)]);
+  assert.deepEqual(await ids({ search: "TN 58 AB 5678" }), [String(tight._id)]);
+  assert.deepEqual(await ids({ vehicleNumber: "tn 58ab1234" }), [String(spaced._id)]);
+});

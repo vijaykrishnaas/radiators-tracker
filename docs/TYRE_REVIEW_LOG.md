@@ -492,3 +492,13 @@ A line for a whole fleet carries one serial per tyre ("MRF-2026-778810, MRF-2026
 Checked with `pdftotext`: all 10 serials print whole, 0 overprints on the three sample challans.
 
 Gate: backend 103/103; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 27 — area (c) list + dashboard, round 5 (searching vehicle numbers)
+**Bug, reproduced with the real DAO:**
+- **Vehicle-number search missed challans when the number was typed with spaces on one and without on the other.** The form keeps what is typed, so one lorry can be saved as "TN 58 AB 1234" on one challan and "TN58AB1234" on the next. Searching "TN58AB1234" (or "tn58ab") didn't find the spaced one, so following up all of a customer's installment challans by lorry missed some. Fix: the list search and the vehicle filter match the typed characters in order with any spaces between them. Stored data is unchanged. Test: "vehicle-number search ignores spaces, so a lorry typed both ways is found either way" (old code: the spaced challan missing).
+
+**Test-tool fix (not app code):** the fake test DB's `find()` had no `$or` or `$regex`, so every list search returned nothing in tests: search had never really been tested. It now handles both, matching any value at the path (array items included) as MongoDB does. All 103 earlier tests still pass with it.
+
+Open (all verticals): automobile search behaves the same way (spaces kept as typed). Left alone.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
