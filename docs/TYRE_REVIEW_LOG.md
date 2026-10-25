@@ -440,3 +440,14 @@ Renamed all four tyre labels to long values ("Lorry / Trailer Registration No.",
 - **The worker bonus page ignored the tyre (and automobile) worker label.** With the label renamed to "Helper", the menu said "Helper Bonus" but the page title, table header, filters and review back-link said "Labour Bonus" / "Labour". The page read the radiator's `labels.worker`, while the menu read the tenant's own vertical labels. Fix: one helper, `workerLabel` / `workerBonusTitle` in `layout/navConfig.ts`, used by the menu, `Bonus/Labour.tsx` and `Bonus/LabourReview.tsx`. Automobile tenants get the same correction (their page now matches their menu). Test: `tyre: the worker bonus page uses the tyre worker label, like the menu` (old code: "Labour Bonus").
 
 The session's command permission check failed during run 23, so the full gate couldn't run then. It was finished at the start of run 24. Gate: backend 101/101; tsc + build OK; e2e tyre 52, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 24 — finished run 23, then area (f) regressions, round 4
+- **Run 23's fix:** the full gate was finished (all green, see above), then it was committed and pushed (757b147).
+- **Regression check of that shared change:**
+  - Radiator and engineering are unchanged (radiator still reads `labels.worker`).
+  - Automobile and tyre tenants on default labels keep the page title "Labour Bonus".
+  - Inside the page, the name column now says "Labour" (it was the radiator's "Labour Name") and the filter placeholder says "-- All Labours --". That is the tenant's own label being used, as intended.
+  - e2e automobile 45/45.
+- The other shared change since run 18, `test/helpers/fakeDb.js` (run 21), is test-only.
+
+Nothing new found this run.
