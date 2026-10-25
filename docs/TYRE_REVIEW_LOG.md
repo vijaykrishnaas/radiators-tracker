@@ -548,3 +548,10 @@ Nothing new found. No code changed (last full gate: run 30, all green). Fifth ru
 - The tyre list route returns `totalRecords` / `totalPages`, the names the list reads.
 
 Nothing new found. No code changed (last full gate: run 30, all green). Sixth run in a row with nothing new (28–33).
+
+## Run 34 — area (d) printed challan, round 6 (fully settled challans)
+- Full payment cleared by part payments plus a discount: Discount − ₹1,500, Total ₹47,000, Received ₹47,000, Balance ₹0.
+- Installments all paid: Amount to collect ₹49,300, Received ₹49,300, Balance ₹0; each schedule row's Paid equals its Total.
+- 1 page, 0 overprints each.
+
+Nothing new found. No code changed (last full gate: run 30, all green). Seventh run in a row with nothing new (28–34).
