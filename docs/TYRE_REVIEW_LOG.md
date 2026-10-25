@@ -392,3 +392,12 @@ Run 17 changed how the bonus follows payments, so the money fuzz was re-run with
 Behaviour to note (from run 17, not a bug): if the owner pays a bonus at a custom amount below what was ready, the shortfall now shows again as "Rest of bonus" pending (before, it was silently dropped). Cancel or adjust it on the Bonus page if the lower amount was meant to be final.
 
 Nothing new found. No code changed (last full gate: run 17, all green).
+
+## Run 20 — area (b) challan form, round 4 (payment popup and view, phone + dark)
+Screenshots of the challan view and the Record Payment popup, for an installment challan (initial amount paid, 1st month overdue) and a full-payment one, at 390px and 1300px, light and dark (real DAO behind it):
+- Installment popup: opens on the overdue 1st month with ₹10,400 filled in, shows "₹10,400.00 left · due … (overdue)", has no discount field, and fits the phone.
+- Full-payment popup: discount and amount fields, "Up to ₹24,250", fits.
+- View page on a phone in dark mode: plan rows with Paid / Overdue / Due badges, totals and "Principal ₹48,500 of ₹48,500 ✓" all readable. (The sticky "Amount to collect / Back" bar shows mid-page only in the full-page screenshot.)
+
+Nothing new found. This is the **third run in a row with nothing new (18, 19, 20)**, so stopping the hourly task is suggested to the user.
+No code changed (last full gate: run 17, all green).
