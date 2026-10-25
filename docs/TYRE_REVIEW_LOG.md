@@ -525,3 +525,12 @@ Nothing new found. No code changed (last full gate: run 27, all green).
 Since run 24 the only shared file changed is `test/helpers/fakeDb.js` (test-only: `$or` / `$regex`, null in date ranges). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Nothing new found. **Third run in a row with nothing new (28, 29, 30):** stopping the hourly task is suggested to the user.
+
+## Run 31 — area (a) money logic, round 6 (unusual dates)
+- The server reads dates with `new Date(…)`. "2026-02-30" rolls over to 2 March, and a 5-digit year ("20260-01-05") is accepted. Through the app this can't happen: the form's date pickers only produce real dates, and Chromium's date box leaves the value empty when a fifth year digit is typed (checked). So only a hand-made API call could send one: logged, not changed.
+- Also fine:
+  - A due date before the challan date is allowed (a backdated plan).
+  - An interest-only row (principal 0) is accepted.
+  - Several part payments on one row can never total more than the row (the cap is checked against the rounded balance).
+
+Nothing new found. No code changed (last full gate: run 30, all green). Fourth run in a row with nothing new (28–31).
