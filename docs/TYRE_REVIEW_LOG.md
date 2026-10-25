@@ -555,3 +555,14 @@ Nothing new found. No code changed (last full gate: run 30, all green). Sixth ru
 - 1 page, 0 overprints each.
 
 Nothing new found. No code changed (last full gate: run 30, all green). Seventh run in a row with nothing new (28–34).
+
+## Run 35 — area (e) bonus, round 6 (changing the bonus settings mid-way)
+Extended the run-19 money + bonus fuzz: besides payments, payouts and edits, the owner randomly switches mechanic / labour bonus between % and ₹-per-challan with new rates, then presses Recalculate (`backfillTyre`). Same per-person checks after every step:
+- one pending entry
+- nothing negative
+- paid + pending = the bonus payable under the current settings (or what was already paid)
+- earned adds up
+
+3 seeds: about 1,860 operations, 403 settings changes + recalculations, 638 payouts, **0 violations**.
+
+Nothing new found. No code changed (last full gate: run 30, all green). Eighth run in a row with nothing new (28–35).
