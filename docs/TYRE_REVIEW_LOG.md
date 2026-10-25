@@ -369,3 +369,10 @@ Followed a bonus through payment, payout and the rest of collection with the rea
 - Bonus pages (all verticals) at 1300px: when a person's row is expanded, the inner table is wider than the card, so the Status column, including the "Pending" badge, is clipped at the right edge. This was already the case before this run.
 
 Gate: backend 100/100; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 18 — area (f) regressions in the other verticals, round 3
+Shared files changed since run 12: `bonus.dao.js` (the review rows now carry `rest`) and `Pages/Bonus/Mechanic.tsx` (the "Rest of bonus" label, run 17).
+- `rest` is `$ifNull(…, false)`, so radiator, automobile and engineering entries are never labelled. Their bonus pages render as before (run 17's gate: automobile 45, radiator 17, engineering 168, 0 FAIL).
+- **Correction to run 17's open item:** the clipped Status column on the bonus pages is not caused by the expanded row. Measured at 1300px, the bonus list table is 1,089px wide in a 960px frame before any row is opened. It is the same "desktop lists scroll sideways" design question already open since run 3. A CSS change that kept the nested table from widening the list made no difference and was reverted.
+
+Nothing new found. No code changed (last full gate: run 17, all green).
