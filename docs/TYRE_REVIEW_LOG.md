@@ -571,3 +571,11 @@ Nothing new found. No code changed (last full gate: run 30, all green). Eighth r
 No code has changed since run 30 (only this log). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Nothing new found. Ninth run in a row with nothing new (28–36).
+
+## Run 37 — area (a) money logic, round 7 (deleting a challan with payments and payouts)
+An installment challan with 2 tyres from stock, both rows paid, and Kumar's labour bonus paid out part-way (so a "rest" entry exists), then deleted:
+- Stock goes from 3 back to 5 (the tyres return).
+- The pending mechanic entry and Kumar's pending rest entry are removed.
+- Kumar's paid entry stays as settlement history.
+
+Nothing new found. No code changed (last full gate: run 36, all green). Tenth run in a row with nothing new (28–37).
