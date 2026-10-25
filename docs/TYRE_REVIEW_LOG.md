@@ -599,3 +599,12 @@ axe-core 4.10.2 on the challan list and the dashboard, with 6 real challans load
 Everything else on the tyre list and dashboard passed. The only remaining item is the shared sidebar group titles (logged in run 38).
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 56, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 40 — area (d) printed challan, round 7 (download file name)
+The PDF's file name carries the vehicle number as typed:
+- "TN 58 AB 1234" → `Challan-1-2026-10-05-TN 58 AB 1234.pdf`
+- "TN58/AB/1234" → Chrome turns the slashes into `_` (`Challan-2-2026-10-05-TN58_AB_1234.pdf`), so there's no broken path.
+
+Same pattern as the other verticals' invoices.
+
+Nothing new found. No code changed (last full gate: run 39, all green).
