@@ -19,6 +19,9 @@
 .tyre-sum dd { margin: 0; font-weight: var(--weight-semibold); color: var(--text-strong); }
 .tyre-sum .is-total { background: var(--brand-50); }
 .tyre-sum .is-total dd { color: var(--brand-text); }
+/* The muted label grey is too faint on the tinted total (4.3:1). The strong text colour stays readable whatever
+   brand colour the shop picks (the large amount beside it only needs 3:1). */
+.tyre-sum .is-total dt { color: var(--text-strong); }
 
 /* Installment rows: name | due date | principal | interest | total | status / remove. */
 .tyre-plan { display: grid; gap: 8px; }

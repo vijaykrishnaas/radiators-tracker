@@ -144,6 +144,14 @@ await page.waitForTimeout(500);
 ok("tyre: a plan that doesn't add up is not saved", page.url().includes("/create") && fakeDb.collection("tyrebills").docs.length === 0);
 await fillRow("1st month", 10000, 400);
 ok("tyre: plan check matches once principals add up", /Matches the tyre amount/.test(await page.locator(".tyre-check").innerText()));
+// The "Amount to collect" label sits on a tinted box: it must stay readable (WCAG AA, 4.5:1).
+const totalContrast = await page.locator(".tyre-sum .is-total dt").evaluate((dt) => {
+  const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+  const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const fg = lum(rgb(getComputedStyle(dt).color)), bg = lum(rgb(getComputedStyle(dt.parentElement).backgroundColor));
+  return Math.round(((Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05)) * 100) / 100;
+});
+ok("tyre: the Amount to collect label is readable on its tinted box (≥ 4.5:1)", totalContrast >= 4.5, `${totalContrast}:1`);
 ok("tyre: footer shows tyres + interest", /₹49,300\.00/.test(await page.locator(".form-footer").innerText()));
 // A rate typed with 3 decimals counts to the paisa, as the server stores it: 3 × ₹24,250.56 = ₹72,751.68 (the
 // unrounded 72,751.665 showed ₹72,751.66, so a plan could never match what the server would save).

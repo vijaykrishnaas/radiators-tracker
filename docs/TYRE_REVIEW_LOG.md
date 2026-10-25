@@ -579,3 +579,13 @@ An installment challan with 2 tyres from stock, both rows paid, and Kumar's labo
 - Kumar's paid entry stays as settlement history.
 
 Nothing new found. No code changed (last full gate: run 36, all green). Tenth run in a row with nothing new (28–37).
+
+## Run 38 — area (b) challan form, round 7 (accessibility audit)
+Ran axe-core 4.10.2 on the new-challan form (errors shown) at 1300px and 390px, light and dark. Only serious / critical issues were reported:
+
+**Bug (tyre form), reproduced by axe and by a measured check:**
+- **The "Amount to collect" label was too faint on its tinted box:** muted grey on brand-50 = 4.34:1, below the 4.5:1 minimum for small text. Fix: the label uses the strong text colour, 12.83:1. That colour doesn't depend on the brand colour a shop picks; the brand text colour would have given only 4.56:1 with the default brand. The large amount beside it keeps the brand colour (big text needs 3:1). Test: `tyre: the Amount to collect label is readable on its tinted box (≥ 4.5:1)` (old: 4.34:1).
+
+**Open (shared app frame, all verticals):** the sidebar group titles ("MENU", "MANAGE") are 2.57:1 in light mode and 3.64:1 in dark mode. Not changed: it's the shared layout, a design choice for every company type.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 55, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
