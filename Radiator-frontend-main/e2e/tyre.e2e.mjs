@@ -278,12 +278,13 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
     brandRef: i % 2 ? "apollo" : "mrf", modelRef: i % 2 ? "9-00-20-xt-7" : "10-00-20-steel-muscle",
-    tyreNumber: `SN-2026-${100000 + i}, SN-2026-${200000 + i}`, tubeType: i % 2 ? "tubeless" : "tube", flap: i % 2 === 0, qty: 1, rate: i % 2 ? 19000 : 32750.5,
+    // The first line carries ten 15-character serials (a whole-fleet line), the case that broke serials mid-way.
+    tyreNumber: i === 0 ? Array.from({ length: 10 }, (_, k) => `MRF-2026-7788${10 + k}`).join(", ") : `SN-2026-${100000 + i}, SN-2026-${200000 + i}`, tubeType: i % 2 ? "tubeless" : "tube", flap: i % 2 === 0, qty: 1, rate: i % 2 ? 19000 : 32750.5,
   }));
   const amount = Math.round(lines.reduce((t, l) => t + l.rate, 0) * 100) / 100;
   const per = Math.floor(amount / 12);
@@ -299,6 +300,10 @@ if (!hasPoppler) {
   const bigText = bigPages.map((ws) => ws.map((w) => w.t).join(" "));
   ok("tyre pdf: every page of a long challan is numbered", bigPages.length > 1 && bigText.every((t, i) => t.includes(`Page ${i + 1} of ${bigPages.length}`) && t.includes(`No ${big.billNo}`)),
     `${bigPages.length} pages`);
+  // Every serial prints whole (one per line), never broken in the middle across lines.
+  const words = new Set(bigPages.flat().map((w) => w.t.replace(/,$/, "")));
+  const serialsWhole = lines.flatMap((l) => l.tyreNumber.split(", ")).filter((sn) => !words.has(sn));
+  ok("tyre pdf: each tyre number prints whole", serialsWhole.length === 0, serialsWhole.slice(0, 4).join(" | "));
   ok("tyre pdf: paise print as .50", bigText.join(" ").includes("32,750.50") && !/32,750\.5(?!0)/.test(bigText.join(" ")));
 
   // A long company name on an ordinary 3-installment challan must still fit one page.

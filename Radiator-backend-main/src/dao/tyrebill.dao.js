@@ -34,6 +34,8 @@ export const ROW_STATUS = { PAID: "Paid", OVERDUE: "Overdue", PART: "Partly paid
 const PAYMENT_MODES = ["cash", "upi", "card", "bank", "other"];
 const MAX_ITEMS = 100;
 const MAX_ROWS = 120;
+// One line can be many tyres, each with its own serial ("MRF-2026-778810, MRF-2026-778811, …"): room for dozens.
+const MAX_TYRE_NUMBERS = 2000;
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const cleanText = (v, max = 200) => String(v ?? "").trim().slice(0, max);
@@ -123,6 +125,9 @@ function buildItems(rawItems, brands = []) {
     if (!Number.isInteger(qty) || qty < 1) throw httpError(`Tyre ${n}: quantity must be a whole number of 1 or more`);
     // Kept to the paisa, as printed: the line amount is then exactly qty × the rate on the challan.
     const rate = round2(toMoney(it?.rate ?? 0, `Tyre ${n} rate`));
+    // Refused, never cut: a silently shortened list would drop the last tyres' serials from the challan.
+    const tyreNumber = String(it?.tyreNumber ?? "").trim();
+    if (tyreNumber.length > MAX_TYRE_NUMBERS) throw httpError(`Tyre ${n}: tyre numbers are too long (at most ${MAX_TYRE_NUMBERS} characters)`);
     const tubeType = it?.tubeType === "tubeless" ? "tubeless" : "tube";
     const flap = it?.flap === true || it?.flap === "Yes" || it?.flap === "yes" || it?.flap === "true";
     return {
@@ -133,7 +138,7 @@ function buildItems(rawItems, brands = []) {
       // Inventory key (shared with the automobile inventory code, which counts sold stock by items[].partRef).
       partRef: brandRef && modelRef ? `${brandRef}:${modelRef}` : null,
       particulars: `${brandLabel} ${modelLabel}`.trim(),
-      tyreNumber: cleanText(it?.tyreNumber, 120),
+      tyreNumber,
       tubeType,
       flap,
       qty,

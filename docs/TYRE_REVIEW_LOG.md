@@ -474,3 +474,21 @@ Gate: backend 102/102; tsc + build OK; e2e tyre 53, automobile 45, engineering 1
 
 ## Decision — Tamil text on printed challans (open since run 10)
 User: "No Tamil, leave it". Names and addresses are entered in English, so the PDF keeps jsPDF's built-in Latin fonts and no Tamil font is added. Closed.
+
+## Run 26 — area (b) challan form, round 5 (long tyre-number lists)
+A line for a whole fleet carries one serial per tyre ("MRF-2026-778810, MRF-2026-778811, …").
+
+**Bugs, both reproduced:**
+1. **Tyre numbers past 120 characters were silently cut off on save.** Repro: 10 tyres with 15-character serials (168 characters). The challan was saved as "…MRF-2026-778816, M", so the last three and a half serials were lost with no message. Fix:
+   - The server keeps up to 2,000 characters and refuses anything longer with "Tyre N: tyre numbers are too long", never cutting it.
+   - The form field has the same limit.
+   - Test: "tyre numbers for a 10-tyre line are saved in full, and a too-long entry is refused, never cut" (old code: cut at 120).
+2. **On the printed challan the serials broke mid-serial across lines** in the narrow "Tyre no." column ("MRF-2026-7788 / 10, MRF-2026-7 / 78811"), which is hard to read on a delivery document. Fix:
+   - One serial per line.
+   - The column is widened from 22 to 26mm with slightly smaller serial text; "Tube, flap" goes from 20 to 18mm and already wrapped.
+   - Trade-off: a long model name (e.g. "MRF 10.00-20 Steel Muscle") can take two lines.
+   - Test: `tyre pdf: each tyre number prints whole`. The long e2e challan's first line now has ten 15-character serials (old code: all broken).
+
+Checked with `pdftotext`: all 10 serials print whole, 0 overprints on the three sample challans.
+
+Gate: backend 103/103; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

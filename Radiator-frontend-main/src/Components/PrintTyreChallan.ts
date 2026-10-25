@@ -153,14 +153,16 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
         head: [["Tyre", "Tyre no.", "Tube, flap", "Qty", "Rate", "Amount"]],
         body: (bill.items || []).map((i) => [
             i.particulars,
-            i.tyreNumber || "-",
+            // One serial per line ("A1, A2" → two lines), so a long list doesn't break serials in the middle.
+            i.tyreNumber ? i.tyreNumber.split(/\s*,\s*/).filter(Boolean).join("\n") : "-",
             `${TUBE_LABEL[i.tubeType] || i.tubeType}, ${i.flap ? "flap" : "no flap"}`,
             String(i.qty),
             rs(i.rate),
             rs(i.amount),
         ]),
-        // The tyre name gets the remaining width (about 36mm on A5).
-        columnStyles: { 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 8 }, 4: { cellWidth: 19 }, 5: { cellWidth: 21 } },
+        // The tyre name gets the remaining width (about 36mm on A5). Serials are slightly smaller so a full one
+        // ("MRF-2026-778810") fits a line.
+        columnStyles: { 1: { cellWidth: 26, fontSize: 6.8 }, 2: { cellWidth: 18 }, 3: { cellWidth: 8 }, 4: { cellWidth: 19 }, 5: { cellWidth: 21 } },
     });
 
     let ty = (doc as any).lastAutoTable.finalY + 6;

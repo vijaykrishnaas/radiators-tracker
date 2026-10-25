@@ -494,3 +494,11 @@ test("review: rates and discounts are kept to the paisa, so the printed rate × 
   assert.equal(paid.payableTotal, 72651.12);
   assert.equal(paid.pendingAmount, 72651.12);
 });
+
+test("review: tyre numbers for a 10-tyre line are saved in full, and a too-long entry is refused, never cut", async () => {
+  const serials = Array.from({ length: 10 }, (_, i) => `MRF-2026-7788${10 + i}`).join(", ");
+  assert.ok(serials.length > 120);
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ qty: 10, rate: 24250, tyreNumber: serials })] }));
+  assert.equal(bill.items[0].tyreNumber, serials);
+  await rejects(createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ tyreNumber: "X".repeat(2001) })] })), /Tyre 1: tyre numbers are too long/);
+});

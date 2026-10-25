@@ -428,7 +428,7 @@ const TyreCreate = () => {
                                                         onChange={(o: any) => pickModel(it.key, it.brandRef, o ? o.value : "")} />
                                                 </Field>
                                                 <Field label="Tyre number" htmlFor={`ty-serial-${it.key}`}>
-                                                    <InputText id={`ty-serial-${it.key}`} value={it.tyreNumber} placeholder="Serial number" disabled={isView}
+                                                    <InputText id={`ty-serial-${it.key}`} value={it.tyreNumber} placeholder="Serial number" disabled={isView} maxLength={2000}
                                                         onChange={(e) => setItem(it.key, { tyreNumber: e.target.value })} />
                                                 </Field>
                                                 <Field label="Tube type" htmlFor={`ty-tube-${it.key}`}>
