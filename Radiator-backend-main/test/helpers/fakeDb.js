@@ -28,6 +28,8 @@ function matches(doc, query) {
         return val.$in.some((v) => String(v) === String(docVal));
       }
       if ("$gte" in val || "$lte" in val) {
+        // Like MongoDB, a missing / null value never falls inside a date range (new Date(null) would be 1970).
+        if (docVal === null || docVal === undefined) return false;
         const t = new Date(docVal).getTime();
         return (!("$gte" in val) || t >= new Date(val.$gte).getTime()) && (!("$lte" in val) || t <= new Date(val.$lte).getTime());
       }

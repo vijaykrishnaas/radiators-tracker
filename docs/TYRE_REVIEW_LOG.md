@@ -401,3 +401,14 @@ Screenshots of the challan view and the Record Payment popup, for an installment
 
 Nothing new found. This is the **third run in a row with nothing new (18, 19, 20)**, so stopping the hourly task is suggested to the user.
 No code changed (last full gate: run 17, all green).
+
+## Run 21 — area (c) list + dashboard, round 4 (export vs list vs dashboard)
+40 random challans (full and installment, part paid, some discounted, 2 mechanics, over 5 months). Compared the Excel export rows, the list count and the dashboard KPIs under the same filters (none · Overdue only · one mechanic this month), plus the follow-up's overdue count and amount.
+
+**Test-tool bug found and fixed (not app code):**
+- With "Overdue only", the list and export had 37 challans but the dashboard counted 27. The extra 10 were all full-payment challans with no due date. Cause: the fake test DB's `find()` turned a missing date into `new Date(null)` (1 Jan 1970), so "next due ≤ today" matched. Real MongoDB, and the fake DB's own aggregation, never match a null against a date range, so **production was right**. But the list and filter tests ran on a wrong database and could have hidden or invented bugs.
+- Fix: `test/helpers/fakeDb.js` no longer matches a missing value in a date range. Test: "the Overdue filter lists only installment challans with an overdue row" (fails on the old helper).
+
+**After the fix:** export, list and dashboard agree on every filter: counts, to collect, received, pending, discount; overdue 27 challans and the same overdue ₹ in the follow-up and the export.
+
+Gate: backend 101/101; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

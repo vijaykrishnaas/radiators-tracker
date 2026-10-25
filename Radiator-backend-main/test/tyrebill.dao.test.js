@@ -473,3 +473,11 @@ test("review: a cancelled payout stays closed, and paying more than was due owes
   await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: r2.id });
   assert.equal(bonuses().filter((d) => d.status === "pending" && d.type === "labour").length, 0);
 });
+
+test("review: the Overdue filter lists only installment challans with an overdue row, as the dashboard counts them", async () => {
+  // (The fake DB used to treat a missing next-due date as 1970, so full-payment challans showed up as overdue.)
+  const late = await createTyreBill(CLIENT, input()); // its initial amount was due 2026-09-20
+  await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], vehicleNumber: "TN01FULL" })); // nothing scheduled
+  const { tyreBillData } = await getAllTyreBills(CLIENT, { overdue: true });
+  assert.deepEqual(tyreBillData.map((b) => String(b._id)), [String(late._id)]);
+});
