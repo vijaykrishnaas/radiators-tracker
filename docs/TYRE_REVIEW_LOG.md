@@ -534,3 +534,10 @@ Nothing new found. **Third run in a row with nothing new (28, 29, 30):** stoppin
   - Several part payments on one row can never total more than the row (the cap is checked against the rounded balance).
 
 Nothing new found. No code changed (last full gate: run 30, all green). Fourth run in a row with nothing new (28–31).
+
+## Run 32 — area (b) challan form, round 6 (double clicks on a slow network)
+With a 600ms delay on the save (as on mobile data), real browser double-clicks:
+- Double-click **Save challan** on a valid new challan: one challan saved (D.C. 1), not two.
+- Double-click **Record Payment** for ₹100: received ₹100, one payment-log entry, not two.
+
+Nothing new found. No code changed (last full gate: run 30, all green). Fifth run in a row with nothing new (28–32).
