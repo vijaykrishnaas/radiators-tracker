@@ -520,3 +520,8 @@ Nothing new found. No code changed (last full gate: run 27, all green).
   - A fixed worker bonus split three ways rounds each share (₹100 → 3 × ₹33.33).
 
 Nothing new found. No code changed (last full gate: run 27, all green).
+
+## Run 30 — area (f) regressions in the other verticals, round 5
+Since run 24 the only shared file changed is `test/helpers/fakeDb.js` (test-only: `$or` / `$regex`, null in date ranges). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 54, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Nothing new found. **Third run in a row with nothing new (28, 29, 30):** stopping the hourly task is suggested to the user.
