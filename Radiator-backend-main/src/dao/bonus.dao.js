@@ -450,6 +450,7 @@ async function aggregateByBeneficiary(filter) {
             $push: {
               _id: "$_id",
               manual: { $ifNull: ["$manual", false] },
+              rest: { $ifNull: ["$rest", false] },
               cancelledPaid: { $ifNull: ["$cancelled.paidAmount", 0] },
               billDate: "$billDate",
               accruedAmount: "$accruedAmount",

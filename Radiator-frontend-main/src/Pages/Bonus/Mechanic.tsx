@@ -23,6 +23,8 @@ import autoTable from "jspdf-autotable";
 export type BonusRecord = {
     _id?: string;
     manual?: boolean;
+    /** Tyre challans: bonus earned after an earlier part payout on the same challan (the paid row holds the rest). */
+    rest?: boolean;
     /** What a cancelled entry had paid before it was cancelled. */
     cancelledPaid?: number;
     billDate: string;
@@ -103,7 +105,7 @@ const BillsBehind = ({ row, onCancel }: { row: BonusRow; onCancel?: (rec: BonusR
                                     {rec.status === "paid" ? money(rec.paidAmount || 0)
                                         : rec.status === "cancelled" ? <s className="t-muted" title="Cancelled">{money(rec.cancelledPaid || 0)}</s> : "—"}
                                 </td>
-                                <td>{statusBadge(rec.status)}{rec.manual && <span className="d-block t-xs t-muted">Manual bonus</span>}</td>
+                                <td>{statusBadge(rec.status)}{rec.manual && <span className="d-block t-xs t-muted">Manual bonus</span>}{rec.rest && <span className="d-block t-xs t-muted">Rest of bonus</span>}</td>
                                 {onCancel && (
                                     <td className="num">
                                         {rec.status === "paid" && rec._id && (

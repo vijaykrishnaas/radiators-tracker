@@ -32,8 +32,51 @@ export function computeTyreRoleBonus(bill, role, settings) {
   return { accrued: round2(accrued), payable: round2(accrued * ratio), totalAmount: base, received };
 }
 
-// Upserts the challan's entries (one mechanic + one per labour name). Paid / cancelled entries are settlement history
-// and are never rewritten.
+// One person's entry for one challan. Before any payout it carries the whole bonus. A payout made part-way through
+// collection is settlement history and is never rewritten; the bonus earned after it (e.g. the next installments
+// coming in) goes on a new pending "rest" entry for the same person, so the full bonus is paid once the tyre price is
+// collected. A cancelled payout, or a payout made to someone who is no longer on the challan, stays closed as before.
+async function syncEntry(collection, key, name, calc, period, base) {
+  const settled = await collection.find({ ...key, status: { $in: SETTLED } }).toArray();
+  let fields = { accruedAmount: calc.accrued, payableAmount: calc.payable, billAmount: calc.totalAmount, receivedAmount: calc.received };
+  if (settled.length) {
+    if (settled.some((d) => d.status !== "paid" || d.beneficiary !== name)) {
+      await collection.deleteMany({ ...key, status: "pending" });
+      return;
+    }
+    // A part payout settled only what it paid: its "earned" is trimmed to that (the amount paid is never touched), and
+    // the rest entry carries the bonus still to come plus the money collected since. Each person's earned / ready /
+    // paid / collected totals on the bonus pages then add up, counted once, in both the Pending and All views.
+    for (const d of settled) {
+      const paid = round2(Number(d.paidAmount) || 0);
+      if ((Number(d.accruedAmount) || 0) > paid) {
+        await collection.updateOne({ _id: d._id, status: "paid" }, { $set: { accruedAmount: paid, payableAmount: paid } });
+        d.accruedAmount = paid;
+      }
+    }
+    const sum = (f) => settled.reduce((t, d) => t + (Number(d[f]) || 0), 0);
+    const accrued = round2(Math.max(calc.accrued - sum("accruedAmount"), 0));
+    const payable = round2(Math.max(calc.payable - sum("paidAmount"), 0));
+    if (accrued <= 0 && payable <= 0) {
+      await collection.deleteMany({ ...key, status: "pending" });
+      return;
+    }
+    fields = {
+      accruedAmount: accrued,
+      payableAmount: payable,
+      billAmount: round2(Math.max(calc.totalAmount - sum("billAmount"), 0)),
+      receivedAmount: round2(Math.max(calc.received - sum("receivedAmount"), 0)),
+      rest: true,
+    };
+  }
+  await collection.updateOne(
+    { ...key, status: "pending" },
+    { $set: { ...base, beneficiary: name, period, ...fields }, $setOnInsert: { type: key.type, status: "pending", createdAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+// Upserts the challan's entries (one mechanic + one per labour name).
 export async function syncTyreBonusesForRecord(clientId, bill) {
   if (!bill?._id) return;
   const db = await connectDB();
@@ -47,26 +90,8 @@ export async function syncTyreBonusesForRecord(clientId, bill) {
   if (!bill.mechanicName) {
     await collection.deleteMany({ clientId: cid, recordId, type: "mechanic", status: "pending" });
   } else {
-    const paid = await collection.findOne({ clientId: cid, recordId, type: "mechanic", status: { $in: SETTLED } });
-    if (!paid) {
-      const m = computeTyreRoleBonus(bill, "mechanic", settings);
-      await collection.updateOne(
-        { clientId: cid, recordId, type: "mechanic", status: "pending" },
-        {
-          $set: {
-            ...base,
-            beneficiary: bill.mechanicName,
-            period: yearKey(bill.billDate, settings?.tyre?.bonus?.yearStartMonth || 4),
-            accruedAmount: m.accrued,
-            payableAmount: m.payable,
-            billAmount: m.totalAmount,
-            receivedAmount: m.received,
-          },
-          $setOnInsert: { type: "mechanic", status: "pending", createdAt: new Date() },
-        },
-        { upsert: true }
-      );
-    }
+    await syncEntry(collection, { clientId: cid, recordId, type: "mechanic" }, bill.mechanicName,
+      computeTyreRoleBonus(bill, "mechanic", settings), yearKey(bill.billDate, settings?.tyre?.bonus?.yearStartMonth || 4), base);
   }
 
   // ---- Labour (equal split) ----
@@ -74,24 +99,9 @@ export async function syncTyreBonusesForRecord(clientId, bill) {
   await collection.deleteMany({ clientId: cid, recordId, type: "labour", status: "pending", beneficiary: { $nin: names } });
   const l = computeTyreRoleBonus(bill, "labour", settings);
   const share = names.length || 1;
+  const each = { ...l, accrued: round2(l.accrued / share), payable: round2(l.payable / share) };
   for (const name of names) {
-    const paid = await collection.findOne({ clientId: cid, recordId, type: "labour", beneficiary: name, status: { $in: SETTLED } });
-    if (paid) continue;
-    await collection.updateOne(
-      { clientId: cid, recordId, type: "labour", beneficiary: name, status: "pending" },
-      {
-        $set: {
-          ...base,
-          period: dayKey(bill.billDate),
-          accruedAmount: round2(l.accrued / share),
-          payableAmount: round2(l.payable / share),
-          billAmount: l.totalAmount,
-          receivedAmount: l.received,
-        },
-        $setOnInsert: { type: "labour", beneficiary: name, status: "pending", createdAt: new Date() },
-      },
-      { upsert: true }
-    );
+    await syncEntry(collection, { clientId: cid, recordId, type: "labour", beneficiary: name }, name, each, dayKey(bill.billDate), base);
   }
 }
 

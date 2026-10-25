@@ -344,3 +344,28 @@ Printed three challans through the app's Print button (real DAO behind it) and r
 
 Nothing new found. (Seen, design not bug: the schedule shows Paid but not each row's balance, which the reader works out as Total − Paid.)
 Gate: no code changed this run (last full gate: run 15, all green).
+
+## Run 17 — area (e) bonus, round 3 (payouts while installments are still coming in)
+Followed a bonus through payment, payout and the rest of collection with the real DAOs.
+
+**Bug, reproduced with the real DAO, then in the browser:**
+- **A bonus paid out before the challan was cleared never paid the rest.** Repro: a ₹48,500 installment challan with labour at 1% (₹485). After the initial ₹28,500 came in, ₹285 was payable and the owner paid Kumar's daily bonus. When the customer cleared the challan, the other ₹200 never became payable: paid entries are frozen and no new entry was made. Labour is settled daily, so almost every installment challan lost part of its labour bonus (and the mechanic's too, if paid out at year end before the challan was cleared). This broke the agreed rule that the bonus is fully payable once the tyre price is collected.
+- **Fix (`tyrebonus.dao.js` only, tyre challans only):**
+  - The money paid and the paid status of a paid entry are never changed.
+  - The bonus earned after a payout goes on a new pending "rest" entry for the same person. That entry carries what is still to come (₹200) and the money collected since (₹20,000).
+  - The paid entry's "earned" is trimmed to what it actually settled (₹285), so earned / ready / paid / collected add up once in both the Pending and All views.
+  - A cancelled payout, or a payout to someone no longer on the challan, stays closed as before.
+  - If more than was due was paid, nothing more is owed until enough is collected.
+  - The bonus pages label the row "Rest of bonus".
+- **Tests:**
+  - "a bonus paid out part-way through the installments gets the rest once the tyre price is collected" (old code: no pending entry, so ₹61.85 lost for Kumar and ₹400 for the mechanic).
+  - "a cancelled payout stays closed, and paying more than was due owes nothing more".
+- **Browser:**
+  - First try: the rest row's ₹0 "earned" set off a false "No bonus is accruing… set a bonus %" warning. Fixed by trimming the paid entry as above.
+  - Now Kumar shows ₹200 earned and ₹200 ready, with no warning.
+
+**Open:**
+- Same freeze in the automobile and radiator bonus code. Bills there are rarely paid over months, and changing it would change other verticals' payouts, so it was left alone.
+- Bonus pages (all verticals) at 1300px: when a person's row is expanded, the inner table is wider than the card, so the Status column, including the "Pending" badge, is clipped at the right edge. This was already the case before this run.
+
+Gate: backend 100/100; tsc + build OK; e2e tyre 50, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

@@ -26,6 +26,7 @@ mock.module("../src/dao/settings.dao.js", { namedExports: { getSettings: async (
 const { createTyreBill, updateTyreBill, recordTyrePayment, getTyreBillById, deleteTyreBill, enrich, buildTyreQuery, getInstallmentFollowUp, getTyreAnalytics, getAllTyreBills, getAllTyreBillsForExport } =
   await import("../src/dao/tyrebill.dao.js");
 const { addStockEntry, getStockLevels, getPartMovements } = await import("../src/dao/inventory.dao.js");
+const { markPaidByRange, cancelPaidBonus, getPendingByRange } = await import("../src/dao/bonus.dao.js");
 
 const CLIENT = new ObjectId();
 const OTHER = new ObjectId();
@@ -424,4 +425,51 @@ test("review: cutting a challan below received + discount names both amounts", a
   const ok = await updateTyreBill(CLIENT, bill._id, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 5000 })] }));
   assert.equal(ok.pendingAmount, 0);
   assert.equal(ok.status, "Received");
+});
+
+test("review: a bonus paid out part-way through the installments gets the rest once the tyre price is collected", async () => {
+  // Labour: ₹300 per challan shared by Kumar and Siva (₹150 each). Mechanic: 2% of ₹48,500 = ₹970.
+  const bill = await createTyreBill(CLIENT, input());
+  const [r0, r1, r2] = bill.installments;
+  await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: r0.id });
+  // Paid out the same day, when only the initial amount was in: 28,500 / 48,500 of the bonus.
+  await markPaidByRange(CLIENT, "labour", "Kumar", "2026-09-20", "2026-09-20");
+  await markPaidByRange(CLIENT, "mechanic", "Ramesh", "2026-09-20", "2026-09-20");
+  const paidKumar = bonuses().find((d) => d.beneficiary === "Kumar").paidAmount;
+  const paidRamesh = bonuses().find((d) => d.beneficiary === "Ramesh").paidAmount;
+  assert.equal(paidKumar, 88.15);
+  assert.equal(paidRamesh, 570);
+  // The customer clears the challan.
+  await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: r1.id });
+  await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: r2.id });
+
+  const pendingFor = (name) => bonuses().filter((d) => d.beneficiary === name && d.status === "pending");
+  assert.deepEqual(pendingFor("Kumar").map((d) => d.payableAmount), [61.85]); // 150 − 88.15
+  assert.deepEqual(pendingFor("Ramesh").map((d) => d.payableAmount), [400]);  // 970 − 570
+  assert.deepEqual(pendingFor("Siva").map((d) => d.payableAmount), [150]);    // never paid out: the whole share
+
+  // The bonus pages: earned and payable each add up to the full bonus, counted once; collected is not doubled.
+  const [kumar] = await getPendingByRange(CLIENT, "labour", "2026-09-20", "2026-09-20", "Kumar");
+  assert.equal(kumar.accruedBonus, 150);
+  assert.equal(kumar.payableBonus, 150);
+  assert.equal(kumar.paidBonus, 88.15);
+  // The Pending view on its own reads as a normal entry: ₹61.85 earned, ₹61.85 ready, ₹20,000 collected since.
+  const [rest] = await getPendingByRange(CLIENT, "labour", "2026-09-20", "2026-09-20", "Kumar", "pending");
+  assert.deepEqual([rest.accruedBonus, rest.payableBonus, rest.totalCollected], [61.85, 61.85, 20000]);
+  assert.equal(kumar.totalCollected, 48500);
+  assert.equal(kumar.totalBusiness, 48500);
+  assert.deepEqual(kumar.records.map((r) => [r.status, r.rest]), [["paid", false], ["pending", true]]);
+});
+
+test("review: a cancelled payout stays closed, and paying more than was due owes nothing more", async () => {
+  const bill = await createTyreBill(CLIENT, input());
+  const [r0, r1, r2] = bill.installments;
+  await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: r0.id });
+  await markPaidByRange(CLIENT, "labour", "Siva", "2026-09-20", "2026-09-20");
+  await cancelPaidBonus(CLIENT, { type: "labour", beneficiary: "Siva", from: "2026-09-20", to: "2026-09-20" });
+  // The owner rounds Kumar's payout up to ₹150 (the whole share) on day one.
+  await markPaidByRange(CLIENT, "labour", "Kumar", "2026-09-20", "2026-09-20", 150);
+  await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: r1.id });
+  await recordTyrePayment(CLIENT, bill._id, { amount: 10400, installmentId: r2.id });
+  assert.equal(bonuses().filter((d) => d.status === "pending" && d.type === "labour").length, 0);
 });
