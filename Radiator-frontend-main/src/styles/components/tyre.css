@@ -69,6 +69,8 @@
 .tyre-due-top, .tyre-due-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tyre-due-name { min-width: 0; font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
 .tyre-due-meta { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+/* The D.C. link sits inside grey text of about the same lightness, so colour alone doesn't show it is a link. */
+.tyre-due-meta a { text-decoration: underline; text-underline-offset: 2px; }
 .tyre-due-bottom strong { font-size: var(--text-md); color: var(--text-strong); }
 
 /* Settings → Tyre catalog: a brand's card stays inside the page on a phone. Its table has one data column, so on a

@@ -589,3 +589,13 @@ Ran axe-core 4.10.2 on the new-challan form (errors shown) at 1300px and 390px, 
 **Open (shared app frame, all verticals):** the sidebar group titles ("MENU", "MANAGE") are 2.57:1 in light mode and 3.64:1 in dark mode. Not changed: it's the shared layout, a design choice for every company type.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 55, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 39 — area (c) list + dashboard, round 7 (accessibility audit)
+axe-core 4.10.2 on the challan list and the dashboard, with 6 real challans loaded (paid, part-paid and overdue), at 1300px and 390px, light and dark. Serious / critical only.
+
+**Bug (tyre dashboard, phone), reproduced by axe and a computed-style check:**
+- **The follow-up list's "D.C. N" link was indistinguishable from the text around it.** It was blue inside grey meta text of almost the same lightness (1.04:1 light, 1.17:1 dark; 3:1 needed) with no underline, so only the hue showed it was a link. Fix: underlined. Test: `tyre: the phone follow-up's D.C. link is underlined` (old: none). axe re-run: no issues on the phone dashboard.
+
+Everything else on the tyre list and dashboard passed. The only remaining item is the shared sidebar group titles (logged in run 38).
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 56, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

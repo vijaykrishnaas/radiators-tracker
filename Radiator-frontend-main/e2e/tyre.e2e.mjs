@@ -463,6 +463,9 @@ ok("tyre: a duplicate model's error shows beside its brand, on screen", dupErr?.
 // Phone dashboard: each installment to chase shows its balance and a call button inside the screen (no hidden columns).
 await page.goto(BASE + "/tyre/dashboard");
 await page.locator(".tyre-due").first().waitFor({ timeout: 10000 }).catch(() => {});
+// Its D.C. link sits in grey text of about the same lightness: it must be underlined to read as a link.
+const dueLink = await page.locator(".tyre-due-meta a").first().evaluate((a) => getComputedStyle(a).textDecorationLine).catch(() => "none");
+ok("tyre: the phone follow-up's D.C. link is underlined", /underline/.test(dueLink), dueLink);
 const dues = await page.locator(".tyre-due").evaluateAll((els) => els.map((e) => {
   const bal = e.querySelector(".tyre-due-bottom strong")?.getBoundingClientRect();
   const call = e.querySelector("a[href^='tel:']")?.getBoundingClientRect();
