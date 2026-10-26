@@ -12,6 +12,12 @@ import { AffixInput, Switch } from "../../../Components/ui/Inputs";
 type SetFn = (path: string, value: unknown) => void;
 
 const slugify = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || label.toLowerCase();
+// A renamed brand / model keeps its old value, so a new one with that old name gets the next free value ("mrf-2").
+const freeValue = (base: string, taken: string[]) => {
+    let value = base;
+    for (let n = 2; taken.includes(value); n++) value = `${base}-${n}`;
+    return value;
+};
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const Section = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
@@ -37,8 +43,9 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
     const addBrand = () => {
         const label = newBrand.trim();
         if (!label) return;
-        const value = slugify(label);
-        if (brands.some((b) => b.value === value)) { setError(`${label} is already in the catalog`); return; }
+        // A duplicate is judged by the names on screen, not the stored values (a renamed brand keeps its old value).
+        if (brands.some((b) => slugify(b.label) === slugify(label))) { setError(`${label} is already in the catalog`); return; }
+        const value = freeValue(slugify(label), brands.map((b) => b.value));
         setBrands([...brands, { label, value, models: [] }]);
         setNewBrand(""); setError("");
     };
@@ -46,10 +53,9 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
         const draft = newModel[brandValue] || { label: "", rate: "" };
         const label = draft.label.trim();
         if (!label) return;
-        const value = slugify(label);
         const brand = brands.find((b) => b.value === brandValue);
-        if (brand?.models.some((m) => m.value === value)) { setModelError((e) => ({ ...e, [brandValue]: `${label} is already under ${brand.label}` })); return; }
-        setBrands(brands.map((b) => (b.value === brandValue ? { ...b, models: [...b.models, { label, value, rate: Math.max(Number(draft.rate) || 0, 0) }] } : b)));
+        if (brand?.models.some((m) => slugify(m.label) === slugify(label))) { setModelError((e) => ({ ...e, [brandValue]: `${label} is already under ${brand.label}` })); return; }
+        setBrands(brands.map((b) => (b.value === brandValue ? { ...b, models: [...b.models, { label, value: freeValue(slugify(label), b.models.map((m) => m.value)), rate: Math.max(Number(draft.rate) || 0, 0) }] } : b)));
         setNewModel((m) => ({ ...m, [brandValue]: { label: "", rate: "" } }));
         setModelError((e) => ({ ...e, [brandValue]: "" }));
     };

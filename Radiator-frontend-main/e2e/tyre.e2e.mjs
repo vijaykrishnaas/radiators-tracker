@@ -405,6 +405,17 @@ const ceat = put?.tyre?.brands?.find((b) => b.value === "ceat");
 ok("tyre: settings save sends the new brand and model with its rate", !!ceat && ceat.models[0]?.rate === 21500 && ceat.models[0]?.value === "10-00-20-mile-xl", JSON.stringify(ceat));
 const tabs = await page.locator(".settings-nav").innerText();
 ok("tyre: settings tabs are the tyre set", /Tyre Catalog/.test(tabs) && /Labels & Challan/.test(tabs) && !/Parts Catalog|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
+// A renamed brand / model keeps its stored value; adding a new one under the old name must work and get its own value.
+await page.locator("#tyre-brand-ceat").fill("CEAT (old stock)");
+await page.getByLabel("CEAT (old stock) 10.00-20 Mile XL name").fill("Mile XL (old)");
+await page.getByLabel("New CEAT (old stock) model / size").fill("10.00-20 Mile XL");
+await page.getByRole("button", { name: "Add CEAT (old stock) model" }).click();
+await page.locator("#new-tyre-brand").fill("CEAT");
+await page.getByRole("button", { name: "Add brand" }).click();
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const renamed = (settingsPuts[settingsPuts.length - 1]?.tyre?.brands || []).filter((b) => /^ceat/.test(b.value)).map((b) => `${b.value}=${b.label}[${b.models.map((m) => `${m.value}=${m.label}`).join(",")}]`).join(" ");
+ok("tyre: after renaming CEAT, a new CEAT brand and model can be added beside it", renamed === "ceat=CEAT (old stock)[10-00-20-mile-xl=Mile XL (old),10-00-20-mile-xl-2=10.00-20 Mile XL] ceat-2=CEAT[]", renamed);
 
 // ---- Inventory uses tyre wording ----
 await page.goto(BASE + "/tyre/inventory");

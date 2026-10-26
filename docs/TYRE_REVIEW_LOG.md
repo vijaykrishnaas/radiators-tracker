@@ -690,3 +690,10 @@ Nothing new found. No code changed (last full gate: run 48, all green).
 Gate: backend 104/104; tsc + build OK; e2e tyre 58, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Open (not reproduced, not tyre code): `PrintInvoice.ts` and `PrintEngInvoice.ts` (and `PrintPayslip.ts`) use the same fixed 4.6mm step with a 50mm value column, so a value of roughly 45+ characters would do the same there.
+
+## Run 53 — area (e) settings, inventory, bonus, round 9 (renamed catalog entries)
+**Bug: after renaming a brand or model, a new one with the old name could not be added.** Repro: Settings → Tyre Catalog, rename "MRF" to "MRF (old stock)", type "MRF" in New brand, press Add brand → "MRF is already in the catalog", though no brand on screen is called MRF. A renamed model blocked a new model of its old name the same way. Cause: renaming keeps the stored value (`mrf`) on purpose, so old challans and stock stay linked; the add-time duplicate check compared the new name's slug with those stored values.
+- Fix (`TyreSettingsTabs.tsx`): a duplicate is now judged by the names on screen. A new brand / model whose slug is still held by a renamed one gets the next free value (`mrf-2`). Removing a brand and adding it back still gets `mrf`, so it relinks to its old challans and stock as before. The backend matches catalog entries by value only, so the new values need no server change.
+- Test: `e2e/tyre.e2e.mjs` "after renaming CEAT, a new CEAT brand and model can be added beside it". It fails before the fix (both adds refused) and passes after.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 59, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
