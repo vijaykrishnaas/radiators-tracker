@@ -741,3 +741,9 @@ Nothing new found. No code changed (last full gate: run 54, all green). Third ru
 - Tests (`e2e/tyre.e2e.mjs`): "tyre pdf: a long vehicle label wraps and the plate prints whole" and "shared pdf: a long vehicle label wraps and the truck number prints whole". Both fail on the run-54 code and pass now. Run 23's labels ("Lorry / Trailer Registration No.", "Fitter / Mechanic in charge") still print on one line beside their values.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 62, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 59 — area (e) settings, inventory, bonus, round 10 (after renaming and re-adding a brand)
+- Inventory with run 53's values (DAO on the fake DB): "MRF (old stock)" (`mrf`) with 4 in and 1 sold, and the new "MRF" (`mrf-2`) with 10 in and 3 sold, show as two rows (3 left and 7 left). After the old brand is removed from Settings its row stays, keeps its name from the stock entries and is marked out of the catalog; the new brand's movements list shows only its own stock (in 10, out 3).
+- Mechanic bonus page: the mechanic filter is built from names on the challans (`/tyre-mechanic`), so a mechanic later removed from Settings can still be filtered and paid.
+
+Nothing new found. No code changed (last full gate: run 58, all green).
