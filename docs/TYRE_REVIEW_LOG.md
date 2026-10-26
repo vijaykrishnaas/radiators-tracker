@@ -620,3 +620,14 @@ Nothing new found. No code changed (last full gate: run 39, all green).
 No shared (non-tyre) code has changed since run 36; the changes since then were tyre-only (form, dashboard, PDF, tyre.css). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 56, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Nothing new found. Third run in a row with nothing new (40–42): stopping the hourly task is suggested again.
+
+## Run 43 — area (a) money logic, round 8 (server time zone)
+Ran all backend tests with the server clock in three time zones:
+- Asia/Kolkata and Pacific/Auckland: 104/104.
+- America/Los_Angeles: 102/104. The two failing tests are run 17's "bonus paid out part-way …" tests.
+
+Cause (shared code, all verticals): bill dates are stored as UTC midnight (`new Date("YYYY-MM-DD")`, in tyre, radiator and automobile alike). But the bonus payout-by-date range (`bonus.dao.js`) and the list date filters use the server's local midnight (`moment(d).startOf("day")`). On a server west of UTC the range for "20 Sep" starts at 07:00 UTC, so it misses that day's entries and picks up the next day's. Correct on servers in UTC or east of it (India), which is where it runs today as far as is known. This is the same open item as run 15, now confirmed for bonus payouts too. Not changed here: it's shared code, and the fix belongs in all verticals at once.
+
+The tyre-only money code (overdue, next due, follow-up) already compares calendar days and passed in all three zones.
+
+No code changed (last full gate: run 42, all green).
