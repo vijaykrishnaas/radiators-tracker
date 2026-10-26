@@ -108,8 +108,10 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     let dy = y + 5;
     details.forEach(([k, v]) => {
         doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        setRGB(ink); doc.text(v, W - M, dy, { align: "right", maxWidth: 50 });
-        dy += 4.6;
+        // A long value (several BS models) wraps in the room right of its label; the next row starts below it.
+        const lines: string[] = doc.splitTextToSize(v, Math.min(50, W - M - colR - doc.getTextWidth(k) - 3));
+        setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
+        dy += 4.6 + (lines.length - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 

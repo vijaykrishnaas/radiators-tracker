@@ -697,3 +697,15 @@ Open (not reproduced, not tyre code): `PrintInvoice.ts` and `PrintEngInvoice.ts`
 - Test: `e2e/tyre.e2e.mjs` "after renaming CEAT, a new CEAT brand and model can be added beside it". It fails before the fix (both adds refused) and passes after.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 59, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 54 — area (f) regressions in the other verticals, round 9 (shared bill prints)
+Followed up run 52's open item by printing the radiator, automobile and engineering bills with long values (functions imported straight from Vite, PDFs checked with `pdftotext -bbox` and looked at as PNG).
+
+**Bug 1: a long "Billed to" name ran into the Details column** (radiator and automobile bills). Repro: transport / customer name "Sri Murugan Roadways & Logistics Private Limited" → "Limited" printed over "Truck Number" / "Vehicle Number". The name had no width limit.
+- Fix (`PrintInvoice.ts`, both bills): the name wraps inside its column like the tyre challan's, the phone goes under its last line, and the items table starts below whichever side is taller.
+
+**Bug 2: a long Details value printed over the next row** (radiator, automobile, engineering). Repro: mechanic "Thirunavukkarasu Subramaniam Pillai Junior" → "Junior" over the Radiator Model value; on engineering, over the "BS model" row when the challan has two BS models. A long first line also ran left into its own label ("Model" × "Tata"), because the 50mm value column starts left of where a label like "Radiator Model" ends.
+- Fix (`PrintInvoice.ts`, `PrintEngInvoice.ts`, and the same width rule in `PrintTyreChallan.ts`): each value wraps in the room right of its label (at most the old 50mm / 40mm), and the next row starts below its last line.
+- Test: `e2e/tyre.e2e.mjs` "shared pdf: long names and details wrap without printing over anything" prints all three bills. It fails before the fix (6+ overprints) and passes after.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 60, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 52's open item for the bills. Open: `PrintPayslip.ts` was not changed. Its Details rows are short fixed values (period, days), but its employee name has the same missing width limit as bug 1; a name over about 40 characters would reach the Details labels (not reproduced, salary is outside the tyre work).

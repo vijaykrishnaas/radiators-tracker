@@ -120,7 +120,7 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     // A long value (a mechanic's full name) wraps; the next row starts below its last line, not on top of it.
     details.forEach(([k, v]) => {
         doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        const lines: string[] = doc.splitTextToSize(v, 40);
+        const lines: string[] = doc.splitTextToSize(v, Math.min(40, W - M - colR - doc.getTextWidth(k) - 3));
         setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
         dy += 4.6 + (lines.length - 1) * 3.4;
     });

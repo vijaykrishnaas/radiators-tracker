@@ -98,8 +98,11 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
-    doc.text(String(o.transportName || "—").trim(), M, y + 5);
-    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
+    // A long name wraps inside its column (it ran into the Details labels); the phone goes under its last line.
+    const toName = String(o.transportName || "—").trim();
+    doc.text(toName, M, y + 5, { maxWidth: colR - M - 6 });
+    let by = y + 5 + doc.getTextDimensions(toName, { maxWidth: colR - M - 6, fontSize: 9 }).h + 1;
+    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, by + 0.5); by += 4; }
 
     const details: [string, string][] = [[settings.labels.vehicleNo || "Vehicle", o.truckNumber || "—"]];
     if (o.mechanicName) details.push(["Mechanic", o.mechanicName]);
@@ -111,10 +114,12 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
         // stray leading/trailing spaces are invisible in the app (HTML collapses
         // them) but would shift text in the PDF.
         doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v).trim(), W - M, dy, { align: "right", maxWidth: 50 });
-        dy += 4.6;
+        // A long value wraps in the room right of its label, and the next row starts below its last line.
+        const lines: string[] = doc.splitTextToSize(String(v).trim(), Math.min(50, W - M - colR - doc.getTextWidth(String(k).trim()) - 3));
+        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
+        dy += 4.6 + (lines.length - 1) * 3.4;
     });
-    y = Math.max(y + 13, dy + 3);
+    y = Math.max(y + 13, dy + 3, by + 2);
 
     /* ---- Line items — clean hairline rows (no fills) ---- */
     autoTable(doc, {
@@ -303,8 +308,11 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
-    doc.text(String(o.customerName || "—").trim(), M, y + 5);
-    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, y + 9.5); }
+    // A long name wraps inside its column (it ran into the Details labels); the phone goes under its last line.
+    const toName = String(o.customerName || "—").trim();
+    doc.text(toName, M, y + 5, { maxWidth: colR - M - 6 });
+    let by = y + 5 + doc.getTextDimensions(toName, { maxWidth: colR - M - 6, fontSize: 9 }).h + 1;
+    if (o.phoneNumber) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub); doc.text(String(o.phoneNumber), M, by + 0.5); by += 4; }
 
     const details: [string, string][] = [[labels.vehicleNo || "Vehicle", String(o.vehicleNumber || "—").toUpperCase()]];
     if (o.mechanicName) details.push([labels.agent || "Mechanic", o.mechanicName]);
@@ -312,10 +320,12 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     let dy = y + 5;
     details.forEach(([k, v]) => {
         doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(String(v).trim(), W - M, dy, { align: "right", maxWidth: 50 });
-        dy += 4.6;
+        // A long value wraps in the room right of its label, and the next row starts below its last line.
+        const lines: string[] = doc.splitTextToSize(String(v).trim(), Math.min(50, W - M - colR - doc.getTextWidth(String(k).trim()) - 3));
+        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
+        dy += 4.6 + (lines.length - 1) * 3.4;
     });
-    y = Math.max(y + 13, dy + 3);
+    y = Math.max(y + 13, dy + 3, by + 2);
 
     autoTable(doc, {
         startY: y,

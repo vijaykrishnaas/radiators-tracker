@@ -356,6 +356,24 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   settings.mechanics = settings.mechanics.slice(0, -1);
 }
 
+// ---- Shared bill prints (radiator / automobile / engineering): a long name or detail wraps without printing over anything ----
+// (Found while reviewing the tyre challan, whose Details block had the same fixed row step.)
+if (!hasPoppler) skip("shared pdf: long names and details wrap without printing over anything");
+else {
+  const printWith = async (file, fn) => {
+    const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 15000 }),
+      page.evaluate(fn, { s: structuredClone(settings), name: "Sri Murugan Roadways & Logistics Private Limited", mech: "Thirunavukkarasu Subramaniam Pillai Junior" })]);
+    const out = join(OUT, file); await dl.saveAs(out); return out;
+  };
+  const files = [
+    await printWith("shared-radiator-long.pdf", async ({ s, name, mech }) => (await import("/src/Components/PrintInvoice.ts")).printInvoice({ billNo: 7, billDate: "2026-10-05", transportName: name, phoneNumber: "9843012345", truckNumber: "TN01AB1234", mechanicName: mech, radiatorType: "Tata 1613 Copper 4-row heavy duty radiator core", particulars: [{ particulars: "Core", qty: 1, rate: 1000, amount: 1000 }], totalAmount: 1000, receivedAmount: 0 }, s)),
+    await printWith("shared-auto-long.pdf", async ({ s, name, mech }) => (await import("/src/Components/PrintInvoice.ts")).printAutoInvoice({ billNo: 8, billDate: "2026-10-05", customerName: name, phoneNumber: "9843012345", vehicleNumber: "TN01AB1234", mechanicName: mech, items: [{ particulars: "Oil", qty: 1, rate: 500, amount: 500 }], totalAmount: 500, receivedAmount: 0 }, s)),
+    await printWith("shared-eng-long.pdf", async ({ s, mech }) => (await import("/src/Components/PrintEngInvoice.ts")).printEngInvoice({ billNo: 9, billDate: "2026-10-05", vehicleNo: "TN01AB1234", mechanic: mech, services: [{ type: "x", typeLabel: "Engine", bsModel: "BS-VI Common Rail", items: [{ particulars: "Rebore", qty: 1, rate: 900, amount: 900 }] }, { type: "y", typeLabel: "Pump", bsModel: "BS-IV Mechanical Pump", items: [{ particulars: "Calibrate", qty: 1, rate: 500, amount: 500 }] }], totalAmount: 1400, receivedAmount: 0 }, s)),
+  ];
+  const sharedHits = files.flatMap((f) => overprints(pdfWords(f)).map((h) => `${f.split("/").pop()} ${h}`));
+  ok("shared pdf: long names and details wrap without printing over anything", sharedHits.length === 0, sharedHits.slice(0, 6).join(" | "));
+}
+
 // ---- PDF title colour: a pale brand colour (gold) must still print a readable title (≥ 4.5:1 on white) ----
 {
   const savedBrand = settings.branding.primaryColor;
