@@ -663,3 +663,8 @@ Nothing new found. No code changed (last full gate: run 46, all green).
 No shared (non-tyre) code has changed since run 42 (run 46's fix was in `PrintTyreChallan.ts` only). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 57, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Nothing new found. No code changed.
+
+## Run 49 — area (a) money logic, round 9 (payment mode)
+The server's payment modes (`cash, upi, card, bank, other`) match the five the payment popup offers, and an unknown value is stored as cash.
+
+Nothing new found. No code changed (last full gate: run 48, all green). Third run in a row with nothing new (47–49): stopping the hourly task is suggested again.
