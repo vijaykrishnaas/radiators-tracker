@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitDetail } from "../Utils/pdfDetails";
 import type { AppSettings } from "../Context/SettingsContext";
 
 type RGB = [number, number, number];
@@ -94,7 +95,10 @@ export const printPayslip = (period: SalaryPeriod, settings: AppSettings) => {
     doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
-    doc.text(String(period.employeeName || "—").trim(), M, y + 5);
+    // A long name wraps inside its column (it ran into the Details labels).
+    const empName = String(period.employeeName || "—").trim();
+    doc.text(empName, M, y + 5, { maxWidth: colR - M - 6 });
+    const nameBottom = y + 5 + doc.getTextDimensions(empName, { maxWidth: colR - M - 6, fontSize: 9 }).h;
 
     const details: [string, string][] = [
         ["Period", `${new Date(period.periodStart).toLocaleDateString("en-IN")} - ${new Date(period.periodEnd).toLocaleDateString("en-IN")}`],
@@ -104,11 +108,13 @@ export const printPayslip = (period: SalaryPeriod, settings: AppSettings) => {
     doc.setFontSize(7.5);
     let dy = y + 5;
     details.forEach(([k, v]) => {
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(v, W - M, dy, { align: "right", maxWidth: 50 });
-        dy += 4.6;
+        doc.setFont("helvetica", "normal");
+        const row = fitDetail(doc, k, v, W - M - colR, 50);
+        setRGB(sub); doc.text(row.labelLines, colR, dy);
+        setRGB(ink); doc.text(row.valueLines, W - M, dy, { align: "right" });
+        dy += 4.6 + (row.lines - 1) * 3.4;
     });
-    y = Math.max(y + 13, dy + 3);
+    y = Math.max(y + 13, dy + 3, nameBottom + 4);
 
     /* ---- Earnings / deductions table ---- */
     const rows: (string | number)[][] = [

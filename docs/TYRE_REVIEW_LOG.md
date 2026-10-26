@@ -747,3 +747,12 @@ Gate: backend 104/104; tsc + build OK; e2e tyre 62, automobile 45, engineering 1
 - Mechanic bonus page: the mechanic filter is built from names on the challans (`/tyre-mechanic`), so a mechanic later removed from Settings can still be filtered and paid.
 
 Nothing new found. No code changed (last full gate: run 58, all green).
+
+## Run 60 — area (f) regressions in the other verticals, round 10 (prints after run 58)
+- Ordinary radiator, automobile and engineering bills (default labels, short names, two BS models) after run 58's `fitDetail`: every Details row is on one line beside its label, as before; 0 overprints.
+
+**Bug: a long employee name ran into the payslip's Details column** (run 54's open item, now reproduced). Repro: payslip for "Muthukumaraswamy Venkatasubramanian Iyer Rajagopal" → "Iyer Rajagopal" printed over "Period". The name had no width limit.
+- Fix (`PrintPayslip.ts`): the name wraps inside its column and the table starts below it; the Details rows use the shared `fitDetail`, like the bills.
+- Test: the e2e check "shared pdf: long names and details wrap without printing over anything" now also prints this payslip. It fails before the fix ("Iyer" × "Period") and passes after.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 62, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 54's open item.
