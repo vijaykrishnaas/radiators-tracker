@@ -668,3 +668,11 @@ Nothing new found. No code changed.
 The server's payment modes (`cash, upi, card, bank, other`) match the five the payment popup offers, and an unknown value is stored as cash.
 
 Nothing new found. No code changed (last full gate: run 48, all green). Third run in a row with nothing new (47–49): stopping the hourly task is suggested again.
+
+## Run 50 — area (b) challan form, round 9 (keyboard focus)
+On the challan view, keyboard only:
+- Enter on Record Payment opens the popup with the cursor in the amount box.
+- Escape closes it.
+- Focus returns to the Record Payment button (not to the top of the page).
+
+Nothing new found. No code changed (last full gate: run 48, all green). Fourth run in a row with nothing new (47–50).
