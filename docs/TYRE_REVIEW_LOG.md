@@ -765,3 +765,10 @@ Real inputs on the DAO: 2 tyres at ₹24,250.50 on a 3-row plan (₹300.25 inter
 - (A first try sent the paid rows' due dates through `String(date)` and was refused as "changed"; that was the script, not the app, which sends ISO dates.)
 
 Nothing new found. No code changed (last full gate: run 60, all green).
+
+## Run 62 — area (b) challan form, round 11 (paise in the payment popup)
+- A row whose balance has paise (₹20,301.25) and a full-payment challan of ₹24,250.50, paid from the popup in the browser: the popup pre-fills the exact balance and the payment posts with the paise (20301.25 / 24250.5). The amount box has no `step`, so the browser counts a paise value as "not valid", but the popup's form is `noValidate` and no style marks invalid boxes, so nothing shows and nothing is blocked. Only the arrow keys step in whole rupees; not counted.
+- The popup opens on the earliest unpaid installment (or the one the user clicked) and pre-fills what is left on it.
+- Installment principals are typed by hand (no auto-split), so there is no rounding gap for the form to leave.
+
+Nothing new found. No code changed (last full gate: run 60, all green).
