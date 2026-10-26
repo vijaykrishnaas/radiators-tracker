@@ -658,3 +658,8 @@ Following run 46's PDF fix, checked the screens with a pale brand colour (gold `
 - axe-core on the three tyre Settings tabs, Inventory, Mechanic Bonus and Labour Bonus, with gold as the brand colour, at 1300px and 390px, light and dark (24 screens): 0 serious / critical issues (shared sidebar titles excluded, as before).
 
 Nothing new found. No code changed (last full gate: run 46, all green).
+
+## Run 48 — area (f) regressions in the other verticals, round 8
+No shared (non-tyre) code has changed since run 42 (run 46's fix was in `PrintTyreChallan.ts` only). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 57, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Nothing new found. No code changed.
