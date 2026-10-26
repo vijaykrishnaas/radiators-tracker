@@ -676,3 +676,8 @@ On the challan view, keyboard only:
 - Focus returns to the Record Payment button (not to the top of the page).
 
 Nothing new found. No code changed (last full gate: run 48, all green). Fourth run in a row with nothing new (47–50).
+
+## Run 51 — area (c) list + dashboard, round 9 (dashboard filters)
+6 challans across two mechanics. Picking a mechanic on the dashboard sends `mechanicName` with the date range, and the cards follow it: Challans 6 → 3, To collect ₹2,92,200 → ₹1,45,500, both equal to `getTyreAnalytics` for that mechanic. The "Installments to collect" card (Overdue ₹1,36,700) stays the same, by design ("across all challans": an old overdue installment still needs chasing whatever the filter).
+
+Nothing new found. No code changed (last full gate: run 48, all green).
