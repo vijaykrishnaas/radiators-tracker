@@ -777,3 +777,9 @@ Nothing new found. No code changed (last full gate: run 60, all green).
 Run 3's list / dashboard script with paise in every amount (rates ₹19,000.25 and ₹24,250.50, half-plans and part-payments to the paisa), at 1300px and 390px: every rupee figure on the challan list and the dashboard (cards, follow-up table) prints with exactly two decimals (₹28,500.38, ₹87,850.50, ₹3,98,353.24); none shows ".5" or more than two decimals.
 
 Nothing new found. No code changed (last full gate: run 60, all green). Third run in a row with nothing new (61–63): stopping the hourly task is suggested.
+
+## Run 64 — area (d) printed challan, round 11 (long label and long value in one row)
+- Run 58's `fitDetail` in its hardest case: mechanic label "Fitter / Mechanic in charge of this vehicle" with mechanic "Thirunavukkarasu Subramaniam Pillai", next to the long vehicle label and a full plate. The label wraps in its 18mm minimum (4 lines), the name wraps beside it (2 lines), and the Payment row starts below both; 0 overprints on the full-payment and installment challans.
+- The tyre Settings have no QR switch (only "Show signature"), so there is no toggle that does nothing on the challan.
+
+Nothing new found. No code changed (last full gate: run 60, all green). Fourth run in a row with nothing new (61–64): stopping the hourly task is suggested.
