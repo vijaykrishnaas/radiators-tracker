@@ -727,3 +727,10 @@ Nothing new found. No code changed.
 - Cancel on an edit leaves without asking, even with changes typed in. This matches the engineering form (both ask only on a new challan), so it is left as the app's convention.
 
 Nothing new found. No code changed (last full gate: run 54, all green).
+
+## Run 57 — area (c) list + dashboard, round 10 (after the catalog and print changes)
+- Search after a brand rename (run 53): the list matches the tyre names stored on each challan (`items.particulars`), which are also what the list shows, so a renamed brand's old challans are found by the name they show. The brand filter matches by stored value, so it keeps finding them under the renamed brand.
+- Run 9's list-logic script re-run on the current code (real Mongo query semantics via mingo): overdue filter, serial / D.C. No / customer search, status, payment type, brand, date ranges, the follow-up list and paging all give the expected challans.
+- Deleting from the last page was covered in run 33 (paging).
+
+Nothing new found. No code changed (last full gate: run 54, all green). Third run in a row with nothing new (55–57): stopping the hourly task is suggested.
