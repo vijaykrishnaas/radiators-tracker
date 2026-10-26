@@ -631,3 +631,8 @@ Cause (shared code, all verticals): bill dates are stored as UTC midnight (`new 
 The tyre-only money code (overdue, next due, follow-up) already compares calendar days and passed in all three zones.
 
 No code changed (last full gate: run 42, all green).
+
+## Run 44 — area (b) challan form, round 8 (accessibility: view page + payment popup)
+axe-core 4.10.2 on the challan view page and the Record Payment popup, for an installment challan (initial amount paid, 1st month overdue) and a full-payment one, at 390px and 1300px, light and dark (16 screens). 0 serious / critical issues (the shared sidebar titles are excluded, as before).
+
+Nothing new found. No code changed (last full gate: run 42, all green).
