@@ -286,7 +286,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "a long mechanic name wraps without printing over the payment line"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -347,6 +347,13 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   Object.assign(settings.tyre.invoice, savedInv);
   Object.assign(settings.company, saved);
   await page.reload();
+  // A mechanic's full name wraps in the Details block; the Payment row starts below it instead of on top of it.
+  settings.mechanics = [...settings.mechanics, "Thirunavukkarasu Subramaniam Pillai"];
+  const longMech = await dao.createTyreBill(CLIENT, { billDate: "2026-10-05", vehicleNumber: "TN04LONG", customerName: "Kumar", mechanicName: "Thirunavukkarasu Subramaniam Pillai",
+    items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 1, rate: 24250 }], paymentType: "full" });
+  const mechHits = overprints(pdfWords(await printPdf(longMech._id, "tyre-challan-longmech.pdf")));
+  ok("tyre pdf: a long mechanic name wraps without printing over the payment line", mechHits.length === 0, mechHits.slice(0, 6).join(" | "));
+  settings.mechanics = settings.mechanics.slice(0, -1);
 }
 
 // ---- PDF title colour: a pale brand colour (gold) must still print a readable title (≥ 4.5:1 on white) ----

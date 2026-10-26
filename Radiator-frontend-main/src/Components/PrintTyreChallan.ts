@@ -117,10 +117,12 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     if (bill.mechanicName) details.push([labels?.agent || "Mechanic", bill.mechanicName]);
     details.push(["Payment", isPlan ? "Installments" : "Full payment"]);
     let dy = y + 5;
+    // A long value (a mechanic's full name) wraps; the next row starts below its last line, not on top of it.
     details.forEach(([k, v]) => {
         doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        setRGB(ink); doc.text(v, W - M, dy, { align: "right", maxWidth: 40 });
-        dy += 4.6;
+        const lines: string[] = doc.splitTextToSize(v, 40);
+        setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
+        dy += 4.6 + (lines.length - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 

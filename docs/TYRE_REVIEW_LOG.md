@@ -681,3 +681,12 @@ Nothing new found. No code changed (last full gate: run 48, all green). Fourth r
 6 challans across two mechanics. Picking a mechanic on the dashboard sends `mechanicName` with the date range, and the cards follow it: Challans 6 → 3, To collect ₹2,92,200 → ₹1,45,500, both equal to `getTyreAnalytics` for that mechanic. The "Installments to collect" card (Overdue ₹1,36,700) stays the same, by design ("across all challans": an old overdue installment still needs chasing whatever the filter).
 
 Nothing new found. No code changed (last full gate: run 48, all green).
+
+## Run 52 — area (d) printed challan, round 9 (long mechanic name)
+**Bug: a mechanic's full name printed over the Payment line.** Repro: add "Thirunavukkarasu Subramaniam Pillai" to the mechanics in Settings, pick him on a challan, print. The name wraps in the 40mm Details value column, but each row stepped down a fixed 4.6mm, so "Pillai" printed on top of "Full payment" (pdftotext boxes overlap; seen on the PNG).
+- Fix (`PrintTyreChallan.ts`): each Details value is split into lines first, and the next row starts below its last line. The block's height (and the tyre table under it) follows `dy`, which already pushed the table down.
+- Test: `e2e/tyre.e2e.mjs` "a long mechanic name wraps without printing over the payment line". It fails before the fix ("Pillai" × "payment") and passes after.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 58, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Open (not reproduced, not tyre code): `PrintInvoice.ts` and `PrintEngInvoice.ts` (and `PrintPayslip.ts`) use the same fixed 4.6mm step with a 50mm value column, so a value of roughly 45+ characters would do the same there.
