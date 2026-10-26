@@ -651,3 +651,10 @@ Nothing new found in the app. No code changed (last full gate: run 42, all green
 **Open (engineering invoice):** `PrintEngInvoice.ts` prints its title in the raw brand colour the same way. Not changed here (outside the tyre work); the same one-line fix applies.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 57, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 47 — area (e) settings, inventory, bonus, round 8 (pale brand colour on screen)
+Following run 46's PDF fix, checked the screens with a pale brand colour (gold `#FFD700`):
+- `tyre.css` only uses the brand tint (`--brand-50`, as a background) and the contrast-safe `--brand-text`; no tyre page uses the raw brand colour inline.
+- axe-core on the three tyre Settings tabs, Inventory, Mechanic Bonus and Labour Bonus, with gold as the brand colour, at 1300px and 390px, light and dark (24 screens): 0 serious / critical issues (shared sidebar titles excluded, as before).
+
+Nothing new found. No code changed (last full gate: run 46, all green).
