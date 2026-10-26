@@ -636,3 +636,10 @@ No code changed (last full gate: run 42, all green).
 axe-core 4.10.2 on the challan view page and the Record Payment popup, for an installment challan (initial amount paid, 1st month overdue) and a full-payment one, at 390px and 1300px, light and dark (16 screens). 0 serious / critical issues (the shared sidebar titles are excluded, as before).
 
 Nothing new found. No code changed (last full gate: run 42, all green).
+
+## Run 45 — area (c) list + dashboard, round 8 (every sort column)
+30 random challans. For all 10 sortable columns × both directions, read 3 pages of 10 and checked the order and that the 30 rows are distinct.
+- To collect, Received, Pending, Date, D.C. No, Type, Status and Mechanic: correctly ordered, no row repeated or missing across pages.
+- Vehicle and Customer looked out of order in the fake test DB ("TN24AB29" before "TN24AB9"; "anand" after "Devi"). That's the test tool, not the app: production queries run with `SORT_COLLATION` (`numericOrdering: true, strength: 2`), so text sorts numbers by value and ignores case, but the fake DB's `find().sort()` ignores collation. Logged; text-sort tests should not rely on the fake DB.
+
+Nothing new found in the app. No code changed (last full gate: run 42, all green).
