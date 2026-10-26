@@ -608,3 +608,10 @@ The PDF's file name carries the vehicle number as typed:
 Same pattern as the other verticals' invoices.
 
 Nothing new found. No code changed (last full gate: run 39, all green).
+
+## Run 41 — area (e) settings, inventory, bonus, round 7 (accessibility audit)
+axe-core 4.10.2 on the three tyre Settings tabs (Tyre Catalog, Bonus, Labels & Challan), tyre Inventory, Mechanic Bonus and Labour Bonus, with real data, at 1300px and 390px, light and dark (24 screens).
+- 0 serious / critical issues, apart from the shared sidebar group titles already logged in run 38.
+- No page errors.
+
+Nothing new found. No code changed (last full gate: run 39, all green).
