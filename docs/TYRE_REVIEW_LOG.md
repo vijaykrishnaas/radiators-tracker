@@ -756,3 +756,12 @@ Nothing new found. No code changed (last full gate: run 58, all green).
 - Test: the e2e check "shared pdf: long names and details wrap without printing over anything" now also prints this payslip. It fails before the fix ("Iyer" × "Period") and passes after.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 62, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 54's open item.
+
+## Run 61 — area (a) money logic, round 11 (adding a tyre after installments are paid)
+Real inputs on the DAO: 2 tyres at ₹24,250.50 on a 3-row plan (₹300.25 interest on the monthly rows), ₹20,000 paid on the first row and ₹5,000.33 on the second; then the challan is edited to 3 tyres, paid rows sent back unchanged plus a new ₹24,250.50 + ₹500 row, and that row paid in full.
+- Totals: tyre ₹72,751.50, interest ₹1,100.50, to collect ₹73,852, received ₹49,750.83 (= the payment log), pending ₹24,101.17, status Partial.
+- Rows: Initial Paid, M1 Overdue with ₹9,550.42 left (that is the next due and the overdue amount), M2 Due, M3 Paid.
+- Bonus: 2% of the tyre amount = ₹1,455.03 accrued, ₹995.02 payable (accrued × received ÷ tyre amount). The plan's first note said "received ÷ amount to collect" (₹980.19), but commit 46fa15e (2026-10-22) changed it on purpose so the bonus is fully ready once the tyre price is collected, even while interest is still owed. Interest money counts toward that. Left as decided.
+- (A first try sent the paid rows' due dates through `String(date)` and was refused as "changed"; that was the script, not the app, which sends ISO dates.)
+
+Nothing new found. No code changed (last full gate: run 60, all green).
