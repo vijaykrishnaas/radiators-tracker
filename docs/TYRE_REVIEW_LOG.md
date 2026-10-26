@@ -709,3 +709,21 @@ Followed up run 52's open item by printing the radiator, automobile and engineer
 - Test: `e2e/tyre.e2e.mjs` "shared pdf: long names and details wrap without printing over anything" prints all three bills. It fails before the fix (6+ overprints) and passes after.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 60, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 52's open item for the bills. Open: `PrintPayslip.ts` was not changed. Its Details rows are short fixed values (period, days), but its employee name has the same missing width limit as bug 1; a name over about 40 characters would reach the Details labels (not reproduced, salary is outside the tyre work).
+
+## Run 55 — area (a) money logic, round 10 (edit paths, re-checked after runs 52–54)
+The shell's permission check failed for the whole hour, so this run was code reading only; the fuzz below ran at the start of run 56.
+- Plan edits: a row sent twice is refused; paid rows can't be removed, re-dated or re-priced; the payment type is locked once anything is paid.
+- A full-payment challan still can't be edited below received + discount.
+- The overdue list filter uses `nextDueDate`, the earliest unpaid due date (sorted), so rows out of date order still count.
+- Old challans stay editable after their brand / model leaves the catalog (stored labels are kept).
+- A full-payment overpayment is capped on the server rather than refused (installment rows refuse it). Not a bug through the app: the payment popup's limit is "pending − discount". Only a direct API call could hit it.
+- Run-7 money fuzz on seeds 101, 202 and 303: 0 violations.
+
+Nothing new found. No code changed.
+
+## Run 56 — area (b) challan form, round 10 (editing after catalog changes)
+- With the challan's brand removed from Settings (dark mode, 390px), the edit form still shows "MRF / 10.00-20", accepts new tyre numbers and saves; the stored line keeps its labels and ₹48,500.
+- The stock warning on an edit adds back the challan's own saved quantity, so an unchanged challan doesn't warn about its own tyres.
+- Cancel on an edit leaves without asking, even with changes typed in. This matches the engineering form (both ask only on a new challan), so it is left as the app's convention.
+
+Nothing new found. No code changed (last full gate: run 54, all green).
