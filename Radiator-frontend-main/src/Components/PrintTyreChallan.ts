@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitDetail } from "../Utils/pdfDetails";
 import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
 import type { TyreBill } from "../Pages/Tyre/types";
@@ -117,12 +118,13 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     if (bill.mechanicName) details.push([labels?.agent || "Mechanic", bill.mechanicName]);
     details.push(["Payment", isPlan ? "Installments" : "Full payment"]);
     let dy = y + 5;
-    // A long value (a mechanic's full name) wraps; the next row starts below its last line, not on top of it.
+    // A long value (a mechanic's full name) or label (from Settings) wraps; the next row starts below its last line.
     details.forEach(([k, v]) => {
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        const lines: string[] = doc.splitTextToSize(v, Math.min(40, W - M - colR - doc.getTextWidth(k) - 3));
-        setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
-        dy += 4.6 + (lines.length - 1) * 3.4;
+        doc.setFont("helvetica", "normal");
+        const row = fitDetail(doc, k, v, W - M - colR, 40);
+        setRGB(sub); doc.text(row.labelLines, colR, dy);
+        setRGB(ink); doc.text(row.valueLines, W - M, dy, { align: "right" });
+        dy += 4.6 + (row.lines - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 

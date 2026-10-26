@@ -286,7 +286,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "a long mechanic name wraps without printing over the payment line"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "a long mechanic name wraps without printing over the payment line", "a long vehicle label wraps and the plate prints whole"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -353,12 +353,22 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
     items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 1, rate: 24250 }], paymentType: "full" });
   const mechHits = overprints(pdfWords(await printPdf(longMech._id, "tyre-challan-longmech.pdf")));
   ok("tyre pdf: a long mechanic name wraps without printing over the payment line", mechHits.length === 0, mechHits.slice(0, 6).join(" | "));
+  // A very long vehicle label from Settings wraps beside the plate; the plate prints whole (it was squeezed to one
+  // character per line once the value got only the room the label left).
+  const savedLabel = settings.tyre.labels.vehicleNo;
+  settings.tyre.labels.vehicleNo = "Lorry / Trailer / Tanker Vehicle Registration Number (RC)";
+  await page.reload();
+  const plateWords = pdfWords(await printPdf(longMech._id, "tyre-challan-longlabel.pdf"));
+  ok("tyre pdf: a long vehicle label wraps and the plate prints whole", plateWords.flat().some((w) => w.t === "TN04LONG") && overprints(plateWords).length === 0,
+    plateWords.flat().filter((w) => w.y0 < 120 && w.x0 > 280).map((w) => w.t).join(" ").slice(0, 160));
+  settings.tyre.labels.vehicleNo = savedLabel;
+  await page.reload();
   settings.mechanics = settings.mechanics.slice(0, -1);
 }
 
 // ---- Shared bill prints (radiator / automobile / engineering): a long name or detail wraps without printing over anything ----
 // (Found while reviewing the tyre challan, whose Details block had the same fixed row step.)
-if (!hasPoppler) skip("shared pdf: long names and details wrap without printing over anything");
+if (!hasPoppler) ["long names and details wrap without printing over anything", "a long vehicle label wraps and the truck number prints whole"].forEach((n) => skip(`shared pdf: ${n}`));
 else {
   const printWith = async (file, fn) => {
     const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 15000 }),
@@ -370,8 +380,13 @@ else {
     await printWith("shared-auto-long.pdf", async ({ s, name, mech }) => (await import("/src/Components/PrintInvoice.ts")).printAutoInvoice({ billNo: 8, billDate: "2026-10-05", customerName: name, phoneNumber: "9843012345", vehicleNumber: "TN01AB1234", mechanicName: mech, items: [{ particulars: "Oil", qty: 1, rate: 500, amount: 500 }], totalAmount: 500, receivedAmount: 0 }, s)),
     await printWith("shared-eng-long.pdf", async ({ s, mech }) => (await import("/src/Components/PrintEngInvoice.ts")).printEngInvoice({ billNo: 9, billDate: "2026-10-05", vehicleNo: "TN01AB1234", mechanic: mech, services: [{ type: "x", typeLabel: "Engine", bsModel: "BS-VI Common Rail", items: [{ particulars: "Rebore", qty: 1, rate: 900, amount: 900 }] }, { type: "y", typeLabel: "Pump", bsModel: "BS-IV Mechanical Pump", items: [{ particulars: "Calibrate", qty: 1, rate: 500, amount: 500 }] }], totalAmount: 1400, receivedAmount: 0 }, s)),
   ];
+  // The radiator bill with a very long vehicle label: the truck number must print whole.
+  files.push(await printWith("shared-radiator-longlabel.pdf", async ({ s }) => (await import("/src/Components/PrintInvoice.ts")).printInvoice({ billNo: 10, billDate: "2026-10-05", transportName: "Kumar", truckNumber: "TN01AB1234", particulars: [{ particulars: "Core", qty: 1, rate: 1000, amount: 1000 }], totalAmount: 1000, receivedAmount: 0 },
+    { ...s, labels: { ...s.labels, vehicleNo: "Lorry / Trailer / Tanker Vehicle Registration Number (RC)" } })));
+  const plateWhole = pdfWords(files[files.length - 1]).flat().some((w) => w.t === "TN01AB1234");
   const sharedHits = files.flatMap((f) => overprints(pdfWords(f)).map((h) => `${f.split("/").pop()} ${h}`));
   ok("shared pdf: long names and details wrap without printing over anything", sharedHits.length === 0, sharedHits.slice(0, 6).join(" | "));
+  ok("shared pdf: a long vehicle label wraps and the truck number prints whole", plateWhole);
 }
 
 // ---- PDF title colour: a pale brand colour (gold) must still print a readable title (≥ 4.5:1 on white) ----

@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitDetail } from "../Utils/pdfDetails";
 import QRCode from "qrcode";
 import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
@@ -113,11 +114,12 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
         // Trim both sides: labels/values come from Settings and bill data, where
         // stray leading/trailing spaces are invisible in the app (HTML collapses
         // them) but would shift text in the PDF.
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
-        // A long value wraps in the room right of its label, and the next row starts below its last line.
-        const lines: string[] = doc.splitTextToSize(String(v).trim(), Math.min(50, W - M - colR - doc.getTextWidth(String(k).trim()) - 3));
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
-        dy += 4.6 + (lines.length - 1) * 3.4;
+        // A long label or value wraps (see fitDetail), and the next row starts below its last line.
+        doc.setFont("helvetica", "normal");
+        const row = fitDetail(doc, String(k).trim(), String(v).trim(), W - M - colR, 50);
+        setRGB(sub); doc.text(row.labelLines, colR, dy);
+        setRGB(ink); doc.text(row.valueLines, W - M, dy, { align: "right" });
+        dy += 4.6 + (row.lines - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 
@@ -319,11 +321,12 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     doc.setFontSize(7.5);
     let dy = y + 5;
     details.forEach(([k, v]) => {
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(String(k).trim(), colR, dy);
-        // A long value wraps in the room right of its label, and the next row starts below its last line.
-        const lines: string[] = doc.splitTextToSize(String(v).trim(), Math.min(50, W - M - colR - doc.getTextWidth(String(k).trim()) - 3));
-        doc.setFont("helvetica", "normal"); setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
-        dy += 4.6 + (lines.length - 1) * 3.4;
+        // A long label or value wraps (see fitDetail), and the next row starts below its last line.
+        doc.setFont("helvetica", "normal");
+        const row = fitDetail(doc, String(k).trim(), String(v).trim(), W - M - colR, 50);
+        setRGB(sub); doc.text(row.labelLines, colR, dy);
+        setRGB(ink); doc.text(row.valueLines, W - M, dy, { align: "right" });
+        dy += 4.6 + (row.lines - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 

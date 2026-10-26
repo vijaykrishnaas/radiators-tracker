@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fitDetail } from "../Utils/pdfDetails";
 import QRCode from "qrcode";
 import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
@@ -107,11 +108,12 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     doc.setFontSize(7.5);
     let dy = y + 5;
     details.forEach(([k, v]) => {
-        doc.setFont("helvetica", "normal"); setRGB(sub); doc.text(k, colR, dy);
-        // A long value (several BS models) wraps in the room right of its label; the next row starts below it.
-        const lines: string[] = doc.splitTextToSize(v, Math.min(50, W - M - colR - doc.getTextWidth(k) - 3));
-        setRGB(ink); doc.text(lines, W - M, dy, { align: "right" });
-        dy += 4.6 + (lines.length - 1) * 3.4;
+        // A long value (several BS models) or label wraps (see fitDetail); the next row starts below it.
+        doc.setFont("helvetica", "normal");
+        const row = fitDetail(doc, k, v, W - M - colR, 50);
+        setRGB(sub); doc.text(row.labelLines, colR, dy);
+        setRGB(ink); doc.text(row.valueLines, W - M, dy, { align: "right" });
+        dy += 4.6 + (row.lines - 1) * 3.4;
     });
     y = Math.max(y + 13, dy + 3, by + 2);
 

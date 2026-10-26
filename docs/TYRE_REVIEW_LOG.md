@@ -734,3 +734,10 @@ Nothing new found. No code changed (last full gate: run 54, all green).
 - Deleting from the last page was covered in run 33 (paging).
 
 Nothing new found. No code changed (last full gate: run 54, all green). Third run in a row with nothing new (55–57): stopping the hourly task is suggested.
+
+## Run 58 — area (d) printed challan, round 10 (long labels after run 54)
+**Bug (a regression from run 54): a long vehicle label squeezed the plate to one character per line.** Repro: Settings → vehicle label "Lorry / Trailer / Tanker Vehicle Registration Number (RC)" (Settings has no length limit), print a challan → K / A / 0 / 1 / M / X … down the page. Run 54 gave each Details value only the room its label left; with a 58-character label that room was below zero. Before run 54 the same label made the plate print over the label instead. The radiator / automobile / engineering bills had the same code.
+- Fix: one helper, `Utils/pdfDetails.ts` `fitDetail`, used by all four Details blocks (`PrintTyreChallan.ts`, both bills in `PrintInvoice.ts`, `PrintEngInvoice.ts`). The value keeps the room it needs (up to the old 40 / 50mm, wrapping past that); a label too long to sit beside it wraps into what is left (at least 18mm). A text that fits is never split. First try split "Payment" into "Paymen / t" and "TN04LONG" into "TN04LON / G", because `splitTextToSize` measures a hair wider than `getTextWidth`; both caught on the PNG and in e2e before pushing.
+- Tests (`e2e/tyre.e2e.mjs`): "tyre pdf: a long vehicle label wraps and the plate prints whole" and "shared pdf: a long vehicle label wraps and the truck number prints whole". Both fail on the run-54 code and pass now. Run 23's labels ("Lorry / Trailer Registration No.", "Fitter / Mechanic in charge") still print on one line beside their values.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 62, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
