@@ -772,3 +772,8 @@ Nothing new found. No code changed (last full gate: run 60, all green).
 - Installment principals are typed by hand (no auto-split), so there is no rounding gap for the form to leave.
 
 Nothing new found. No code changed (last full gate: run 60, all green).
+
+## Run 63 — area (c) list + dashboard, round 11 (paise on screen)
+Run 3's list / dashboard script with paise in every amount (rates ₹19,000.25 and ₹24,250.50, half-plans and part-payments to the paisa), at 1300px and 390px: every rupee figure on the challan list and the dashboard (cards, follow-up table) prints with exactly two decimals (₹28,500.38, ₹87,850.50, ₹3,98,353.24); none shows ".5" or more than two decimals.
+
+Nothing new found. No code changed (last full gate: run 60, all green). Third run in a row with nothing new (61–63): stopping the hourly task is suggested.
