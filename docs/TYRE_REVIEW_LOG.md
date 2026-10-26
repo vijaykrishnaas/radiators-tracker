@@ -643,3 +643,11 @@ Nothing new found. No code changed (last full gate: run 42, all green).
 - Vehicle and Customer looked out of order in the fake test DB ("TN24AB29" before "TN24AB9"; "anand" after "Devi"). That's the test tool, not the app: production queries run with `SORT_COLLATION` (`numericOrdering: true, strength: 2`), so text sorts numbers by value and ignores case, but the fake DB's `find().sort()` ignores collation. Logged; text-sort tests should not rely on the fake DB.
 
 Nothing new found in the app. No code changed (last full gate: run 42, all green).
+
+## Run 46 — area (d) printed challan, round 8 (shop brand colour)
+**Bug, reproduced in a printed PDF:**
+- **A pale brand colour made the challan title nearly unreadable.** The title was printed in the raw brand colour from Settings. With gold `#FFD700` it came out 1.4:1 on white: hard to read, and it fades on a photocopy. Fix: the title uses `buildBrand(primaryColor, "light").brandText`, the same contrast-safe version of the brand colour the app already uses for on-screen text. Gold now prints as a dark gold (5.93:1); normal dark brand colours print as before. Test: `tyre pdf: the title stays readable with a pale brand colour (≥ 4.5:1)`. It reads the fill colour jsPDF writes just before "DELIVERY CHALLAN" in the PDF (old: 1.4:1).
+
+**Open (engineering invoice):** `PrintEngInvoice.ts` prints its title in the raw brand colour the same way. Not changed here (outside the tyre work); the same one-line fix applies.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 57, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

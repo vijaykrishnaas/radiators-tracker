@@ -4,7 +4,7 @@
 // Run: (in Radiator-frontend-main) `npx vite --port 5173 &` then
 //      `node --experimental-test-module-mocks e2e/tyre.e2e.mjs`
 import { execSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { mock } from "node:test";
@@ -346,6 +346,20 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   ok("tyre pdf: a long subtitle and receiver's note wrap without printing over anything", notesHits.length === 0, notesHits.slice(0, 6).join(" | "));
   Object.assign(settings.tyre.invoice, savedInv);
   Object.assign(settings.company, saved);
+  await page.reload();
+}
+
+// ---- PDF title colour: a pale brand colour (gold) must still print a readable title (≥ 4.5:1 on white) ----
+{
+  const savedBrand = settings.branding.primaryColor;
+  settings.branding.primaryColor = "#FFD700";
+  await page.reload();
+  const pdfText = readFileSync(await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyre-challan-gold.pdf"), "latin1");
+  const m = /([\d.]+) ([\d.]+) ([\d.]+) rg\s+[^\n]*Td\s+\(DELIVERY CHALLAN\) Tj/.exec(pdfText);
+  const lum = (c) => c.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const ratio = m ? Math.round((1.05 / (lum([+m[1], +m[2], +m[3]]) + 0.05)) * 100) / 100 : 0;
+  ok("tyre pdf: the title stays readable with a pale brand colour (≥ 4.5:1)", ratio >= 4.5, m ? `${m.slice(1).join(" ")} → ${ratio}:1` : "title colour not found");
+  settings.branding.primaryColor = savedBrand;
   await page.reload();
 }
 

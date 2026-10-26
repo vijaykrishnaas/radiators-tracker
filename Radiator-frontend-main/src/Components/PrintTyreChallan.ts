@@ -4,6 +4,7 @@ import { fetchPdfImage } from "../Utils/pdfImage";
 import type { AppSettings } from "../Context/SettingsContext";
 import type { TyreBill } from "../Pages/Tyre/types";
 import { TUBE_LABEL } from "../Pages/Tyre/types";
+import { buildBrand } from "../theme/applyTenantBrand";
 
 type RGB = [number, number, number];
 
@@ -26,7 +27,9 @@ const d = (s?: string | null) => (s ? new Date(s).toLocaleDateString("en-IN") : 
  * invoices. Identity, colour and wording come from settings.
  */
 export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) => {
-    const accent = hexToRgb(settings.branding.primaryColor);
+    // The brand colour made safe for text on white (≥ 4.5:1), as on screen: a pale brand colour (yellow, gold)
+    // would otherwise print a title that is hard to read and fades on a photocopy.
+    const accent = hexToRgb(buildBrand(settings.branding.primaryColor, "light").brandText);
     const ink: RGB = [29, 29, 31];
     const sub: RGB = [110, 110, 115];
     const hair: RGB = [224, 224, 229];
