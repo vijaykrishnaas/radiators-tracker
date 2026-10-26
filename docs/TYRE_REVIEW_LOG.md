@@ -615,3 +615,8 @@ axe-core 4.10.2 on the three tyre Settings tabs (Tyre Catalog, Bonus, Labels & C
 - No page errors.
 
 Nothing new found. No code changed (last full gate: run 39, all green).
+
+## Run 42 — area (f) regressions in the other verticals, round 7
+No shared (non-tyre) code has changed since run 36; the changes since then were tyre-only (form, dashboard, PDF, tyre.css). Full gate on the current head: backend 104/104; tsc + build OK; e2e tyre 56, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Nothing new found. Third run in a row with nothing new (40–42): stopping the hourly task is suggested again.
