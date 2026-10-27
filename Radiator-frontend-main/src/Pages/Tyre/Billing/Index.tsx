@@ -57,7 +57,6 @@ const TyreBilling = () => {
     const [currentPage, setCurrentPage] = useState(1);
 
     const [searchText, setSearchText] = useState("");
-    const [mechanic, setMechanic] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [status, setStatus] = useState("");
@@ -72,15 +71,13 @@ const TyreBilling = () => {
     };
     const [filtersKey, setFiltersKey] = useState(0);
     const [sort, setSort] = useState<SortState | null>(null);
-    const [mechanics, setMechanics] = useState<string[]>([]);
 
     const [paymentItem, setPaymentItem] = useState<TyreBill | null>(null);
     const [deleteItem, setDeleteItem] = useState<TyreBill | null>(null);
 
     const buildParams = () => ({
-        // One box searches D.C. no, vehicle, customer, phone, address, mechanic, workers, tyres, tyre numbers and notes.
+        // One box searches D.C. no, vehicle, customer, phone, tyres and tyre numbers.
         search: searchText,
-        mechanicName: mechanic,
         fromDate,
         toDate,
         status,
@@ -91,13 +88,11 @@ const TyreBilling = () => {
     const list = useRemoteList<TyreBill>(async () => {
         const res = await getData("tyrebills", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.tyreBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, paymentType, overdue, sort], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, fromDate, toDate, status, paymentType, overdue, sort], { page: currentPage, setPage: setCurrentPage });
 
-    useEffect(() => { getData("tyre-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
-
-    const activeCount = [mechanic, status, paymentType, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (overdue ? 1 : 0);
+    const activeCount = [status, paymentType, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (overdue ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setMechanic(""); setStatus(""); setPaymentType(""); setOverdue(false);
+        setSearchText(""); setStatus(""); setPaymentType(""); setOverdue(false);
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
@@ -114,8 +109,6 @@ const TyreBilling = () => {
                 [labels.vehicleNo]: x.vehicleNumber,
                 [labels.customer]: x.customerName || "",
                 "Phone": x.phoneNumber || "",
-                "Address": x.address || "",
-                [labels.agent]: x.mechanicName || "",
                 "Tyres": itemsText(x),
                 "Payment": x.paymentType === "installment" ? "Installments" : "Full payment",
                 "Tyre amount (₹)": x.tyreAmount,
@@ -211,8 +204,6 @@ const TyreBilling = () => {
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
 
-    const mechanicOptions = mechanics.map((m) => ({ value: m, label: m }));
-
     const filterBar = (
         <FilterBar
             activeCount={activeCount}
@@ -230,7 +221,6 @@ const TyreBilling = () => {
                         </label>
                     ),
                 },
-                { id: "f-mech", label: labels.agent, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
             ]}

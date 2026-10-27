@@ -5,7 +5,7 @@ import InputText from "../../Components/InputText";
 import { putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
-import { TyreBonusTab, TyreCatalogTab, TyreInvoiceTab } from "../Tyre/Settings/TyreSettingsTabs";
+import { TyreCatalogTab, TyreInvoiceTab } from "../Tyre/Settings/TyreSettingsTabs";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
 import { Badge, BtnSpinner, Callout, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
 import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Inputs";
@@ -41,7 +41,7 @@ const IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp";
 const DEFAULT_LOGIN_TEXT = toHex([255, 255, 255]);
 
 type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice"
-    | "tyreCatalog" | "tyreBonus" | "tyreInvoice";
+    | "tyreCatalog" | "tyreInvoice";
 
 /** One card per sub-section: title + one-line description, then the body. */
 const SectionCard = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
@@ -382,8 +382,6 @@ const SettingsPage = () => {
     ] : isTyre ? [
         ["company", "Company"],
         ["tyreCatalog", "Tyre Catalog"],
-        ["people", `${draft.tyre.labels.agent} & ${draft.tyre.labels.worker}`],
-        ["tyreBonus", "Bonus"],
         ["tyreInvoice", "Labels & Challan"],
         ["salary", "Salary"],
     ] : isAutomobile ? [
@@ -844,7 +842,6 @@ const SettingsPage = () => {
 
                 {/* ---- Tyre tenants only ---- */}
                 {isTyre && activeTab === "tyreCatalog" && <TyreCatalogTab tyre={draft.tyre} set={set} />}
-                {isTyre && activeTab === "tyreBonus" && <TyreBonusTab tyre={draft.tyre} set={set} />}
                 {isTyre && activeTab === "tyreInvoice" && <TyreInvoiceTab tyre={draft.tyre} set={set} />}
 
                 {/* ---- Engineering tenants only ---- */}

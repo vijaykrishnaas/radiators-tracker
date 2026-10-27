@@ -102,7 +102,9 @@ await page.goto(BASE + "/issueCounter/dashboard");
 await page.waitForURL(/\/tyre\//, { timeout: 10000 }).catch(() => {});
 ok("tyre: radiator dashboard redirects to the tyre dashboard", page.url().includes("/tyre/dashboard"), page.url());
 const nav = (await page.locator(".sidebar-nav").innerText()).replace(/\s+/g, " ");
-ok("tyre: sidebar has Challans, Inventory, Expenses, Bonus, Salary", ["Challans", "Inventory", "Expenses", "Bonus", "Salary"].every((w) => nav.includes(w)), nav);
+// A tyre shop has no mechanic / labour on its challans, so no Bonus menu.
+ok("tyre: sidebar has Challans, Inventory, Expenses, Salary and no Bonus", ["Challans", "Inventory", "Expenses", "Salary"].every((w) => nav.includes(w)) && !nav.includes("Bonus"), nav);
+const formFields = async () => page.evaluate(() => ["ty-address", "ty-mechanic", "ty-labour", "ty-notes"].filter((id) => document.getElementById(id)));
 await page.goto(BASE + "/automobile/billing");
 await page.waitForTimeout(1200);
 ok("tyre: automobile route redirects away", !page.url().includes("/automobile/"), page.url());
@@ -117,8 +119,7 @@ ok("tyre: untouched form doesn't flag every installment row", (await page.getByT
 await page.locator("#ty-vehicle").fill("tn58ab1234");
 await page.locator("#ty-customer").fill("Murugan");
 await page.locator("#ty-phone").fill("9876543210");
-await page.locator("#ty-address").fill("12, Anna Nagar, Madurai");
-await pick("#ty-mechanic", "Ramesh");
+ok("tyre: the challan form has no address, mechanic, labour or notes", (await formFields()).length === 0, (await formFields()).join(","));
 await pick("[id^=ty-brand-]", "MRF");
 await pick("[id^=ty-model-]", "10.00-20");
 ok("tyre: picking a model fills its rate from the catalog", (await page.locator("[id^=ty-rate-]").first().inputValue()) === "24250");
@@ -286,7 +287,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "a long mechanic name wraps without printing over the payment line", "a long vehicle label wraps and the plate prints whole"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "the challan prints no address or mechanic", "a long vehicle label wraps and the plate prints whole"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -347,12 +348,11 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   Object.assign(settings.tyre.invoice, savedInv);
   Object.assign(settings.company, saved);
   await page.reload();
-  // A mechanic's full name wraps in the Details block; the Payment row starts below it instead of on top of it.
-  settings.mechanics = [...settings.mechanics, "Thirunavukkarasu Subramaniam Pillai"];
-  const longMech = await dao.createTyreBill(CLIENT, { billDate: "2026-10-05", vehicleNumber: "TN04LONG", customerName: "Kumar", mechanicName: "Thirunavukkarasu Subramaniam Pillai",
+  // The challan prints no delivery address and no mechanic, even for an older challan that stored them.
+  const longMech = await dao.createTyreBill(CLIENT, { billDate: "2026-10-05", vehicleNumber: "TN04LONG", customerName: "Kumar", mechanicName: "Thirunavukkarasu Subramaniam Pillai", address: "12, Anna Nagar, Madurai",
     items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 1, rate: 24250 }], paymentType: "full" });
-  const mechHits = overprints(pdfWords(await printPdf(longMech._id, "tyre-challan-longmech.pdf")));
-  ok("tyre pdf: a long mechanic name wraps without printing over the payment line", mechHits.length === 0, mechHits.slice(0, 6).join(" | "));
+  const plainText = pdfWords(await printPdf(longMech._id, "tyre-challan-noaddr.pdf")).flat().map((w) => w.t).join(" ");
+  ok("tyre pdf: the challan prints no address or mechanic", !/Anna|Nagar|Thirunavukkarasu|Mechanic/.test(plainText), plainText.slice(0, 160));
   // A very long vehicle label from Settings wraps beside the plate; the plate prints whole (it was squeezed to one
   // character per line once the value got only the room the label left).
   const savedLabel = settings.tyre.labels.vehicleNo;
@@ -363,7 +363,6 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
     plateWords.flat().filter((w) => w.y0 < 120 && w.x0 > 280).map((w) => w.t).join(" ").slice(0, 160));
   settings.tyre.labels.vehicleNo = savedLabel;
   await page.reload();
-  settings.mechanics = settings.mechanics.slice(0, -1);
 }
 
 // ---- Shared bill prints (radiator / automobile / engineering): a long name or detail wraps without printing over anything ----
@@ -465,18 +464,6 @@ await page.waitForTimeout(600);
 const blankMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
 ok("tyre: a brand with no name is not saved", settingsPuts.length === putsBefore && /needs a name/.test(blankMsg), `${settingsPuts.length - putsBefore} saves; "${blankMsg.slice(0, 80)}"`);
 await page.locator("#tyre-brand-ceat").fill("CEAT");
-// A bonus percentage over 100 must not be saved: 250 (a typo for 25) was saved, and the bonus quietly paid 100%.
-await page.getByRole("tab", { name: /Bonus/ }).first().click();
-const mechPct = page.locator("#tyre-mechanic-pct");
-const pctBefore = await mechPct.inputValue();
-await mechPct.click(); await mechPct.press("Control+a"); await page.keyboard.type("250");
-const putsBeforePct = settingsPuts.length;
-await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
-await page.waitForTimeout(600);
-const pctMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
-ok("tyre: a bonus percentage over 100 is not saved", settingsPuts.length === putsBeforePct && /between 0 and 100/.test(pctMsg), `${settingsPuts.length - putsBeforePct} saves; "${pctMsg.slice(0, 80)}"`);
-await mechPct.click(); await mechPct.press("Control+a"); await page.keyboard.type(pctBefore || "0");
-await page.getByRole("tab", { name: "Tyre Catalog" }).click();
 // Catalog edits are kept only by Save All Settings. Leaving without saving used to drop them silently ("my catalog
 // changes disappear"); now the footer says so and leaving asks first.
 const unsavedNote = page.locator(".form-footer [role=status]");
@@ -543,7 +530,6 @@ const firstErrorInView = () => page.evaluate(() => {
   const r = e.getBoundingClientRect();
   return { text: e.textContent.slice(0, 40), inView: r.top >= 0 && r.bottom <= window.innerHeight, focus: document.activeElement?.id || "" };
 });
-await pick("#ty-mechanic", "Ramesh");
 await pick("[id^=ty-brand-]", "MRF");
 await pick("[id^=ty-model-]", "10.00-20");
 await page.getByLabel("Principal for Initial amount").fill("1000");
@@ -613,15 +599,6 @@ const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
   return { badge: c.querySelector(".m-card-top .badge")?.textContent, apart: !badge || !menu || Math.abs((badge.top + badge.bottom) / 2 - (menu.top + menu.bottom) / 2) > 6 };
 }));
 ok("tyre: phone challan cards keep the menu beside its badge", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.apart), JSON.stringify(cards));
-
-// ---- Bonus page: a renamed worker label (Settings → Labels & Challan) is used on the page as in the menu ----
-const savedWorker = settings.tyre.labels.worker;
-settings.tyre.labels.worker = "Helper";
-await page.goto(BASE + "/bonus/labour");
-await page.locator("h1").first().waitFor({ timeout: 10000 });
-const bonusTitle = (await page.locator("h1").first().innerText()).trim();
-ok("tyre: the worker bonus page uses the tyre worker label, like the menu", bonusTitle === "Helper Bonus", bonusTitle);
-settings.tyre.labels.worker = savedWorker;
 
 // ---- Dashboard: the "To collect" breakdown adds up to its figure when a challan has a discount ----
 const disc = await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN01DS0001", mechanicName: "Ramesh",

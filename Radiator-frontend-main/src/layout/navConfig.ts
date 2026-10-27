@@ -43,7 +43,8 @@ export function tenantNav(s: AppSettings): NavGroup[] {
     }
     if (!isEngineering) {
         menu.push({ id: "expenses", label: "Expenses", to: "/issueCounter/expenses", icon: "wallet", match: exact("/issueCounter/expenses") });
-        menu.push({
+        // Tyre challans carry no mechanic or labour, so a tyre shop has no bonus.
+        if (s.businessType !== "tyre") menu.push({
             id: "bonus", label: "Bonus", icon: "trending-up", children: [
                 { id: "bonus-mech", label: "Mechanic Bonus", to: "/bonus/mechanics", match: prefix("/bonus/mechanics") },
                 { id: "bonus-labour", label: workerBonusLabel, to: "/bonus/labour", match: prefix("/bonus/labour") },

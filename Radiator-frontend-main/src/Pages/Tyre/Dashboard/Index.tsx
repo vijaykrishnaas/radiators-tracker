@@ -34,20 +34,14 @@ const TyreDashboard = () => {
     const defaultFrom = fyStart(settings);
     const [from, setFrom] = useState(defaultFrom);
     const [to, setTo] = useState(today());
-    const [mechanicName, setMechanicName] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
-    const [mechanicOptions, setMechanicOptions] = useState<{ value: string; label: string }[]>([]);
-
-    useEffect(() => {
-        getData("tyre-mechanic").then((res) => setMechanicOptions((res.mechdata || []).map((m: string) => ({ value: m, label: m })))).catch(() => {});
-    }, []);
 
     useEffect(() => {
         let alive = true;
         (async () => {
             setLoading(true);
             try {
-                const res = await getData("tyrebills/analytics", { params: { fromDate: from, toDate: to, mechanicName, status: statusFilter } });
+                const res = await getData("tyrebills/analytics", { params: { fromDate: from, toDate: to, status: statusFilter } });
                 if (alive) setData(res as TyreAnalytics);
             } catch {
                 if (alive) callAlertMsg("Failed to load dashboard", "error");
@@ -57,13 +51,13 @@ const TyreDashboard = () => {
         })();
         return () => { alive = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [from, to, mechanicName, statusFilter]);
+    }, [from, to, statusFilter]);
 
     const k = data?.kpis;
     const inst = data?.installments;
     const first = loading && !data;
-    const activeCount = [mechanicName, statusFilter].filter(Boolean).length + (from !== defaultFrom ? 1 : 0) + (to !== today() ? 1 : 0);
-    const clear = () => { setFrom(defaultFrom); setTo(today()); setMechanicName(""); setStatusFilter(""); };
+    const activeCount = [statusFilter].filter(Boolean).length + (from !== defaultFrom ? 1 : 0) + (to !== today() ? 1 : 0);
+    const clear = () => { setFrom(defaultFrom); setTo(today()); setStatusFilter(""); };
 
     return (
         <>
@@ -134,7 +128,6 @@ const TyreDashboard = () => {
                         filters={[
                             { id: "d-from", label: "From", primary: true, node: <input id="d-from" type="date" className="form-control" value={from} max={to} onChange={(e) => setFrom(e.target.value || defaultFrom)} /> },
                             { id: "d-to", label: "To", primary: true, node: <input id="d-to" type="date" className="form-control" value={to} min={from} max={today()} onChange={(e) => setTo(e.target.value || today())} /> },
-                            { id: "d-mech", label: labels.agent, node: <Selector inputId="d-mech" isClearable options={mechanicOptions} placeholder={`-- All ${labels.agent}s --`} value={opt(mechanicOptions, mechanicName)} onChange={(o: any) => setMechanicName(o ? o.value : "")} /> },
                             { id: "d-status", label: "Status", node: <Selector inputId="d-status" isClearable options={STATUS_OPTIONS} placeholder="-- All --" value={opt(STATUS_OPTIONS, statusFilter)} onChange={(o: any) => setStatusFilter(o ? o.value : "")} /> },
                         ]}
                     />
@@ -164,14 +157,9 @@ const TyreDashboard = () => {
                                 colorFor={(r) => STATUS_COLORS[String(r.status)] || "var(--gray-400)"} />
                         </ChartCard>
                     </div>
-                    <div className="col-12 col-xl-6">
+                    <div className="col-12">
                         <ChartCard title="Top brands" subtitle="Tyre sales by brand" loading={first} isEmpty={!(data?.byBrand?.length)}>
                             <HBarChart data={data?.byBrand || []} dataKey="revenue" nameKey="brand" name="Sales" />
-                        </ChartCard>
-                    </div>
-                    <div className="col-12 col-xl-6">
-                        <ChartCard title={`Top ${labels.agent}s`} loading={first} isEmpty={!(data?.topMechanics?.length)}>
-                            <HBarChart data={data?.topMechanics || []} dataKey="revenue" nameKey="mechanic" name="Tyre sales" />
                         </ChartCard>
                     </div>
                 </div>

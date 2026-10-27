@@ -110,16 +110,11 @@ const TyreCreate = () => {
     const [billDate, setBillDate] = useState(today());
     const [customerName, setCustomerName] = useState("");
     const [phone, setPhone] = useState("");
-    const [address, setAddress] = useState("");
     const [vehicleNo, setVehicleNo] = useState("");
-    const [mechanic, setMechanic] = useState("");
-    const [labour, setLabour] = useState<string[]>([]);
-    const [notes, setNotes] = useState("");
     const [items, setItems] = useState<ItemRow[]>([newItem(tyre.defaultTubeType || "tube")]);
     const [paymentType, setPaymentType] = useState<"full" | "installment">("installment");
     const [rows, setRows] = useState<PlanRow[]>(() => startPlan(today()));
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [mechanics, setMechanics] = useState<string[]>([]);
     // Stock per brand+model, and what this challan already took when it was last saved (edit), so the warning
     // compares against what is really free. Only a warning: the challan still saves.
     const [stock, setStock] = useState<Record<string, number> | null>(null);
@@ -128,7 +123,6 @@ const TyreCreate = () => {
     const [paying, setPaying] = useState(false);
 
     useEffect(() => {
-        getData("tyre-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {});
         if (!isView) getData("inventory/levels").then((r) => setStock(r.levels || {})).catch(() => setStock(null));
     }, [isView]);
 
@@ -139,11 +133,7 @@ const TyreCreate = () => {
         setBillDate(bd);
         setCustomerName(b.customerName || "");
         setPhone(b.phoneNumber || "");
-        setAddress(b.address || "");
         setVehicleNo(String(b.vehicleNumber || "").toUpperCase());
-        setMechanic(b.mechanicName || "");
-        setLabour(b.labourName || []);
-        setNotes(b.notes || "");
         setItems((b.items || []).map((i) => ({
             key: keySeq++,
             brandRef: i.brandRef || "", brandLabel: i.brandLabel, modelRef: i.modelRef || "", modelLabel: i.modelLabel,
@@ -234,7 +224,6 @@ const TyreCreate = () => {
         const e: Record<string, string> = {};
         if (!billDate) e.billDate = "Date is required";
         if (!vehicleNo.trim()) e.vehicleNo = `${labels.vehicleNo} is required`;
-        if (!mechanic) e.mechanic = `${labels.agent} is required`;
         if (phone && !/^[0-9]{10}$/.test(phone)) e.phone = "Enter a valid 10 digit number";
         items.forEach((i) => {
             if (!i.brandLabel) e[`b${i.key}`] = "Choose a brand";
@@ -262,7 +251,7 @@ const TyreCreate = () => {
     };
 
     const cancel = () => {
-        const dirty = !!(vehicleNo || customerName || phone || address || mechanic || items.some((i) => i.brandRef || i.tyreNumber));
+        const dirty = !!(vehicleNo || customerName || phone || items.some((i) => i.brandRef || i.tyreNumber));
         if (!isEdit && dirty) { setDiscardOpen(true); return; }
         navigate("/tyre/billing");
     };
@@ -292,10 +281,6 @@ const TyreCreate = () => {
                 vehicleNumber: vehicleNo.trim().toUpperCase(),
                 customerName,
                 phoneNumber: phone,
-                address,
-                mechanicName: mechanic,
-                labourName: labour,
-                notes,
                 items: items.map((i) => ({
                     brandRef: i.brandRef, brandLabel: i.brandLabel, modelRef: i.modelRef, modelLabel: i.modelLabel,
                     tyreNumber: i.tyreNumber, tubeType: i.tubeType, flap: i.flap === "Yes", qty: Number(i.qty), rate: Number(i.rate) || 0,
@@ -324,7 +309,6 @@ const TyreCreate = () => {
     };
 
     const brandOpts = brands.map((b) => ({ label: b.label, value: b.value }));
-    const labourOpts = (settings.labour || []).map((n) => ({ label: n, value: n }));
     const title = isView ? "View challan" : isEdit ? "Edit challan" : "New delivery challan";
     const co = settings.company;
 
@@ -370,24 +354,6 @@ const TyreCreate = () => {
                                 <Field label="Phone number" htmlFor="ty-phone" error={errors.phone}>
                                     <InputText id="ty-phone" type="tel" inputMode="numeric" value={phone} placeholder="Customer phone" disabled={isView}
                                         onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearErr("phone"); }} />
-                                </Field>
-                                <Field label="Address" htmlFor="ty-address" className="span-2">
-                                    <textarea id="ty-address" className="form-control" rows={2} value={address} placeholder="Delivery address" disabled={isView}
-                                        onChange={(e) => setAddress(e.target.value)} />
-                                </Field>
-                                <Field label={labels.agent} htmlFor="ty-mechanic" required error={errors.mechanic}>
-                                    <Selector inputId="ty-mechanic" options={mechanics.map((m) => ({ label: m, value: m }))}
-                                        value={mechanic ? { label: mechanic, value: mechanic } : null} isDisabled={isView}
-                                        placeholder={`Select ${labels.agent}`} aria-invalid={!!errors.mechanic}
-                                        onChange={(o: any) => { setMechanic(o ? o.value : ""); clearErr("mechanic"); }} />
-                                </Field>
-                                <Field label={labels.worker} htmlFor="ty-labour">
-                                    <Selector inputId="ty-labour" isMulti options={labourOpts} isDisabled={isView} placeholder={`Select ${labels.worker}`}
-                                        value={labour.map((n) => ({ label: n, value: n }))}
-                                        onChange={(v: any) => setLabour((v || []).map((o: any) => o.value))} />
-                                </Field>
-                                <Field label="Notes" htmlFor="ty-notes" className="span-2">
-                                    <InputText id="ty-notes" value={notes} placeholder="Optional notes" disabled={isView} onChange={(e) => setNotes(e.target.value)} />
                                 </Field>
                             </div>
                         )}

@@ -899,3 +899,13 @@ Gate: backend 109/109; tsc + build OK; e2e tyre 66, automobile 45, engineering 1
 Gate: backend 109/109; tsc + build OK; e2e tyre 67, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
 
 Other user requests from the same message (in progress): bill tables sorted by latest bill date first and the date filter checked (all company types); bonus in ₹ only, no % (all company types); engineering print without the subtitle; tyre challan form and print without address, mechanic, labour and note, and no tyre bonus (user's answer: "No bonus for tyre").
+
+## User request (2026-10-27) — tyre challan without address, mechanic, labour, notes; no tyre bonus
+User: "In create bill and print — remove address, mechanic name, labour name, note"; asked about the bonus, they chose "No bonus for tyre".
+- Challan form (`Pages/Tyre/Dashboard/Create.tsx`): the delivery address, mechanic (was required), labour and notes fields are gone and are no longer sent. The shop's own address in the header is kept.
+- Printed challan (`PrintTyreChallan.ts`): no delivery address and no mechanic row, also for older challans that stored them.
+- Challan list: no mechanic filter; the Excel export has no Address / Mechanic columns. Dashboard: no mechanic filter and no "Top mechanics" chart (Top brands now spans the row).
+- Bonus: the tyre sidebar has no Bonus menu; Settings has no tyre Bonus tab, no "Mechanic & Labour" people tab and no mechanic / worker label boxes. The server needed no change: a challan without names creates no bonus entries.
+- Tests (`e2e/tyre.e2e.mjs`): "sidebar has Challans, Inventory, Expenses, Salary and no Bonus", "the challan form has no address, mechanic, labour or notes", "the challan prints no address or mechanic". The tyre bonus page and tyre bonus % checks were removed with the feature.
+
+Gate: backend 109/109; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

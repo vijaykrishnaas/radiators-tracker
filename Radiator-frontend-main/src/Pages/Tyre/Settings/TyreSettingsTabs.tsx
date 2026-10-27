@@ -1,12 +1,12 @@
-// Settings tabs for tyre tenants: the brand → model catalog with default rates, the mechanic / labour bonus, and the
-// labels and challan print options. Rendered by Pages/Settings/Index.tsx; every change goes through its `set(path, v)`
+// Settings tabs for tyre tenants: the brand → model catalog with default rates, and the labels and challan print
+// options (a tyre shop has no mechanic / labour bonus). Rendered by Pages/Settings/Index.tsx; every change goes through its `set(path, v)`
 // and is persisted by Save All Settings.
 import { useState } from "react";
 
 import Icons from "../../../Components/Icons";
 import InputText from "../../../Components/InputText";
 import type { TyreSettings } from "../../../Context/SettingsContext";
-import { CardHead, Field, SegmentedControl } from "../../../Components/ui/Basics";
+import { CardHead, Field } from "../../../Components/ui/Basics";
 import { AffixInput, Switch } from "../../../Components/ui/Inputs";
 
 type SetFn = (path: string, value: unknown) => void;
@@ -18,7 +18,6 @@ const freeValue = (base: string, taken: string[]) => {
     for (let n = 2; taken.includes(value); n++) value = `${base}-${n}`;
     return value;
 };
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const Section = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
     <section className="card" aria-label={title}>
@@ -171,61 +170,6 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
     );
 }
 
-/* ---------------- Bonus ---------------- */
-export function TyreBonusTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }) {
-    const bonus = tyre.bonus;
-    const setBonus = (patch: Partial<TyreSettings["bonus"]>) => set("tyre.bonus", { ...bonus, ...patch });
-    const role = (key: "mechanic" | "labour", name: string, split: boolean) => {
-        const fixed = bonus[`${key}Mode`] === "amount";
-        return (
-            <Section title={`${name} bonus`} subtitle={`${key === "mechanic" ? "Settled yearly." : "Settled daily."} ${split ? "Split equally among the workers on each challan." : ""}`}>
-                <div className="form-grid settings-three">
-                    <Field label="Bonus type" labelId={`tyre-${key}-mode-label`}>
-                        <SegmentedControl<"percent" | "amount">
-                            label={`${name} bonus type`}
-                            radio
-                            full
-                            options={[{ value: "percent", label: "% of tyre amount" }, { value: "amount", label: "₹ per challan" }]}
-                            value={fixed ? "amount" : "percent"}
-                            onChange={(v) => setBonus({ [`${key}Mode`]: v } as Partial<TyreSettings["bonus"]>)}
-                        />
-                    </Field>
-                    {fixed ? (
-                        <Field label={`${name} bonus per challan${split ? " (shared)" : ""}`} htmlFor={`tyre-${key}-amt`}>
-                            <AffixInput id={`tyre-${key}-amt`} type="number" className="num" prefix="₹" min={0} step={10} value={bonus[`${key}Amount`] || ""} placeholder="0"
-                                onChange={(e) => setBonus({ [`${key}Amount`]: Math.max(Number(e.target.value || 0), 0) } as Partial<TyreSettings["bonus"]>)} />
-                        </Field>
-                    ) : (
-                        <Field label={`${name} bonus %`} htmlFor={`tyre-${key}-pct`}>
-                            <AffixInput id={`tyre-${key}-pct`} type="number" className="num" suffix="%" min={0} max={100} step={0.5} value={bonus[`${key}Percent`]}
-                                onChange={(e) => setBonus({ [`${key}Percent`]: Number(e.target.value || 0) } as Partial<TyreSettings["bonus"]>)} />
-                        </Field>
-                    )}
-                    {key === "mechanic" && (
-                        <Field label="Bonus year starts in" htmlFor="tyre-year-start">
-                            <select id="tyre-year-start" className="form-select" value={bonus.yearStartMonth || 4} onChange={(e) => setBonus({ yearStartMonth: Number(e.target.value) })}>
-                                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                            </select>
-                        </Field>
-                    )}
-                </div>
-            </Section>
-        );
-    };
-    return (
-        <>
-            {role("mechanic", tyre.labels.agent, false)}
-            {role("labour", tyre.labels.worker, true)}
-            <span className="field-help">
-                The percentage is of the tyre amount (after any discount). Installment interest is never counted. The bonus becomes
-                payable as the tyre amount is collected: when half the tyre price is received, half the bonus is ready, and all of it
-                once the tyre price is paid, even if interest is still owed. After changing the bonus, use Recalculate on the Bonus page
-                to re-price challans not paid out yet.
-            </span>
-        </>
-    );
-}
-
 /* ---------------- Labels & challan ---------------- */
 export function TyreInvoiceTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }) {
     const text = (label: string, path: string, value: string, placeholder = "") => {
@@ -242,8 +186,6 @@ export function TyreInvoiceTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                 <div className="form-grid">
                     {text("Vehicle number label", "tyre.labels.vehicleNo", tyre.labels.vehicleNo, "Vehicle Number")}
                     {text("Customer label", "tyre.labels.customer", tyre.labels.customer, "Customer Name")}
-                    {text("Agent label", "tyre.labels.agent", tyre.labels.agent, "Mechanic")}
-                    {text("Worker label", "tyre.labels.worker", tyre.labels.worker, "Labour")}
                 </div>
             </Section>
             <Section title="Challan print" subtitle="Title and lines printed on every delivery challan.">

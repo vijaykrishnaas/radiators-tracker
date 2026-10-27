@@ -105,20 +105,15 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
     const toName = bill.customerName || bill.vehicleNumber || "-";
     doc.text(toName, M, y + 5, { maxWidth: colR - M - 6 });
-    // The address starts below however many lines the name took.
+    // The phone starts below however many lines the name took. (The challan carries no delivery address.)
     let by = y + 5 + doc.getTextDimensions(toName, { maxWidth: colR - M - 6, fontSize: 9 }).h + 1;
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
-    if (bill.address) {
-        doc.text(bill.address, M, by, { maxWidth: colR - M - 6 });
-        by += doc.getTextDimensions(bill.address, { maxWidth: colR - M - 6, fontSize: 7.5 }).h + 0.8;
-    }
     if (bill.phoneNumber) { doc.text(String(bill.phoneNumber), M, by); by += 4; }
 
     const details: [string, string][] = [[labels?.vehicleNo || "Vehicle", bill.vehicleNumber || "-"]];
-    if (bill.mechanicName) details.push([labels?.agent || "Mechanic", bill.mechanicName]);
     details.push(["Payment", isPlan ? "Installments" : "Full payment"]);
     let dy = y + 5;
-    // A long value (a mechanic's full name) or label (from Settings) wraps; the next row starts below its last line.
+    // A long value or label (from Settings) wraps; the next row starts below its last line.
     details.forEach(([k, v]) => {
         doc.setFont("helvetica", "normal");
         const row = fitDetail(doc, k, v, W - M - colR, 40);
