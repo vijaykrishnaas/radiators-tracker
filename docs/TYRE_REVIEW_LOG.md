@@ -807,3 +807,8 @@ Nothing new found. No code changed (last full gate: run 65, all green).
 Run 7 raced two payments; this run raced an edit (customer name changed, plan sent back unchanged) against a payment on the same challan, for a full-payment and an installment challan. Both reads happen before either write. In both cases the payment is kept (received ₹10,000 / ₹28,500, logged once) and the edit is refused with a 409, "This challan was changed by someone else just now", so the person editing reloads and nothing is silently lost or overwritten.
 
 Nothing new found. No code changed (last full gate: run 65, all green).
+
+## Run 68 — area (b) challan form, round 12 (a payment lands while the edit form is open)
+In the browser: open a full-payment challan's edit form, record ₹10,000 on it from elsewhere (as at the counter), then change the tyre numbers and press Update. The save succeeds and goes back to the list. The stored challan keeps the ₹10,000 (logged once) and has the new tyre numbers. The form never sends the received amount; the server reads the challan fresh at save time. On an installment challan, changing a row that got paid meanwhile is refused with "… already has a payment, so its amounts and due date can't change" (runs 14 and 55).
+
+Nothing new found. No code changed (last full gate: run 65, all green). Third run in a row with nothing new (66–68): stopping the hourly task is suggested.
