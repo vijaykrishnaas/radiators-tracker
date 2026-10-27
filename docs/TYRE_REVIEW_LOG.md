@@ -802,3 +802,8 @@ Searched every screen for number boxes that put a value back into an emptied box
 Run 65's e2e gate already covered the engineering suite (168/168) with its changed settings box.
 
 Nothing new found. No code changed (last full gate: run 65, all green).
+
+## Run 67 — area (a) money logic, round 12 (an edit and a payment at the same moment)
+Run 7 raced two payments; this run raced an edit (customer name changed, plan sent back unchanged) against a payment on the same challan, for a full-payment and an installment challan. Both reads happen before either write. In both cases the payment is kept (received ₹10,000 / ₹28,500, logged once) and the edit is refused with a 409, "This challan was changed by someone else just now", so the person editing reloads and nothing is silently lost or overwritten.
+
+Nothing new found. No code changed (last full gate: run 65, all green).
