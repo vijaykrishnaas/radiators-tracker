@@ -938,3 +938,9 @@ Asked which tyre parts to remove, the user picked the Salary, Bonus and Expense 
 - Tests (`e2e/tyre.e2e.mjs`): "sidebar has Challans and Inventory, and no Expenses, Bonus or Salary" and "expenses, bonus and salary pages send a tyre tenant to its dashboard". The other company types are unchanged (their suites pass).
 
 Gate: backend 118/118; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 81 — area (f) regressions after today's requested changes
+- Unsaved-changes note (added today): Settings opened as a radiator, automobile, engineering and tyre tenant whose stored settings predate today (old % bonus fields, no ₹ grid, no engineering bonus block). Every tab was visited without editing: the note never appears and a sidebar link leaves without asking. No false warnings.
+- Rupees-only bonus on an old radiator tenant: the old 10% grid cell shows empty (never "10"); typing ₹150 saves `amountMatrix.bs3.service = 150`; adding a radiator model "BS-VII" adds it to both ₹ grids even though the tenant had no `amountMatrix` yet; no page errors.
+
+Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Salary change, all green).
