@@ -522,3 +522,22 @@ test("review: a full-payment challan paid in paise parts ends Received, not Part
   assert.equal(paid.pendingAmount, 0);
   assert.equal(paid.status, "Received");
 });
+
+test("review: sales by brand keeps a renamed brand as one bar, under its current name", async () => {
+  const mrf = settings.tyre.brands.find((b) => b.value === "mrf");
+  const oldLabel = mrf.label;
+  try {
+    mrf.label = "M.R.F";
+    await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 1000 })] }));
+    mrf.label = "MRF Tyres"; // renamed in Settings; the stored value "mrf" stays, so old challans stay linked
+    await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ qty: 2, rate: 1000 })] }));
+    const { byBrand } = await getTyreAnalytics(CLIENT, {});
+    assert.deepEqual(byBrand.map((b) => [b.brand, b.qty, b.revenue]), [["MRF Tyres", 3, 3000]]);
+    // The mechanic's bonus review breaks sales down by brand the same way.
+    const { getTyreReviewData } = await import("../src/dao/tyrebonus.dao.js");
+    const review = await getTyreReviewData(CLIENT, "mechanic", "Ramesh", "2026-01-01", "2026-12-31", settings);
+    assert.deepEqual(review.byProductType.map((p) => [p.product, p.count]), [["MRF Tyres", 3]]);
+  } finally {
+    mrf.label = oldLabel;
+  }
+});

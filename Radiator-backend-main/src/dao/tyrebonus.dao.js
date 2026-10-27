@@ -171,10 +171,13 @@ export async function getTyreReviewData(clientId, type, name, fromDate, toDate, 
 
     const services = (b.items || []).map((i) => {
       totalOperations += Number(i.qty) || 0;
-      const brand = byBrand.get(i.brandLabel) || { product: i.brandLabel, count: 0, revenue: 0 };
+      // By the brand's stored value, under its current name: a brand renamed in Settings stays one entry.
+      const brandKey = i.brandRef || `~${i.brandLabel}`;
+      const brandName = (settings?.tyre?.brands || []).find((x) => x.value === i.brandRef)?.label || i.brandLabel;
+      const brand = byBrand.get(brandKey) || { product: brandName, count: 0, revenue: 0 };
       brand.count += Number(i.qty) || 0;
       brand.revenue += Number(i.amount) || 0;
-      byBrand.set(i.brandLabel, brand);
+      byBrand.set(brandKey, brand);
       return { type: `${i.particulars}${Number(i.qty) > 1 ? ` × ${i.qty}` : ""}`, price: Number(i.amount) || 0 };
     });
     return {

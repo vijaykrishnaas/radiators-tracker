@@ -862,3 +862,10 @@ Gate: backend 107/107; tsc + build OK; e2e tyre 65, automobile 45, engineering 1
 Edit form of a 12-row installment challan at 390px, dark, scrolled to the end with the mouse wheel as a user would: the last row, "Add month" and the green "Principal ₹48,500.00 of ₹48,500.00 · Matches the tyre amount" check all sit above the sticky "Amount to collect ₹49,700.00" footer (last card bottom 653px, footer top 677px). Nothing is hidden behind the footer. (A first try used `window.scrollTo` and left the page half-scrolled with a gap above the header; that was the script's jump-scroll, not the app.) The form has no "received now" box; money is only taken through the payment popup.
 
 Nothing new found. No code changed (last full gate: run 75, all green).
+
+## Run 77 — area (c) list + dashboard, round 13 (sales by brand after a rename)
+**Bug: a renamed brand showed as two bars in "Sales by brand", on the dashboard and on the bonus review page.** Repro: sell MRF tyres while the brand is called "M.R.F", rename it in Settings to "MRF Tyres" (run 53: the stored value `mrf` stays), sell more → the dashboard shows "M.R.F" (1 tyre, ₹1,000) and "MRF Tyres" (2 tyres, ₹2,000) as different brands, and so does the mechanic's bonus review. Both grouped by the name printed on each challan, while the brand filter and the inventory group by the stored value.
+- Fix: `getTyreAnalytics` groups `byBrand` by the brand's stored value (lines without one fall back to their name) and shows the brand's current name from Settings; a brand removed from Settings keeps the name on its challans. `getTyreReviewData` (bonus review) does the same. The output shape (`brand` / `product`, `qty` / `count`, `revenue`) is unchanged for the screens.
+- Test: `test/tyrebill.dao.test.js` "sales by brand keeps a renamed brand as one bar, under its current name" (dashboard and bonus review). It fails with neither fix and with only the dashboard fix, and passes with both.
+
+Gate: backend 108/108; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

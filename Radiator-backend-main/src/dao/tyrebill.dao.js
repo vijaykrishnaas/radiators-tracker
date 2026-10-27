@@ -636,6 +636,7 @@ export async function getInstallmentFollowUp(clientId, now = new Date(), limit =
 
 export async function getTyreAnalytics(clientId, filters = {}) {
   const db = await connectDB();
+  const cfg = await getTyreSettings(clientId);
   const query = buildTyreQuery(clientId, filters);
   const num = (f) => ({ $cond: [{ $isNumber: f }, f, 0] });
 
@@ -675,10 +676,18 @@ export async function getTyreAnalytics(clientId, filters = {}) {
           { $group: { _id: "$status", count: { $sum: 1 }, revenue: { $sum: num("$payableTotal") } } },
           { $project: { _id: 0, status: "$_id", count: 1, revenue: 1 } },
         ],
+        // Grouped by the brand's stored value, like the brand filter and the inventory: a brand renamed in Settings
+        // keeps its value, so its old and new challans stay one bar (grouping by the printed name split them).
         byBrand: [
           { $unwind: "$items" },
-          { $group: { _id: "$items.brandLabel", qty: { $sum: "$items.qty" }, revenue: { $sum: "$items.amount" } } },
-          { $project: { _id: 0, brand: "$_id", qty: 1, revenue: 1 } },
+          {
+            $group: {
+              _id: { $ifNull: ["$items.brandRef", { $concat: ["~", { $ifNull: ["$items.brandLabel", ""] }] }] },
+              label: { $last: "$items.brandLabel" },
+              qty: { $sum: "$items.qty" },
+              revenue: { $sum: "$items.amount" },
+            },
+          },
           { $sort: { revenue: -1 } },
           { $limit: 10 },
         ],
@@ -708,7 +717,12 @@ export async function getTyreAnalytics(clientId, filters = {}) {
     kpis,
     byMonth: result?.byMonth || [],
     byStatus: result?.byStatus || [],
-    byBrand: result?.byBrand || [],
+    // Shown under the brand's current name; a brand removed from Settings keeps the name on its challans.
+    byBrand: (result?.byBrand || []).map((r) => ({
+      brand: (cfg.brands || []).find((x) => x.value === r._id)?.label || r.label,
+      qty: r.qty,
+      revenue: r.revenue,
+    })),
     topMechanics: result?.topMechanics || [],
     installments: await getInstallmentFollowUp(clientId),
   };
