@@ -83,6 +83,14 @@ const BusinessRoute: React.FC<{ children: React.ReactNode; type: "radiator" | "a
   return <>{children}</>;
 };
 
+// Pages a tyre shop doesn't have (expenses, bonus, salary): a tyre tenant is sent to its dashboard.
+const NotForTyre: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { settings, loading } = useSettings();
+  if (loading) return <PageSpinner />;
+  if (settings.businessType === "tyre") return <Navigate to="/tyre/dashboard" replace />;
+  return <>{children}</>;
+};
+
 // Super-admin portal routes.
 const RequireSuperAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!isLoggedIn() || !isSuperAdmin()) {
@@ -153,16 +161,16 @@ const AppLayout: React.FC = () => {
           <Route path="/engineering/dashboard/view/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/dashboard/edit/:id" element={<ProtectedRoute><BusinessRoute type="engineering"><EngCreate /></BusinessRoute></ProtectedRoute>} />
           <Route path="/engineering/billing" element={<ProtectedRoute><BusinessRoute type="engineering"><EngBilling /></BusinessRoute></ProtectedRoute>} />
-          <Route path="/issueCounter/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
+          <Route path="/issueCounter/expenses" element={<ProtectedRoute><NotForTyre><ExpensesPage /></NotForTyre></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/audit" element={<ProtectedRoute><ClientAudit /></ProtectedRoute>} />
-          <Route path="/bonus/mechanics" element={<ProtectedRoute><MechanicBonus /></ProtectedRoute>} />
-          <Route path="/bonus/labour" element={<ProtectedRoute><LabourBonus /></ProtectedRoute>} />
-          <Route path="/bonus/mechanics/review" element={<ProtectedRoute><MechanicReview /></ProtectedRoute>} />
-          <Route path="/bonus/labour/review" element={<ProtectedRoute><LabourReview /></ProtectedRoute>} />
+          <Route path="/bonus/mechanics" element={<ProtectedRoute><NotForTyre><MechanicBonus /></NotForTyre></ProtectedRoute>} />
+          <Route path="/bonus/labour" element={<ProtectedRoute><NotForTyre><LabourBonus /></NotForTyre></ProtectedRoute>} />
+          <Route path="/bonus/mechanics/review" element={<ProtectedRoute><NotForTyre><MechanicReview /></NotForTyre></ProtectedRoute>} />
+          <Route path="/bonus/labour/review" element={<ProtectedRoute><NotForTyre><LabourReview /></NotForTyre></ProtectedRoute>} />
           {/* Salary Management — no BusinessRoute; applies identically to radiator and automobile tenants. */}
-          <Route path="/salary/employees" element={<ProtectedRoute><SalaryEmployees /></ProtectedRoute>} />
-          <Route path="/salary/settle" element={<ProtectedRoute><SalarySettlePeriod /></ProtectedRoute>} />
+          <Route path="/salary/employees" element={<ProtectedRoute><NotForTyre><SalaryEmployees /></NotForTyre></ProtectedRoute>} />
+          <Route path="/salary/settle" element={<ProtectedRoute><NotForTyre><SalarySettlePeriod /></NotForTyre></ProtectedRoute>} />
         </Routes>
         </Suspense>
   );

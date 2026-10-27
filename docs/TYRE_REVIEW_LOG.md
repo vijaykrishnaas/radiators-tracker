@@ -929,3 +929,12 @@ User: "Remove percentage wise bonus, only with rupees"; for radiator they chose 
 - Tests: backend bonus tests converted to ₹ (automobile, radiator, radiator dao, engineering bonus and profit), plus "bonus is rupees only: an old % grid (or no mode) is never read as rupees" and the engineering "an old % setting is ignored" case; e2e: radiator "₹ per service grid, with no % anywhere" and "saves labour ₹40 per BS-3 service line", engineering "only a mechanic ₹ per bill (no %)".
 
 Gate: backend 118/118; tsc + build OK; e2e tyre 66, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## User request (2026-10-27) — tyre company without Expenses, Bonus and Salary
+Asked which tyre parts to remove, the user picked the Salary, Bonus and Expense pages (form fields, tyre line fields and the printed challan stay as they are).
+- Menu (`layout/navConfig.ts`): a tyre tenant sees Dashboard, Challans, Inventory, Settings and Activity Log only.
+- Pages (`App.tsx`): a new `NotForTyre` guard on the expenses, bonus (mechanic, labour and both reviews) and salary (employees, settle) routes sends a tyre tenant to the tyre dashboard, also when the address is typed in.
+- Settings: no Salary tab for tyre.
+- Tests (`e2e/tyre.e2e.mjs`): "sidebar has Challans and Inventory, and no Expenses, Bonus or Salary" and "expenses, bonus and salary pages send a tyre tenant to its dashboard". The other company types are unchanged (their suites pass).
+
+Gate: backend 118/118; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.

@@ -375,7 +375,6 @@ const SettingsPage = () => {
         ["company", "Company"],
         ["tyreCatalog", "Tyre Catalog"],
         ["tyreInvoice", "Labels & Challan"],
-        ["salary", "Salary"],
     ] : isAutomobile ? [
         ["company", "Company"],
         ["catalog", "Parts Catalog"],

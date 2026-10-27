@@ -102,8 +102,16 @@ await page.goto(BASE + "/issueCounter/dashboard");
 await page.waitForURL(/\/tyre\//, { timeout: 10000 }).catch(() => {});
 ok("tyre: radiator dashboard redirects to the tyre dashboard", page.url().includes("/tyre/dashboard"), page.url());
 const nav = (await page.locator(".sidebar-nav").innerText()).replace(/\s+/g, " ");
-// A tyre shop has no mechanic / labour on its challans, so no Bonus menu.
-ok("tyre: sidebar has Challans, Inventory, Expenses, Salary and no Bonus", ["Challans", "Inventory", "Expenses", "Salary"].every((w) => nav.includes(w)) && !nav.includes("Bonus"), nav);
+// A tyre shop has challans, inventory and settings only: no Expenses, Bonus or Salary (asked by the user), and those
+// pages, opened by address, send a tyre tenant to its dashboard.
+ok("tyre: sidebar has Challans and Inventory, and no Expenses, Bonus or Salary", ["Challans", "Inventory"].every((w) => nav.includes(w)) && !/Expenses|Bonus|Salary/.test(nav), nav);
+const strayPages = [];
+for (const path of ["/issueCounter/expenses", "/bonus/mechanics", "/bonus/labour", "/salary/employees", "/salary/settle"]) {
+  await page.goto(BASE + path);
+  await page.waitForURL(/\/tyre\/dashboard/, { timeout: 5000 }).catch(() => {});
+  if (!page.url().includes("/tyre/dashboard")) strayPages.push(path);
+}
+ok("tyre: expenses, bonus and salary pages send a tyre tenant to its dashboard", strayPages.length === 0, strayPages.join(", "));
 const formFields = async () => page.evaluate(() => ["ty-address", "ty-mechanic", "ty-labour", "ty-notes"].filter((id) => document.getElementById(id)));
 await page.goto(BASE + "/automobile/billing");
 await page.waitForTimeout(1200);

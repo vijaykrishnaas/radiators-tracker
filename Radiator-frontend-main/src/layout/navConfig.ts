@@ -41,10 +41,11 @@ export function tenantNav(s: AppSettings): NavGroup[] {
     if (s.businessType === "automobile" || s.businessType === "tyre") {
         menu.push({ id: "inventory", label: "Inventory", to: `${v}/inventory`, icon: "package", match: exact(`${v}/inventory`) });
     }
-    if (!isEngineering) {
+    // A tyre shop has challans, inventory and settings only: no expenses, no bonus (its challans carry no mechanic or
+    // labour) and no salary.
+    if (!isEngineering && s.businessType !== "tyre") {
         menu.push({ id: "expenses", label: "Expenses", to: "/issueCounter/expenses", icon: "wallet", match: exact("/issueCounter/expenses") });
-        // Tyre challans carry no mechanic or labour, so a tyre shop has no bonus.
-        if (s.businessType !== "tyre") menu.push({
+        menu.push({
             id: "bonus", label: "Bonus", icon: "trending-up", children: [
                 { id: "bonus-mech", label: "Mechanic Bonus", to: "/bonus/mechanics", match: prefix("/bonus/mechanics") },
                 { id: "bonus-labour", label: workerBonusLabel, to: "/bonus/labour", match: prefix("/bonus/labour") },
@@ -56,7 +57,7 @@ export function tenantNav(s: AppSettings): NavGroup[] {
                 { id: "salary-settle", label: "Settle Salary", to: "/salary/settle", match: exact("/salary/settle") },
             ],
         });
-    } else {
+    } else if (isEngineering) {
         menu.push({ id: "bonus", label: "Bonus", to: "/bonus/mechanics", icon: "trending-up", match: prefix("/bonus/mechanics") });
     }
 
