@@ -1,4 +1,4 @@
-// Radiator bonus: % matrix vs fixed ₹ per bill, and cancelling bonus that was already paid.
+// Radiator bonus: ₹ per service line (grid) vs fixed ₹ per bill, and cancelling bonus that was already paid.
 // Exercises the REAL bonus.dao.js against the in-memory fake Mongo.
 // Run with: node --experimental-test-module-mocks --test test/bonus.radiator.test.js
 import { test, mock, beforeEach } from "node:test";
@@ -18,8 +18,8 @@ const CLIENT = new ObjectId();
 const baseSettings = () => ({
   catalog: { productTypes: [{ label: "BS-3", value: "bs3" }], serviceTypes: [{ label: "Service", value: "service" }] },
   bonus: {
-    mechanic: { mode: "percent", amount: 0, matrix: { bs3: { service: 10 } }, defaultPercent: 0, yearStartMonth: 4 },
-    labour: { mode: "percent", amount: 0, matrix: { bs3: { service: 4 } }, defaultPercent: 0 },
+    mechanic: { mode: "line", amount: 0, amountMatrix: { bs3: { service: 100 } }, defaultAmount: 0, yearStartMonth: 4 },
+    labour: { mode: "line", amount: 0, amountMatrix: { bs3: { service: 40 } }, defaultAmount: 0 },
   },
 });
 beforeEach(() => { fakeDb = new FakeDb(); settings = baseSettings(); });
@@ -37,11 +37,22 @@ const record = (over = {}) => ({
 const entries = () => fakeDb.collection("bonuses").docs;
 const mech = () => entries().find((e) => e.type === "mechanic");
 
-test("percent mode (default) is unchanged: 10% of the service price, payable as collected", async () => {
+test("₹ per service (default): each service line earns its grid amount, payable as collected", async () => {
   await syncBonusesForRecord(CLIENT, record());
   assert.equal(mech().accruedAmount, 100);
   assert.equal(mech().payableAmount, 50);
-  assert.deepEqual(entries().filter((e) => e.type === "labour").map((e) => e.accruedAmount), [20, 20]); // 4% split
+  assert.deepEqual(entries().filter((e) => e.type === "labour").map((e) => e.accruedAmount), [20, 20]); // ₹40 split
+  // Two service lines earn twice; a line not in the grid earns the default ₹.
+  fakeDb = new FakeDb();
+  settings.bonus.mechanic.defaultAmount = 25;
+  await syncBonusesForRecord(CLIENT, record({ serviceInfo: [{ type: "Service", price: 1000 }, { type: "Service", price: 500 }, { type: "Tank", price: 500 }], receivedAmount: 2000 }));
+  assert.equal(mech().accruedAmount, 225);
+});
+
+test("bonus is rupees only: an old % grid (or no mode) is never read as rupees", async () => {
+  settings.bonus.mechanic = { matrix: { bs3: { service: 10 } }, defaultPercent: 5, yearStartMonth: 4 };
+  await syncBonusesForRecord(CLIENT, record());
+  assert.equal(mech().accruedAmount, 0);
 });
 
 test("₹ per bill: mechanic earns the fixed amount, payable in step with collection", async () => {

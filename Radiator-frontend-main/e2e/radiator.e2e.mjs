@@ -97,11 +97,14 @@ await page.waitForTimeout(600);
 lp = listParams[listParams.length - 1];
 ok("radiator: search sends one term across all fields (not just the truck no)", lp.search === "velu" && !("truckNumber" in lp), JSON.stringify(lp));
 
-// Settings → Bonus: each role can be % of the service price (matrix) or a fixed ₹ per bill.
+// Settings → Bonus (rupees only): each role is a fixed ₹ per service line (grid) or a fixed ₹ per bill.
 await page.goto(BASE + "/settings");
 await page.getByRole("tab", { name: "Bonus" }).click();
 await page.waitForTimeout(300);
-ok("radiator: bonus defaults to the % matrix", (await page.locator('[id^="bonus-mechanic-"]').count()) > 0 && (await page.locator("#mechanic-bonus-amt").count()) === 0);
+const bonusTabText = await page.locator(".settings-panel, main").first().innerText();
+ok("radiator: bonus defaults to the ₹ per service grid, with no % anywhere", (await page.locator('[id^="bonus-mechanic-"]').count()) > 0 && (await page.locator("#mechanic-bonus-amt").count()) === 0
+  && /₹ per service/.test(bonusTabText) && !/%/.test(bonusTabText), bonusTabText.match(/.{0,40}%.{0,40}/)?.[0] || "");
+await page.locator("#bonus-labour-bs3-service").fill("40");
 await page.getByRole("radiogroup", { name: "Mechanic bonus type" }).getByRole("radio", { name: "₹ per bill" }).click();
 ok("radiator: '₹ per bill' swaps the mechanic matrix for one amount", (await page.locator('[id^="bonus-mechanic-"]').count()) === 0 && (await page.locator("#mechanic-bonus-amt").count()) === 1);
 await page.locator("#mechanic-bonus-amt").fill("300");
@@ -109,7 +112,8 @@ const putReq = page.waitForRequest((r) => r.method() === "PUT" && new URL(r.url(
 await page.locator(".page-header .btn-primary, .form-footer .btn-primary").filter({ hasText: /Save/ }).first().click();
 const put = await putReq;
 const rb = put ? put.postDataJSON()?.bonus : null;
-ok("radiator: saving sends mechanic mode 'amount' ₹300; labour stays on %", rb?.mechanic?.mode === "amount" && rb?.mechanic?.amount === 300 && rb?.labour?.mode !== "amount", JSON.stringify({ m: rb?.mechanic?.mode, a: rb?.mechanic?.amount, l: rb?.labour?.mode }));
+ok("radiator: saving sends mechanic ₹300 per bill and labour ₹40 per BS-3 service line", rb?.mechanic?.mode === "amount" && rb?.mechanic?.amount === 300 && rb?.labour?.mode !== "amount" && rb?.labour?.amountMatrix?.bs3?.service === 40,
+  JSON.stringify({ m: rb?.mechanic?.mode, a: rb?.mechanic?.amount, l: rb?.labour?.mode, lg: rb?.labour?.amountMatrix?.bs3 }));
 
 // Bonus page: cancel a paid bonus (whole person for the range, or one entry); cancelled rows read as Cancelled.
 await page.goto(BASE + "/bonus/mechanics");

@@ -503,7 +503,7 @@ export function BonusPage({
             {list.status === "ready" && rows.length > 0 && totals.accrued === 0 && (
                 <div className="mb-3">
                     <Callout tone="warning">
-                        No bonus is accruing for these jobs yet — set a bonus&nbsp;% for these services in{" "}
+                        No bonus is accruing for these jobs yet — set a bonus amount (₹) in{" "}
                         <button type="button" className="btn btn-link p-0 t-sm" style={{ minHeight: 0 }} onClick={() => navigate("/settings")}>Settings<Icons iconName="chevron-right" className="icon-14 mx-1" />Bonus</button>,
                         then click <strong>Recalculate</strong>.
                     </Callout>

@@ -10,7 +10,7 @@ let fakeDb;
 const settings = {
   businessType: "automobile",
   mechanics: ["Ramesh"],
-  automobile: { bonus: { mechanicPercent: 10, labourPercent: 4, yearStartMonth: 4 } },
+  automobile: { bonus: { mechanicAmount: 100, labourAmount: 40, yearStartMonth: 4 } },
 };
 
 mock.module("../src/config/db.js", { namedExports: { connectDB: async () => fakeDb } });
@@ -38,10 +38,10 @@ test("create: items priced qty × rate, per-tenant bill number, bonus accrued bu
   assert.equal(bill.totalAmount, 1000);
   assert.equal(bill.status, "Not Received");
   const mech = bonuses().find((b) => b.type === "mechanic");
-  assert.equal(mech.accruedAmount, 100); // 10% of 1000
+  assert.equal(mech.accruedAmount, 100); // ₹100 per bill
   assert.equal(mech.payableAmount, 0);
   const lab = bonuses().filter((b) => b.type === "labour");
-  assert.deepEqual(lab.map((b) => [b.beneficiary, b.accruedAmount]).sort(), [["Kumar", 20], ["Siva", 20]]); // 4% split
+  assert.deepEqual(lab.map((b) => [b.beneficiary, b.accruedAmount]).sort(), [["Kumar", 20], ["Siva", 20]]); // ₹40 split
   const second = await createAutoBill(CLIENT, input());
   assert.equal((await getById(CLIENT, second.insertedId)).billNo, 2);
 });
@@ -62,12 +62,12 @@ test("payment with discount: net-based status and payable bonus", async () => {
   assert.equal(part.netAmount, 900);
   assert.equal(part.status, "Partial");
   let mech = bonuses().find((b) => b.type === "mechanic");
-  assert.equal(mech.accruedAmount, 90);   // 10% of net 900
-  assert.equal(mech.payableAmount, 45);   // half collected
+  assert.equal(mech.accruedAmount, 100);  // a fixed ₹100 per bill; the discount doesn't shrink it
+  assert.equal(mech.payableAmount, 50);   // half collected
   const done = await recordPayment(CLIENT, insertedId, 450, 100);
   assert.equal(done.status, "Received");
   mech = bonuses().find((b) => b.type === "mechanic");
-  assert.equal(mech.payableAmount, 90);
+  assert.equal(mech.payableAmount, 100);
 });
 
 test("received is capped at net when overpaid", async () => {
@@ -85,7 +85,7 @@ test("editing labour removes the dropped worker's pending bonus; paid entries st
   mech.payableAmount = 12345;
   await updateAutoBill(CLIENT, insertedId, input({ labourName: ["Kumar"], items: [{ particulars: "Oil", qty: 1, rate: 2000 }] }));
   const lab = bonuses().filter((b) => b.type === "labour");
-  assert.deepEqual(lab.map((b) => [b.beneficiary, b.accruedAmount]), [["Kumar", 80]]); // 4% of 2000, one worker
+  assert.deepEqual(lab.map((b) => [b.beneficiary, b.accruedAmount]), [["Kumar", 40]]); // ₹40 per bill, one worker
   const mechAfter = bonuses().filter((b) => b.type === "mechanic");
   assert.equal(mechAfter.length, 1, "no duplicate pending mechanic entry once paid");
   assert.equal(mechAfter[0].payableAmount, 12345, "paid entry untouched");

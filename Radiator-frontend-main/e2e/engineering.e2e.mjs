@@ -398,19 +398,16 @@ async function run(type) {
   const tabs = await page.getByRole("tablist").innerText();
   ok("eng: settings tabs = Company/Service Catalog/Mechanics/Bonus/Invoice", /Service Catalog/.test(tabs) && /Mechanics/.test(tabs) && /Bonus/.test(tabs) && !/Salary|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
   await openSettingsTab("Bonus");
-  const pct = page.getByLabel("Mechanic bonus % (of net bill total)");
-  ok("eng: Settings Bonus tab has a mechanic bonus % (default 0, no labour %)", (await pct.count()) === 1 && (await pct.inputValue()) === "0" && (await page.getByLabel(/Labour bonus/i).count()) === 0, String(await pct.count() && await pct.inputValue()));
-  await pct.fill("7.5");
-  ok("eng: bonus % can be changed", (await pct.inputValue()) === "7.5");
-  // ₹ per bill: switching the type swaps the % field for a ₹ field, and Save sends mode + amount.
-  await page.getByRole("radio", { name: "₹ per bill" }).click();
-  ok("eng: '₹ per bill' replaces the % field with a ₹ amount", (await page.locator("#eng-mech-amt").count()) === 1 && (await page.locator("#eng-mech-pct").count()) === 0);
-  await page.locator("#eng-mech-amt").fill("500");
+  // Bonus is in rupees only: one ₹ per bill box, no % box, no type switch, no labour bonus.
+  const amt = page.locator("#eng-mech-amt");
+  ok("eng: Settings Bonus tab has only a mechanic ₹ per bill (no %, no labour)", (await amt.count()) === 1 && (await page.getByText(/%/).filter({ hasText: /bonus/i }).count()) === 0
+    && (await page.getByRole("radio", { name: /% of bill/ }).count()) === 0 && (await page.getByLabel(/Labour bonus/i).count()) === 0, String(await amt.count()));
+  await amt.fill("500");
   const putReq = page.waitForRequest((r) => r.method() === "PUT" && new URL(r.url()).pathname === "/settings", { timeout: 5000 }).catch(() => null);
   await page.locator(".page-header .btn-primary, .form-footer .btn-primary").filter({ hasText: /Save/ }).first().click();
   const put = await putReq;
   const eb = put ? put.postDataJSON()?.engineering?.bonus : null;
-  ok("eng: saving sends bonus mode 'amount' with ₹500 (and keeps the %)", eb?.mechanicMode === "amount" && eb?.mechanicAmount === 500 && eb?.mechanicPercent === 7.5, JSON.stringify(eb));
+  ok("eng: saving sends the mechanic bonus as ₹500 per bill", eb?.mechanicAmount === 500, JSON.stringify(eb));
   await openSettingsTab("Service Catalog");
   await page.waitForTimeout(500);
   ok("eng: catalog grid shows Turbo items", (await page.locator(".cat-item input[value='Hold set']").count()) > 0);

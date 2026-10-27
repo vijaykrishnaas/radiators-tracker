@@ -99,7 +99,7 @@ const SettingsPage = () => {
     const [newPartRate, setNewPartRate] = useState("");
 
     // Automobile tenants get a parallel set of settings tabs (parts catalog,
-    // flat bonus %, automobile-specific labels/invoice) instead of the
+    // ₹ per bill bonus, automobile-specific labels/invoice) instead of the
     // radiator catalog/price-matrix/bonus-matrix tabs. Engineering tenants use their own tab ids.
     const isAutomobile = draft.businessType === "automobile";
     const auto = draft.automobile;
@@ -197,18 +197,6 @@ const SettingsPage = () => {
             callAlertMsg("Every tyre brand and model needs a name (Tyre Catalog). Type a name or remove it, then save.", "error");
             return;
         }
-        // The % boxes only hint at 0–100; a typo like 250 was saved as is, and the bonus code then quietly paid 100%
-        // of the bill. Every bonus percentage (flat ones and the radiator grid) must be 0–100.
-        const percents: number[] = [];
-        const collect = (node: unknown, inPercent: boolean) => {
-            if (typeof node === "number") { if (inPercent) percents.push(node); return; }
-            if (node && typeof node === "object") Object.entries(node).forEach(([k, v]) => collect(v, inPercent || /percent$|^matrix$/i.test(k)));
-        };
-        [draft.bonus, draft.automobile?.bonus, draft.engineering?.bonus, draft.tyre?.bonus].forEach((b) => collect(b, false));
-        if (percents.some((p) => !(p >= 0 && p <= 100))) {
-            callAlertMsg("A bonus percentage must be between 0 and 100 (Bonus tab). Fix it, then save.", "error");
-            return;
-        }
         try {
             setSaving(true);
             const res = await putData("settings", draft);
@@ -231,8 +219,8 @@ const SettingsPage = () => {
         if (draft.catalog.productTypes.some((p) => p.value === value)) return;
         set("catalog.productTypes", [...draft.catalog.productTypes, { label: newProduct.trim(), value }]);
         set(`catalog.priceMatrix.${value}`, {});
-        set(`bonus.mechanic.matrix.${value}`, {});
-        set(`bonus.labour.matrix.${value}`, {});
+        set("bonus.mechanic.amountMatrix", { ...(draft.bonus.mechanic.amountMatrix || {}), [value]: {} });
+        set("bonus.labour.amountMatrix", { ...(draft.bonus.labour.amountMatrix || {}), [value]: {} });
         setNewProduct("");
     };
 
@@ -241,12 +229,12 @@ const SettingsPage = () => {
         const matrix = { ...draft.catalog.priceMatrix };
         delete matrix[value];
         set("catalog.priceMatrix", matrix);
-        const mech = { ...draft.bonus.mechanic.matrix };
+        const mech = { ...(draft.bonus.mechanic.amountMatrix || {}) };
         delete mech[value];
-        set("bonus.mechanic.matrix", mech);
-        const lab = { ...draft.bonus.labour.matrix };
+        set("bonus.mechanic.amountMatrix", mech);
+        const lab = { ...(draft.bonus.labour.amountMatrix || {}) };
         delete lab[value];
-        set("bonus.labour.matrix", lab);
+        set("bonus.labour.amountMatrix", lab);
     };
 
     const addService = () => {
@@ -265,11 +253,14 @@ const SettingsPage = () => {
         set(`catalog.priceMatrix.${product}.${service}`, Number(price || 0));
     };
 
-    const setBonusPercent = (role: "mechanic" | "labour", product: string, service: string, percent: string) => {
-        set(`bonus.${role}.matrix.${product}.${service}`, Number(percent || 0));
+    // Bonus is in rupees only: each cell is a fixed ₹ per service line. The grid is rebuilt whole, since older settings
+    // have no amountMatrix yet (their % matrix is no longer used).
+    const setBonusAmount = (role: "mechanic" | "labour", product: string, service: string, amount: string) => {
+        const grid = draft.bonus[role].amountMatrix || {};
+        set(`bonus.${role}.amountMatrix`, { ...grid, [product]: { ...(grid[product] || {}), [service]: Math.max(Number(amount || 0), 0) } });
     };
 
-    // Same grid pattern as the price matrix, but cells are percentages.
+    // Same grid pattern as the price matrix: cells are ₹ per service line.
     const bonusMatrixGrid = (role: "mechanic" | "labour") => (
         <div className="matrix-wrap">
             <table className="matrix">
@@ -277,7 +268,7 @@ const SettingsPage = () => {
                     <tr>
                         <th scope="col">{draft.labels.product}</th>
                         {priceableServices.map((s) => (
-                            <th scope="col" key={s.value}>{s.label} (%)</th>
+                            <th scope="col" key={s.value}>{s.label} (₹)</th>
                         ))}
                     </tr>
                 </thead>
@@ -290,15 +281,15 @@ const SettingsPage = () => {
                                     <AffixInput
                                         type="number"
                                         className="num"
-                                        suffix="%"
+                                        prefix="₹"
                                         id={`bonus-${role}-${p.value}-${s.value}`}
                                         name={`bonus-${role}-${p.value}-${s.value}`}
-                                        aria-label={`${role} bonus percent for ${p.label} ${s.label}`}
+                                        aria-label={`${role} bonus ₹ for ${p.label} ${s.label}`}
                                         min={0}
-                                        max={100}
-                                        step={0.5}
-                                        value={draft.bonus[role].matrix[p.value]?.[s.value] ?? ""}
-                                        onChange={(e) => setBonusPercent(role, p.value, s.value, e.target.value)}
+                                        step={10}
+                                        placeholder="0"
+                                        value={draft.bonus[role].amountMatrix?.[p.value]?.[s.value] || ""}
+                                        onChange={(e) => setBonusAmount(role, p.value, s.value, e.target.value)}
                                     />
                                 </td>
                             ))}
@@ -356,10 +347,11 @@ const SettingsPage = () => {
         </Field>
     );
 
-    const pctField = (id: string, label: string, value: number, onChange: (n: number) => void) => (
+    // Bonus is in rupees only.
+    const rupeeField = (id: string, label: string, value: number | undefined, onChange: (n: number) => void) => (
         <Field label={label} htmlFor={id}>
-            <AffixInput id={id} name={id} type="number" className="num" suffix="%" min={0} max={100} step={0.5} value={value}
-                onChange={(e) => onChange(Number(e.target.value || 0))} />
+            <AffixInput id={id} name={id} type="number" className="num" prefix="₹" min={0} step={10} value={value || ""} placeholder="0"
+                onChange={(e) => onChange(Math.max(Number(e.target.value || 0), 0))} />
         </Field>
     );
 
@@ -674,35 +666,36 @@ const SettingsPage = () => {
                     </>
                 )}
 
-                {/* ---- Automobile: flat-% Bonus ---- */}
+                {/* ---- Automobile: ₹ per bill Bonus ---- */}
                 {activeTab === "bonus" && isAutomobile && (
-                    <SectionCard title="Bonus configuration" subtitle="Flat percentages of each bill's net total.">
+                    <SectionCard title="Bonus configuration" subtitle="A fixed amount per bill.">
                         <div className="form-grid settings-three">
-                            {pctField("auto-mech-pct", `${auto.labels.agent} Bonus % (of net bill total)`, auto.bonus.mechanicPercent,
-                                (n) => set("automobile.bonus.mechanicPercent", n))}
-                            {pctField("auto-labour-pct", `${auto.labels.worker} Bonus % (of net bill total)`, auto.bonus.labourPercent,
-                                (n) => set("automobile.bonus.labourPercent", n))}
+                            {rupeeField("auto-mech-amt", `${auto.labels.agent} bonus per bill`, auto.bonus.mechanicAmount,
+                                (n) => set("automobile.bonus.mechanicAmount", n))}
+                            {rupeeField("auto-labour-amt", `${auto.labels.worker} bonus per bill (shared)`, auto.bonus.labourAmount,
+                                (n) => set("automobile.bonus.labourAmount", n))}
                             {monthSelect("auto-year-start-month", auto.bonus.yearStartMonth, (n) => set("automobile.bonus.yearStartMonth", n))}
                         </div>
                         <span className="field-help">
                             {auto.labels.agent} bonus settles yearly; {auto.labels.worker.toLowerCase()} bonus settles daily and is split equally
-                            among the workers listed on each bill. Both are a flat percentage of the bill's net (post-discount) total,
-                            paid in proportion to the amount collected.
+                            among the workers listed on each bill. Each bill with a total earns these fixed amounts, paid in proportion
+                            to the amount collected.
                         </span>
                     </SectionCard>
                 )}
 
                 {/* ---- Bonus (radiator) ---- */}
                 {activeTab === "bonus" && !isAutomobile && (() => {
-                    // Each role: % of the service prices (matrix) or a fixed ₹ per bill. Older settings have no mode yet.
+                    // Each role: a fixed ₹ per service line (grid) or a fixed ₹ per bill. Rupees only; an older "percent" mode
+                    // (or none) is shown and saved as ₹ per service.
                     const modeSwitch = (role: "mechanic" | "labour") => (
                         <Field label="Bonus type" labelId={`${role}-mode-label`}>
-                            <SegmentedControl<"percent" | "amount">
+                            <SegmentedControl<"line" | "amount">
                                 label={`${role === "mechanic" ? "Mechanic" : draft.labels.worker} bonus type`}
                                 radio
                                 full
-                                options={[{ value: "percent", label: "% of service price" }, { value: "amount", label: "₹ per bill" }]}
-                                value={draft.bonus[role].mode === "amount" ? "amount" : "percent"}
+                                options={[{ value: "line", label: "₹ per service" }, { value: "amount", label: "₹ per bill" }]}
+                                value={draft.bonus[role].mode === "amount" ? "amount" : "line"}
                                 onChange={(v) => set(`bonus.${role}.mode`, v)}
                             />
                         </Field>
@@ -720,21 +713,21 @@ const SettingsPage = () => {
                         <>
                             <SectionCard title="Mechanic bonus" subtitle={mechFixed
                                 ? "Settled yearly. A fixed amount per bill, paid in proportion to the amount collected on the bill."
-                                : "Settled yearly. Bonus = service price × percent, paid in proportion to the amount collected on the bill."}>
+                                : "Settled yearly. A fixed amount for each service line on the bill, paid in proportion to the amount collected."}>
                                 <div className="form-grid settings-three mb-3">
                                     {modeSwitch("mechanic")}
                                     {mechFixed && amountField("mechanic", "Mechanic bonus per bill")}
                                 </div>
                                 {!mechFixed && bonusMatrixGrid("mechanic")}
                                 <div className="form-grid settings-three mt-3">
-                                    {!mechFixed && pctField("mech-default-pct", "Default % (Other / unmatched)", draft.bonus.mechanic.defaultPercent,
-                                        (n) => set("bonus.mechanic.defaultPercent", n))}
+                                    {!mechFixed && rupeeField("mech-default-amt", "Default ₹ per service (Other / unmatched)", draft.bonus.mechanic.defaultAmount,
+                                        (n) => set("bonus.mechanic.defaultAmount", n))}
                                     {monthSelect("year-start-month", draft.bonus.mechanic.yearStartMonth, (n) => set("bonus.mechanic.yearStartMonth", n))}
                                 </div>
                             </SectionCard>
                             <SectionCard title={`${draft.labels.worker} bonus`} subtitle={labFixed
                                 ? "Settled daily. A fixed amount per bill, split equally among the workers on the bill."
-                                : "Settled daily, split equally per bill."}>
+                                : "Settled daily. A fixed amount for each service line, split equally among the workers on the bill."}>
                                 <div className="form-grid settings-three mb-3">
                                     {modeSwitch("labour")}
                                     {labFixed && amountField("labour", `${draft.labels.worker} bonus per bill (shared)`)}
@@ -743,8 +736,8 @@ const SettingsPage = () => {
                                     <>
                                         {bonusMatrixGrid("labour")}
                                         <div className="form-grid settings-three mt-3">
-                                            {pctField("labour-default-pct", "Default % (Other / unmatched)", draft.bonus.labour.defaultPercent,
-                                                (n) => set("bonus.labour.defaultPercent", n))}
+                                            {rupeeField("labour-default-amt", "Default ₹ per service (Other / unmatched)", draft.bonus.labour.defaultAmount,
+                                                (n) => set("bonus.labour.defaultAmount", n))}
                                         </div>
                                     </>
                                 )}
@@ -857,43 +850,19 @@ const SettingsPage = () => {
                     </SectionCard>
                 )}
 
-                {isEngineering && draft.engineering && activeTab === "engBonus" && (() => {
-                    // Whole object on every change: tenants created before these settings have no engineering.bonus yet.
-                    const eb = { mechanicMode: "percent" as const, mechanicPercent: 0, mechanicAmount: 0, ...(draft.engineering.bonus || {}) };
-                    const setEb = (patch: Partial<typeof eb>) => set("engineering.bonus", { ...eb, ...patch });
-                    const fixed = eb.mechanicMode === "amount";
-                    return (
-                        <SectionCard title="Mechanic bonus" subtitle="A percentage of each bill, or a fixed amount per bill.">
-                            <div className="form-grid settings-three">
-                                <Field label="Bonus type" labelId="eng-mech-mode-label">
-                                    <SegmentedControl<"percent" | "amount">
-                                        label="Bonus type"
-                                        radio
-                                        full
-                                        options={[{ value: "percent", label: "% of bill" }, { value: "amount", label: "₹ per bill" }]}
-                                        value={eb.mechanicMode}
-                                        onChange={(v) => setEb({ mechanicMode: v })}
-                                    />
-                                </Field>
-                                {fixed ? (
-                                    <Field label="Mechanic bonus per bill" htmlFor="eng-mech-amt">
-                                        <AffixInput id="eng-mech-amt" name="eng-mech-amt" type="number" className="num" prefix="₹" min={0} step={10} value={eb.mechanicAmount || ""} placeholder="0"
-                                            onChange={(e) => setEb({ mechanicAmount: Math.max(Number(e.target.value || 0), 0) })} />
-                                    </Field>
-                                ) : (
-                                    pctField("eng-mech-pct", "Mechanic bonus % (of net bill total)", eb.mechanicPercent, (n) => setEb({ mechanicPercent: n }))
-                                )}
-                            </div>
-                            <span className="field-help">
-                                {fixed
-                                    ? "Each bill earns its mechanic this fixed amount (bills with a zero total earn nothing). "
-                                    : "Each bill earns its mechanic this percentage of the bill's net (post-discount) total. "}
-                                It becomes payable in proportion to the amount collected. Bonus settles once a year; the year starts in the month set under Service Catalog<Icons iconName="chevron-right" className="icon-14 mx-1" />
-                                Financial year. After changing the bonus, use Recalculate on the Bonus page to re-price existing bills.
-                            </span>
-                        </SectionCard>
-                    );
-                })()}
+                {isEngineering && draft.engineering && activeTab === "engBonus" && (
+                    <SectionCard title="Mechanic bonus" subtitle="A fixed amount per bill.">
+                        <div className="form-grid settings-three">
+                            {rupeeField("eng-mech-amt", "Mechanic bonus per bill", draft.engineering.bonus?.mechanicAmount,
+                                (n) => set("engineering.bonus", { ...(draft.engineering.bonus || {}), mechanicAmount: n }))}
+                        </div>
+                        <span className="field-help">
+                            Each bill with a total earns its mechanic this fixed amount. It becomes payable in proportion to the amount collected.
+                            Bonus settles once a year; the year starts in the month set under Service Catalog<Icons iconName="chevron-right" className="icon-14 mx-1" />
+                            Financial year. After changing the bonus, use Recalculate on the Bonus page to re-price existing bills.
+                        </span>
+                    </SectionCard>
+                )}
 
                 {isEngineering && draft.engineering?.invoice && activeTab === "engInvoice" && (
                     <SectionCard title="Invoice options" subtitle="Title, footer and extras printed on every invoice.">

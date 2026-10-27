@@ -65,9 +65,10 @@ export type AppSettings = {
     automobile: {
         units: string[];
         parts: AutoPart[];
+        /** Rupees only: a fixed ₹ per bill for each role. */
         bonus: {
-            mechanicPercent: number;
-            labourPercent: number;
+            mechanicAmount: number;
+            labourAmount: number;
             yearStartMonth: number;
         };
         labels: {
@@ -123,19 +124,19 @@ export type AppSettings = {
     };
     bonus: {
         mechanic: {
-            /** "percent" (default): the matrix of % of service prices. "amount": a fixed ₹ per bill. */
-            mode?: "percent" | "amount";
+            /** Rupees only. "line" (default): a fixed ₹ per service line from amountMatrix. "amount": a fixed ₹ per bill. */
+            mode?: "line" | "amount" | "percent";
             amount?: number;
-            matrix: Record<string, Record<string, number>>;
-            defaultPercent: number;
+            amountMatrix?: Record<string, Record<string, number>>;
+            defaultAmount?: number;
             yearStartMonth: number;
         };
         labour: {
-            /** "amount": a fixed ₹ per bill, split equally among the bill's workers. */
-            mode?: "percent" | "amount";
+            /** "amount": a fixed ₹ per bill, split equally among the bill's workers. Otherwise ₹ per service line. */
+            mode?: "line" | "amount" | "percent";
             amount?: number;
-            matrix: Record<string, Record<string, number>>;
-            defaultPercent: number;
+            amountMatrix?: Record<string, Record<string, number>>;
+            defaultAmount?: number;
         };
     };
     engineering: {
@@ -144,7 +145,8 @@ export type AppSettings = {
         quickAdd: { type: string; item: string }[];
         billStartNumber: number;
         fyStartMonth?: number;
-        bonus?: { mechanicMode?: "percent" | "amount"; mechanicPercent: number; mechanicAmount?: number };
+        /** Rupees only: a fixed ₹ per bill. */
+        bonus?: { mechanicAmount?: number };
         invoice: {
             billTitle: string;
             footerNote: string;
@@ -171,7 +173,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
     automobile: {
         units: ["pcs", "set", "L", "kg", "hrs"],
         parts: [],
-        bonus: { mechanicPercent: 0, labourPercent: 0, yearStartMonth: 4 },
+        bonus: { mechanicAmount: 0, labourAmount: 0, yearStartMonth: 4 },
         labels: {
             vehicleNo: "Vehicle Number",
             customer: "Customer Name",
@@ -195,8 +197,8 @@ export const FALLBACK_SETTINGS: AppSettings = {
     },
     invoice: { billTitle: "BILL", footerNote: "", showQr: false, showSignature: false },
     bonus: {
-        mechanic: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0, yearStartMonth: 4 },
-        labour: { mode: "percent", amount: 0, matrix: {}, defaultPercent: 0 },
+        mechanic: { mode: "line", amount: 0, amountMatrix: {}, defaultAmount: 0, yearStartMonth: 4 },
+        labour: { mode: "line", amount: 0, amountMatrix: {}, defaultAmount: 0 },
     },
     engineering: {
         bsModels: [],
@@ -204,7 +206,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         quickAdd: [],
         billStartNumber: 1,
         fyStartMonth: 4,
-        bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0 },
+        bonus: { mechanicAmount: 0 },
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
     },
     tyre: {

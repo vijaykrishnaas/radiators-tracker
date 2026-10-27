@@ -11,7 +11,7 @@ const fakeDb = new FakeDb();
 const catalog = {
   billStartNumber: 1,
   fyStartMonth: 4,
-  bonus: { mechanicMode: "percent", mechanicPercent: 10 },
+  bonus: { mechanicAmount: 50 },
   serviceTypes: [
     {
       label: "Turbo",
@@ -82,18 +82,18 @@ test("Other rows are not counted as missing a cost price", async () => {
 
 test("profit: fully paid bills are earned, the rest expected; discount and bonus are shown after gross", async () => {
   const C = new ObjectId().toString();
-  // Paid: 2 × hold set (sale 1000, cost 600), discount 100 → net 900 fully paid. Bonus 10% of 900 = 90.
+  // Paid: 2 × hold set (sale 1000, cost 600), discount 100 → net 900 fully paid. Bonus ₹50 per bill.
   const paid = await createEngBill(C, bill([{ item: "hold-set", qty: 2, rate: 500 }], { discount: 100 }));
   await recordEngPayment(C, paid._id, { amount: 900 });
-  // Part-paid: 1 × hold set (sale 500, cost 300), half collected. Bonus 10% of 500 = 50.
+  // Part-paid: 1 × hold set (sale 500, cost 300), half collected. Bonus ₹50.
   const part = await createEngBill(C, bill([{ item: "hold-set", qty: 1, rate: 500 }]));
   await recordEngPayment(C, part._id, { amount: 250 });
-  // Unpaid, no cost set: tel (sale 200, cost 0) → flagged as a line without a cost price. Bonus 20.
+  // Unpaid, no cost set: tel (sale 200, cost 0) → flagged as a line without a cost price. Bonus ₹50.
   await createEngBill(C, bill([{ item: "tel", qty: 1, rate: 200 }]));
 
   const p = await getEngProfit(C, {});
-  assert.deepEqual(p.earned, { bills: 1, sales: 1000, cost: 600, gross: 400, discount: 100, afterDiscount: 300, bonus: 90, afterBonus: 210 });
-  assert.deepEqual(p.expected, { bills: 2, sales: 700, cost: 300, gross: 400, discount: 0, afterDiscount: 400, bonus: 70, afterBonus: 330 });
+  assert.deepEqual(p.earned, { bills: 1, sales: 1000, cost: 600, gross: 400, discount: 100, afterDiscount: 300, bonus: 50, afterBonus: 250 });
+  assert.deepEqual(p.expected, { bills: 2, sales: 700, cost: 300, gross: 400, discount: 0, afterDiscount: 400, bonus: 100, afterBonus: 300 });
   assert.equal(p.missingCostLines, 1);
   const hold = p.byItem.find((r) => r.item === "hold-set");
   assert.deepEqual({ qty: hold.qty, sales: hold.sales, cost: hold.cost, gross: hold.gross, margin: hold.margin }, { qty: 3, sales: 1500, cost: 900, gross: 600, margin: 40 });

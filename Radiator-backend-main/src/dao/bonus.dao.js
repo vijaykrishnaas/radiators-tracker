@@ -20,12 +20,14 @@ function catalogValue(options = [], stored) {
   return opt ? opt.value : stored;
 }
 
-function effectivePercent(line, role, settings, productValue) {
+// Bonus is in rupees only (no percentages). The radiator grid holds ₹ per service line in `amountMatrix`; the older
+// `matrix` of percentages is ignored, so a 10% is never read as ₹10.
+function lineAmount(line, role, settings, productValue) {
   const cfg = settings.bonus?.[role] || {};
   const serviceValue = catalogValue(settings.catalog?.serviceTypes, line.type);
-  const fromMatrix = cfg.matrix?.[productValue]?.[serviceValue];
-  if (typeof fromMatrix === "number") return fromMatrix;
-  return Number(cfg.defaultPercent || 0);
+  const fromMatrix = cfg.amountMatrix?.[productValue]?.[serviceValue];
+  const amount = typeof fromMatrix === "number" ? fromMatrix : Number(cfg.defaultAmount || 0);
+  return Math.min(Math.max(amount || 0, 0), 1_000_000);
 }
 
 function computeTotal(serviceInfo) {
@@ -55,21 +57,18 @@ function computeRoleBonus(record, role, settings) {
   const received = Math.min(normalizeReceived(record, totalAmount), totalAmount);
   const ratio = totalAmount > 0 ? Math.min(received / totalAmount, 1) : 0;
 
-  // Each role is either a % matrix of the service prices (default) or a fixed ₹ per bill (bonus.<role>.mode
+  // Each role is a fixed ₹ per service line from the grid (default) or a fixed ₹ per bill (bonus.<role>.mode
   // "amount"; for labour the bill's amount is split equally among its workers by the caller). Either way it becomes
-  // payable in step with collection. Settings are saved without server checks, so the amount is clamped here.
+  // payable in step with collection. Settings are saved without server checks, so amounts are clamped here.
   const cfg = settings.bonus?.[role] || {};
   let accrued;
   if (cfg.mode === "amount") {
     const perBill = Math.min(Math.max(Number(cfg.amount) || 0, 0), 1_000_000);
     accrued = totalAmount > 0 ? perBill : 0;
   } else {
-    const accruedGross = (record.serviceInfo || []).reduce(
-      (sum, line) =>
-        sum + Number(line.price || 0) * effectivePercent(line, role, settings, productValue) / 100,
-      0
-    );
-    accrued = grossTotal > 0 ? accruedGross * (totalAmount / grossTotal) : 0;
+    accrued = totalAmount > 0
+      ? (record.serviceInfo || []).reduce((sum, line) => sum + lineAmount(line, role, settings, productValue), 0)
+      : 0;
   }
 
   return {
@@ -158,8 +157,8 @@ export async function syncBonusesForRecord(clientId, record) {
 
 // ---------------------------------------------------------------------------
 // Automobile-vertical bonuses. Bills there are free-form parts lists (no
-// product/service matrix), so bonus is a flat % of the bill's net total
-// instead of the per-line matrix used above. Everything downstream — the
+// product/service grid), so bonus is a fixed ₹ per bill for each role
+// instead of the per-line grid used above. Everything downstream — the
 // `bonuses` collection, aggregateByBeneficiary, markPaid*, adjustPendingPayable,
 // addManualBonus — is reused unchanged because the entries this writes are
 // shape-identical to syncBonusesForRecord's.
@@ -170,7 +169,8 @@ function computeAutoTotal(items) {
 }
 
 function computeFlatRoleBonus(record, role, settings) {
-  const percent = Number(settings.automobile?.bonus?.[role === "mechanic" ? "mechanicPercent" : "labourPercent"] || 0);
+  // Rupees only: settings.automobile.bonus.<role>Amount per bill (the older <role>Percent is ignored).
+  const perBill = Math.min(Math.max(Number(settings.automobile?.bonus?.[role === "mechanic" ? "mechanicAmount" : "labourAmount"]) || 0, 0), 1_000_000);
   const grossTotal = computeAutoTotal(record.items);
   const discount = Math.max(Number(record.discount || 0), 0);
   const totalAmount = Math.max(grossTotal - discount, 0);
@@ -179,7 +179,7 @@ function computeFlatRoleBonus(record, role, settings) {
     totalAmount
   );
   const ratio = totalAmount > 0 ? Math.min(received / totalAmount, 1) : 0;
-  const accrued = totalAmount * percent / 100;
+  const accrued = totalAmount > 0 ? perBill : 0;
 
   return {
     accrued: round2(accrued),
@@ -264,8 +264,8 @@ export async function syncAutoBonusesForRecord(clientId, record) {
   }
 }
 
-// Parallel of getReviewData, sourced from `autobills` with the flat-%
-// suggestedBonus calculation instead of the product/service matrix.
+// Parallel of getReviewData, sourced from `autobills` with the per-bill ₹
+// suggestedBonus calculation instead of the product/service grid.
 export async function getAutoReviewData(clientId, type, name, fromDate, toDate, settings) {
   const db = await connectDB();
 

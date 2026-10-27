@@ -917,3 +917,15 @@ User's answer on "current date sort": "Latest bill date first".
 - Test: `test/billorder.test.js` (8 tests, one order test and one filter test per company type, list and export). Before the change the radiator, automobile and tyre order tests fail (their filter tests failed only on the order of the same bills); after it all pass in both time zones.
 
 Gate: backend 117/117; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## User request (2026-10-27) — bonus in rupees only, no percentages (radiator, automobile, engineering)
+User: "Remove percentage wise bonus, only with rupees"; for radiator they chose "₹ per service in grid". (Tyre has no bonus any more.)
+- Radiator (`bonus.dao.js` `computeRoleBonus`): each role is "₹ per service" (default: a fixed ₹ for each service line from the product × service grid, stored in the new `bonus.<role>.amountMatrix`, with "Default ₹ per service" for anything not in the grid) or "₹ per bill" (unchanged). The old `matrix` of percentages and `defaultPercent` are ignored, so an old 10% is never read as ₹10.
+- Automobile (`computeFlatRoleBonus`): a fixed ₹ per bill for the mechanic (`mechanicAmount`) and for the workers (`labourAmount`, split equally). The old `mechanicPercent` / `labourPercent` are ignored.
+- Engineering (`engbonus.dao.js`): a fixed ₹ per bill (`mechanicAmount`); the % mode is gone.
+- Fixed amounts are not reduced by a discount (as the existing ₹ per bill already worked); they still become payable in step with collection. Bills with a zero total earn nothing.
+- Settings: radiator bonus type "₹ per service" / "₹ per bill" with ₹ cells; automobile two ₹ boxes; engineering one ₹ box (no type switch). The admin client view shows the ₹ grid. Run 79's "0–100%" Save check is removed: no percentages remain, and old stored % values must not block saving.
+- **Existing tenants must enter their ₹ amounts once.** Until then their bonus works out to ₹0. Pending (not yet paid) bonus entries are re-priced when a bill is next saved or paid, or with Recalculate on the Bonus page. Paid entries never change.
+- Tests: backend bonus tests converted to ₹ (automobile, radiator, radiator dao, engineering bonus and profit), plus "bonus is rupees only: an old % grid (or no mode) is never read as rupees" and the engineering "an old % setting is ignored" case; e2e: radiator "₹ per service grid, with no % anywhere" and "saves labour ₹40 per BS-3 service line", engineering "only a mechanic ₹ per bill (no %)".
+
+Gate: backend 118/118; tsc + build OK; e2e tyre 66, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.

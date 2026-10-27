@@ -1,6 +1,7 @@
-// Engineering-works mechanic bonus. Mirrors the automobile flat-% model in bonus.dao.js (kept in its own file so the
-// radiator / automobile bonus code is not touched): bonus = settings.engineering.bonus.mechanicPercent of the bill's
-// net (post-discount) total, or a fixed mechanicAmount per bill when mechanicMode is "amount", payable in proportion to the amount collected, settled per financial year. Entries live
+// Engineering-works mechanic bonus. Mirrors the automobile per-bill model in bonus.dao.js (kept in its own file so the
+// radiator / automobile bonus code is not touched): bonus = a fixed settings.engineering.bonus.mechanicAmount per bill
+// (rupees only; the older mechanicPercent / mechanicMode are ignored), payable in proportion to the amount collected,
+// settled per financial year. Entries live
 // in the shared "bonuses" collection, so the existing pending/payout/adjust/manual endpoints work unchanged.
 import { connectDB } from "../config/db.js";
 import { ObjectId } from "mongodb";
@@ -12,20 +13,18 @@ import { yearKey, SETTLED } from "./bonus.dao.js";
 const COLLECTION = "bonuses";
 const round2 = (n) => Math.round(n * 100) / 100;
 
-// The bonus is either a % of the net total or a fixed ₹ per bill (bonus.mechanicMode "amount"). Either way it becomes
-// payable in step with collection, so a fixed ₹500 on a half-paid bill has ₹250 ready to pay.
+// The bonus is a fixed ₹ per bill. It becomes payable in step with collection, so ₹500 on a half-paid bill has ₹250
+// ready to pay.
 export function computeEngMechanicBonus(bill, settings) {
   const cfg = settings?.engineering?.bonus || {};
-  // Settings are saved without server-side checks, so clamp here: 0–100 %, and a fixed amount of 0–₹10,00,000.
-  const fixed = cfg.mechanicMode === "amount";
-  const percent = Math.min(Math.max(Number(cfg.mechanicPercent) || 0, 0), 100);
+  // Settings are saved without server-side checks, so clamp here: a fixed amount of 0–₹10,00,000.
   const perBill = Math.min(Math.max(Number(cfg.mechanicAmount) || 0, 0), 1_000_000);
   const gross = Number.isFinite(Number(bill.total)) ? Number(bill.total) : 0;
   const discount = Math.max(Number(bill.discount || 0), 0);
   const net = Number.isFinite(Number(bill.netTotal)) ? Number(bill.netTotal) : Math.max(gross - discount, 0);
   const received = Math.min(Math.max(Number(bill.amountReceived) || 0, 0), net);
   const ratio = net > 0 ? Math.min(received / net, 1) : 0;
-  const accrued = fixed ? (net > 0 ? perBill : 0) : (net * percent) / 100;
+  const accrued = net > 0 ? perBill : 0;
   return { accrued: round2(accrued), payable: round2(accrued * ratio), totalAmount: net, received };
 }
 

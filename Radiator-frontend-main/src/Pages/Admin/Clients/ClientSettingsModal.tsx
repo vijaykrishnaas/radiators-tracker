@@ -189,18 +189,18 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
 
                                 <Section title="Bonus Configuration">
                                     <dl className="kv-list mb-3">
-                                        <KV label="Mechanic — Bonus type" value={bonus?.mechanic?.mode === "amount" ? `₹${bonus?.mechanic?.amount ?? 0} per bill` : "% of service price"} />
-                                        <KV label="Labour — Bonus type" value={bonus?.labour?.mode === "amount" ? `₹${bonus?.labour?.amount ?? 0} per bill (shared)` : "% of service price"} />
-                                        <KV label="Mechanic — Default %" value={bonus?.mechanic?.defaultPercent} />
+                                        <KV label="Mechanic — Bonus type" value={bonus?.mechanic?.mode === "amount" ? `₹${bonus?.mechanic?.amount ?? 0} per bill` : "₹ per service"} />
+                                        <KV label="Labour — Bonus type" value={bonus?.labour?.mode === "amount" ? `₹${bonus?.labour?.amount ?? 0} per bill (shared)` : "₹ per service"} />
+                                        <KV label="Mechanic — Default ₹ per service" value={bonus?.mechanic?.defaultAmount ?? 0} />
                                         <KV label="Mechanic — Year Starts (month)" value={bonus?.mechanic?.yearStartMonth} />
-                                        <KV label="Labour — Default %" value={bonus?.labour?.defaultPercent} />
+                                        <KV label="Labour — Default ₹ per service" value={bonus?.labour?.defaultAmount ?? 0} />
                                     </dl>
-                                    <p className="t-xs t-muted mb-1">Mechanic Bonus % Matrix</p>
+                                    <p className="t-xs t-muted mb-1">Mechanic Bonus ₹ per Service</p>
                                     <div className="mb-3">
-                                        <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.mechanic?.matrix} />
+                                        <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.mechanic?.amountMatrix} money />
                                     </div>
-                                    <p className="t-xs t-muted mb-1">Labour Bonus % Matrix</p>
-                                    <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.labour?.matrix} />
+                                    <p className="t-xs t-muted mb-1">Labour Bonus ₹ per Service</p>
+                                    <MatrixTable products={catalog.productTypes} services={priceableServices} matrix={bonus?.labour?.amountMatrix} money />
                                 </Section>
                             </>
                         )}

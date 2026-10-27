@@ -11,7 +11,7 @@ const settings = {
   engineering: {
     billStartNumber: 1,
     fyStartMonth: 4,
-    bonus: { mechanicPercent: 10 },
+    bonus: { mechanicAmount: 200 },
     serviceTypes: [{
       label: "Turbo", value: "turbo",
       items: [
@@ -36,15 +36,15 @@ const bill = (over = {}) => ({
   ...over,
 });
 
-test("a new bill creates a pending mechanic entry: accrued = % of net, payable follows collection", async () => {
+test("a new bill creates a pending mechanic entry: accrued = the ₹ per bill, payable follows collection", async () => {
   const b = await createEngBill(CLIENT, bill({ discount: 200, amountReceived: 900 })); // total 2000, net 1800, received 900
   const e = bonuses().find((x) => String(x.recordId) === String(b._id));
   assert.ok(e, "entry created");
   assert.equal(e.type, "mechanic");
   assert.equal(e.status, "pending");
   assert.equal(e.beneficiary, "Ravi");
-  assert.equal(e.accruedAmount, 180);   // 10% of 1800
-  assert.equal(e.payableAmount, 90);    // half collected
+  assert.equal(e.accruedAmount, 200);   // ₹200 per bill (a discount doesn't shrink it)
+  assert.equal(e.payableAmount, 100);   // half collected
   assert.equal(e.billAmount, 1800);
   assert.equal(e.period, "2026");       // FY starting April 2026
 });
@@ -72,7 +72,7 @@ test("editing the bill re-prices the entry and follows a mechanic change", async
   const es = bonuses().filter((x) => String(x.recordId) === String(b._id));
   assert.equal(es.length, 1);
   assert.equal(es[0].beneficiary, "Suresh");
-  assert.equal(es[0].accruedAmount, 100);
+  assert.equal(es[0].accruedAmount, 200);
 });
 
 test("a paid entry is a settlement record: later edits never rewrite it", async () => {
@@ -126,7 +126,7 @@ test("review data is shaped for the Mechanic Review page and scoped to the mecha
   assert.equal(r.summary.totalCollected, 1000);
   assert.equal(r.summary.collectionRate, 40);
   assert.equal(r.summary.totalOperations, 2);
-  assert.equal(r.summary.suggestedBonus, 100); // 10% of 2500 * 1000/2500
+  assert.equal(r.summary.suggestedBonus, 80); // ₹200 × 1000/2500 collected
   assert.equal(r.bills.length, 1);
   assert.equal(r.bills[0].truckNumber, "TN01AB1234");
   assert.deepEqual(r.bills[0].services.map((s) => s.comments || s.type), ["Hold set", "Bearing clean"]);
@@ -155,7 +155,7 @@ test("no mechanic means no entry, and clearing the mechanic drops the pending en
 
 test("fixed ₹ per bill: accrues the amount once per bill, payable follows collection, nothing on a zero bill", async () => {
   const saved = structuredClone(settings.engineering.bonus);
-  settings.engineering.bonus = { mechanicMode: "amount", mechanicPercent: 10, mechanicAmount: 500 };
+  settings.engineering.bonus = { mechanicAmount: 500 };
   try {
     const b = await createEngBill(CLIENT, bill({ discount: 200, amountReceived: 900 })); // net 1800, half collected
     const e = bonuses().find((x) => String(x.recordId) === String(b._id));
@@ -169,16 +169,16 @@ test("fixed ₹ per bill: accrues the amount once per bill, payable follows coll
   }
 });
 
-test("bonus settings are clamped: negative or >100 % and absurd amounts can't create negative or runaway bonuses", async () => {
+test("bonus is rupees only and clamped: an old % setting is ignored, negative and absurd amounts can't run away", async () => {
   const saved = structuredClone(settings.engineering.bonus);
   try {
-    settings.engineering.bonus = { mechanicMode: "percent", mechanicPercent: -50 };
+    settings.engineering.bonus = { mechanicAmount: -50 };
     const a = await createEngBill(CLIENT, bill());
     assert.equal(bonuses().find((x) => String(x.recordId) === String(a._id)).accruedAmount, 0);
     settings.engineering.bonus = { mechanicMode: "percent", mechanicPercent: 250 };
-    const b = await createEngBill(CLIENT, bill()); // net 2000
-    assert.equal(bonuses().find((x) => String(x.recordId) === String(b._id)).accruedAmount, 2000);
-    settings.engineering.bonus = { mechanicMode: "amount", mechanicAmount: 1e12 };
+    const b = await createEngBill(CLIENT, bill()); // net 2000; a % is no longer a bonus
+    assert.equal(bonuses().find((x) => String(x.recordId) === String(b._id)).accruedAmount, 0);
+    settings.engineering.bonus = { mechanicAmount: 1e12 };
     const c = await createEngBill(CLIENT, bill());
     assert.equal(bonuses().find((x) => String(x.recordId) === String(c._id)).accruedAmount, 1_000_000);
   } finally {

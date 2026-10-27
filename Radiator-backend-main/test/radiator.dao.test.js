@@ -14,8 +14,8 @@ const settings = {
     serviceTypes: [{ label: "Service", value: "service" }, { label: "Tank", value: "tank" }],
   },
   bonus: {
-    mechanic: { matrix: { bs4: { service: 10, tank: 5 } }, defaultPercent: 0, yearStartMonth: 4 },
-    labour: { matrix: { bs4: { service: 4, tank: 4 } }, defaultPercent: 0 },
+    mechanic: { amountMatrix: { bs4: { service: 200, tank: 25 } }, defaultAmount: 0, yearStartMonth: 4 },
+    labour: { amountMatrix: { bs4: { service: 80, tank: 20 } }, defaultAmount: 0 },
   },
 };
 
@@ -47,7 +47,7 @@ test("create: totals, status and per-line bonus accrual from the matrix", async 
   assert.equal(bill.pendingAmount, 2500);
   assert.equal(bill.status, "Not Received");
   const mech = bonuses().find((b) => b.type === "mechanic");
-  assert.equal(mech.accruedAmount, 225); // 10% of 2000 + 5% of 500
+  assert.equal(mech.accruedAmount, 225); // ₹200 for the Service line + ₹25 for the Tank line
   assert.equal(mech.payableAmount, 0);
 });
 
@@ -65,9 +65,9 @@ test("recordPayment: discount is the bill's total discount; status and payable f
   assert.equal(r2.pendingAmount, 0);
   assert.equal(r2.status, "Received");
   const mech = bonuses().find((b) => b.type === "mechanic");
-  // accrued scales with net/gross: 225 × 2350/2500 = 211.5, fully payable.
-  assert.equal(mech.accruedAmount, 211.5);
-  assert.equal(mech.payableAmount, 211.5);
+  // Fixed ₹ per service line: the discount doesn't shrink it; fully payable once the bill is collected.
+  assert.equal(mech.accruedAmount, 225);
+  assert.equal(mech.payableAmount, 225);
 });
 
 test("recordPayment: paid in paise parts, a fully paid bill ends Received, not Partial with nothing pending", async () => {

@@ -75,27 +75,31 @@ export const defaultSettings = {
   // Either role can instead be a fixed ₹ per bill: mode "amount" + amount (labour's amount is split among the workers).
   bonus: {
     mechanic: {
-      mode: "percent",
+      // Rupees only: "line" = a fixed ₹ per service line from amountMatrix (defaultAmount for anything not in the
+      // grid), "amount" = a fixed ₹ per bill.
+      mode: "line",
       amount: 0,
-      matrix: {
+      amountMatrix: {
         bs2: { service: 0, new: 0, tank: 0, cover: 0 },
         bs3: { service: 0, new: 0, tank: 0, cover: 0 },
         bs4: { service: 0, new: 0, tank: 0, cover: 0 },
         bs6: { service: 0, new: 0, tank: 0, cover: 0 },
       },
-      defaultPercent: 0,
+      defaultAmount: 0,
       yearStartMonth: 4,
     },
     labour: {
-      mode: "percent",
+      // Rupees only: "line" = a fixed ₹ per service line from amountMatrix (defaultAmount for anything not in the
+      // grid), "amount" = a fixed ₹ per bill.
+      mode: "line",
       amount: 0,
-      matrix: {
+      amountMatrix: {
         bs2: { service: 0, new: 0, tank: 0, cover: 0 },
         bs3: { service: 0, new: 0, tank: 0, cover: 0 },
         bs4: { service: 0, new: 0, tank: 0, cover: 0 },
         bs6: { service: 0, new: 0, tank: 0, cover: 0 },
       },
-      defaultPercent: 0,
+      defaultAmount: 0,
     },
   },
 
@@ -106,8 +110,8 @@ export const defaultSettings = {
     // Parts catalog: picking a part in the bill form auto-fills unit + rate.
     // [{ label: "Engine Oil 15W40", value: "engine-oil-15w40", unit: "L", rate: 450 }]
     parts: [],
-    // Flat percentage of each bill's net (post-discount) total.
-    bonus: { mechanicPercent: 0, labourPercent: 0, yearStartMonth: 4 },
+    // A fixed ₹ per bill for each role (rupees only).
+    bonus: { mechanicAmount: 0, labourAmount: 0, yearStartMonth: 4 },
     labels: {
       vehicleNo: "Vehicle Number",
       customer: "Customer Name",
@@ -193,8 +197,8 @@ export const defaultSettings = {
     // Month (1-12) the financial year starts in. Drives the dashboard "This FY" range and its default start date.
     // Existing tenants without it fall back to 4 (April) in the frontend.
     fyStartMonth: 4,
-    // Mechanic bonus: flat % of each bill's net total, paid in proportion to the amount collected (engbonus.dao.js).
-    bonus: { mechanicMode: "percent", mechanicPercent: 0, mechanicAmount: 0 },
+    // Mechanic bonus: a fixed ₹ per bill, paid in proportion to the amount collected (engbonus.dao.js).
+    bonus: { mechanicAmount: 0 },
     invoice: {
       billTitle: "CASH / CREDIT BILL",
       footerNote: "Thank you for your business",
