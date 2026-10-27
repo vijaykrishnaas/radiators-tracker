@@ -541,3 +541,12 @@ test("review: sales by brand keeps a renamed brand as one bar, under its current
     mrf.label = oldLabel;
   }
 });
+
+test("review: list search matches only what a tyre challan shows (no hidden address, mechanic, labour or notes)", async () => {
+  // Older challans stored these fields; the challan no longer shows them, so a search must not find a challan by them.
+  const old = await createTyreBill(CLIENT, input({ vehicleNumber: "TN07OLD1", customerName: "Kumar", mechanicName: "Ramesh", labourName: ["Siva"], address: "Anna Nagar", notes: "urgent" }));
+  const ids = async (search) => (await getAllTyreBills(CLIENT, { search })).tyreBillData.map((b) => String(b._id));
+  for (const hidden of ["Ramesh", "Siva", "Anna Nagar", "urgent"]) assert.ok(!(await ids(hidden)).includes(String(old._id)), `found by hidden "${hidden}"`);
+  assert.ok((await ids("Kumar")).includes(String(old._id)));
+  assert.ok((await ids("TN07OLD1")).includes(String(old._id)));
+});

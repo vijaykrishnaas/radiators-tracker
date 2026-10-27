@@ -528,9 +528,10 @@ function searchClause(search) {
   const text = String(search || "").trim();
   if (!text) return null;
   const rx = { $regex: escapeRegex(text), $options: "i" };
+  // Only what a challan shows: older challans may still store an address, mechanic, labour or notes, which the
+  // challan no longer has, so a search must not find a challan by them.
   const or = [
-    { vehicleNumber: vehicleRx(text) }, { customerName: rx }, { phoneNumber: rx }, { address: rx }, { mechanicName: rx },
-    { labourName: rx }, { "items.particulars": rx }, { "items.tyreNumber": rx }, { notes: rx },
+    { vehicleNumber: vehicleRx(text) }, { customerName: rx }, { phoneNumber: rx }, { "items.particulars": rx }, { "items.tyreNumber": rx },
   ];
   if (/^\d+$/.test(text)) or.push({ billNo: Number(text) });
   return { $or: or };

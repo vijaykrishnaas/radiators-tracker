@@ -949,3 +949,10 @@ Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Sala
 New challan form at 1300px (light) and 390px (dark): "Delivered to" now holds Date*, Vehicle Number*, Customer Name and Phone number, as a 2 × 2 grid on a laptop and one column on a phone; no gaps where the removed fields were, no sideways scrolling. Saving without a mechanic works (the tyre e2e create flow, 67/67 last run).
 
 Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Salary change, all green).
+
+## Run 83 — area (c) list + dashboard, round 14 (search after the field removals)
+**Bug: the challan list found older challans by text they no longer show.** Repro: a challan saved before today with mechanic "Ramesh" (or labour "Siva", address "Anna Nagar", notes "urgent"); search "Ramesh" on the challan list → it is listed, though nothing on the challan or the list says Ramesh. The search still looked in the address, mechanic, labour and notes fields that were removed from the challan today.
+- Fix (`tyrebill.dao.js` `searchClause`): the search looks only at what a challan shows: D.C. No, vehicle number, customer, phone, tyre brand / model and tyre numbers. Customer and vehicle searches work as before.
+- Test: `test/tyrebill.dao.test.js` "list search matches only what a tyre challan shows". It fails before the fix (found by hidden "Ramesh") and passes after.
+
+Gate: backend 119/119; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
