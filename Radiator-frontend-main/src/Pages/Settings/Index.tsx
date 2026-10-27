@@ -113,8 +113,34 @@ const SettingsPage = () => {
         if (settingsLoaded && !seeded.current) {
             seeded.current = true;
             setDraft(settings);
+            savedSnap.current = snap(settings);
         }
     }, [settings, settingsLoaded]);
+
+    // Unsaved changes. Every edit here (a catalog brand or model added, a rate, a label) is kept only by
+    // Save All Settings; leaving the page used to drop them without a word ("my catalog changes disappear").
+    // Image links are left out of the comparison: uploads and removals are saved the moment they happen.
+    const savedSnap = useRef("");
+    const snap = (d: AppSettings) => JSON.stringify({ ...d, company: { ...d.company, logoUrl: "", qrUrl: "", signatureUrl: "", loginBgUrl: "" } });
+    const dirty = seeded.current && snap(draft) !== savedSnap.current;
+    useEffect(() => {
+        if (!dirty) return;
+        const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+        const onLinkClick = (e: MouseEvent) => {
+            const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+            if (!a || a.target === "_blank" || (a.getAttribute("href") || "").startsWith("#")) return;
+            if (!window.confirm("You have unsaved changes in Settings. Leave without saving them?")) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+        window.addEventListener("beforeunload", onBeforeUnload);
+        document.addEventListener("click", onLinkClick, true);
+        return () => {
+            window.removeEventListener("beforeunload", onBeforeUnload);
+            document.removeEventListener("click", onLinkClick, true);
+        };
+    }, [dirty]);
 
     const set = (path: string, value: unknown) => {
         setDraft((prev) => {
@@ -186,6 +212,7 @@ const SettingsPage = () => {
         try {
             setSaving(true);
             const res = await putData("settings", draft);
+            savedSnap.current = snap(draft);
             callAlertMsg(res.message || "Settings saved", "success");
             await refreshSettings();
         } catch (err: any) {
@@ -882,7 +909,10 @@ const SettingsPage = () => {
                 )}
             </div>
 
-            <FormFooter>{saveButton}</FormFooter>
+            <FormFooter>
+                {dirty && <span className="me-auto" role="status"><Badge tone="warning" dot>Unsaved changes</Badge> <span className="t-sm t-muted">Press Save All Settings to keep them</span></span>}
+                {saveButton}
+            </FormFooter>
 
             <ConfirmDialog
                 open={!!confirmRemove}

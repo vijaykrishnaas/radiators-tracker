@@ -890,3 +890,12 @@ Gate: backend 108/108; tsc + build OK; e2e tyre 66, automobile 45, engineering 1
 User report received during this run: "In settings, at tyre catalog is not working". Driven in the browser on a fresh tyre tenant (add brand, add model with rate, change rate, Save): every step works and the saved catalog is right; the server stores the `tyre` section as sent. Not reproduced yet; waiting on what the user sees.
 
 Gate: backend 109/109; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## User request (2026-10-27) — "In settings, at tyre catalog is not working" (user: "changes disappear")
+**Cause:** in the Tyre Catalog (and every Settings tab), adding a brand or model, changing a rate or renaming only changes the form; it is kept only when Save All Settings is pressed. Leaving the page or reloading dropped the changes with no warning. Repro in the browser: add brand JK with a 10.00-20 model, go to another page and come back → JK is gone. With Save All Settings pressed first, JK survives a reload (the server stores the catalog as sent).
+- Fix (`Pages/Settings/Index.tsx`): the page tracks unsaved changes (the form compared with the last loaded / saved settings; image links are left out, as uploads save at once). While there are unsaved changes the footer shows "Unsaved changes — Press Save All Settings to keep them", clicking any link in the app asks "You have unsaved changes in Settings. Leave without saving them?" (Cancel stays), and reloading or closing the tab gets the browser's leave warning. After Save the note clears.
+- Test: `e2e/tyre.e2e.mjs` "unsaved catalog changes are flagged, and leaving asks first". The old code leaves without asking, so the suite cannot pass on it.
+
+Gate: backend 109/109; tsc + build OK; e2e tyre 67, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+Other user requests from the same message (in progress): bill tables sorted by latest bill date first and the date filter checked (all company types); bonus in ₹ only, no % (all company types); engineering print without the subtitle; tyre challan form and print without address, mechanic, labour and note, and no tyre bonus (user's answer: "No bonus for tyre").

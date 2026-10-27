@@ -477,6 +477,26 @@ const pctMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
 ok("tyre: a bonus percentage over 100 is not saved", settingsPuts.length === putsBeforePct && /between 0 and 100/.test(pctMsg), `${settingsPuts.length - putsBeforePct} saves; "${pctMsg.slice(0, 80)}"`);
 await mechPct.click(); await mechPct.press("Control+a"); await page.keyboard.type(pctBefore || "0");
 await page.getByRole("tab", { name: "Tyre Catalog" }).click();
+// Catalog edits are kept only by Save All Settings. Leaving without saving used to drop them silently ("my catalog
+// changes disappear"); now the footer says so and leaving asks first.
+const unsavedNote = page.locator(".form-footer [role=status]");
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const cleanAfterSave = (await unsavedNote.count()) === 0;
+await page.locator("#new-tyre-brand").fill("Bridgestone");
+await page.getByRole("button", { name: "Add brand" }).click();
+const noteShown = /Unsaved changes/.test((await unsavedNote.allTextContents()).join(" "));
+const leaveDialogs = [];
+const onDialog = (d) => { leaveDialogs.push(d.message()); d.dismiss(); };
+page.on("dialog", onDialog);
+await page.locator("a.sidebar-item").first().click();
+await page.waitForTimeout(400);
+page.off("dialog", onDialog);
+const stayed = new URL(page.url()).pathname === "/settings" && (await page.locator("#tyre-brand-bridgestone").count()) === 1;
+ok("tyre: unsaved catalog changes are flagged, and leaving asks first", cleanAfterSave && noteShown && leaveDialogs.length === 1 && stayed,
+  `clean after save ${cleanAfterSave}, note ${noteShown}, dialogs ${leaveDialogs.length}, stayed ${stayed}`);
+if (stayed) await page.getByRole("button", { name: "Remove Bridgestone and its models" }).click();
+else { await page.goto(BASE + "/settings"); await page.getByRole("tab", { name: "Tyre Catalog" }).click(); }
 const tabs = await page.locator(".settings-nav").innerText();
 ok("tyre: settings tabs are the tyre set", /Tyre Catalog/.test(tabs) && /Labels & Challan/.test(tabs) && !/Parts Catalog|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
 // A renamed brand / model keeps its stored value; adding a new one under the old name must work and get its own value.
