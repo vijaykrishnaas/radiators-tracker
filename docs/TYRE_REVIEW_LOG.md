@@ -874,3 +874,10 @@ Gate: backend 108/108; tsc + build OK; e2e tyre 65, automobile 45, engineering 1
 The challan form's address is a multi-line box. A challan whose address was typed as four lines ("Door No. 221/4 / Omalur Main Road / Near New Bus Stand / Salem 636004") keeps the line breaks when saved and prints them in "Delivered to" as four lines, with the phone below and the tyre table after; 0 overprints. `getTextDimensions` counts the typed line breaks, so the block below is placed correctly.
 
 Nothing new found. No code changed (last full gate: run 77, all green).
+
+## Run 79 — area (e) settings, inventory, bonus, round 13 (a bonus percentage over 100)
+**Bug: Settings saved a bonus percentage of 250% without a word.** Repro: Settings → tyre Bonus, mechanic "% of tyre amount" → type 250 (a typo for 25), Save All Settings → `mechanicPercent: 250` saved, no message. The box's `max={100}` is only a hint (the Settings form does not use the browser's checks). The bonus code then quietly clamps to 100%, so the mechanic is owed the whole tyre amount while Settings shows "250%". The automobile, engineering and radiator percentage boxes (the shared `pctField` and the radiator bonus grid) accept it the same way.
+- Fix (`Pages/Settings/Index.tsx`, `handleSave`): Save is refused while any bonus percentage (flat ones and the radiator grid, every vertical) is outside 0–100, with "A bonus percentage must be between 0 and 100 (Bonus tab). Fix it, then save." Nothing is sent.
+- Test: `e2e/tyre.e2e.mjs` "a bonus percentage over 100 is not saved". It fails before the fix (1 save) and passes after. The automobile, engineering and radiator suites, which save their own settings, still pass.
+
+Gate: backend 108/108; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

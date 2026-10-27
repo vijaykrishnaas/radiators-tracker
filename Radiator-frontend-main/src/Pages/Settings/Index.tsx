@@ -171,6 +171,18 @@ const SettingsPage = () => {
             callAlertMsg("Every tyre brand and model needs a name (Tyre Catalog). Type a name or remove it, then save.", "error");
             return;
         }
+        // The % boxes only hint at 0–100; a typo like 250 was saved as is, and the bonus code then quietly paid 100%
+        // of the bill. Every bonus percentage (flat ones and the radiator grid) must be 0–100.
+        const percents: number[] = [];
+        const collect = (node: unknown, inPercent: boolean) => {
+            if (typeof node === "number") { if (inPercent) percents.push(node); return; }
+            if (node && typeof node === "object") Object.entries(node).forEach(([k, v]) => collect(v, inPercent || /percent$|^matrix$/i.test(k)));
+        };
+        [draft.bonus, draft.automobile?.bonus, draft.engineering?.bonus, draft.tyre?.bonus].forEach((b) => collect(b, false));
+        if (percents.some((p) => !(p >= 0 && p <= 100))) {
+            callAlertMsg("A bonus percentage must be between 0 and 100 (Bonus tab). Fix it, then save.", "error");
+            return;
+        }
         try {
             setSaving(true);
             const res = await putData("settings", draft);

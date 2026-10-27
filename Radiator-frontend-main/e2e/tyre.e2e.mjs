@@ -465,6 +465,18 @@ await page.waitForTimeout(600);
 const blankMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
 ok("tyre: a brand with no name is not saved", settingsPuts.length === putsBefore && /needs a name/.test(blankMsg), `${settingsPuts.length - putsBefore} saves; "${blankMsg.slice(0, 80)}"`);
 await page.locator("#tyre-brand-ceat").fill("CEAT");
+// A bonus percentage over 100 must not be saved: 250 (a typo for 25) was saved, and the bonus quietly paid 100%.
+await page.getByRole("tab", { name: /Bonus/ }).first().click();
+const mechPct = page.locator("#tyre-mechanic-pct");
+const pctBefore = await mechPct.inputValue();
+await mechPct.click(); await mechPct.press("Control+a"); await page.keyboard.type("250");
+const putsBeforePct = settingsPuts.length;
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const pctMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
+ok("tyre: a bonus percentage over 100 is not saved", settingsPuts.length === putsBeforePct && /between 0 and 100/.test(pctMsg), `${settingsPuts.length - putsBeforePct} saves; "${pctMsg.slice(0, 80)}"`);
+await mechPct.click(); await mechPct.press("Control+a"); await page.keyboard.type(pctBefore || "0");
+await page.getByRole("tab", { name: "Tyre Catalog" }).click();
 const tabs = await page.locator(".settings-nav").innerText();
 ok("tyre: settings tabs are the tyre set", /Tyre Catalog/.test(tabs) && /Labels & Challan/.test(tabs) && !/Parts Catalog|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
 // A renamed brand / model keeps its stored value; adding a new one under the old name must work and get its own value.
