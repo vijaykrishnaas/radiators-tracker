@@ -975,3 +975,14 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
 - Bonus settings at 390px (radiator, automobile, engineering, light; radiator dark): no page-level sideways scroll, and the radiator ₹ grid scrolls inside its own box.
 - Noted, not changed: the radiator labour card's heading reads "Labour Name bonus" because it uses the worker label stored in Settings (wording the user owns).
 - No bugs found. Quiet run (1 of 3).
+
+## Run 87: 2026-10-27 (area a, challan money logic)
+- Due dates: "YYYY-MM-DD" is stored as UTC midnight on servers in both India and US Pacific time, so the day-based overdue check reads the right day.
+- Negative amounts are refused by `toMoney`, so a payment can't lower what was received, even together with a discount change.
+- A seeded fuzz (150 challans, a mix of full and installment, up to 6 random payments, discounts or edits each, including overpay attempts) checked after every step:
+  - received equals the sum of the payment log;
+  - pending equals what's left to collect, never below 0;
+  - status matches what was received;
+  - no installment is paid beyond its total.
+  All held. The fuzz was a scratch test and isn't committed.
+- No bugs found. Quiet run (2 of 3).
