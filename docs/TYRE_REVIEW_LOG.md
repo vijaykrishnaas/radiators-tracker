@@ -818,3 +818,8 @@ Nothing new found. No code changed (last full gate: run 65, all green). Third ru
 - With no sort picked, the screen shows newest-entered first and the export goes by bill date, newest first. Automobile and radiator do the same (list `createdAt`, export `billDate`), so this is the app's convention for a report, not a tyre bug.
 
 Nothing new found. No code changed (last full gate: run 65, all green). Fourth run in a row with nothing new (66–69): stopping the hourly task is suggested.
+
+## Run 70 — area (d) printed challan, round 12 (the largest challan the server accepts)
+A challan at both limits (`MAX_ITEMS` 100 tyre lines, each with a serial; `MAX_ROWS` 120 installments with paise principals; the first row paid), printed from the app: 13 pages, 0 overprints, every page carries "D.C. No 1 · Page n of 13", and the installment table's header repeats on each page. Page 12 is filled with installment rows down to the footer, so the receiver / authorised signature block moves to page 13 on its own (run 10's rule: a new page only when the block truly doesn't fit).
+
+Nothing new found. No code changed (last full gate: run 65, all green). Fifth run in a row with nothing new (66–70): stopping the hourly task is suggested.
