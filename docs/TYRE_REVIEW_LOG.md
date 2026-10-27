@@ -838,3 +838,13 @@ Looked for run 71's failure (a catalog entry renamed to nothing, then every bill
 Only the tyre catalog refused bills (`buildItems` requires a brand / model name), and run 71 now stops it at Save.
 
 Nothing new found. No code changed (last full gate: run 71, all green).
+
+## Run 73 — area (a) money logic, round 13 (paise sums on a full-payment challan)
+**Bug: a full-payment challan paid in parts could stay "Partial" with ₹0 pending.** Repro: a ₹10,000.37 challan paid ₹5,000.19, then ₹5,000.18 → stored `receivedAmount` 10000.369999999999, `pendingAmount` 0, status "Partial". The received amount was the previous one plus the new payment, never rounded, and the status compares it with the total. The challan then showed in the Partial filter forever (nothing left to pay, so no later payment would rewrite it), and its bonus stayed a hair short of fully payable. Installment rows were safe (`sumPaid` rounds).
+- Fix (`tyrebill.dao.js` `computeTotals`): the full-payment received amount is rounded to the paisa, so every write stores and compares whole paise.
+- Test: `test/tyrebill.dao.test.js` "a full-payment challan paid in paise parts ends Received, not Partial with nothing pending". It fails before the fix and passes after.
+- Already-saved tyre challans with this float noise keep their stored "Partial" until they are next edited (an edit recomputes the totals). The tyre type is new on `staging`, so no data migration was written.
+
+Open (found here, not changed in this run): automobile bills have the same pattern (`autobill.dao.js` `recordPayment`: `current + amount`, unrounded, then `deriveStatus`). To be reproduced and fixed with its own test in the next regressions (f) run.
+
+Gate: backend 105/105; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

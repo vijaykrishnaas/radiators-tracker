@@ -229,7 +229,9 @@ function computeTotals(doc) {
   }
   const discount = Math.min(Math.max(Number(doc.discount) || 0, 0), tyreAmount);
   const payableTotal = round2(tyreAmount - discount);
-  const receivedAmount = Math.min(Math.max(Number(doc.receivedAmount) || 0, 0), payableTotal);
+  // Kept to the paisa: added up payment by payment, ₹5,000.19 + ₹5,000.18 is 10000.369999999999 in floating point,
+  // which left a fully paid ₹10,000.37 challan "Partial" with ₹0 pending.
+  const receivedAmount = round2(Math.min(Math.max(Number(doc.receivedAmount) || 0, 0), payableTotal));
   return {
     installments: [],
     tyreAmount,

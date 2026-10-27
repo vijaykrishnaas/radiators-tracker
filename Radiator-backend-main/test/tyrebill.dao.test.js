@@ -512,3 +512,13 @@ test("review: vehicle-number search ignores spaces, so a lorry typed both ways i
   assert.deepEqual(await ids({ search: "TN 58 AB 5678" }), [String(tight._id)]);
   assert.deepEqual(await ids({ vehicleNumber: "tn 58ab1234" }), [String(spaced._id)]);
 });
+
+test("review: a full-payment challan paid in paise parts ends Received, not Partial with nothing pending", async () => {
+  // ₹5,000.19 + ₹5,000.18 adds up to 10000.369999999999 in floating point, a hair under the ₹10,000.37 total.
+  const bill = await createTyreBill(CLIENT, input({ paymentType: "full", installments: [], items: [tyre({ qty: 1, rate: 10000.37 })] }));
+  await recordTyrePayment(CLIENT, bill._id, { amount: 5000.19 });
+  const paid = await recordTyrePayment(CLIENT, bill._id, { amount: 5000.18 });
+  assert.equal(paid.receivedAmount, 10000.37);
+  assert.equal(paid.pendingAmount, 0);
+  assert.equal(paid.status, "Received");
+});
