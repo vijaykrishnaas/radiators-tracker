@@ -25,7 +25,7 @@ mock.module("../src/dao/settings.dao.js", { namedExports: { getSettings: async (
 
 const { createTyreBill, updateTyreBill, recordTyrePayment, getTyreBillById, deleteTyreBill, enrich, buildTyreQuery, getInstallmentFollowUp, getTyreAnalytics, getAllTyreBills, getAllTyreBillsForExport } =
   await import("../src/dao/tyrebill.dao.js");
-const { addStockEntry, getStockLevels, getPartMovements } = await import("../src/dao/inventory.dao.js");
+const { addStockEntry, getStockLevels, getPartMovements, listStockEntries } = await import("../src/dao/inventory.dao.js");
 const { markPaidByRange, cancelPaidBonus, getPendingByRange } = await import("../src/dao/bonus.dao.js");
 
 const CLIENT = new ObjectId();
@@ -549,4 +549,20 @@ test("review: list search matches only what a tyre challan shows (no hidden addr
   for (const hidden of ["Ramesh", "Siva", "Anna Nagar", "urgent"]) assert.ok(!(await ids(hidden)).includes(String(old._id)), `found by hidden "${hidden}"`);
   assert.ok((await ids("Kumar")).includes(String(old._id)));
   assert.ok((await ids("TN07OLD1")).includes(String(old._id)));
+});
+
+test("review: after a brand rename the purchases list shows and finds the tyre under its current name", async () => {
+  const mrf = settings.tyre.brands.find((b) => b.value === "mrf");
+  const oldLabel = mrf.label;
+  try {
+    await addStockEntry(CLIENT, { partRef: "mrf:10-00-20", date: "2026-09-01", qty: 4, buyPrice: 21000, supplier: "Depot" });
+    mrf.label = "MRF Tyres"; // renamed in Settings; the stored value "mrf" stays
+    const all = await listStockEntries(CLIENT, {});
+    assert.deepEqual(all.entries.map((e) => e.partLabel), ["MRF Tyres 10.00-20"]);
+    const found = await listStockEntries(CLIENT, { search: "MRF Tyres" });
+    assert.equal(found.total, 1, "found by the current name");
+    assert.equal((await listStockEntries(CLIENT, { search: "Depot" })).total, 1);
+  } finally {
+    mrf.label = oldLabel;
+  }
 });

@@ -97,10 +97,15 @@ export async function listStockEntries(clientId, { partRef = "", search = "", fr
   const db = await connectDB();
   const query = { clientId: toClientId(clientId) };
   if (partRef) query.partRef = String(partRef);
+  // An entry keeps the part's name from the day it was entered; a part renamed in Settings since then is shown and
+  // found under its current name (its value, and so its stock, stays the same).
+  const { parts } = inventorySource(await getSettings(clientId));
   const text = String(search || "").trim();
   if (text) {
     const rx = { $regex: escapeRegex(text), $options: "i" };
-    query.$or = [{ partLabel: rx }, { supplier: rx }, { note: rx }];
+    const needle = text.toLowerCase();
+    const renamed = parts.filter((p) => p.label.toLowerCase().includes(needle)).map((p) => p.value);
+    query.$or = [{ partLabel: rx }, { supplier: rx }, { note: rx }, ...(renamed.length ? [{ partRef: { $in: renamed } }] : [])];
   }
   if (from || to) {
     query.date = {};
@@ -112,7 +117,9 @@ export async function listStockEntries(clientId, { partRef = "", search = "", fr
     countMatching(coll, query),
     findSortedPage(coll, query, parseSort(sortQuery, ENTRY_SORT, { date: -1, createdAt: -1 }), (page - 1) * limit, limit),
   ]);
-  return { total, page, totalPages: Math.ceil(total / limit) || 1, entries };
+  const labelOf = new Map(parts.map((p) => [p.value, p.label]));
+  const named = entries.map((e) => (labelOf.has(e.partRef) ? { ...e, partLabel: labelOf.get(e.partRef) } : e));
+  return { total, page, totalPages: Math.ceil(total / limit) || 1, entries: named };
 }
 
 // Units sold per catalog part, from every bill line that carries a partRef.

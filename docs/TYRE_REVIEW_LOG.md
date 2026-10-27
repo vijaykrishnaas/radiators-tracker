@@ -960,3 +960,11 @@ Gate: backend 119/119; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
 ## Run 84: 2026-10-27 (area d, printed challan)
 - Printed two challans made after today's field removals: an installment challan (customer + phone, 2 rows) and a bare full-payment one (vehicle only). Both fit on one page with 0 overprints. No address or mechanic is left on either. The Details block shows only Vehicle and Payment. A blank customer falls back to the vehicle number under "Delivered to".
 - No bugs found. Quiet run.
+
+## Run 85: 2026-10-27 (area e, settings + tyre inventory)
+- Bug: after a brand was renamed in Settings (e.g. MRF → MRF Tyres), the Inventory purchases list still showed earlier stock entries under the old name ("MRF 10.00-20"), and searching for the new name didn't find them. The stock summary already showed the new name, so the two tables disagreed. Automobile parts had the same problem.
+- Fix (`inventory.dao.js` `listStockEntries`): each entry is shown under its part's current catalog name, and the search also matches parts by their current name. The stored value doesn't change on a rename, so stock counts were never affected.
+- Test: `test/tyrebill.dao.test.js` "after a brand rename the purchases list shows and finds the tyre under its current name". It fails before the fix and passes after.
+- Left open (minor): sorting that list by part still orders by the stored name.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
