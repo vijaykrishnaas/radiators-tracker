@@ -944,3 +944,8 @@ Gate: backend 118/118; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
 - Rupees-only bonus on an old radiator tenant: the old 10% grid cell shows empty (never "10"); typing ₹150 saves `amountMatrix.bs3.service = 150`; adding a radiator model "BS-VII" adds it to both ₹ grids even though the tenant had no `amountMatrix` yet; no page errors.
 
 Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Salary change, all green).
+
+## Run 82 — area (b) challan form, round 14 (the form after today's field removals)
+New challan form at 1300px (light) and 390px (dark): "Delivered to" now holds Date*, Vehicle Number*, Customer Name and Phone number, as a 2 × 2 grid on a laptop and one column on a phone; no gaps where the removed fields were, no sideways scrolling. Saving without a mechanic works (the tyre e2e create flow, 67/67 last run).
+
+Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Salary change, all green).
