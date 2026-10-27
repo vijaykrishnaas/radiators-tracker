@@ -857,3 +857,8 @@ Run 74 did this work, but the shell's permission check failed, so it could not t
 - As with run 73, bills already stored with the float noise keep their stored status until their next edit or payment. Unlike tyre, automobile and radiator are in use, so the user may want those checked; the affected bills show "Partial" with ₹0.00 pending.
 
 Gate: backend 107/107; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 73's open item.
+
+## Run 76 — area (b) challan form, round 13 (a long plan on a phone)
+Edit form of a 12-row installment challan at 390px, dark, scrolled to the end with the mouse wheel as a user would: the last row, "Add month" and the green "Principal ₹48,500.00 of ₹48,500.00 · Matches the tyre amount" check all sit above the sticky "Amount to collect ₹49,700.00" footer (last card bottom 653px, footer top 677px). Nothing is hidden behind the footer. (A first try used `window.scrollTo` and left the page half-scrolled with a gap above the header; that was the script's jump-scroll, not the app.) The form has no "received now" box; money is only taken through the payment popup.
+
+Nothing new found. No code changed (last full gate: run 75, all green).
