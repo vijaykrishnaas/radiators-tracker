@@ -165,6 +165,12 @@ const SettingsPage = () => {
     const uploadLoginBg = (f: File | undefined) => runUpload("bg", "settings/login-bg", "loginBgUrl", "company.loginBgUrl", "Login background updated", "Background upload failed", f);
 
     const handleSave = async () => {
+        // A brand / model renamed to nothing would be saved as a blank choice that every new challan then refuses
+        // ("choose a brand"), so it is not saved.
+        if (isTyre && (draft.tyre?.brands || []).some((b) => !String(b.label || "").trim() || (b.models || []).some((m) => !String(m.label || "").trim()))) {
+            callAlertMsg("Every tyre brand and model needs a name (Tyre Catalog). Type a name or remove it, then save.", "error");
+            return;
+        }
         try {
             setSaving(true);
             const res = await putData("settings", draft);

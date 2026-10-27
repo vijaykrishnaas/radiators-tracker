@@ -457,6 +457,14 @@ ok("tyre: settings number boxes take what is typed after clearing (first D.C. no
 await startNo.click(); await startNo.press("Control+a"); await startNo.press("Backspace");
 await page.locator("#new-tyre-brand").click();
 ok("tyre: an emptied first D.C. number goes back to 1", (await startNo.inputValue()) === "1", await startNo.inputValue());
+// A brand renamed to nothing must not be saved: every new challan picking it was refused with "choose a brand".
+const putsBefore = settingsPuts.length;
+await page.locator("#tyre-brand-ceat").fill("");
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const blankMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
+ok("tyre: a brand with no name is not saved", settingsPuts.length === putsBefore && /needs a name/.test(blankMsg), `${settingsPuts.length - putsBefore} saves; "${blankMsg.slice(0, 80)}"`);
+await page.locator("#tyre-brand-ceat").fill("CEAT");
 const tabs = await page.locator(".settings-nav").innerText();
 ok("tyre: settings tabs are the tyre set", /Tyre Catalog/.test(tabs) && /Labels & Challan/.test(tabs) && !/Parts Catalog|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
 // A renamed brand / model keeps its stored value; adding a new one under the old name must work and get its own value.
