@@ -69,6 +69,16 @@ test("createEngBill computes totals, discount clamp, and initial payment log", a
   assert.equal(bill.payments[0].amount, 700);
 });
 
+test("recordEngPayment: paid in paise parts, a fully paid bill ends Received, not Partial with nothing pending", async () => {
+  // ₹5,000.19 + ₹5,000.18 adds up to 10000.369999999999 in floating point, a hair under the ₹10,000.37 total.
+  const bill = await createEngBill(CLIENT_A, baseBill({ services: [{ type: "turbo", bsModel: "bs4", items: [{ item: "hold-set", qty: 1, rate: 10000.37 }] }] }));
+  await recordEngPayment(CLIENT_A, bill._id, { amount: 5000.19 });
+  const done = await recordEngPayment(CLIENT_A, bill._id, { amount: 5000.18 });
+  assert.equal(done.amountReceived, 10000.37);
+  assert.equal(done.balance, 0);
+  assert.equal(done.paymentStatus, "Received");
+});
+
 test("createEngBill clamps discount to total and amountReceived to netTotal", async () => {
   const bill = await createEngBill(CLIENT_A, baseBill({ discount: 5000, amountReceived: 5000 }));
   assert.equal(bill.total, 1000);

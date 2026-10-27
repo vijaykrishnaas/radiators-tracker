@@ -881,3 +881,12 @@ Nothing new found. No code changed (last full gate: run 77, all green).
 - Test: `e2e/tyre.e2e.mjs` "a bonus percentage over 100 is not saved". It fails before the fix (1 save) and passes after. The automobile, engineering and radiator suites, which save their own settings, still pass.
 
 Gate: backend 108/108; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 80 — area (f) regressions, round 13 (engineering bills and paise sums)
+**Correction to runs 74–75:** engineering bills *do* keep a running received amount (`recordEngPayment` passes `prevReceived + pay` into `computeTotals`), so they had the same bug. Repro: a ₹10,000.37 engineering bill paid ₹5,000.19, then ₹5,000.18 → `amountReceived` 10000.369999999999, status "Partial", balance ₹0.
+- Fix (`engbill.dao.js` `computeTotals`): the received amount is rounded to the paisa.
+- Test: `test/engbill.dao.test.js` "recordEngPayment: paid in paise parts…". It fails before the fix and passes after.
+
+User report received during this run: "In settings, at tyre catalog is not working". Driven in the browser on a fresh tyre tenant (add brand, add model with rate, change rate, Save): every step works and the saved catalog is right; the server stores the `tyre` section as sent. Not reproduced yet; waiting on what the user sees.
+
+Gate: backend 109/109; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

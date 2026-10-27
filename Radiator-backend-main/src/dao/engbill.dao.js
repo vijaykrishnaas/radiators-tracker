@@ -66,7 +66,9 @@ function computeTotals(services, discountIn, receivedIn) {
   costTotal = round2(costTotal);
   const discount = Math.min(Math.max(Number(discountIn) || 0, 0), total);
   const netTotal = round2(total - discount);
-  const amountReceived = Math.min(Math.max(Number(receivedIn) || 0, 0), netTotal);
+  // Kept to the paisa: ₹5,000.19 + ₹5,000.18 is 10000.369999999999 in floating point, which left a fully paid
+  // ₹10,000.37 bill "Partial" with ₹0 balance.
+  const amountReceived = round2(Math.min(Math.max(Number(receivedIn) || 0, 0), netTotal));
   return {
     typeTotals,
     total,
