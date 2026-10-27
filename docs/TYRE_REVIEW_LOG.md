@@ -783,3 +783,13 @@ Nothing new found. No code changed (last full gate: run 60, all green). Third ru
 - The tyre Settings have no QR switch (only "Show signature"), so there is no toggle that does nothing on the challan.
 
 Nothing new found. No code changed (last full gate: run 60, all green). Fourth run in a row with nothing new (61–64): stopping the hourly task is suggested.
+
+## Run 65 — area (e) settings, inventory, bonus, round 11 (typing into number boxes)
+**Bug: clearing "First D.C. number" and typing 501 saved 1501.** Repro: Settings → Tyre Catalog → First D.C. number, select all, delete, type 501, Save → `billStartNumber: 1501`. The box forced 1 back in the moment it was emptied, so the typed digits went after the 1. The D.C. counter only ever moves up ("numbers already used are never reused"), so one such slip jumps every later challan number for good. The engineering "Bill numbering" box had the same code and the same result.
+- Fix (`TyreSettingsTabs.tsx`, `EngCatalogTab.tsx`): the box may be empty while typing; left empty, it goes back to 1 when the cursor leaves. The server already reads an empty value as 1.
+- Same pattern, smaller effect: clearing a model's rate showed "0" and typing gave "024250.50" (the saved rate was right). The rate box now shows empty with a "0" placeholder, like the bonus amount box.
+- Tests (`e2e/tyre.e2e.mjs`): "settings number boxes take what is typed after clearing (first D.C. no., rate)" fails before the fix ("start 1501", box "021500.50") and passes after; "an emptied first D.C. number goes back to 1" guards the new blur rule. Engineering checked by hand in the browser: 501 → 501, emptied → 1.
+
+Not counted: the labour bonus is split equally with each share rounded to the paisa (₹100 among three → 3 × ₹33.33), the same in every vertical.
+
+Gate: backend 104/104; tsc + build OK; e2e tyre 64, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

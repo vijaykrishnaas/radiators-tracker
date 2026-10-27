@@ -439,6 +439,24 @@ await page.waitForTimeout(600);
 const put = settingsPuts[settingsPuts.length - 1];
 const ceat = put?.tyre?.brands?.find((b) => b.value === "ceat");
 ok("tyre: settings save sends the new brand and model with its rate", !!ceat && ceat.models[0]?.rate === 21500 && ceat.models[0]?.value === "10-00-20-mile-xl", JSON.stringify(ceat));
+// Clearing a number box and typing a new value must give that value: the first D.C. number used to force 1 back into
+// an emptied box, so "clear, type 501" saved 1501 (and the counter never comes back down); the rate showed "024250.50".
+const startNo = page.locator("#tyre-start-no");
+await startNo.click(); await startNo.press("Control+a"); await startNo.press("Backspace");
+await page.keyboard.type("501");
+const rateBox = page.getByLabel("CEAT 10.00-20 Mile XL rate");
+await rateBox.click(); await rateBox.press("Control+a"); await rateBox.press("Backspace");
+await page.keyboard.type("21500.50");
+const rateShown = await rateBox.inputValue();
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const typedPut = settingsPuts[settingsPuts.length - 1]?.tyre;
+const typedRate = typedPut?.brands?.find((b) => b.value === "ceat")?.models?.[0]?.rate;
+ok("tyre: settings number boxes take what is typed after clearing (first D.C. no., rate)", typedPut?.billStartNumber === 501 && typedRate === 21500.5 && rateShown === "21500.50",
+  `start ${typedPut?.billStartNumber}, rate ${typedRate}, box "${rateShown}"`);
+await startNo.click(); await startNo.press("Control+a"); await startNo.press("Backspace");
+await page.locator("#new-tyre-brand").click();
+ok("tyre: an emptied first D.C. number goes back to 1", (await startNo.inputValue()) === "1", await startNo.inputValue());
 const tabs = await page.locator(".settings-nav").innerText();
 ok("tyre: settings tabs are the tyre set", /Tyre Catalog/.test(tabs) && /Labels & Challan/.test(tabs) && !/Parts Catalog|Catalog & Pricing/.test(tabs), tabs.replace(/\s+/g, " "));
 // A renamed brand / model keeps its stored value; adding a new one under the old name must work and get its own value.

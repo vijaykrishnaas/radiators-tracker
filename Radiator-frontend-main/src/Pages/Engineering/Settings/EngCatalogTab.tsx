@@ -279,8 +279,10 @@ const EngCatalogTab = ({ eng, set }: Props) => {
                     <CardHead title="Bill numbering" subtitle="Continue from your paper bill book (e.g. 802). This only ever raises the next number, never lowers it." />
                     <div className="cat-narrow">
                         <Field label="Start bill numbers from" htmlFor="cat-bill-start">
+                            {/* May be empty while typing (forcing 1 back in turned "clear, type 501" into 1501); left empty, it becomes 1. */}
                             <input id="cat-bill-start" type="number" min={1} className="form-control num" value={eng.billStartNumber ?? 1}
-                                onChange={(e) => set("engineering.billStartNumber", Math.max(parseInt(e.target.value, 10) || 1, 1))} />
+                                onChange={(e) => set("engineering.billStartNumber", e.target.value === "" ? "" : Math.max(parseInt(e.target.value, 10) || 1, 1))}
+                                onBlur={() => { if (!eng.billStartNumber) set("engineering.billStartNumber", 1); }} />
                         </Field>
                     </div>
                 </div>

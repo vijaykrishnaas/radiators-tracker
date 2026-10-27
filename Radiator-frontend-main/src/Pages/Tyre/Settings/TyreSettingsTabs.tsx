@@ -112,7 +112,7 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                                                             onChange={(e) => updateModel(b.value, m.value, { label: e.target.value })} />
                                                     </th>
                                                     <td>
-                                                        <AffixInput prefix="₹" type="number" className="num" min={0} aria-label={`${b.label} ${m.label} rate`} value={m.rate}
+                                                        <AffixInput prefix="₹" type="number" className="num" min={0} aria-label={`${b.label} ${m.label} rate`} value={m.rate || ""} placeholder="0"
                                                             onChange={(e) => updateModel(b.value, m.value, { rate: Math.max(Number(e.target.value || 0), 0) })} />
                                                     </td>
                                                     <td className="matrix-actions">
@@ -159,8 +159,11 @@ export function TyreCatalogTab({ tyre, set }: { tyre: TyreSettings; set: SetFn }
                         </select>
                     </Field>
                     <Field label="First D.C. number" htmlFor="tyre-start-no" help="For a shop continuing from a paper challan book. Numbers already used are never reused.">
+                        {/* The box may be empty while typing (forcing 1 back in turned "clear, type 501" into 1501, and the
+                            counter never goes back down); left empty, it becomes 1 again. */}
                         <InputText id="tyre-start-no" type="number" min={1} className="num" value={tyre.billStartNumber ?? 1}
-                            onChange={(e) => set("tyre.billStartNumber", Math.max(parseInt(e.target.value, 10) || 1, 1))} />
+                            onChange={(e) => set("tyre.billStartNumber", e.target.value === "" ? "" : Math.max(parseInt(e.target.value, 10) || 1, 1))}
+                            onBlur={() => { if (!tyre.billStartNumber) set("tyre.billStartNumber", 1); }} />
                     </Field>
                 </div>
             </Section>
