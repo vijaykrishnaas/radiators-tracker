@@ -869,3 +869,8 @@ Nothing new found. No code changed (last full gate: run 75, all green).
 - Test: `test/tyrebill.dao.test.js` "sales by brand keeps a renamed brand as one bar, under its current name" (dashboard and bonus review). It fails with neither fix and with only the dashboard fix, and passes with both.
 
 Gate: backend 108/108; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 78 — area (d) printed challan, round 13 (an address typed on several lines)
+The challan form's address is a multi-line box. A challan whose address was typed as four lines ("Door No. 221/4 / Omalur Main Road / Near New Bus Stand / Salem 636004") keeps the line breaks when saved and prints them in "Delivered to" as four lines, with the phone below and the tyre table after; 0 overprints. `getTextDimensions` counts the typed line breaks, so the block below is placed correctly.
+
+Nothing new found. No code changed (last full gate: run 77, all green).
