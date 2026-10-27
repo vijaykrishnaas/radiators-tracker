@@ -956,3 +956,7 @@ Nothing new found. No code changed (last full gate: the tyre Expenses/Bonus/Sala
 - Test: `test/tyrebill.dao.test.js` "list search matches only what a tyre challan shows". It fails before the fix (found by hidden "Ramesh") and passes after.
 
 Gate: backend 119/119; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 84: 2026-10-27 (area d, printed challan)
+- Printed two challans made after today's field removals: an installment challan (customer + phone, 2 rows) and a bare full-payment one (vehicle only). Both fit on one page with 0 overprints. No address or mechanic is left on either. The Details block shows only Vehicle and Payment. A blank customer falls back to the vehicle number under "Delivered to".
+- No bugs found. Quiet run.
