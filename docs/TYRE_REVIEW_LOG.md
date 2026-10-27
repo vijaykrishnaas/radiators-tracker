@@ -812,3 +812,9 @@ Nothing new found. No code changed (last full gate: run 65, all green).
 In the browser: open a full-payment challan's edit form, record ₹10,000 on it from elsewhere (as at the counter), then change the tyre numbers and press Update. The save succeeds and goes back to the list. The stored challan keeps the ₹10,000 (logged once) and has the new tyre numbers. The form never sends the received amount; the server reads the challan fresh at save time. On an installment challan, changing a row that got paid meanwhile is refused with "… already has a payment, so its amounts and due date can't change" (runs 14 and 55).
 
 Nothing new found. No code changed (last full gate: run 65, all green). Third run in a row with nothing new (66–68): stopping the hourly task is suggested.
+
+## Run 69 — area (c) list + dashboard, round 12 (Excel export with the overdue filter)
+12 challans (full and installment, some part-paid, due dates before and after today, two mechanics). With "Installments: overdue only" alone, with a mechanic, and with installment + Partial, the list and the Excel export return the same challans in the same order when a sort is picked (`sortBy` / `sortDir`), and every exported row has an overdue installment. Both use the same filter parameters and the same server query (`buildTyreQuery`).
+- With no sort picked, the screen shows newest-entered first and the export goes by bill date, newest first. Automobile and radiator do the same (list `createdAt`, export `billDate`), so this is the app's convention for a report, not a tyre bug.
+
+Nothing new found. No code changed (last full gate: run 65, all green). Fourth run in a row with nothing new (66–69): stopping the hourly task is suggested.
