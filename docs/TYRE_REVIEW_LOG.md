@@ -793,3 +793,12 @@ Nothing new found. No code changed (last full gate: run 60, all green). Fourth r
 Not counted: the labour bonus is split equally with each share rounded to the paisa (₹100 among three → 3 × ₹33.33), the same in every vertical.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 64, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 66 — area (f) regressions in the other verticals, round 11 (run 65's pattern elsewhere)
+Searched every screen for number boxes that put a value back into an emptied box (the cause of run 65's 501 → 1501):
+- Only the tyre "First D.C. number" and engineering "Bill numbering" boxes forced a non-zero value (both fixed in run 65).
+- The radiator / automobile / engineering / tyre bonus amount boxes already show empty with a "0" placeholder, so clearing and typing gives what was typed.
+- Quantity boxes on the tyre, automobile and engineering bill forms and the stock entry form keep the typed text as is.
+Run 65's e2e gate already covered the engineering suite (168/168) with its changed settings box.
+
+Nothing new found. No code changed (last full gate: run 65, all green).
