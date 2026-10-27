@@ -14,6 +14,10 @@ export const STATUS = {
   RECEIVED: "Received",
 };
 
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
 function computeTotal(serviceInfo) {
   return (serviceInfo || []).reduce((sum, s) => sum + Number(s.price || 0), 0);
 }
@@ -145,7 +149,9 @@ export async function recordPayment(clientId, id, amount, discount = null) {
     : Math.max(Number(existing.discount || 0), 0);
   const netTotal = Math.max(grossTotal - appliedDiscount, 0);
   const current = Math.min(normalizeReceivedAmount(existing), netTotal);
-  const receivedAmount = Math.min(current + Number(amount || 0), netTotal);
+  // Kept to the paisa: ₹5,000.19 + ₹5,000.18 is 10000.369999999999 in floating point, which left a fully paid
+  // ₹10,000.37 bill "Partial" with ₹0 pending.
+  const receivedAmount = round2(Math.min(current + Number(amount || 0), netTotal));
   const status = deriveStatus(receivedAmount, netTotal);
 
   await collection.updateOne(

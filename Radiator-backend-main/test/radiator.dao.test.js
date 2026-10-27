@@ -70,6 +70,16 @@ test("recordPayment: discount is the bill's total discount; status and payable f
   assert.equal(mech.payableAmount, 211.5);
 });
 
+test("recordPayment: paid in paise parts, a fully paid bill ends Received, not Partial with nothing pending", async () => {
+  // ₹5,000.19 + ₹5,000.18 adds up to 10000.369999999999 in floating point, a hair under the ₹10,000.37 total.
+  const { insertedId } = await createRadiator(CLIENT, input({ serviceInfo: [{ type: "Service", price: 10000.37 }] }));
+  await recordPayment(CLIENT, insertedId, 5000.19, 0);
+  const done = await recordPayment(CLIENT, insertedId, 5000.18, 0);
+  assert.equal(done.receivedAmount, 10000.37);
+  assert.equal(done.pendingAmount, 0);
+  assert.equal(done.status, "Received");
+});
+
 test("recordPayment: overpayment is capped at net", async () => {
   const { insertedId } = await createRadiator(CLIENT, input());
   const r = await recordPayment(CLIENT, insertedId, 9999, 0);

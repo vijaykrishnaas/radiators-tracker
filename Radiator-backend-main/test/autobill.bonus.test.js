@@ -46,6 +46,16 @@ test("create: items priced qty × rate, per-tenant bill number, bonus accrued bu
   assert.equal((await getById(CLIENT, second.insertedId)).billNo, 2);
 });
 
+test("payment in paise parts: a fully paid bill ends Received, not Partial with nothing pending", async () => {
+  // ₹5,000.19 + ₹5,000.18 adds up to 10000.369999999999 in floating point, a hair under the ₹10,000.37 total.
+  const { insertedId } = await createAutoBill(CLIENT, input({ items: [{ particulars: "Tyre", qty: 1, rate: 10000.37 }] }));
+  await recordPayment(CLIENT, insertedId, 5000.19);
+  const done = await recordPayment(CLIENT, insertedId, 5000.18);
+  assert.equal(done.receivedAmount, 10000.37);
+  assert.equal(done.pendingAmount, 0);
+  assert.equal(done.status, "Received");
+});
+
 test("payment with discount: net-based status and payable bonus", async () => {
   const { insertedId } = await createAutoBill(CLIENT, input());
   const part = await recordPayment(CLIENT, insertedId, 450, 100); // net 900, received 450

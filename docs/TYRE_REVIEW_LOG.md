@@ -848,3 +848,12 @@ Nothing new found. No code changed (last full gate: run 71, all green).
 Open (found here, not changed in this run): automobile bills have the same pattern (`autobill.dao.js` `recordPayment`: `current + amount`, unrounded, then `deriveStatus`). To be reproduced and fixed with its own test in the next regressions (f) run.
 
 Gate: backend 105/105; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Runs 74–75 — carry-over from run 73: the same paise-sum bug on automobile and radiator bills (area f)
+Run 74 did this work, but the shell's permission check failed, so it could not test or commit. Run 75 finished it.
+**Bug: an automobile or radiator bill paid in parts could stay "Partial" with ₹0 pending.** Repro (both verticals): a ₹10,000.37 bill paid ₹5,000.19, then ₹5,000.18 → stored `receivedAmount` 10000.369999999999, status "Partial", nothing left to pay. `recordPayment` added the new payment to what was received and never rounded the sum (`autobill.dao.js`, `radiator.dao.js`); the status compares it with the total.
+- Fix: the received amount is rounded to the paisa in both `recordPayment`s (radiator gets the same small `round2` helper the automobile file has). Engineering bills never keep a running received sum, so they are unaffected.
+- Tests: `test/autobill.bonus.test.js` "payment in paise parts…" and `test/radiator.dao.test.js` "recordPayment: paid in paise parts…". Both fail on the old code and pass now.
+- As with run 73, bills already stored with the float noise keep their stored status until their next edit or payment. Unlike tyre, automobile and radiator are in use, so the user may want those checked; the affected bills show "Partial" with ₹0.00 pending.
+
+Gate: backend 107/107; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL. Closes run 73's open item.
