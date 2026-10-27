@@ -566,7 +566,8 @@ export async function getAllTyreBills(clientId, filters = {}, page = 1, limit = 
   const query = buildTyreQuery(clientId, filters);
   const [total, bills] = await Promise.all([
     countMatching(coll, query),
-    findSortedPage(coll, query, parseSort(sortQuery, TYRE_SORT, { createdAt: -1 }), (page - 1) * limit, limit),
+    // Latest bill date first (a back-dated challan sits under its own date); same-day challans newest entered first.
+    findSortedPage(coll, query, parseSort(sortQuery, TYRE_SORT, { billDate: -1, createdAt: -1 }), (page - 1) * limit, limit),
   ]);
   return { total, page, totalPages: Math.ceil(total / limit) || 1, tyreBillData: bills.map((b) => enrich(b)) };
 }
@@ -574,7 +575,7 @@ export async function getAllTyreBills(clientId, filters = {}, page = 1, limit = 
 export async function getAllTyreBillsForExport(clientId, filters = {}, sortQuery = {}) {
   const db = await connectDB();
   const query = buildTyreQuery(clientId, filters);
-  const order = parseSort(sortQuery, TYRE_SORT, { billDate: -1 });
+  const order = parseSort(sortQuery, TYRE_SORT, { billDate: -1, createdAt: -1 });
   // The export follows the order chosen on screen; a computed key (next due) needs the aggregation path.
   const bills = order.computed
     ? await findSortedPage(db.collection(COLLECTION), query, order, 0, 1_000_000)

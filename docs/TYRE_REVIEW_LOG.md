@@ -909,3 +909,11 @@ User: "In create bill and print — remove address, mechanic name, labour name, 
 - Tests (`e2e/tyre.e2e.mjs`): "sidebar has Challans, Inventory, Expenses, Salary and no Bonus", "the challan form has no address, mechanic, labour or notes", "the challan prints no address or mechanic". The tyre bonus page and tyre bonus % checks were removed with the feature.
 
 Gate: backend 109/109; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## User request (2026-10-27) — bill tables: date filter behaviour and latest date first (all company types)
+User's answer on "current date sort": "Latest bill date first".
+- Order: radiator, automobile and tyre bill lists showed the most recently *entered* bill on top (`createdAt`), so a back-dated bill typed today sat above today's bills. They now list by bill date, newest first, with same-day bills newest entered first; their Excel exports use the same order. Engineering already listed by bill date (bill no. as the tie-break) and is unchanged.
+- Date filter: checked on all four company types with the server clock in UTC and in Indian time. From and To are both included, a From-only or To-only filter works, and only bills on those days come back. No change was needed.
+- Test: `test/billorder.test.js` (8 tests, one order test and one filter test per company type, list and export). Before the change the radiator, automobile and tyre order tests fail (their filter tests failed only on the order of the same bills); after it all pass in both time zones.
+
+Gate: backend 117/117; tsc + build OK; e2e tyre 66, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.

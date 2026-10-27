@@ -262,7 +262,8 @@ export async function getAllAutoBills(
   const skip = (page - 1) * limit;
   const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
   const total = await countMatching(collection, query);
-  const bills = await findSortedPage(collection, query, parseSort(sortQuery, AUTO_SORT, { createdAt: -1 }), skip, limit);
+  // Latest bill date first (a back-dated bill sits under its own date, not on top); same-day bills newest entered first.
+  const bills = await findSortedPage(collection, query, parseSort(sortQuery, AUTO_SORT, { billDate: -1, createdAt: -1 }), skip, limit);
   return {
     total,
     page,
@@ -275,7 +276,7 @@ export async function getAllAutoBillsForExport(clientId, { vehicleNumber = "", c
   const db = await connectDB();
   const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
   // The export follows the order chosen on screen (newest first by default).
-  const order = parseSort(sortQuery, AUTO_SORT, { billDate: -1 });
+  const order = parseSort(sortQuery, AUTO_SORT, { billDate: -1, createdAt: -1 });
   const bills = order.computed
     ? await findSortedPage(db.collection("autobills"), query, order, 0, 1_000_000)
     : await db.collection("autobills").find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();

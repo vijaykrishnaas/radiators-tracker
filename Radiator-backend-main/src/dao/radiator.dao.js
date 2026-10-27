@@ -231,7 +231,8 @@ export async function getAllRadiators(
   const skip = (page - 1) * limit;
   const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
   const total = await countMatching(collection, query);
-  const radiators = await findSortedPage(collection, query, parseSort(sortQuery, RAD_SORT, { createdAt: -1 }), skip, limit);
+  // Latest bill date first (a back-dated bill sits under its own date, not on top); same-day bills newest entered first.
+  const radiators = await findSortedPage(collection, query, parseSort(sortQuery, RAD_SORT, { billDate: -1, createdAt: -1 }), skip, limit);
   return {
     total,
     page,
@@ -243,7 +244,7 @@ export async function getAllRadiators(
 export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = {}, sortQuery = {}) {
   const db = await connectDB();
   const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
-  const order = parseSort(sortQuery, RAD_SORT, { billDate: -1 });
+  const order = parseSort(sortQuery, RAD_SORT, { billDate: -1, createdAt: -1 });
   const radiators = order.computed
     ? await findSortedPage(db.collection("radiators"), query, order, 0, 1_000_000)
     : await db.collection("radiators").find(query, { collation: SORT_COLLATION }).sort(order.sort).toArray();
