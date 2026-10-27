@@ -968,3 +968,10 @@ Gate: backend 119/119; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
 - Left open (minor): sorting that list by part still orders by the stored name.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 86: 2026-10-27 (area f, regression in the other company types)
+- Lead from run 85, checked and dropped: searching challans by a renamed brand's new name doesn't find older challans. Those challans show the brand name as it was when they were made, and search matches what's shown. The brand filter finds them by brand.
+- Rupees-only bonus with settings saved in the older shape: an old "percent" mode falls back to the ₹ grid, an old % grid is never read as ₹, and grids that don't exist yet are handled when a product is added or removed.
+- Bonus settings at 390px (radiator, automobile, engineering, light; radiator dark): no page-level sideways scroll, and the radiator ₹ grid scrolls inside its own box.
+- Noted, not changed: the radiator labour card's heading reads "Labour Name bonus" because it uses the worker label stored in Settings (wording the user owns).
+- No bugs found. Quiet run (1 of 3).
