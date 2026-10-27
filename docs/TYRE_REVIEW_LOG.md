@@ -830,3 +830,11 @@ Nothing new found. No code changed (last full gate: run 65, all green). Fifth ru
 - Test: `e2e/tyre.e2e.mjs` "a brand with no name is not saved". It fails before the fix (1 save, no message) and passes after.
 
 Gate: backend 104/104; tsc + build OK; e2e tyre 65, automobile 45, engineering 168, radiator 17, salary 7, 0 FAIL.
+
+## Run 72 — area (f) regressions in the other verticals, round 12 (run 71's blank names elsewhere)
+Looked for run 71's failure (a catalog entry renamed to nothing, then every bill using it refused) in the other catalogs whose names can be edited in place:
+- Automobile parts (Settings → parts): a bill line carries its own `particulars` text from the form; the part name is only the picker's label, so a blank part name does not block a bill.
+- Engineering items (Service Catalog): `engbill.dao.js` takes the catalog name, else the submitted label, else the item's code (`itemDef?.label || it.label || itemKey`), so a bill is never refused for it.
+Only the tyre catalog refused bills (`buildItems` requires a brand / model name), and run 71 now stops it at Save.
+
+Nothing new found. No code changed (last full gate: run 71, all green).
