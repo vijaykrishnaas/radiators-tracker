@@ -1122,3 +1122,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - the export comes in the same order as the list.
 - Looked like a bug, isn't: customer A→Z put "Zeta Lorry" before "anand" in the test. The real queries all pass `SORT_COLLATION` (case-insensitive, numeric-aware), which MongoDB honours and the in-memory test DB ignores. So text order can't be checked here, and nothing was changed.
 - No bugs found. Quiet run (3 in a row: 99, 100, 101).
+
+## Run 102: 2026-10-28 (area d, printed challan with a bare company profile)
+- Printed with only a company name: no address, phone, email, logo, QR or signature image; signature and QR switched off; no footer note. Both challans (with and without customer details) are one page with 0 overprints.
+- The header closes up with no empty gap, since the subtitle takes the address's place. The signature lines and "For Kannan Tyres / Authorised signatory" stay, and the footer shows just the company name.
+- No bugs found. Quiet run (4 in a row: 99–102).
