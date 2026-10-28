@@ -128,7 +128,8 @@ a { text-decoration: none; }
 .m-list { display: grid; gap: 12px; padding: 12px; }
 .m-card { position: relative; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); }
 .m-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.m-card-key { flex: 1 1 140px; min-width: 0; margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
+/* The title takes its own width, not a fixed minimum: a short vehicle number keeps a wide badge ("Not Received") on its line; a long title still pushes the badge group onto the next line. */
+.m-card-key { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); color: var(--text-strong); overflow-wrap: anywhere; }
 .m-card-key a { color: inherit; text-decoration: none; }
 .m-card-key a:hover { text-decoration: none; }
 .m-card-top .badge, .m-card-top .btn-icon, .m-card-top .m-card-right { position: relative; z-index: 2; }

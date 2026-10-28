@@ -996,3 +996,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
   - the totals (₹49,300 to collect, ₹32,500 received, ₹16,800 pending) and the principal check match.
 - The date boxes show MM/DD only because the test browser uses US date order; a browser set to Indian dates shows DD/MM.
 - No bugs found. Quiet run (3 of 3 in a row): suggest the user stop the hourly task.
+
+## Run 89: 2026-10-28 (area c, challan list + dashboard)
+- Dashboard with 8 mixed challans adds up: overdue ₹1,24,750 = the sum of the four overdue row balances; collection rate 4.6% = ₹15,000 / ₹3,22,950; ₹0 due this month is correct (next rows fall on 15 Nov). No sideways scroll at 1300 or 390.
+- Bug (screenshot, 390px): on the phone list, "Not Received" cards dropped the status chip and ⋮ menu onto a second line under the vehicle number, while "Partial" and "Overdue" stayed on the title line. That made the cards uneven. Cause: the shared card title had a fixed 140px minimum (`.m-card-key { flex: 1 1 140px }`), so a short title plus the widest chip and the menu didn't fit the row.
+- Fix (`styles/components/ui.css`): the title takes its own width (`flex: 1 1 auto`). A short vehicle number keeps any chip on its line; a long title still pushes the chip group to the next line as before. The card is shared by every company type.
+- Test: `e2e/tyre.e2e.mjs` "a short vehicle number keeps its badge on the same line". It failed on all 3 "Not Received" cards before the fix and passes after.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 68, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.

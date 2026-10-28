@@ -604,9 +604,14 @@ await page.locator(".m-card").first().waitFor({ timeout: 10000 });
 const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
   const badge = c.querySelector(".m-card-top .badge")?.getBoundingClientRect();
   const menu = c.querySelector(".m-card-top button[aria-label^='Actions']")?.getBoundingClientRect();
-  return { badge: c.querySelector(".m-card-top .badge")?.textContent, apart: !badge || !menu || Math.abs((badge.top + badge.bottom) / 2 - (menu.top + menu.bottom) / 2) > 6 };
+  // A short title (a vehicle number) keeps its badge on the same line; it used to drop below it next to "Not Received".
+  const key = c.querySelector(".m-card-key a")?.getBoundingClientRect();
+  const short = !!key && key.width < c.getBoundingClientRect().width / 2;
+  return { badge: c.querySelector(".m-card-top .badge")?.textContent, apart: !badge || !menu || Math.abs((badge.top + badge.bottom) / 2 - (menu.top + menu.bottom) / 2) > 6,
+    dropped: short && !!badge && Math.abs((badge.top + badge.bottom) / 2 - (key.top + key.bottom) / 2) > 6 };
 }));
 ok("tyre: phone challan cards keep the menu beside its badge", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.apart), JSON.stringify(cards));
+ok("tyre: a short vehicle number keeps its badge on the same line", cards.every((c) => !c.dropped), JSON.stringify(cards.filter((c) => c.dropped)));
 
 // ---- Dashboard: the "To collect" breakdown adds up to its figure when a challan has a discount ----
 const disc = await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN01DS0001", mechanicName: "Ramesh",
