@@ -1127,3 +1127,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - Printed with only a company name: no address, phone, email, logo, QR or signature image; signature and QR switched off; no footer note. Both challans (with and without customer details) are one page with 0 overprints.
 - The header closes up with no empty gap, since the subtitle takes the address's place. The signature lines and "For Kannan Tyres / Authorised signatory" stay, and the footer shows just the company name.
 - No bugs found. Quiet run (4 in a row: 99–102).
+
+## Run 103: 2026-10-28 (area e, tyre Add stock form at 390px dark)
+- Drove Add stock against the real inventory DAO:
+  - 1.5 tyres is refused on screen ("Whole tyres only") and nothing is sent;
+  - 4 tyres at ₹23,000 is sent with the brand:model key, and the stock for that tyre goes from 2 to 6 at the same average cost;
+  - the form closes after saving;
+  - the Purchases tab lists the new entry first, under the tyre's current name.
+- An apparent open dialog after saving was the hidden phone sidebar (it has the dialog role); the Add stock form had closed.
+- No bugs found. Quiet run (5 in a row: 99–103).
