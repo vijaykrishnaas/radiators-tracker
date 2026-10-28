@@ -5,7 +5,7 @@ import InputText from "../../Components/InputText";
 import { putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
-import { TyreCatalogTab, TyreInvoiceTab } from "../Tyre/Settings/TyreSettingsTabs";
+import { TyreCatalogTab, TyreInvoiceTab, catalogDuplicate } from "../Tyre/Settings/TyreSettingsTabs";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
 import { Badge, BtnSpinner, Callout, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
 import { AffixInput, ChipInput, Switch, Upload } from "../../Components/ui/Inputs";
@@ -195,6 +195,11 @@ const SettingsPage = () => {
         // ("choose a brand"), so it is not saved.
         if (isTyre && (draft.tyre?.brands || []).some((b) => !String(b.label || "").trim() || (b.models || []).some((m) => !String(m.label || "").trim()))) {
             callAlertMsg("Every tyre brand and model needs a name (Tyre Catalog). Type a name or remove it, then save.", "error");
+            return;
+        }
+        const duplicate = isTyre ? catalogDuplicate(draft.tyre?.brands || []) : null;
+        if (duplicate) {
+            callAlertMsg(duplicate, "error");
             return;
         }
         try {

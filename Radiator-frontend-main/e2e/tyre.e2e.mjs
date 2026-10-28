@@ -484,6 +484,14 @@ await page.locator(".form-footer").getByRole("button", { name: "Save All Setting
 await page.waitForTimeout(600);
 const blankMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
 ok("tyre: a brand with no name is not saved", settingsPuts.length === putsBefore && /needs a name/.test(blankMsg), `${settingsPuts.length - putsBefore} saves; "${blankMsg.slice(0, 80)}"`);
+// Renaming a brand to another brand's name (any case or spacing) must not save two "MRF"s: the challan form would offer
+// two identical brands and inventory would list two "MRF …" rows. Adding a duplicate was already refused.
+const putsBeforeDup = settingsPuts.length;
+await page.locator("#tyre-brand-ceat").fill(" mrf ");
+await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click();
+await page.waitForTimeout(600);
+const dupMsg = (await page.locator("[role=alert]").allTextContents()).join(" ");
+ok("tyre: a brand renamed to another brand's name is not saved", settingsPuts.length === putsBeforeDup && /MRF.*(twice|more than once)/i.test(dupMsg), `${settingsPuts.length - putsBeforeDup} saves; "${dupMsg.slice(0, 120)}"`);
 await page.locator("#tyre-brand-ceat").fill("CEAT");
 // Catalog edits are kept only by Save All Settings. Leaving without saving used to drop them silently ("my catalog
 // changes disappear"); now the footer says so and leaving asks first.

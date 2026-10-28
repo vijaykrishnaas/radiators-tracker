@@ -1070,3 +1070,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
   - installment plan paid off: ₹24,550 collected, with each row's Paid column equal to its total.
 - In the text extract, PLAN's totals looked further right than DISC's. The rendered pages show both columns at the same position, so it's only pdftotext's layout.
 - No bugs found. Quiet run (4 in a row: 93–96).
+
+## Run 97: 2026-10-28 (area e, tyre settings)
+- Bug (exact steps): in Settings › Tyre Catalog, rename CEAT to " mrf " (any case or spacing of an existing brand) and press Save All Settings. It saved two brands both called MRF, so the challan form offered two identical "MRF" choices and inventory listed two "MRF …" rows. Adding a duplicate was already refused, but renaming had no check.
+- Fix: `catalogDuplicate()` in `Pages/Tyre/Settings/TyreSettingsTabs.tsx` compares names the way the add boxes do (case, spaces and punctuation ignored). `Settings/Index.tsx` `handleSave` refuses a brand used twice, or a model used twice under one brand, with a message naming it ("mrf is in the Tyre Catalog twice. Give each brand its own name, then save.").
+- Test: `e2e/tyre.e2e.mjs` "a brand renamed to another brand's name is not saved". It saved once before the fix; 0 saves and the message after.
+- Checked, fine: removing a brand only takes effect on Save, and leaving with unsaved changes asks first. Re-adding a brand under its old name gets its old value back, so its earlier stock re-links.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 45, engineering 166, radiator 18, salary 7, 0 FAIL.

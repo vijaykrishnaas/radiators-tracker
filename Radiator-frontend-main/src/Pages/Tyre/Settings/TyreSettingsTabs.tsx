@@ -19,6 +19,24 @@ const freeValue = (base: string, taken: string[]) => {
     return value;
 };
 
+// Names are compared as the add boxes compare them (case, spaces and punctuation ignored). Renaming has no such check
+// while typing, so Save asks this before saving two brands, or two models of one brand, under the same name.
+export function catalogDuplicate(brands: TyreSettings["brands"]): string | null {
+    const seen = new Map<string, string>();
+    for (const b of brands || []) {
+        const key = slugify(String(b.label || "").trim());
+        if (seen.has(key)) return `${String(b.label).trim()} is in the Tyre Catalog twice. Give each brand its own name, then save.`;
+        seen.set(key, b.label);
+        const models = new Set<string>();
+        for (const m of b.models || []) {
+            const mk = slugify(String(m.label || "").trim());
+            if (models.has(mk)) return `${String(m.label).trim()} is under ${String(b.label).trim()} twice. Give each model its own name, then save.`;
+            models.add(mk);
+        }
+    }
+    return null;
+}
+
 const Section = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
     <section className="card" aria-label={title}>
         <div className="card-body">
