@@ -1056,3 +1056,9 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
   - ₹99,999 is refused before sending ("Only ₹10,400 is left on 2nd month");
   - ₹400.50 is posted to the chosen row, which becomes "Partly paid" with ₹9,999.50 left.
 - No bugs found. Quiet run (2 in a row).
+
+## Run 95: 2026-10-28 (area c, list + dashboard data)
+- Filter consistency: 24 challans across 6 days (full and installment, two brands, unpaid / part-paid / paid). Checked 480 combinations of date range (single day, month, open-ended on either side), status, payment type, brand and overdue.
+- For every combination, the list total, the export and the dashboard's challan count match each other and a hand count from the stored dates, with both ends of a date range included. Run with the server on UTC and on India time.
+- Note (not a finding): the date filter starts each day at the server's local midnight while bill dates are stored as UTC midnight. That's correct on UTC or India-time servers; a server west of UTC would shift the range edges by a day. Not changed: the app isn't run that way.
+- No bugs found. Quiet run (3 in a row: 93, 94, 95).
