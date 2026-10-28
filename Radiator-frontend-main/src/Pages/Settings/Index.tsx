@@ -197,6 +197,20 @@ const SettingsPage = () => {
             callAlertMsg("Every tyre brand and model needs a name (Tyre Catalog). Type a name or remove it, then save.", "error");
             return;
         }
+        // Parts are renamed in place too: a blank name or the same name twice is not saved.
+        if (isAutomobile) {
+            const parts = draft.automobile?.parts || [];
+            if (parts.some((p) => !String(p.label || "").trim())) {
+                callAlertMsg("Every part needs a name (Parts Catalog). Type a name or remove it, then save.", "error");
+                return;
+            }
+            const seen = new Set<string>();
+            const twice = parts.find((p) => { const k = slugify(p.label.trim()); if (seen.has(k)) return true; seen.add(k); return false; });
+            if (twice) {
+                callAlertMsg(`${twice.label.trim()} is in the parts catalog twice. Give each part its own name, then save.`, "error");
+                return;
+            }
+        }
         const duplicate = isTyre ? catalogDuplicate(draft.tyre?.brands || []) : null;
         if (duplicate) {
             callAlertMsg(duplicate, "error");
@@ -308,8 +322,14 @@ const SettingsPage = () => {
     // ---- Automobile: parts catalog ----
     const addPart = () => {
         if (!newPartLabel.trim()) return;
-        const value = slugify(newPartLabel);
-        if (auto.parts.some((p) => p.value === value)) return;
+        // A duplicate is judged by the names on screen: a renamed part keeps its old stored value, which used to make
+        // adding a part under that old name do nothing at all. The new part then gets the next free value.
+        if (auto.parts.some((p) => slugify(p.label.trim()) === slugify(newPartLabel.trim()))) {
+            callAlertMsg(`${newPartLabel.trim()} is already in the parts catalog`, "error");
+            return;
+        }
+        let value = slugify(newPartLabel);
+        for (let n = 2; auto.parts.some((p) => p.value === value); n++) value = `${slugify(newPartLabel)}-${n}`;
         set("automobile.parts", [
             ...auto.parts,
             { label: newPartLabel.trim(), value, rate: Number(newPartRate || 0) },

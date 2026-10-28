@@ -1078,3 +1078,17 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
 - Checked, fine: removing a brand only takes effect on Save, and leaving with unsaved changes asks first. Re-adding a brand under its old name gets its old value back, so its earlier stock re-links.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 45, engineering 166, radiator 18, salary 7, 0 FAIL.
+
+## Run 98: 2026-10-28 (area f, regression: automobile parts catalog)
+- Checked whether the catalog bugs fixed for tyre (runs 53, 71, 97) also exist in the automobile parts catalog, which tyre inventory was built from. All three did (reproduced in the browser):
+  1. Add "Air Filter", rename it "Air Filter (old)", then add "Air Filter" again: nothing happens and no message. Duplicates were judged by the stored value, which the renamed part still holds.
+  2. Rename "Brake Shoe" to "oil filter " and save: two parts named Oil Filter are saved.
+  3. Clear a part's name and save: a part with no name is saved.
+- Fix (`Pages/Settings/Index.tsx`):
+  - `addPart` judges duplicates by the names on screen and says so; a new part gets the next free value.
+  - `handleSave` refuses a blank part name, or the same name twice ("oil filter is in the parts catalog twice. Give each part its own name, then save.").
+- Tests: `e2e/automobile.e2e.mjs` "a part can be added under a renamed part's old name", "two parts with the same name are not saved", "a part with no name is not saved". All 3 failed before the fix and pass after. The suite now captures settings saves.
+  - First attempt at check 1 passed without the fix: the fixture's values ("oil-filter") aren't what this page's slugify makes ("oilfilter"). The check now adds its own part through the screen.
+- Not changed: radiator products and service types can't be renamed. Adding an exact duplicate there is silently ignored, which is minor.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.

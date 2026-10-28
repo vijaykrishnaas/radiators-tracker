@@ -58,11 +58,13 @@ page.on("pageerror", (e) => errors.push(e.message));
 const payments = [];
 let created = null;
 let updated = null;
+const settingsPuts = [];
 
 await page.route("http://localhost:5000/**", async (route) => {
   const req = route.request();
   const p = new URL(req.url()).pathname;
   const json = (b) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
+  if (p === "/settings" && req.method() === "PUT") { settingsPuts.push(req.postDataJSON()); return json({ success: true, message: "Settings saved" }); }
   if (p === "/settings") return json({ settings });
   if (p === "/auto-mechanic") return json({ success: true, mechdata: ["Ramesh"] });
   if (p === "/autobills/a1/payment") { payments.push(req.postDataJSON()); return json({ success: true, message: "ok", autoBill: bill }); }
@@ -261,6 +263,31 @@ await page.locator("thead").getByRole("button", { name: "Qty" }).click();
 await page.waitForTimeout(400);
 const ep = entryParams[entryParams.length - 1];
 ok("auto: purchases sort by qty on the server", ep.sortBy === "qty" && ep.sortDir === "asc", JSON.stringify(ep));
+
+// ---- Parts catalog: names are judged as shown, like the tyre catalog ----
+await page.goto(BASE + "/settings");
+await page.getByRole("tab", { name: "Parts Catalog" }).click();
+// A part added here, renamed, then added again under its old name: the second add did nothing at all (the renamed
+// part still holds the stored value that name makes).
+const addPartRow = async (label, rate) => {
+  await page.locator("#new-part-label").fill(label);
+  await page.locator("#new-part-rate").fill(rate);
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+};
+await addPartRow("Air Filter", "250");
+await page.getByLabel("Air Filter name").fill("Air Filter (old)");
+await addPartRow("Air Filter", "300");
+const partNames = await page.locator(".matrix-parts tbody th input").evaluateAll((els) => els.map((e) => e.value));
+ok("auto: a part can be added under a renamed part's old name", partNames.includes("Air Filter") && partNames.includes("Air Filter (old)"), partNames.join(" | "));
+// Two parts under one name, or a part with no name, are not saved.
+const savePuts = async () => { const n = settingsPuts.length; await page.locator(".form-footer").getByRole("button", { name: "Save All Settings" }).click(); await page.waitForTimeout(600); return settingsPuts.length - n; };
+await page.getByLabel("Brake Shoe name").fill("oil filter ");
+const dupSaves = await savePuts();
+const dupAlert = (await page.locator("[role=alert]").allTextContents()).join(" ");
+ok("auto: two parts with the same name are not saved", dupSaves === 0 && /oil filter.*twice/i.test(dupAlert), `${dupSaves} saves; "${dupAlert.slice(-120)}"`);
+await page.getByLabel("oil filter name").first().fill("");
+const blankSaves = await savePuts();
+ok("auto: a part with no name is not saved", blankSaves === 0, `${blankSaves} saves`);
 
 ok("auto: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
