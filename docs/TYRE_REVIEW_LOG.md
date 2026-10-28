@@ -1113,3 +1113,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - Set row 2 to ₹44,250 and remove the empty row: saves, with 3 × ₹24,250, ₹28,500 due today and ₹44,250 + ₹400 due a month later.
 - Layout at 390px light: no sideways scroll; the header and footer stay pinned on screen.
 - No bugs found.
+
+## Run 101: 2026-10-28 (area c, list sorting)
+- Every challan list sort key (D.C. no, date, vehicle, customer, payment type, next due, to collect, received, pending, status), both directions, read page by page (7 per page) over 23 mixed challans:
+  - each challan appears exactly once across the pages;
+  - numbers and dates are in order;
+  - next due keeps challans with nothing scheduled last both ways;
+  - the export comes in the same order as the list.
+- Looked like a bug, isn't: customer A→Z put "Zeta Lorry" before "anand" in the test. The real queries all pass `SORT_COLLATION` (case-insensitive, numeric-aware), which MongoDB honours and the in-memory test DB ignores. So text order can't be checked here, and nothing was changed.
+- No bugs found. Quiet run (3 in a row: 99, 100, 101).
