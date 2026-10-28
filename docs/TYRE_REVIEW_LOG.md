@@ -986,3 +986,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
   - no installment is paid beyond its total.
   All held. The fuzz was a scratch test and isn't committed.
 - No bugs found. Quiet run (2 of 3).
+
+## Run 88: 2026-10-28 (area b, challan form UI)
+- An installment challan with a paid row, an overdue part-paid row (₹4,000 of ₹10,400) and an unpaid row. Checked the edit and view pages at 1300px light and 390px dark:
+  - no sideways scroll;
+  - paid and part-paid rows are locked (no date picker, no remove);
+  - only the unpaid row can be edited or removed;
+  - status chips read Paid / Overdue / Due;
+  - the totals (₹49,300 to collect, ₹32,500 received, ₹16,800 pending) and the principal check match.
+- The date boxes show MM/DD only because the test browser uses US date order; a browser set to Indian dates shows DD/MM.
+- No bugs found. Quiet run (3 of 3 in a row): suggest the user stop the hourly task.
