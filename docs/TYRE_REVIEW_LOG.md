@@ -1023,3 +1023,14 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 69, automobile 45, engineering 1
 - Open, needs the user (same as the earlier wide-lists question): at 1300px with the sidebar open, the stock table is 65px wider than its card. The last column, the ⋮ row menu, is off-screen until the table is scrolled sideways. This was like this before this run.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 92: 2026-10-28 (area f, regression in the other company types)
+- Checked every phone card that shares the header changed in run 89 (`.m-card-key`), comparing screenshots before and after that change.
+- Regression found (caused by run 89, screenshots at 390px):
+  - Radiator Expenses: "Electricity bill — September" pushed its amount and ⋮ menu down, and the menu ended up alone on a line, which the card was built to prevent.
+  - Admin › Clients: "Arun Engineering Works" pushed its "Suspended" badge and menu onto a second line, where before the name wrapped beside them.
+- Root cause: run 89 removed the title's minimum width altogether (`flex: 1 1 auto`). The real problem was only that the 140px minimum was about 8px too big for a vehicle number beside "Not Received".
+- Fix (`styles/components/ui.css`): the title wraps beside the badges and menu down to 100px (`flex: 1 1 100px`). A vehicle number still fits beside "Not Received", and expense and client cards look exactly as they did before run 89 (side-by-side screenshots).
+- Test: `e2e/radiator.e2e.mjs` "phone expense cards keep the ⋮ menu beside the title" (390px, shared fixtures). It fails with run 89's CSS on "Electricity bill — September" and passes now. The tyre check "a short vehicle number keeps its badge on the same line" still passes.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 166, radiator 18, salary 7, 0 FAIL.

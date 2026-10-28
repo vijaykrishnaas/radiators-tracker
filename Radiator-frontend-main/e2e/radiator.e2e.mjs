@@ -143,6 +143,23 @@ await page.goto(BASE + "/engineering/dashboard");
 await page.waitForTimeout(1500);
 ok("radiator: engineering route redirects away", !page.url().includes("/engineering/"), page.url());
 
+// Phone expenses: a two-line description wraps beside its amount and ⋮ menu; the menu is never left on a line of its own
+// (it was, when the card title lost its minimum width).
+const { mockApi, loginAs } = await import("./fixtures.mjs");
+const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await mockApi(phone, "radiator");
+await loginAs(phone, BASE, "admin");
+await phone.goto(BASE + "/issueCounter/expenses");
+await phone.locator(".m-card").first().waitFor({ timeout: 10000 });
+const expenseCards = await phone.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
+  const key = c.querySelector(".m-card-key").getBoundingClientRect();
+  const menu = c.querySelector(".m-card-top .m-card-tail")?.getBoundingClientRect();
+  return { title: c.querySelector(".m-card-key").textContent.trim(), beside: !!menu && menu.top < key.bottom && menu.bottom > key.top };
+}));
+ok("radiator: phone expense cards keep the ⋮ menu beside the title", expenseCards.length > 0 && expenseCards.every((c) => c.beside),
+  JSON.stringify(expenseCards.filter((c) => !c.beside)));
+await phone.close();
+
 ok("radiator: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(results.join("\n"));
