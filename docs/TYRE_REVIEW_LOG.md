@@ -1046,3 +1046,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
   - every row that had a payment keeps its principal, interest and due date, and never loses a payment.
 - Result: 373 edits, 336 payments and 125 refused (all as intended, with the challan unchanged). All checks held. The fuzz was a scratch test and isn't committed.
 - No bugs found.
+
+## Run 94: 2026-10-28 (area b, payment dialog)
+- Record Payment on an installment challan (paid row, overdue part-paid row, unpaid row) and on a full-payment challan with a part payment, at 1300px light and 390px dark. Figures are right (₹49,300 / ₹32,500 / ₹16,800; ₹76,002 = 4 × ₹19,000.50). No sideways scroll.
+- Behaviour, checked in the browser against the real DAO:
+  - only rows with a balance are offered (the paid row isn't);
+  - the overdue row is picked first, with its ₹6,400 balance filled in;
+  - switching to the 2nd month fills ₹10,400;
+  - ₹99,999 is refused before sending ("Only ₹10,400 is left on 2nd month");
+  - ₹400.50 is posted to the chosen row, which becomes "Partly paid" with ₹9,999.50 left.
+- No bugs found. Quiet run (2 in a row).
