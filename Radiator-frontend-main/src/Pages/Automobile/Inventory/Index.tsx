@@ -216,7 +216,9 @@ const Inventory = () => {
                         onClick={() => setExpanded(expanded === r.partRef ? null : r.partRef)}>
                         <Icons iconName="chevron-right" />
                     </button>
-                    {r.label}
+                    {/* The expand button takes part of the cell, so a short name like "MRF 10.00-20" broke mid-size
+                        ("MRF 10.00-" / "20"). Short names stay on one line; long ones still wrap. */}
+                    <span className={r.label.length <= 24 ? "nowrap" : undefined}>{r.label}</span>
                     {!r.inCatalog && <span className="d-block t-xs t-muted">Removed from catalog</span>}
                 </>
             ),

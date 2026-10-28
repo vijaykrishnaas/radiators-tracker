@@ -39,6 +39,7 @@ const fakeDb = new FakeDb();
 mock.module(backend("src/config/db.js"), { namedExports: { connectDB: async () => fakeDb } });
 mock.module(backend("src/dao/settings.dao.js"), { namedExports: { getSettings: async () => settings } });
 const dao = await import(backend("src/dao/tyrebill.dao.js"));
+const inventory = await import(backend("src/dao/inventory.dao.js"));
 const CLIENT = "650000000000000000000001";
 
 const settingsPuts = [];
@@ -60,7 +61,8 @@ await page.route("http://localhost:5000/**", async (route) => {
   if (p === "/settings") return json({ settings });
   if (p === "/tyre-mechanic") return json({ success: true, mechdata: ["Ramesh"] });
   if (p === "/inventory/levels") return json({ success: true, levels: { "mrf:10-00-20-steel-muscle": 1 } });
-  if (p === "/inventory/summary") return json({ success: true, rows: [], totals: { parts: 0, inStock: 0, stockValue: 0, sales: 0, profit: 0, outOfStock: 0 } });
+  // The real summary: every catalog tyre, with what the challans so far have sold.
+  if (p === "/inventory/summary") return json({ success: true, ...(await inventory.getInventorySummary(CLIENT)) });
   if (p === "/inventory/entries") return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: 0, entries: [] });
   if (p === "/tyrebills/analytics") {
     // The real aggregation on the fake DB, with the filters mapped as routes/tyrebill.routes.js does.
@@ -521,6 +523,18 @@ ok("tyre: after renaming CEAT, a new CEAT brand and model can be added beside it
 await page.goto(BASE + "/tyre/inventory");
 await page.getByText("Stock by tyre").first().waitFor({ timeout: 10000 }).catch(() => {});
 ok("tyre: inventory page speaks tyres", (await page.getByText("Stock by tyre").count()) > 0);
+// The name cell also holds the expand button: a short name like "MRF 10.00-20" broke as "MRF 10.00-" / "20".
+await page.locator(".table tbody td.key").first().waitFor({ timeout: 10000 });
+const nameLines = await page.locator(".table tbody td.key").evaluateAll((tds) => tds.flatMap((td) => {
+  // The name is the first text in the cell outside the expand button.
+  const walk = document.createTreeWalker(td, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent.trim() && !n.parentElement.closest("button") ? 1 : 3) });
+  const node = walk.nextNode();
+  if (!node || node.textContent.trim().length >= 24) return [];
+  const r = document.createRange(); r.selectNodeContents(node);
+  return [{ name: node.textContent.trim(), lines: new Set([...r.getClientRects()].map((b) => Math.round(b.top))).size }];
+}));
+const brokenNames = nameLines.filter((n) => n.lines > 1).map((n) => `${n.name} (${n.lines} lines)`);
+ok("tyre: inventory keeps a short tyre name on one line", nameLines.length > 0 && brokenNames.length === 0, brokenNames.join(" | ") || `${nameLines.length} names checked`);
 
 // ---- Phone width: no sideways scroll on the challan form ----
 await page.setViewportSize({ width: 390, height: 900 });

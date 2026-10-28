@@ -1013,3 +1013,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 68, automobile 45, engineering 1
 - Left open (minor, app-wide): whole-rupee amounts print without paise ("Rs 7,27,695") next to amounts with paise ("Rs 28,393.50").
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 69, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 91: 2026-10-28 (area e, tyre inventory page)
+- Inventory with real stock and challans (3 tyres: one short, one unsold, one in stock). Every figure checks: Apollo bought 6 / sold 8 = short by 2; MRF 13 left × ₹21,000.50 = ₹2,73,006.50; profit = sales − sold × average cost; units in stock 15; 1 tyre out of stock. No page-level sideways scroll at 1300 or 390.
+- Bug (screenshot, 1300px): in "Stock by tyre", short names broke in the middle of the size: "MRF 10.00-" / "20". The name cell also holds the expand button, so the text got less than the column's minimum width.
+- Two rejected attempts: the wide column class (220px) and a 190px cell both made the table wider, and 190px still broke the name.
+- Fix (`Pages/Automobile/Inventory/Index.tsx`, shared by tyre and automobile): a name of 24 characters or fewer stays on one line, and longer names wrap as before. The table is no wider than it was.
+- Test: `e2e/tyre.e2e.mjs` "inventory keeps a short tyre name on one line". The e2e now serves the real inventory summary instead of an empty stub. "Apollo 9.00-20 XT-7 (2 lines)" before the fix; passes after. The check fails if it finds no names to check.
+- Open, needs the user (same as the earlier wide-lists question): at 1300px with the sidebar open, the stock table is 65px wider than its card. The last column, the ⋮ row menu, is off-screen until the table is scrolled sideways. This was like this before this run.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
