@@ -1092,3 +1092,14 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 45, engineering 1
 - Not changed: radiator products and service types can't be renamed. Adding an exact duplicate there is silently ignored, which is minor.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.
+
+## Run 99: 2026-10-28 (area a, full-payment edits)
+- Fuzz on the one money path not yet fuzzed: full-payment challans edited after payments and discounts. 150 challans, 8 random steps each: part payments and overpay attempts, discount changes, and edits moving qty and rate between 30% and 170%.
+- Checked after every step:
+  - received = payment log;
+  - total = tyre amount − discount, with the discount between 0 and the tyre amount;
+  - pending = total − received, never below 0;
+  - status matches what was received;
+  - an edit never changes what was received or the discount.
+- Result: 422 edits, 430 payments and 215 refusals, all checks held. Every refusal was a legitimate guard: 178 edits below received + discount, 27 discounts above what was owed, 10 payments on paid challans. The fuzz was a scratch test and isn't committed.
+- No bugs found.
