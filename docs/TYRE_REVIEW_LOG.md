@@ -1136,3 +1136,9 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - the Purchases tab lists the new entry first, under the tyre's current name.
 - An apparent open dialog after saving was the hidden phone sidebar (it has the dialog role); the Add stock form had closed.
 - No bugs found. Quiet run (5 in a row: 99–103).
+
+## Run 104: 2026-10-28 (area f, salary screens at 390px)
+- Employees and Settle salary captured at 390px with `e2e/screens.mjs` (mocked API): no page errors, no sideways scroll.
+- Employee cards keep name + salary on one line, with the badges and ⋮ on the next, the same as before runs 89/92.
+- The settle page's figures (September attendance marks against an October period, 30 working days in a 28-day period) are fixture values from the mocked responses, not computed by the app, so they aren't a finding.
+- No bugs found. Quiet run (6 in a row: 99–104).
