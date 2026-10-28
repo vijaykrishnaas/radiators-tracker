@@ -1062,3 +1062,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
 - For every combination, the list total, the export and the dashboard's challan count match each other and a hand count from the stored dates, with both ends of a date range included. Run with the server on UTC and on India time.
 - Note (not a finding): the date filter starts each day at the server's local midnight while bill dates are stored as UTC midnight. That's correct on UTC or India-time servers; a server west of UTC would shift the range edges by a day. Not changed: the app isn't run that way.
 - No bugs found. Quiet run (3 in a row: 93, 94, 95).
+
+## Run 96: 2026-10-28 (area d, printed challan totals)
+- Printed the totals blocks not yet checked, each one page with 0 overprints:
+  - full payment with a ₹500 discount and a part payment: ₹48,500 − ₹500 = ₹48,000, received ₹20,000, balance ₹28,000;
+  - full payment settled with a discount: ₹24,250 − ₹250 = ₹24,000, received ₹24,000, balance ₹0;
+  - installment plan paid off: ₹24,550 collected, with each row's Paid column equal to its total.
+- In the text extract, PLAN's totals looked further right than DISC's. The rendered pages show both columns at the same position, so it's only pdftotext's layout.
+- No bugs found. Quiet run (4 in a row: 93–96).
