@@ -1103,3 +1103,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - an edit never changes what was received or the discount.
 - Result: 422 edits, 430 payments and 215 refusals, all checks held. Every refusal was a legitimate guard: 178 edits below received + discount, 27 discounts above what was owed, 10 payments on paid challans. The fuzz was a scratch test and isn't committed.
 - No bugs found.
+
+## Run 100: 2026-10-28 (area b, create form: installment plan flow at 390px light)
+- Drove a new challan against the real DAO:
+  - MRF × 2 → Installments: 3 empty rows, "Still to schedule ₹48,500".
+  - Fill ₹28,500 + ₹20,000 (+₹400 interest): "Matches the tyre amount ✓".
+  - Change qty to 3: "Still to schedule ₹24,250", shown in orange.
+  - Save: refused before sending, with "Principal is ₹24,250.00 short of the tyre amount. Add it to an installment." The empty third row is flagged "Enter an amount (or remove this row)".
+  - Set row 2 to ₹44,250 and remove the empty row: saves, with 3 × ₹24,250, ₹28,500 due today and ₹44,250 + ₹400 due a month later.
+- Layout at 390px light: no sideways scroll; the header and footer stay pinned on screen.
+- No bugs found.
