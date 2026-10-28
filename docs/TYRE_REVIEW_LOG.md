@@ -1034,3 +1034,15 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 1
 - Test: `e2e/radiator.e2e.mjs` "phone expense cards keep the ⋮ menu beside the title" (390px, shared fixtures). It fails with run 89's CSS on "Electricity bill — September" and passes now. The tyre check "a short vehicle number keeps its badge on the same line" still passes.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 70, automobile 45, engineering 166, radiator 18, salary 7, 0 FAIL.
+
+## Run 93: 2026-10-28 (area a, challan money logic: plan edits)
+- Run 87's fuzz never edited an installment plan. This one does: 120 installment challans, 8 random steps each, mixing payments with plan edits. Edits drop or keep unpaid rows, add rows, re-split principals, change the tyre quantity, and are sometimes deliberately wrong.
+- Checked after every step:
+  - received = payment log = sum of the rows' paid amounts;
+  - principals = tyre amount;
+  - to collect = tyre amount + interest;
+  - pending and status follow what was received;
+  - no row is overpaid;
+  - every row that had a payment keeps its principal, interest and due date, and never loses a payment.
+- Result: 373 edits, 336 payments and 125 refused (all as intended, with the challan unchanged). All checks held. The fuzz was a scratch test and isn't committed.
+- No bugs found.
