@@ -295,7 +295,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "the challan prints no address or mechanic", "a long vehicle label wraps and the plate prints whole"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "the challan prints no address or mechanic", "a long vehicle label wraps and the plate prints whole", "a seven-digit amount to collect does not run into its label"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -322,6 +322,17 @@ if (!hasPoppler) {
   const serialsWhole = lines.flatMap((l) => l.tyreNumber.split(", ")).filter((sn) => !words.has(sn));
   ok("tyre pdf: each tyre number prints whole", serialsWhole.length === 0, serialsWhole.slice(0, 4).join(" | "));
   ok("tyre pdf: paise print as .50", bigText.join(" ").includes("32,750.50") && !/32,750\.5(?!0)/.test(bigText.join(" ")));
+
+  // A seven-digit amount to collect: the bold "Amount to collect" ran into it ("Amount to collecRs 7,56,088.50").
+  const fleet = await dao.createTyreBill(CLIENT, {
+    billDate: "2026-10-05", vehicleNumber: "KA01FL0040", items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 40, rate: 24999.5 }], paymentType: "installment",
+    installments: [{ dueDate: "2026-10-05", principal: 499990, interest: 0 }, { dueDate: "2026-11-05", principal: 499990, interest: 12345.5 }],
+  });
+  const fleetWords = pdfWords(await printPdf(fleet._id, "tyre-challan-fleet.pdf")).flat();
+  const collect = fleetWords.find((w) => w.t === "collect");
+  const amountWord = collect && fleetWords.filter((w) => w !== collect && Math.abs(w.y0 - collect.y0) < 2 && w.x0 > collect.x0).sort((a, b) => a.x0 - b.x0)[0];
+  ok("tyre pdf: a seven-digit amount to collect does not run into its label", !!amountWord && amountWord.x0 - collect.x1 >= 1,
+    collect && amountWord ? `gap ${(amountWord.x0 - collect.x1).toFixed(1)}pt before "${amountWord.t}"` : "label or amount not found");
 
   // A long company name on an ordinary 3-installment challan must still fit one page.
   const saved = { ...settings.company };

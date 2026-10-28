@@ -169,23 +169,30 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
 
     let ty = (doc as any).lastAutoTable.finalY + 6;
     const valX = W - M;
-    const labX = W - 62;
     if (ty + 26 > H - 40) { doc.addPage(); ty = M + 8; }
-    const row = (label: string, val: string, opt: { bold?: boolean; size?: number; lc?: RGB; vc?: RGB } = {}) => {
-        doc.setFont("helvetica", opt.bold ? "bold" : "normal");
-        doc.setFontSize(opt.size || 8);
-        setRGB(opt.lc || sub); doc.text(label, labX, ty);
-        setRGB(opt.vc || ink); doc.text(val, valX, ty, { align: "right" });
-        ty += 5;
-    };
-    row("Tyre amount", rs(bill.tyreAmount));
-    if (bill.discount > 0) row("Discount", `- ${rs(bill.discount)}`);
-    if (isPlan && bill.interestTotal > 0) row("Interest", rs(bill.interestTotal));
-    drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 2.6, valX, ty - 2.6); ty += 1.5;
-    row(isPlan ? "Amount to collect" : "Total", rs(bill.payableTotal), { bold: true, size: 9.5, lc: ink });
+    type TotalRow = { label: string; val: string; bold?: boolean; size?: number; lc?: RGB; rule?: boolean };
+    const rows: TotalRow[] = [{ label: "Tyre amount", val: rs(bill.tyreAmount) }];
+    if (bill.discount > 0) rows.push({ label: "Discount", val: `- ${rs(bill.discount)}` });
+    if (isPlan && bill.interestTotal > 0) rows.push({ label: "Interest", val: rs(bill.interestTotal) });
+    rows.push({ label: isPlan ? "Amount to collect" : "Total", val: rs(bill.payableTotal), bold: true, size: 9.5, lc: ink, rule: true });
     if (bill.receivedAmount > 0) {
-        row("Received", rs(bill.receivedAmount));
-        row("Balance", rs(bill.pendingAmount), { bold: true });
+        rows.push({ label: "Received", val: rs(bill.receivedAmount) });
+        rows.push({ label: "Balance", val: rs(bill.pendingAmount), bold: true });
+    }
+    // The label column starts 62mm from the edge, further left when a label and its amount need more room: a bold
+    // "Amount to collect" next to a seven-digit amount ran into it ("Amount to collecRs 7,56,088.50").
+    const widest = Math.max(...rows.map((r) => {
+        doc.setFont("helvetica", r.bold ? "bold" : "normal"); doc.setFontSize(r.size || 8);
+        return doc.getTextWidth(r.label) + 4 + doc.getTextWidth(r.val);
+    }));
+    const labX = Math.min(W - 62, valX - widest);
+    for (const r of rows) {
+        if (r.rule) { drawRGB(hair); doc.setLineWidth(0.3); doc.line(labX, ty - 2.6, valX, ty - 2.6); ty += 1.5; }
+        doc.setFont("helvetica", r.bold ? "bold" : "normal");
+        doc.setFontSize(r.size || 8);
+        setRGB(r.lc || sub); doc.text(r.label, labX, ty);
+        setRGB(ink); doc.text(r.val, valX, ty, { align: "right" });
+        ty += 5;
     }
 
     /* ---- Installment schedule ---- */

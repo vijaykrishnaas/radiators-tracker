@@ -1004,3 +1004,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 67, automobile 45, engineering 1
 - Test: `e2e/tyre.e2e.mjs` "a short vehicle number keeps its badge on the same line". It failed on all 3 "Not Received" cards before the fix and passes after.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 68, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
+
+## Run 90: 2026-10-28 (area d, printed challan)
+- Stress print: 12 tyre lines with up to 4 long serials each, an 80-character customer name, two phone numbers, 24 installments and a paise payment. Three pages, 0 overprints. Names and serials wrap, table headers repeat on each page, and the signatures stay on the last page.
+- Bug (screenshot): with a seven-digit total, the bold "Amount to collect" ran into its amount and printed as "Amount to collecRs 7,56,088.50". The overprint check missed it: the words touch rather than overlap enough to count. Cause: the totals' label column started at a fixed 62mm from the edge, which leaves about 52mm for the label and amount.
+- Fix (`PrintTyreChallan.ts`): the totals rows are collected first, the widest label + amount pair is measured at its own font, and the label column moves left only as far as that needs. Ordinary totals print exactly where they did.
+- Test: `e2e/tyre.e2e.mjs` "a seven-digit amount to collect does not run into its label" (40 tyres at ₹24,999.50 plus interest). Gap −8.2pt before the fix, +11.1pt after.
+- Left open (minor, app-wide): whole-rupee amounts print without paise ("Rs 7,27,695") next to amounts with paise ("Rs 28,393.50").
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 69, automobile 45, engineering 166, radiator 17, salary 7, 0 FAIL.
