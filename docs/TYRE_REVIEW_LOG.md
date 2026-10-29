@@ -1152,3 +1152,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - another tenant starts its own counter at 1.
   The scratch test isn't committed.
 - No bugs found. Quiet run (7 in a row: 99–105).
+
+## Run 106: 2026-10-29 (area b, edit form on a paid full-payment challan, 390px)
+- Full-payment challan (₹48,500) with ₹10,000 received, opened in Edit:
+  - clicking "Installments" doesn't switch, and no plan appears;
+  - the note "A payment is recorded, so the payment type can't change." is shown;
+  - saving sends paymentType "full", and the challan keeps ₹10,000 received, ₹38,500 pending, status Partial.
+- No bugs found. Quiet run (8 in a row: 99–106).
