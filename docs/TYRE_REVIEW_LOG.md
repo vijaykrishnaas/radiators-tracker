@@ -1172,3 +1172,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - Printed a 40-character tyre number with no separators, and two serials joined with ";" instead of a comma. One page, 0 overprints.
 - The unbroken number wraps onto three lines inside the Tyre no. column. The ";" pair wraps mid-serial ("SN-A" / "/2026/0002") but stays in its column. Comma-separated serials (what the form suggests) already break cleanly between serials (run 52).
 - No bugs found. Quiet run (10 in a row: 99–108).
+
+## Run 109: 2026-10-29 (area e, editing tyre stock entries)
+- Real inventory DAO on the fake DB:
+  - moving an entry from model A (6) to model B with qty 4 leaves A 0 and B 4;
+  - an edit to 2.5 tyres is refused ("qty must be a whole number") and changes nothing;
+  - another tenant's edit is refused ("Stock entry not found").
+- Delete couldn't be run here: the in-memory test DB has no `findOneAndDelete`. By reading, `deleteStockEntry` filters on the tenant the same way and returns 404 otherwise. The scratch tests aren't committed.
+- No bugs found. Quiet run (11 in a row: 99–109).
