@@ -1184,3 +1184,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 ## Run 110: 2026-10-29 (area f, full gate on the current staging head)
 - The full gate hasn't run since run 98 (runs 99–109 changed only this log), so it was rerun on efd3e01: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.
 - No bugs found. Quiet run (12 in a row: 99–110).
+
+## Run 111: 2026-10-29 (area a, paisa-level amounts)
+- An installment of ₹0.10 + ₹0.20 interest paid with ₹0.30: the row is Paid with ₹0 left (no 0.1 + 0.2 float noise).
+- ₹0.005 is kept as ₹0.01. ₹999.996 rounds to ₹1,000, more than the ₹999.99 left, so it's refused with a clear message.
+- Full payment ₹100.30: a ₹0.10 then ₹0.30 discount gives ₹100 to collect; ₹100.004 paid rounds to ₹100, and the challan is Received with ₹0 pending.
+- The scratch test isn't committed.
+- No bugs found. Quiet run (13 in a row: 99–111).
