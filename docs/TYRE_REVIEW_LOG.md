@@ -1180,3 +1180,7 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - another tenant's edit is refused ("Stock entry not found").
 - Delete couldn't be run here: the in-memory test DB has no `findOneAndDelete`. By reading, `deleteStockEntry` filters on the tenant the same way and returns 404 otherwise. The scratch tests aren't committed.
 - No bugs found. Quiet run (11 in a row: 99–109).
+
+## Run 110: 2026-10-29 (area f, full gate on the current staging head)
+- The full gate hasn't run since run 98 (runs 99–109 changed only this log), so it was rerun on efd3e01: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.
+- No bugs found. Quiet run (12 in a row: 99–110).
