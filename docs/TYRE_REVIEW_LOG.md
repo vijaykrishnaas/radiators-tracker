@@ -1167,3 +1167,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - the follow-up list shows the three open rows in date order.
   The scratch test isn't committed.
 - No bugs found. Quiet run (9 in a row: 99–107).
+
+## Run 108: 2026-10-29 (area d, unusual tyre numbers on the printed challan)
+- Printed a 40-character tyre number with no separators, and two serials joined with ";" instead of a comma. One page, 0 overprints.
+- The unbroken number wraps onto three lines inside the Tyre no. column. The ";" pair wraps mid-serial ("SN-A" / "/2026/0002") but stays in its column. Comma-separated serials (what the form suggests) already break cleanly between serials (run 52).
+- No bugs found. Quiet run (10 in a row: 99–108).
