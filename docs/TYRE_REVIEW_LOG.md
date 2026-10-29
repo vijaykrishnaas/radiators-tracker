@@ -1142,3 +1142,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - Employee cards keep name + salary on one line, with the badges and ⋮ on the next, the same as before runs 89/92.
 - The settle page's figures (September attendance marks against an October period, 30 working days in a 28-day period) are fixture values from the mocked responses, not computed by the app, so they aren't a finding.
 - No bugs found. Quiet run (6 in a row: 99–104).
+
+## Run 105: 2026-10-29 (area a, D.C. numbering)
+- The session's worker restarted repeatedly. 23 hourly firings (2026-10-28 18:11 to 2026-10-29 16:19 UTC) arrived together, so this one run covers them; repeating the same checks 23 times would find nothing more.
+- D.C. numbers (real `nextBillNo` on the fake DB):
+  - 101, 102; deleting 102 and creating again gives 103 (never reused);
+  - raising "First D.C. number" to 500 gives 500 next;
+  - lowering it to 1 gives 501 (no reuse);
+  - another tenant starts its own counter at 1.
+  The scratch test isn't committed.
+- No bugs found. Quiet run (7 in a row: 99–105).
