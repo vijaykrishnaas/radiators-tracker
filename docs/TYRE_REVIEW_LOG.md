@@ -1191,3 +1191,7 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - Full payment ₹100.30: a ₹0.10 then ₹0.30 discount gives ₹100 to collect; ₹100.004 paid rounds to ₹100, and the challan is Received with ₹0 pending.
 - The scratch test isn't committed.
 - No bugs found. Quiet run (13 in a row: 99–111).
+
+## Run 112: 2026-10-29 (area b, challan form at 1300px dark)
+- The one theme/width pair not yet captured: an installment challan (paid / overdue part-paid / due rows) in Edit and View at 1300px dark. No sideways scroll; chips, paid amounts, the locked rows and the green principal check all read clearly; totals ₹49,300 / ₹32,500 / ₹16,800.
+- No bugs found. Quiet run (14 in a row: 99–112).
