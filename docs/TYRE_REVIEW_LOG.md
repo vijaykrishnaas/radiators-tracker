@@ -1159,3 +1159,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
   - the note "A payment is recorded, so the payment type can't change." is shown;
   - saving sends paymentType "full", and the challan keeps ₹10,000 received, ₹38,500 pending, status Partial.
 - No bugs found. Quiet run (8 in a row: 99–106).
+
+## Run 107: 2026-10-29 (area c, dashboard "Installments to collect" at the month end)
+- One plan with rows due Oct 1 (part paid ₹400 of ₹1,000), Oct 29 (today), Oct 30 (paid), Oct 31 (₹1,000 + ₹50 interest) and Nov 1; "now" = Oct 29, on UTC and India time:
+  - overdue ₹600 on 1 challan (Oct 1 only);
+  - due this month ₹2,050 (today's row is due, not overdue; the Oct 31 row is included; the paid row and the Nov 1 row are left out);
+  - the follow-up list shows the three open rows in date order.
+  The scratch test isn't committed.
+- No bugs found. Quiet run (9 in a row: 99–107).
