@@ -1374,3 +1374,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - The only flags were challans written off entirely by discount (payable ₹0) showing "Received". That's intended (settled), and the check's own rule was wrong.
 - The scratch test isn't committed.
 - No bugs found. Quiet run (2 in a row: 130–131).
+
+## Run 132: 2026-10-30 (area b, accessibility re-check after runs 119–127)
+- After a payment, the challan View reloads the challan (`onPay` → `loadBill`), so Received and Pending update at once.
+- axe-core 4.10.2 (serious / critical) at 1300px and 390px, light and dark:
+  - new-challan form: no issues apart from the shared sidebar group titles, already logged as a design choice in run 38;
+  - challan View and the payment dialog (installment and full): none;
+  - the payment dialog showing run 125's new errors ("Only ₹10,400.00 is left on 1st month" / "Only ₹24,250.00 is left to collect"): none.
+- No bugs found. Quiet run (3 in a row: 130–132).
