@@ -85,6 +85,17 @@ ok("radiator: payment without discount keeps existing ₹100 discount", p1?.disc
 const p2 = await recordPayment(50, null);
 ok("radiator: extra ₹50 discount is added to existing (150)", p2?.discount === 150, JSON.stringify(p2));
 
+// Writing off exactly what is left: the server's pending carries float noise (1234.56 − 1000.01 = 234.54999999999995),
+// which the dialog's overpayment check once took as "the discount is more than the pending".
+const kept = { ...bill };
+Object.assign(bill, { serviceInfo: [{ type: "Service", price: 1234.56 }], totalAmount: 1234.56, discount: 0, netAmount: 1234.56, receivedAmount: 1000.01, pendingAmount: 1234.56 - 1000.01 });
+await page.reload();
+await page.getByText("TN52R0001").first().waitFor({ timeout: 10000 });
+const p3 = await recordPayment(234.55, null);
+ok("radiator: a discount of exactly the pending amount is accepted", p3?.discount === 234.55 && payments.length === 3, JSON.stringify(p3));
+Object.assign(bill, kept);
+await page.reload();
+
 // Bills list: headers sort on the server, one search box.
 await page.goto(BASE + "/issueCounter/billing");
 await page.getByText("TN52R0001").first().waitFor({ timeout: 10000 });

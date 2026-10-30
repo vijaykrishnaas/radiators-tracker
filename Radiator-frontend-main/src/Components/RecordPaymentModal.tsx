@@ -75,12 +75,15 @@ export default function RecordPaymentModal({
     }, [open]);
 
     const disc = Number(discount) || 0;
-    const upTo = chosen ? chosen.balance : Math.max(Math.round((pending - disc) * 100) / 100, 0);
+    // To the paisa: some verticals send pending with float noise (1234.56 − 1000.01 = 234.54999999999995), and a
+    // discount or payment of exactly what is left must still pass the checks below.
+    const owed = Math.round(pending * 100) / 100;
+    const upTo = chosen ? chosen.balance : Math.max(Math.round((owed - disc) * 100) / 100, 0);
     // The form skips the browser's own checks (see Modal), so the max on the inputs below is only a hint: without this
     // an amount above what is owed was sent, and the server quietly kept only what was owed.
     const submit = () => {
         const e: { amount?: string; discount?: string } = {};
-        if (!plan && disc > pending) e.discount = `The discount can't be more than the ${money(pending)} pending`;
+        if (!plan && disc > owed) e.discount = `The discount can't be more than the ${money(owed)} pending`;
         else if ((Number(amount) || 0) > upTo) e.amount = `Only ${money(upTo)} is left${chosen ? ` on ${chosen.label}` : " to collect"}`;
         setErrs(e);
         if (!e.amount && !e.discount) onSubmit({ amount, discount: plan ? "" : discount, mode, ...(plan ? { installmentId: instId } : {}) });

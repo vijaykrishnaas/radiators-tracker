@@ -1316,3 +1316,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - installment challan, ₹99,999 on the initial row: "Only ₹28,500.00 is left on Initial amount".
 - In every case nothing is sent, and the error shows under its field in the modal, readable in dark mode. No sideways scroll.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 127: 2026-10-30 (area f, run 125's payment-dialog checks in the other verticals; area d moves to the next run)
+- Every vertical's dialog gets its pending from the server and treats the dialog's discount as an extra discount, so the run 125 limits mean the same everywhere.
+- **Bug (from run 125):** radiator and automobile send `pendingAmount` unrounded (`Math.max(net − received, 0)`), e.g. 1234.56 − 1000.01 = 234.54999999999995. A discount of exactly the ₹234.55 left (writing off the rest) was refused as "more than the pending", and nothing was sent.
+  - Amounts were fine, because `upTo` was already rounded; only the discount check compared against the raw value.
+  - Fix: the dialog rounds pending to the paisa (`owed`) once and uses it for both checks.
+- Test: e2e/radiator.e2e.mjs "a discount of exactly the pending amount is accepted". Before the fix it failed with no payment sent.
+- Gate: backend 120/120; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.
