@@ -1256,3 +1256,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - after paying off the 1st month: ₹38,900 received, ₹11,000 pending; the challan leaves the Overdue filter and the panel shows ₹0 overdue.
   All five views match at every point. The scratch test isn't committed.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 121: 2026-10-30 (area d, printing a challan whose plan was edited after payments)
+- Printed through the app's Print button (real DAO), rendered to PNG and checked for overprints:
+  - **Edited installment challan:** paid initial row, part-paid 1st month (₹3,000), a renamed long row "Pongal festival instalment (after harvest)", an added 3rd month, and an interest-only "Late fee" row (₹0 principal, ₹250 interest).
+    - One page, no overprints. The long name wraps inside its column.
+    - Paid column: ₹28,500 / ₹3,000 / "-". Totals ₹48,500 + ₹1,650 interest = ₹50,150; ₹31,500 received; ₹18,650 balance. All match the challan.
+  - **Full-payment challan with a discount:** ₹97,000, ₹1,500 discount, ₹50,000 received. Prints "- Rs 1,500", total ₹95,500, balance ₹45,500.
+    - With no customer name, "Delivered to" shows the vehicle number. That's a deliberate fallback (PrintTyreChallan.ts:106).
+- No bugs found. Quiet run (2 in a row: 120–121).
