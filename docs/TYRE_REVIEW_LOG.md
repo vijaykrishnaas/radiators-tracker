@@ -1392,3 +1392,9 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Fix (Billing/Index.tsx): installment cards show "Next due …", using the same `NextDue` cell as the table, so overdue rows come out red with the overdue count and amount. Full-payment cards are unchanged.
   - Test: e2e/tyre.e2e.mjs "phone installment cards show the next due" (failed before the fix).
 - Gate: backend 121/121; tsc and build OK; e2e tyre 75, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.
+
+## Run 134: 2026-10-30 (area d, printed challan: header options and renamed brands)
+- A long company name and a long challan title were already covered (runs 10 and 20, with tests). The tyre challan has no logo or QR option to collide with them, and run 102 covered the bare profile.
+- After a brand rename, an older challan's print, its View and its row in the list all show the name stored on the challan (`items.brandLabel` / `particulars`). That's consistent, and right for a record of what was delivered.
+- The dashboard's brand chart groups by the stored brand value and shows the brand's *current* name (`getTyreAnalytics` maps `_id` back to the catalog). Its `$last` label is only the fallback for brands removed from Settings.
+- No bugs found. Quiet run (1 in a row).
