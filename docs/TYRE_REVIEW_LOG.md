@@ -1200,3 +1200,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - The export writes three sheets (challans, tyre lines, installments). The challan sheet has D.C. No, Date, Vehicle, Customer, Phone, Tyres, Payment, Tyre amount, Interest, Discount, To collect, Received, Pending, Overdue and Status: no Address, Mechanic or Labour column remains.
 - `getAllTyreBillsForExport` enriches every challan, so Overdue and the per-row totals and statuses are filled, in the list's order (run 101).
 - No bugs found. Quiet run (15 in a row: 99–113).
+
+## Run 114: 2026-10-30 (area d, page breaks before the signatures)
+- Printed installment challans with 5 to 14 tyre lines and a 3-row plan: 0 overprints in all.
+- Bug (screenshot): with 5 tyres the whole challan fit on page 1, yet the signature lines alone were printed on a second page. The fit check reserved room for a signature image (from `sy + 4`) even when none is printed (Show signature off, or no image uploaded). That's 16mm reserved for nothing, and the plan ended about 1–2mm into it.
+- Fix (`PrintTyreChallan.ts`): the image's room is reserved only when an image is printed; otherwise the block starts just above its signature lines. 5 and 6 tyres now print on one page. 7+ still break, and then the plan moves to page 2 together with the signatures. With a signature image switched on, its room is still kept (5 tyres then take 2 pages, with the image on page 2).
+- Test: `e2e/tyre.e2e.mjs` "5 tyres and a 3-row plan fit one page without a signature image". 2 pages before the fix, 1 after.
+
+Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.

@@ -297,7 +297,7 @@ const printPdf = async (id, file) => {
   return out;
 };
 if (!hasPoppler) {
-  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "the challan prints no address or mechanic", "a long vehicle label wraps and the plate prints whole", "a seven-digit amount to collect does not run into its label"].forEach((n) => skip(`tyre pdf: ${n}`));
+  ["no words overprint", "a short challan with a long company name is one page", "every page of a long challan is numbered", "paise print as .50", "each tyre number prints whole", "a long title does not print over the company name", "a long subtitle and receiver's note wrap without printing over anything", "the challan prints no address or mechanic", "a long vehicle label wraps and the plate prints whole", "a seven-digit amount to collect does not run into its label", "5 tyres and a 3-row plan fit one page without a signature image"].forEach((n) => skip(`tyre pdf: ${n}`));
 } else {
   // 14 tyres (long names, a ₹32,750.50 rate) and 12 installments: runs over pages. A long customer name and address.
   const lines = Array.from({ length: 14 }, (_, i) => ({
@@ -324,6 +324,16 @@ if (!hasPoppler) {
   const serialsWhole = lines.flatMap((l) => l.tyreNumber.split(", ")).filter((sn) => !words.has(sn));
   ok("tyre pdf: each tyre number prints whole", serialsWhole.length === 0, serialsWhole.slice(0, 4).join(" | "));
   ok("tyre pdf: paise print as .50", bigText.join(" ").includes("32,750.50") && !/32,750\.5(?!0)/.test(bigText.join(" ")));
+
+  // 5 tyres and a 3-row plan fit one page when no signature image is printed: the image's space was reserved anyway
+  // and pushed the challan onto a second page holding only the signature lines.
+  const fits = await dao.createTyreBill(CLIENT, {
+    billDate: "2026-10-05", vehicleNumber: "KA01FT0005", customerName: "Ravi", paymentType: "installment",
+    items: Array.from({ length: 5 }, (_, k) => ({ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 1, rate: 1000, tyreNumber: `SN${k}` })),
+    installments: [{ dueDate: "2026-10-05", principal: 4400, interest: 0 }, { dueDate: "2026-11-05", principal: 300, interest: 50 }, { dueDate: "2026-12-05", principal: 300, interest: 50 }],
+  });
+  const fitsPages = pdfWords(await printPdf(fits._id, "tyre-challan-fits.pdf"));
+  ok("tyre pdf: 5 tyres and a 3-row plan fit one page without a signature image", fitsPages.length === 1, `${fitsPages.length} pages; settings signature ${settings.company.signatureUrl ? "set" : "none"}`);
 
   // A seven-digit amount to collect: the bold "Amount to collect" ran into it ("Amount to collecRs 7,56,088.50").
   const fleet = await dao.createTyreBill(CLIENT, {

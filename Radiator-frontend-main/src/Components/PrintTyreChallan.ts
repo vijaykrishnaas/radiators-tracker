@@ -220,11 +220,14 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     const extra = (forLines.length - 1) * 3.2;
     const tall = Math.max(extra, (noteLines.length - 1) * 3.2);
     let sy = footerLineY - 30 - tall;
-    // Move to a new page only when the block really doesn't fit under what is already printed.
-    if (ty + 2 > sy + 4) { doc.addPage(); }
-    if (inv?.showSignature && co.signatureUrl) {
+    // Move to a new page only when the block really doesn't fit under what is already printed. The signature image's
+    // space (from sy + 4) counts only when an image is printed; otherwise the block starts at its lines (sy + 20), and a
+    // challan that fit was pushed onto a second page holding nothing but the signature lines.
+    const signatureUrl = inv?.showSignature ? co.signatureUrl : "";
+    if (ty + 2 > sy + (signatureUrl ? 4 : 17)) { doc.addPage(); }
+    if (signatureUrl) {
         try {
-            const { dataUrl, format } = await fetchPdfImage(co.signatureUrl);
+            const { dataUrl, format } = await fetchPdfImage(signatureUrl);
             doc.addImage(dataUrl, format, W - 46, sy + 4, 34, 14);
         } catch { /* blank signing space */ }
     }
