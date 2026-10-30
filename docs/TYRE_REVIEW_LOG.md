@@ -1248,3 +1248,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Fix: Pending is now worked out live as amount to collect less received, with ₹0 as the floor (the server's own formula).
   - Test: e2e/tyre.e2e.mjs "edit form's Pending is amount to collect less received" (failed with ₹38,900 instead of ₹39,400 before the fix).
 - Gate: backend 120/120; tsc and build OK; e2e tyre 73, automobile 48, engineering 166, radiator 18, salary 7, all 0 FAIL.
+
+## Run 120: 2026-10-30 (area c, list and dashboard after editing a plan that has payments)
+- Following run 119: an installment challan two months old, initial row paid and the overdue 1st month part-paid (₹3,000). Checked the challan, list row, Overdue filter, dashboard figures and the "Installments to collect" panel against each other at three points:
+  - before editing: ₹49,300 / ₹31,500 / ₹17,800 pending, ₹7,400 overdue;
+  - after raising the 2nd month's interest and splitting it into a new 3rd month: ₹49,900 / ₹31,500 / ₹18,400, still ₹7,400 overdue;
+  - after paying off the 1st month: ₹38,900 received, ₹11,000 pending; the challan leaves the Overdue filter and the panel shows ₹0 overdue.
+  All five views match at every point. The scratch test isn't committed.
+- No bugs found. Quiet run (1 in a row).
