@@ -1224,3 +1224,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - the printed challan's Details block (falling back to "Vehicle").
   The only fixed wording is the list search hint ("Search D.C. no, vehicle…"), which is fine as a generic hint.
 - No bugs found.
+
+## Run 117: 2026-10-30 (area f, engineering bonus Recalculate after the rupees-only change)
+- Two engineering bills at ₹200 per bill; one entry marked paid. Bonus changed to ₹500 and `backfillEng` (the Recalculate button) run:
+  - the pending entry is repriced to ₹500 accrued, ₹250 payable (half collected);
+  - the paid entry stays at ₹200 (locked) with no duplicate.
+  The scratch test isn't committed.
+- No bugs found. Quiet run (3 in a row: 115–117).
