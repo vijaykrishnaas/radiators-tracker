@@ -169,6 +169,11 @@ const expenseCards = await phone.locator(".m-card").evaluateAll((cs) => cs.map((
 }));
 ok("radiator: phone expense cards keep the ⋮ menu beside the title", expenseCards.length > 0 && expenseCards.every((c) => c.beside),
   JSON.stringify(expenseCards.filter((c) => !c.beside)));
+// Phone bills: the transport (the customer, a sortable column) was missing from the cards.
+await phone.goto(BASE + "/issueCounter/billing");
+await phone.locator(".m-card").first().waitFor({ timeout: 10000 });
+const billCards = await phone.locator(".m-card").allInnerTexts();
+ok("radiator: phone bill cards show the transport name", billCards.length > 0 && /Velu Transport/.test(billCards.join(" ")), billCards[0]?.replace(/\s+/g, " "));
 await phone.close();
 
 ok("radiator: no page errors", errors.length === 0, errors.join(" | "));

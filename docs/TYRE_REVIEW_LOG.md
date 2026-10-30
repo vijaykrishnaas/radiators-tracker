@@ -1405,3 +1405,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - **Purchases:** the card shows date, supplier and note, plus Qty / Buy price / Total.
 - Stock filter: "In stock" is remaining > 0; "Out of stock / short" is remaining ≤ 0, so a model never bought counts as out of stock. That's consistent with the badge.
 - No bugs found. Quiet run (2 in a row: 134–135).
+
+## Run 136: 2026-10-30 (area f, run 133's phone-card gap in the other verticals)
+- Compared each bill list's sortable columns (also the phone's Sort menu) with what its phone card shows:
+  - automobile: date, vehicle, customer, mechanic, total / received / pending, status, all on the card;
+  - engineering: date, bill no, vehicle, mechanic, total / received / balance, status, all on the card.
+- **Bug (radiator, phone):** the bill card had no transport name, though it's the customer and a sortable column. The card showed date · type · mechanic and the services, so a phone user couldn't tell whose bill it was without opening it.
+  - Fix (IssueCounter/Billing/Index.tsx): the second line is "transport · services", clamped like the tyre card's "customer · tyres".
+  - Test: e2e/radiator.e2e.mjs "phone bill cards show the transport name" (failed before the fix).
+- Left as is: the radiator Phone column is sortable but isn't on the card, which is just a number with nothing to act on. The tyre and automobile cards don't show the phone either.
+- Gate: backend 121/121; tsc and build OK; e2e tyre 75, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.

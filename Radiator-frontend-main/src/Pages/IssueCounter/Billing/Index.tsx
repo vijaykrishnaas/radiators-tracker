@@ -345,7 +345,7 @@ const Billing = () => {
                         badge={<PaymentBadge status={o.status} />}
                         menu={rowMenu(o)}
                         meta={[fmtDate(o.billDate), o.radiatorType, o.mechanicName]}
-                        meta2={servicesText(o)}
+                        meta2={[o.transportName, servicesText(o)].filter(Boolean).join(" · ") || undefined}
                         amounts={[
                             { label: "Total", value: money(o.totalAmount) },
                             { label: "Received", value: money(o.receivedAmount) },
