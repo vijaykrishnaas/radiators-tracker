@@ -1398,3 +1398,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - After a brand rename, an older challan's print, its View and its row in the list all show the name stored on the challan (`items.brandLabel` / `particulars`). That's consistent, and right for a record of what was delivered.
 - The dashboard's brand chart groups by the stored brand value and shows the brand's *current* name (`getTyreAnalytics` maps `_id` back to the catalog). Its `$last` label is only the fallback for brands removed from Settings.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 135: 2026-10-30 (area e, inventory phone cards and stock filter)
+- Looked for run 133's gap (a table column or sort option the phone card doesn't show) on the inventory page, which the tyre vertical shares with automobile:
+  - **Stock by tyre:** the card shows the badge (in stock), Bought / Sold / Avg cost and Stock value / Sales / Profit, which covers every sortable column;
+  - **Purchases:** the card shows date, supplier and note, plus Qty / Buy price / Total.
+- Stock filter: "In stock" is remaining > 0; "Out of stock / short" is remaining ≤ 0, so a model never bought counts as out of stock. That's consistent with the badge.
+- No bugs found. Quiet run (2 in a row: 134–135).
