@@ -1231,3 +1231,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - the paid entry stays at ₹200 (locked) with no duplicate.
   The scratch test isn't committed.
 - No bugs found. Quiet run (3 in a row: 115–117).
+
+## Run 118: 2026-10-30 (area a, overdue filter after payments)
+- The list's Overdue filter reads the stored next due date, while the dashboard works it out live. They stay in step as payments come in:
+  - two past-due rows (₹2,000 overdue): paying the oldest leaves the challan Overdue (₹1,000); paying the second takes it off the filter, with ₹0 overdue on the dashboard;
+  - paying a later, not-yet-due row first doesn't hide an earlier unpaid one, so the challan stays Overdue.
+  The scratch test isn't committed.
+- No bugs found. Quiet run (4 in a row: 115–118).
