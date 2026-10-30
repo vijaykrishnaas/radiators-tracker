@@ -219,6 +219,8 @@ const TyreCreate = () => {
     const isPlan = paymentType === "installment";
     const planOk = planGap === 0 && tyreAmount > 0;
     const toCollect = isPlan ? round2(tyreAmount + interestSum) : round2(tyreAmount - (bill?.discount || 0));
+    // Live like the amount to collect beside it (the saved figure stopped adding up once the plan or tyres changed).
+    const pending = round2(Math.max(toCollect - (bill?.receivedAmount || 0), 0));
 
     const validate = () => {
         const e: Record<string, string> = {};
@@ -457,7 +459,7 @@ const TyreCreate = () => {
                                 {!isPlan && (bill?.discount || 0) > 0 && <div><dt>Discount</dt><dd className="tabular">- {money(bill?.discount || 0)}</dd></div>}
                                 <div className="is-total"><dt>Amount to collect</dt><dd className="tabular">{money(toCollect)}</dd></div>
                                 {bill && <div><dt>Received</dt><dd className="tabular t-success">{money(bill.receivedAmount)}</dd></div>}
-                                {bill && <div><dt>Pending</dt><dd className={`tabular${bill.pendingAmount > 0 ? " t-error" : ""}`}>{money(bill.pendingAmount)}</dd></div>}
+                                {bill && <div><dt>Pending</dt><dd className={`tabular${pending > 0 ? " t-error" : ""}`}>{money(pending)}</dd></div>}
                             </dl>
 
                             {isPlan && (

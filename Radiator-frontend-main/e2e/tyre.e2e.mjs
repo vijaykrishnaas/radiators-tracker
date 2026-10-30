@@ -246,6 +246,13 @@ const planAfter = await page.locator(".tyre-plan-row").evaluateAll((rows) => row
 ok("tyre: removing a row before a paid one keeps names and due dates distinct",
   JSON.stringify(planAfter) === JSON.stringify([["1st month", "2026-11-01"], ["2nd month", "2026-12-01"]]), JSON.stringify(planAfter));
 
+// ---- Edit: Pending follows the amount to collect as the plan changes (it showed the saved figure) ----
+await page.getByLabel("Interest for 2nd month").fill("900");
+const sumCard = async (name) => (await page.locator(".tyre-sum div").filter({ has: page.locator(`dt:text-is("${name}")`) }).locator("dd").innerText()).trim();
+const [collectNow, pendingNow] = [await sumCard("Amount to collect"), await sumCard("Pending")];
+ok("tyre: edit form's Pending is amount to collect less received", collectNow === "₹49,800.00" && pendingNow === "₹39,400.00",
+  JSON.stringify({ collectNow, pendingNow }));
+
 // ---- Edit with an overdue row: badge + remove button beside each total, which must still fit ----
 const ymdOffset = (months) => { const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0, 10); };
 const overdueBill = await dao.createTyreBill(CLIENT, {

@@ -1238,3 +1238,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - paying a later, not-yet-due row first doesn't hide an earlier unpaid one, so the challan stays Overdue.
   The scratch test isn't committed.
 - No bugs found. Quiet run (4 in a row: 115–118).
+
+## Run 119: 2026-10-30 (area b, editing an installment plan that has payments, 390px dark)
+- Challan with ₹48,500 of tyres, ₹28,500 initial (paid), 1st month ₹10,400 (₹5,000 paid), 2nd month ₹10,400. In Edit:
+  - adding a row, removing the 2nd month and changing the challan date renumber and re-date only the unpaid rows; the saved plan keeps both payments (₹33,500 received). No bug.
+  - Lowering the quantity below the paid principal blocks Save with "Principal is ₹14,250.00 more than the tyre amount." That's correct, since paid rows can't shrink.
+- **Bug:** the form's Pending card showed the saved pending amount, while Amount to collect beside it updates as you type. After any plan or tyre change, the cards stopped adding up (₹24,650 to collect, ₹33,500 received, ₹15,800 pending).
+  - Repro: edit a challan with a payment and raise an unpaid row's interest by ₹500. Amount to collect goes up by ₹500, but Pending stays the same.
+  - Fix: Pending is now worked out live as amount to collect less received, with ₹0 as the floor (the server's own formula).
+  - Test: e2e/tyre.e2e.mjs "edit form's Pending is amount to collect less received" (failed with ₹38,900 instead of ₹39,400 before the fix).
+- Gate: backend 120/120; tsc and build OK; e2e tyre 73, automobile 48, engineering 166, radiator 18, salary 7, all 0 FAIL.
