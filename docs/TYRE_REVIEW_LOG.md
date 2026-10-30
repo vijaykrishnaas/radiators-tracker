@@ -1334,3 +1334,16 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - every page has the "D.C. No · Page x of y" footer;
   - the last row carries the rounding remainder (₹2,710 against ₹2,694), and the totals add up (₹97,000 + ₹5,250 = ₹1,02,250).
 - No bugs found. Quiet run (1 in a row).
+
+## Run 129: 2026-10-30 (area e, other dialogs that relied on the browser's own form checks)
+- Following run 125 (the shared Modal renders forms with `noValidate`, so `min`/`max` are only hints), I listed every `as="form"` dialog and checked that its numbers are validated in code:
+  - payment, stock entry, salary and expense dialogs are covered;
+  - Bonus › Edit and Bonus › Add manual check in code.
+- **Bug (radiator/automobile/engineering bonus pages):** Bonus › Issue with a negative amount (e.g. −500) was sent as is. `settlePending` spread it across the pending entries and saved them as paid with negative paid amounts, which pulls the person's "paid" total down.
+  - Repro (backend): `markPaidByRange(…, -500)` marked the entry paid.
+  - Fix:
+    - `settlePending` refuses an amount below 0 with a 400 ("The bonus amount must be 0 or more"); this covers Bonus › Issue and Labour review, which both post to /bonus/payout;
+    - the Issue dialog checks first, like Edit does.
+  - Test: test/bonus.radiator.test.js "issuing a bonus with a negative amount is refused and nothing is marked paid" (failed before the fix).
+- Left as is: the stock dialog's date has `max={today()}`, but a typed future date is saved. Low impact, since stock counts don't depend on the date; noted only.
+- Gate: backend 121/121; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.

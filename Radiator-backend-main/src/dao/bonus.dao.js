@@ -540,6 +540,8 @@ async function settlePending(db, filter, amount = null, note = "") {
   }
 
   const override = round2(Number(amount));
+  // A negative payout would be stored as negative paid amounts and pull every "paid" total down.
+  if (override < 0) throw Object.assign(new Error("The bonus amount must be 0 or more"), { statusCode: 400 });
   const entries = await coll.find(filter).project({ payableAmount: 1 }).toArray();
   if (entries.length === 0) return 0;
 

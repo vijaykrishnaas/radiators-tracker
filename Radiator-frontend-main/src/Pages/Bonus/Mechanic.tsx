@@ -222,9 +222,10 @@ export function BonusPage({
     };
     const confirmIssue = async () => {
         if (!issueRow) return;
+        const amt = Number(issueAmount);
+        if (isNaN(amt) || amt < 0) { callAlertMsg("Enter a valid amount (0 or more)", "error"); return; }
         try {
             setSaving(true);
-            const amt = Number(issueAmount);
             const res = await postData("bonus/payout", {
                 type, beneficiary: issueRow.beneficiary, from, to,
                 amount: amt && amt !== issueRow.payableBonus ? amt : undefined,

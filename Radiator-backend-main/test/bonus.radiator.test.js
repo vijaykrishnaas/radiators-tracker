@@ -128,3 +128,10 @@ test("cancel never reaches another tenant's entries", async () => {
   assert.equal(res.modified, 0);
   assert.equal(mech().status, "paid");
 });
+
+test("issuing a bonus with a negative amount is refused and nothing is marked paid", async () => {
+  await syncBonusesForRecord(CLIENT, record({ receivedAmount: 1000 }));
+  await assert.rejects(markPaidByRange(CLIENT, "mechanic", "Ravi", "2026-09-01", "2026-09-30", -500), (e) => e.statusCode === 400 && /0 or more/.test(e.message));
+  assert.equal(mech().status, "pending");
+  assert.equal(mech().paidAmount ?? 0, 0);
+});
