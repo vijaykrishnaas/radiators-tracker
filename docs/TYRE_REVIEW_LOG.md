@@ -1275,3 +1275,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - a challan for 4 MRF in another company doesn't touch this stock.
   The scratch test isn't committed.
 - No bugs found. Quiet run (3 in a row: 120–122).
+
+## Run 123: 2026-10-30 (area f, does run 119's stale-Pending bug exist in the other verticals?)
+- Radiator, automobile and engineering bill forms show no Received or Pending summary, so they can't drift. Their Pending/Balance figures appear only in the list, dashboard and payment dialog, which all read the saved, server-worked-out values.
+- The engineering form loads the saved discount only to show the net total. There's no discount field, and an edit leaves the payment fields out so the server keeps them (Create.tsx:276). Consistent.
+- No bugs found. Quiet run (4 in a row: 120–123).
