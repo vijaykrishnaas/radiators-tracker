@@ -1208,3 +1208,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 - Test: `e2e/tyre.e2e.mjs` "5 tyres and a 3-row plan fit one page without a signature image". 2 pages before the fix, 1 after.
 
 Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 166, radiator 18, salary 7, 0 FAIL.
+
+## Run 115: 2026-10-30 (area f, run 114's signature bug in the other PDFs)
+- Checked whether the other prints share run 114's bug (signature-image space reserved when no image prints, pushing the signatures onto their own page). They don't:
+  - PrintInvoice (radiator + automobile) and PrintEngInvoice draw the signature block in the flow at `sectionY`, below the totals, with no fit check that reserves image space;
+  - PrintEngInvoice's only page-break check (`ty + 22 > H - 46`) is for its totals block and doesn't depend on the image;
+  - PrintPayslip has no signature block.
+- No bugs found. (Area e moves to the next run.)
