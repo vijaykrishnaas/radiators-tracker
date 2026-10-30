@@ -1293,3 +1293,18 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - `true` and `[500]` are coerced to numbers, but the app never sends them (the dialog posts numbers). Not worth code.
 - The scratch test isn't committed.
 - No bugs found. Quiet run (5 in a row: 120–124).
+
+## Run 125: 2026-10-30 (area b, payment dialog: paying more than is owed)
+- **Bug:** on a full-payment challan with ₹47,900 owed, typing ₹48,500 and pressing Record Payment said "Payment recorded". The server quietly kept only ₹47,900, with no word about the ₹600 extra.
+  - The amount box has `max`, but the shared Modal renders its form with `noValidate`, so the browser never enforced it.
+  - Installment payments were already checked in `submitTyrePayment`. Full payments weren't, and nor were the radiator/automobile/engineering bills, whose servers clamp the same way.
+- Fix (Components/RecordPaymentModal.tsx, used by every vertical): the dialog checks before sending.
+  - An amount above what is left shows "Only ₹X is left to collect" (or "… on <installment>") under the field and sends nothing.
+  - A discount above the pending amount shows "The discount can't be more than the ₹X pending".
+  - Errors clear as you type.
+- Checked in the browser against the real DAO:
+  - ₹48,500 when ₹47,900 is owed: blocked, nothing sent.
+  - ₹47,900 with a ₹500 discount: blocked, since ₹47,400 is left.
+  - Exactly ₹47,900: recorded.
+- Test: e2e/tyre.e2e.mjs "paying more than a full-payment challan owes is refused". Before the fix it failed with the challan at ₹24,250 received and no message.
+- Gate: backend 120/120; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 18, salary 7, all 0 FAIL. The automobile, engineering and radiator suites drive this dialog.

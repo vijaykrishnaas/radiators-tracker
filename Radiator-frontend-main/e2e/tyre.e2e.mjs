@@ -200,6 +200,21 @@ const afterPay = fakeDb.collection("tyrebills").docs[0];
 ok("tyre: payment recorded against the chosen installment", afterPay.installments[1].payments?.[0]?.amount === 5000 && afterPay.receivedAmount === 5000 && afterPay.status === "Partial",
   JSON.stringify({ rec: afterPay.receivedAmount, st: afterPay.status }));
 
+// ---- Paying more than a full-payment challan owes is refused (it was sent and the server quietly kept only what was owed) ----
+{
+  const owed = await dao.createTyreBill(CLIENT, { billDate: "2026-10-02", vehicleNumber: "TN01OV0001", items: [{ brandRef: "mrf", modelRef: "10-00-20-steel-muscle", qty: 1, rate: 24250 }], paymentType: "full" });
+  await dao.recordTyrePayment(CLIENT, owed._id, { amount: 250 });
+  await page.goto(BASE + `/tyre/dashboard/view/${owed._id}`);
+  await page.getByRole("button", { name: "Record Payment" }).first().click();
+  await page.locator("#payment-amount").fill("24500");
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Record Payment" }).click();
+  await page.waitForTimeout(600);
+  const err = await page.locator(".ui-modal .field-error, [role=dialog] .field-error").allInnerTexts();
+  const kept = (await dao.getTyreBillById(CLIENT, owed._id)).receivedAmount;
+  ok("tyre: paying more than a full-payment challan owes is refused", kept === 250 && err.some((t) => /Only ₹24,000\.00 is left/.test(t)), JSON.stringify({ kept, err }));
+  await dao.deleteTyreBill(CLIENT, owed._id);
+}
+
 // ---- View: statuses + print ----
 await page.goto(BASE + `/tyre/dashboard/view/${saved._id}`);
 await page.locator(".tyre-plan-row").first().waitFor({ timeout: 10000 });
