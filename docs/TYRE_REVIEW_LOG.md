@@ -1280,3 +1280,16 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Radiator, automobile and engineering bill forms show no Received or Pending summary, so they can't drift. Their Pending/Balance figures appear only in the list, dashboard and payment dialog, which all read the saved, server-worked-out values.
 - The engineering form loads the saved discount only to show the net total. There's no discount field, and an edit leaves the payment fields out so the server keeps them (Create.tsx:276). Consistent.
 - No bugs found. Quiet run (4 in a row: 120–123).
+
+## Run 124: 2026-10-30 (area a, odd payment inputs straight to the DAO)
+- Installment payments:
+  - "1000", " 1000 " and "1e3" are taken as ₹1,000; "₹1,000", "-5", "NaN" and objects are refused.
+  - ₹1e15 is refused as more than the row's balance; "0.004" rounds to ₹0 and is refused; 0.005 rounds to ₹0.01.
+  - An unknown payment mode is stored as cash; another company's challan is "not found".
+- Full-payment challans:
+  - An installment id is ignored; "500" works as a discount; a negative discount is refused.
+  - Paying ₹48,500 when ₹47,900 is owed caps at what's owed. The payment log records only the ₹47,900 applied, so the log and the received amount agree. That's the intended clamp.
+- A bad challan id is refused with 400 by the route's `validId` before the DAO sees it.
+- `true` and `[500]` are coerced to numbers, but the app never sends them (the dialog posts numbers). Not worth code.
+- The scratch test isn't committed.
+- No bugs found. Quiet run (5 in a row: 120–124).
