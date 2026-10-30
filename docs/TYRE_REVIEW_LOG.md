@@ -1357,3 +1357,20 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - advances, adjustments and settlement deductions go through `toMoney`, which refuses negatives;
   - the settlement *preview* sums deductions without that check, so a negative deduction shows a higher net in the preview. Settling then refuses it with a message, and nothing is stored. Display only, so not worth code.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 131: 2026-10-30 (area a, mixed-operation fuzz)
+- 60 random challans (full or a 1–4 row plan; rates ₹24,250 / ₹19,000.50 / ₹999.99), each put through 8 random steps (480 in all):
+  - pay 30%, 100% or 120% of a row or of what's pending;
+  - add a discount (₹10, ₹500, or all of what's left);
+  - change the quantity (keeping paid rows and re-planning the rest);
+  - switch payment type.
+- 210 steps were refused, all with a 4xx message (overpaying a row, switching type after a payment, shrinking below what's paid). No step failed with a server error.
+- After every step:
+  - received = the payment log = the sum paid on the rows;
+  - pending = payable − received, never below 0;
+  - received ≤ payable;
+  - no row paid above its total;
+  - plan principals = the tyre amount.
+- The only flags were challans written off entirely by discount (payable ₹0) showing "Received". That's intended (settled), and the check's own rule was wrong.
+- The scratch test isn't committed.
+- No bugs found. Quiet run (2 in a row: 130–131).
