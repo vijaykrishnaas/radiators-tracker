@@ -1265,3 +1265,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - **Full-payment challan with a discount:** ₹97,000, ₹1,500 discount, ₹50,000 received. Prints "- Rs 1,500", total ₹95,500, balance ₹45,500.
     - With no customer name, "Delivered to" shows the vehicle number. That's a deliberate fallback (PrintTyreChallan.ts:106).
 - No bugs found. Quiet run (2 in a row: 120–121).
+
+## Run 122: 2026-10-30 (area e, tyre stock through challan edits and deletes)
+- Bought 10 MRF and 5 Apollo, then followed the inventory summary and the MRF movements through one challan:
+  - sold 3 MRF + 1 Apollo: 7 / 4 left;
+  - edited to 1 MRF + 2 Apollo: 9 / 3 left;
+  - edited to drop the MRF line entirely: MRF back to 10, and its movements list only the purchase;
+  - deleted the challan: 10 / 5;
+  - a challan for 4 MRF in another company doesn't touch this stock.
+  The scratch test isn't committed.
+- No bugs found. Quiet run (3 in a row: 120–122).
