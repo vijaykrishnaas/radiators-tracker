@@ -1195,3 +1195,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 71, automobile 48, engineering 1
 ## Run 112: 2026-10-29 (area b, challan form at 1300px dark)
 - The one theme/width pair not yet captured: an installment challan (paid / overdue part-paid / due rows) in Edit and View at 1300px dark. No sideways scroll; chips, paid amounts, the locked rows and the green principal check all read clearly; totals ₹49,300 / ₹32,500 / ₹16,800.
 - No bugs found. Quiet run (14 in a row: 99–112).
+
+## Run 113: 2026-10-30 (area c, challan Excel export after the field removals)
+- The export writes three sheets (challans, tyre lines, installments). The challan sheet has D.C. No, Date, Vehicle, Customer, Phone, Tyres, Payment, Tyre amount, Interest, Discount, To collect, Received, Pending, Overdue and Status: no Address, Mechanic or Labour column remains.
+- `getAllTyreBillsForExport` enriches every challan, so Overdue and the per-row totals and statuses are filled, in the list's order (run 101).
+- No bugs found. Quiet run (15 in a row: 99–113).
