@@ -1215,3 +1215,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - PrintEngInvoice's only page-break check (`ty + 22 > H - 46`) is for its totals block and doesn't depend on the image;
   - PrintPayslip has no signature block.
 - No bugs found. (Area e moves to the next run.)
+
+## Run 116: 2026-10-30 (area e, Labels & Challan: custom field names)
+- The vehicle and customer labels from Settings › Labels & Challan are used everywhere those fields appear:
+  - challan form (label, placeholder, "is required" message);
+  - list column headers and the Excel export columns;
+  - the dashboard follow-up table;
+  - the printed challan's Details block (falling back to "Vehicle").
+  The only fixed wording is the list search hint ("Search D.C. no, vehicle…"), which is fine as a generic hint.
+- No bugs found.
