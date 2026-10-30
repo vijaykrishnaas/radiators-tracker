@@ -1347,3 +1347,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Test: test/bonus.radiator.test.js "issuing a bonus with a negative amount is refused and nothing is marked paid" (failed before the fix).
 - Left as is: the stock dialog's date has `max={today()}`, but a typed future date is saved. Low impact, since stock counts don't depend on the date; noted only.
 - Gate: backend 121/121; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.
+
+## Run 130: 2026-10-30 (area f, other money inputs after run 129's negative-payout bug)
+- Bonus routes:
+  - /manual needs an amount above 0 and /adjust needs 0 or more (both checked in the route);
+  - /payout is fixed (run 129), and the engineering bonus uses the same /bonus/payout;
+  - /cancel takes no amount.
+- Salary:
+  - advances, adjustments and settlement deductions go through `toMoney`, which refuses negatives;
+  - the settlement *preview* sums deductions without that check, so a negative deduction shows a higher net in the preview. Settling then refuses it with a message, and nothing is stored. Display only, so not worth code.
+- No bugs found. Quiet run (1 in a row).
