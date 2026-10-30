@@ -1324,3 +1324,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Fix: the dialog rounds pending to the paisa (`owed`) once and uses it for both checks.
 - Test: e2e/radiator.e2e.mjs "a discount of exactly the pending amount is accepted". Before the fix it failed with no payment sent.
 - Gate: backend 120/120; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.
+
+## Run 128: 2026-10-30 (area d, long installment plans across pages, with a signature image)
+- Printed installment challans with Show signature on, the initial row paid, and plans of 12 rows (2 tyres), 24 rows (2 tyres), 36 rows (4 tyres) and 120 rows (6 tyres, the plan maximum).
+  - They come out at 2, 2, 3 and 7 pages, all with 0 overprints.
+- Looked at the 12- and 36-row pages:
+  - the installments table breaks between rows and repeats its header on each new page;
+  - the signature image and signature lines sit only at the foot of the last page;
+  - every page has the "D.C. No · Page x of y" footer;
+  - the last row carries the rounding remainder (₹2,710 against ₹2,694), and the totals add up (₹97,000 + ₹5,250 = ₹1,02,250).
+- No bugs found. Quiet run (1 in a row).
