@@ -677,6 +677,11 @@ const cards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => {
 }));
 ok("tyre: phone challan cards keep the menu beside its badge", cards.some((c) => /Not Received/.test(c.badge || "")) && cards.every((c) => !c.apart), JSON.stringify(cards));
 ok("tyre: a short vehicle number keeps its badge on the same line", cards.every((c) => !c.dropped), JSON.stringify(cards.filter((c) => c.dropped)));
+// The table's Next due column (also a sort option on the phone) was missing from the cards.
+const dueCards = await page.locator(".m-card").evaluateAll((cs) => cs.map((c) => c.innerText.replace(/\s+/g, " ")));
+const instCards = dueCards.filter((t) => /Installments/.test(t));
+ok("tyre: phone installment cards show the next due", instCards.length > 0 && instCards.every((t) => /Next due ₹[\d,]+\.\d\d · |Next due All paid/.test(t))
+  && dueCards.filter((t) => /Full payment/.test(t)).every((t) => !/Next due/.test(t)), JSON.stringify(dueCards.slice(0, 4)));
 
 // ---- Dashboard: the "To collect" breakdown adds up to its figure when a challan has a discount ----
 const disc = await dao.createTyreBill(CLIENT, { billDate: new Date().toISOString().slice(0, 10), vehicleNumber: "TN01DS0001", mechanicName: "Ramesh",

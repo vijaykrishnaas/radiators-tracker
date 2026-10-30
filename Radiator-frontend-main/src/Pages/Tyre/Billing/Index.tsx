@@ -274,7 +274,10 @@ const TyreBilling = () => {
                             { label: "Received", value: money(o.receivedAmount) },
                             { label: "Pending", value: money(o.pendingAmount), tone: o.pendingAmount > 0 ? "error" : undefined },
                         ]}
-                    />
+                    >
+                        {/* The table's Next due column, which the phone can also sort by. */}
+                        {o.paymentType === "installment" && <p className="m-card-meta m-0">Next due <NextDue b={o} /></p>}
+                    </MobileCard>
                 )}
                 pagination={
                     <Pagination page={currentPage} totalPages={list.totalPages} total={list.total} limit={limit}

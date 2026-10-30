@@ -1382,3 +1382,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - challan View and the payment dialog (installment and full): none;
   - the payment dialog showing run 125's new errors ("Only ₹10,400.00 is left on 1st month" / "Only ₹24,250.00 is left to collect"): none.
 - No bugs found. Quiet run (3 in a row: 130–132).
+
+## Run 133: 2026-10-30 (area c, challan list with a challan in every state)
+- Five challans on the list (installments all paid; installments with one row overdue; full written off by discount; full unpaid; full part-paid) at 390px and 1300px:
+  - figures match the challans, and there's no sideways scroll;
+  - the written-off challan reads To collect ₹0 / Received, as intended;
+  - the table's Next due column shows "All paid" and "₹5,200.00 · date / 1 overdue · ₹5,200.00".
+- **Bug (phone):** the challan cards had no next due at all, though the table has a Next due column and the phone's Sort menu offers "Next due ↑/↓". A phone user could sort by a value no card showed, and couldn't see which installment to chase.
+  - Fix (Billing/Index.tsx): installment cards show "Next due …", using the same `NextDue` cell as the table, so overdue rows come out red with the overdue count and amount. Full-payment cards are unchanged.
+  - Test: e2e/tyre.e2e.mjs "phone installment cards show the next due" (failed before the fix).
+- Gate: backend 121/121; tsc and build OK; e2e tyre 75, automobile 48, engineering 166, radiator 19, salary 7, all 0 FAIL.
