@@ -1308,3 +1308,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Exactly ₹47,900: recorded.
 - Test: e2e/tyre.e2e.mjs "paying more than a full-payment challan owes is refused". Before the fix it failed with the challan at ₹24,250 received and no message.
 - Gate: backend 120/120; tsc and build OK; e2e tyre 74, automobile 48, engineering 166, radiator 18, salary 7, all 0 FAIL. The automobile, engineering and radiator suites drive this dialog.
+
+## Run 126: 2026-10-30 (area c, payment from the challan list after run 125's dialog checks)
+- Record Payment from the list's ⋮ menu, at 390px dark and 1300px light, against the real DAO:
+  - full challan, ₹48,500 typed with ₹47,900 owed: "Only ₹47,900.00 is left to collect";
+  - full challan, ₹48,000 discount: "The discount can't be more than the ₹47,900.00 pending";
+  - installment challan, ₹99,999 on the initial row: "Only ₹28,500.00 is left on Initial amount".
+- In every case nothing is sent, and the error shows under its field in the modal, readable in dark mode. No sideways scroll.
+- No bugs found. Quiet run (1 in a row).
