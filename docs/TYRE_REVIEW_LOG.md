@@ -1459,3 +1459,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Fix (Context/SettingsContext.tsx, where settings are loaded): `labelsOr()` keeps a saved label only if it's non-blank, otherwise the default ("Vehicle Number", "Customer Name", …). It's applied to the tyre labels, the automobile labels and the top-level (radiator) labels, so every screen that reads them is covered. Engineering uses fixed labels.
 - Test: e2e/tyre.e2e.mjs "a blank label in Settings shows the default name". It fails with ["",""] on the old code (the empty label isn't rendered at all).
 - Gate: backend 121/121; tsc and build OK; e2e tyre 76, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.
+
+## Run 142: 2026-10-31 (area f, other settings text that could go blank, after run 141)
+- Printed titles fall back when cleared: tyre "Delivery Challan"; radiator/automobile "Invoice" (both PrintInvoice paths); engineering "Invoice".
+- A blank company name gives an empty header line rather than a broken layout (run 102). The signature line reads "For the company", the footer leaves the name out, and the form header asks to "Set your company details in Settings".
+- Run 141's settings merge now fills missing automobile keys from the defaults. Saved values still win (the spread order keeps them), and the automobile e2e suite is unchanged (48 PASS).
+- Not worth code: a title of only spaces would print blank. The Settings fields are plain text boxes, and spaces-only is not a realistic entry.
+- No bugs found. Quiet run (1 in a row).
