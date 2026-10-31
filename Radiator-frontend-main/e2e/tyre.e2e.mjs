@@ -418,6 +418,22 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   await page.reload();
 }
 
+// ---- A label cleared in Settings falls back to its default (the field had no name and its error read " is required") ----
+{
+  const keep = { ...settings.tyre.labels };
+  Object.assign(settings.tyre.labels, { vehicleNo: "", customer: "   " });
+  await page.goto(BASE + "/tyre/dashboard/create");
+  await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+  // A blank label wasn't rendered at all, so a missing one counts as "".
+  const fieldLabel = async (id) => {
+    const l = page.locator(`label[for="${id}"]`).first();
+    return (await l.count()) ? (await l.innerText()).replace(/\s*\*$/, "").trim() : "";
+  };
+  const names = [await fieldLabel("ty-vehicle"), await fieldLabel("ty-customer")];
+  ok("tyre: a blank label in Settings shows the default name", names[0] === "Vehicle Number" && names[1] === "Customer Name", JSON.stringify(names));
+  Object.assign(settings.tyre.labels, keep);
+}
+
 // ---- Shared bill prints (radiator / automobile / engineering): a long name or detail wraps without printing over anything ----
 // (Found while reviewing the tyre challan, whose Details block had the same fixed row step.)
 if (!hasPoppler) ["long names and details wrap without printing over anything", "a long vehicle label wraps and the truck number prints whole"].forEach((n) => skip(`shared pdf: ${n}`));

@@ -1451,3 +1451,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   `pdftotext -layout` of each pair is identical (51 and 34 lines, 0 differences).
 - Tamil text on prints is a closed decision (run 10: "No Tamil, leave it"), so it wasn't re-tested.
 - No bugs found. Quiet run (4 in a row: 137–140).
+
+## Run 141: 2026-10-31 (area e, a label cleared in Settings › Labels & Challan)
+- **Bug (tyre, automobile and radiator labels):** Settings saves a blank label, and the app used it as is.
+  - Repro: Settings › Labels & Challan › clear "Vehicle number label" (and set Customer to spaces) › Save › New challan.
+  - Result: the vehicle field has no name, its error reads " is required", and the customer field has no name. The list headers and export columns would be blank too.
+- Fix (Context/SettingsContext.tsx, where settings are loaded): `labelsOr()` keeps a saved label only if it's non-blank, otherwise the default ("Vehicle Number", "Customer Name", …). It's applied to the tyre labels, the automobile labels and the top-level (radiator) labels, so every screen that reads them is covered. Engineering uses fixed labels.
+- Test: e2e/tyre.e2e.mjs "a blank label in Settings shows the default name". It fails with ["",""] on the old code (the empty label isn't rendered at all).
+- Gate: backend 121/121; tsc and build OK; e2e tyre 76, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.

@@ -247,6 +247,16 @@ const SettingsContext = createContext<SettingsContextValue>({
     refreshSettings: async () => {},
 });
 
+// A label cleared in Settings falls back to its default: a blank one left fields unnamed and errors reading " is required".
+const labelsOr = <T extends Record<string, string>>(fallback: T, saved: Partial<T> | undefined): T => {
+    const out: T = { ...fallback, ...(saved || {}) };
+    (Object.keys(fallback) as (keyof T)[]).forEach((k) => {
+        const v = saved?.[k];
+        if (typeof v !== "string" || !v.trim()) out[k] = fallback[k];
+    });
+    return out;
+};
+
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS);
     const [loading, setLoading] = useState(true);
@@ -282,10 +292,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 merged.tyre = {
                     ...ft, ...t,
                     bonus: { ...ft.bonus, ...(t.bonus || {}) },
-                    labels: { ...ft.labels, ...(t.labels || {}) },
+                    labels: labelsOr(ft.labels, t.labels),
                     invoice: { ...ft.invoice, ...(t.invoice || {}) },
                     brands: Array.isArray(t.brands) ? t.brands : [],
                 };
+                merged.labels = labelsOr(FALLBACK_SETTINGS.labels, res.settings.labels);
+                const fa = FALLBACK_SETTINGS.automobile;
+                merged.automobile = { ...fa, ...(res.settings.automobile || {}), labels: labelsOr(fa.labels, res.settings.automobile?.labels) };
                 setSettings(merged);
                 setLoaded(true);
                 applyBranding(merged);
