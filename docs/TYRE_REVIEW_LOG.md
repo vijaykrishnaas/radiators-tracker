@@ -1471,3 +1471,10 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - A challan can be dated in the future. So can radiator, automobile and engineering bills: none of the four forms or DAOs limit the bill date. That's consistent across the app (advance bookings), so it's not treated as a tyre bug.
 - `getInstallmentFollowUp` keeps only the first 100 rows (`rows.slice(0, limit)`), but its overdue amount, due-this-month amount and overdue challan count are added up over every row first. A shop with more than 100 open rows still sees correct dashboard totals.
 - No bugs found. Quiet run (2 in a row: 142–143).
+
+## Run 144: 2026-10-31 (area b, a brand with no models yet)
+- **Bug (challan form):** Settings › Tyre Catalog can save a brand before any models are added. On a new challan, picking that brand left the Model / size list saying only "No options", and Save then said "Choose a model / size". Nothing told the user that the models are added in Settings.
+  - Repro: add brand "Ceat" with no models, then New challan › Brand: Ceat › open Model / size.
+- Fix (Tyre/Dashboard/Create.tsx): the model picker's empty message is "No models for this brand yet. Add them in Settings › Tyre Catalog." When the brand has models but the typed text matches none, it says "No match".
+- Test: e2e/tyre.e2e.mjs "a brand with no models points to the Tyre Catalog" (read "No options" before the fix).
+- Gate: backend 121/121; tsc and build OK; e2e tyre 77, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.

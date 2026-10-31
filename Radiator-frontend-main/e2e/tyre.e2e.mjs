@@ -434,6 +434,19 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   Object.assign(settings.tyre.labels, keep);
 }
 
+// ---- A brand with no models yet: the model list says where to add them (it said "No options", a dead end) ----
+{
+  settings.tyre.brands.push({ label: "Ceat", value: "ceat-empty", models: [] });
+  await page.goto(BASE + "/tyre/dashboard/create");
+  await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+  await pick("[id^=ty-brand-]", "Ceat");
+  await page.locator("[id^=ty-model-]").first().click();
+  const menu = await page.locator("[class*=menu]").last().innerText().catch(() => "");
+  ok("tyre: a brand with no models points to the Tyre Catalog", /Tyre Catalog/.test(menu), menu);
+  await page.keyboard.press("Escape");
+  settings.tyre.brands.pop();
+}
+
 // ---- Shared bill prints (radiator / automobile / engineering): a long name or detail wraps without printing over anything ----
 // (Found while reviewing the tyre challan, whose Details block had the same fixed row step.)
 if (!hasPoppler) ["long names and details wrap without printing over anything", "a long vehicle label wraps and the truck number prints whole"].forEach((n) => skip(`shared pdf: ${n}`));

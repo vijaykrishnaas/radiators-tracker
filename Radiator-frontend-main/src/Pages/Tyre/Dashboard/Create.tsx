@@ -392,6 +392,7 @@ const TyreCreate = () => {
                                                 <Field label="Model / size" htmlFor={`ty-model-${it.key}`} required error={errors[`m${it.key}`]} className="tyre-item-model">
                                                     <Selector inputId={`ty-model-${it.key}`} options={modelOpts} isDisabled={isView || !it.brandRef}
                                                         placeholder={it.brandRef ? "Model / size" : "Brand first"}
+                                                        noOptionsMessage={() => (models.length ? "No match" : "No models for this brand yet. Add them in Settings › Tyre Catalog.")}
                                                         value={it.modelLabel ? { label: it.modelLabel, value: it.modelRef } : null}
                                                         onChange={(o: any) => pickModel(it.key, it.brandRef, o ? o.value : "")} />
                                                 </Field>
