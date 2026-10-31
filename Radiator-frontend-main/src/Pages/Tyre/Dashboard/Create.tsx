@@ -62,6 +62,14 @@ const startPlan = (billDate: string) => [0, 1, 2].map((i) => newRow(i, billDate)
 
 // The rate counts to the paisa, as the server stores and prints it, so this total matches the saved one.
 const lineAmount = (r: ItemRow) => round2((Number(r.qty) || 0) * round2(Number(r.rate) || 0));
+// A pasted "+91 98430 12345" or "098430 12345" keeps the 10-digit mobile number: the country code or trunk 0 goes first
+// (taking the first 10 digits stored "9198430123").
+const phoneDigits = (v: string) => {
+    let d = v.replace(/\D/g, "");
+    if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+    else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+    return d.slice(0, 10);
+};
 const isNum = (v: string) => String(v).trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0;
 
 // Each row's month in the plan (0 = initial amount). Normally its position, but a paid row keeps its own due date, so
@@ -355,7 +363,7 @@ const TyreCreate = () => {
                                 </Field>
                                 <Field label="Phone number" htmlFor="ty-phone" error={errors.phone}>
                                     <InputText id="ty-phone" type="tel" inputMode="numeric" value={phone} placeholder="Customer phone" disabled={isView}
-                                        onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); clearErr("phone"); }} />
+                                        onChange={(e) => { setPhone(phoneDigits(e.target.value)); clearErr("phone"); }} />
                                 </Field>
                             </div>
                         )}

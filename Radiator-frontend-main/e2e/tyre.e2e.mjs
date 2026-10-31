@@ -434,6 +434,18 @@ const shortPdf = await printPdf(fakeDb.collection("tyrebills").docs[0]._id, "tyr
   Object.assign(settings.tyre.labels, keep);
 }
 
+// ---- A phone pasted with +91 or a leading 0 keeps the right 10 digits (it kept the first 10: "+91 98430 12345" → 9198430123) ----
+{
+  await page.goto(BASE + "/tyre/dashboard/create");
+  await page.locator("#ty-phone").waitFor({ timeout: 10000 });
+  const typed = [];
+  for (const raw of ["+91 98430 12345", "098430 12345", "98430-12345", "9843012345"]) {
+    await page.locator("#ty-phone").fill(raw);
+    typed.push(await page.locator("#ty-phone").inputValue());
+  }
+  ok("tyre: a pasted +91 / 0-prefixed phone keeps the right number", typed.every((v) => v === "9843012345"), JSON.stringify(typed));
+}
+
 // ---- A brand with no models yet: the model list says where to add them (it said "No options", a dead end) ----
 {
   settings.tyre.brands.push({ label: "Ceat", value: "ceat-empty", models: [] });

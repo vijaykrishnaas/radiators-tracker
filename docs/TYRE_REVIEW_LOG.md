@@ -1512,3 +1512,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Searched the frontend for money values put through `x && …` / `x || undefined` before posting. The only hits are `aria-invalid` / `aria-disabled` flags and a layout prop; the payment dialog sends what is typed, and its run-125 checks decide what's allowed.
 - Searched the backend DAOs and routes for an amount, discount or rate where `||` or a truthiness check could turn a real 0 into "use the stored value". Every hit is `Number(x || 0)`, which defaults a *missing* value to 0. The tyre DAO already checks discounts with `!= null` and `> 0`, and payouts with `amount != null && !isNaN(...)`.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 150: 2026-10-31 (area b, phone numbers pasted with +91 or a leading 0)
+- **Bug (challan form):** the phone box keeps only digits and cut the result to the *first* 10. Pasting a contact's number silently saved a wrong number:
+  - "+91 98430 12345" became 9198430123;
+  - "098430 12345" became 0984301234.
+  No error was shown. Radiator and automobile reject such input with their pattern check instead, so they don't save a wrong number.
+- Fix (Tyre/Dashboard/Create.tsx, `phoneDigits`): a 12-digit entry starting with 91, or an 11-digit entry starting with 0, loses that prefix before the 10-digit cut. A 10-digit number that happens to start with 91 is left alone, as are spaces and dashes.
+- Test: e2e/tyre.e2e.mjs "a pasted +91 / 0-prefixed phone keeps the right number" (before the fix: ["9198430123","0984301234",…]).
+- Gate: backend 121/121; tsc and build OK; e2e tyre 78, automobile 48, engineering 166, radiator 21, salary 7, all 0 FAIL.
