@@ -32,6 +32,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 const payments = [];
 const listParams = [];
 const cancels = [];
+const payouts = [];
 // Bonus page: Ramesh was paid ₹500 for one bill; the other bill is still pending.
 const bonusRow = {
   beneficiary: "Ramesh", operations: 2, totalBusiness: 4000, totalCollected: 4000, accruedBonus: 900, payableBonus: 400, paidBonus: 500, cancelledBonus: 0, status: "Pending",
@@ -52,6 +53,7 @@ await page.route("http://localhost:5000/**", async (route) => {
   if (p === "/radiators/r1/payment") { payments.push(req.postDataJSON()); return json({ success: true, message: "ok", radiator: bill }); }
   if (p === "/bonus/pending") return json({ success: true, rows: [bonusRow, cancelledRow] });
   if (p === "/bonus/cancel") { cancels.push(req.postDataJSON()); return json({ success: true, message: "Cancelled ✅" }); }
+  if (p === "/bonus/payout") { payouts.push(req.postDataJSON()); return json({ success: true, message: "1 bonus entry marked paid ✅", count: 1 }); }
   if (p === "/radiators") listParams.push(Object.fromEntries(new URL(req.url()).searchParams));
   if (p === "/radiators") return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: 1, radiatorData: [bill] });
   return json({ success: true, data: [], mechdata: [], records: [] });
@@ -147,6 +149,16 @@ for (let i = 0; i < 30 && cancels.length < 2; i++) await page.waitForTimeout(100
 ok("radiator: cancelling one entry posts just its id", JSON.stringify(cancels[1]?.ids) === '["b1"]' && !cancels[1]?.beneficiary, JSON.stringify(cancels[1]));
 await page.locator("#bonus-status").click({ force: true }).catch(() => {});
 ok("radiator: status filter offers Cancelled", (await page.locator(".rs__option").filter({ hasText: /^Cancelled$/ }).count()) === 1 || (await page.getByText("Cancelled", { exact: true }).count()) > 0);
+await page.keyboard.press("Escape");
+
+// Issue with ₹0 (or the box cleared) was sent with no amount, which the server reads as "pay the full ₹400 pending".
+await page.goto(BASE + "/bonus/mechanics");
+await page.getByText("Ramesh").first().waitFor({ timeout: 10000 });
+await page.getByRole("button", { name: "Issue" }).first().click();
+await page.locator("#issue-amount").fill("0");
+await page.getByRole("dialog").getByRole("button", { name: "Issue Bonus" }).click();
+await page.waitForTimeout(600);
+ok("radiator: issuing a ₹0 bonus is refused instead of paying the full amount", payouts.length === 0, JSON.stringify(payouts));
 await page.keyboard.press("Escape");
 
 // Engineering routes stay gated away from radiator tenants.

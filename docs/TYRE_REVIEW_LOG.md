@@ -1499,3 +1499,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Automobile bill parts are typed freely, with the catalog offered as suggestions (`<datalist>`), so an empty catalog doesn't block a bill.
 - Engineering's item picker already explains an empty list ("No items offered for this BS model").
 - No bugs found. Quiet run (3 in a row: 145–147).
+
+## Run 148: 2026-10-31 (area f, Bonus › Issue with ₹0, after run 129)
+- **Bug (radiator / automobile / engineering bonus pages):** Bonus › Issue with the amount set to 0, or the box cleared, sent no amount (`amt && …`). The server reads a missing amount as "pay what is pending", so the person was marked paid the full figure (₹400 in the test) when ₹0 was typed.
+  - Repro: Bonus › Mechanic › Issue for a person with ₹400 pending › amount 0 › Issue Bonus. The payout went out with no amount.
+- Fix (Bonus/Mechanic.tsx): Issue needs an amount above ₹0 ("Enter the amount paid (more than ₹0). To reduce the bonus without paying, use Edit."). The amount is left out only when it equals the pending figure.
+- Test: e2e/radiator.e2e.mjs "issuing a ₹0 bonus is refused instead of paying the full amount" (1 payout with no amount before the fix, none after). The test's mock now records /bonus/payout.
+- Checked, not changed: Labour review always sends the typed amount, and its button is disabled while the box is empty, so a typed 0 is an explicit ₹0 payout.
+- Gate: backend 121/121; tsc and build OK; e2e tyre 77, automobile 48, engineering 166, radiator 21, salary 7, all 0 FAIL.

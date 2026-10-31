@@ -223,12 +223,14 @@ export function BonusPage({
     const confirmIssue = async () => {
         if (!issueRow) return;
         const amt = Number(issueAmount);
-        if (isNaN(amt) || amt < 0) { callAlertMsg("Enter a valid amount (0 or more)", "error"); return; }
+        // No amount is sent when it equals the pending figure, which the server reads as "pay it all", so a 0 or a cleared
+        // box must stop here: it used to issue the full pending bonus.
+        if (isNaN(amt) || amt <= 0) { callAlertMsg("Enter the amount paid (more than ₹0). To reduce the bonus without paying, use Edit.", "error"); return; }
         try {
             setSaving(true);
             const res = await postData("bonus/payout", {
                 type, beneficiary: issueRow.beneficiary, from, to,
-                amount: amt && amt !== issueRow.payableBonus ? amt : undefined,
+                amount: amt !== issueRow.payableBonus ? amt : undefined,
                 notes: issueNote,
             });
             callAlertMsg(res.message || "Bonus issued", "success");
