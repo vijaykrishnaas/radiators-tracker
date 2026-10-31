@@ -1466,3 +1466,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Run 141's settings merge now fills missing automobile keys from the defaults. Saved values still win (the spread order keeps them), and the automobile e2e suite is unchanged (48 PASS).
 - Not worth code: a title of only spaces would print blank. The Settings fields are plain text boxes, and spaces-only is not a realistic entry.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 143: 2026-10-31 (area a, future challan dates and the follow-up limit)
+- A challan can be dated in the future. So can radiator, automobile and engineering bills: none of the four forms or DAOs limit the bill date. That's consistent across the app (advance bookings), so it's not treated as a tyre bug.
+- `getInstallmentFollowUp` keeps only the first 100 rows (`rows.slice(0, limit)`), but its overdue amount, due-this-month amount and overdue challan count are added up over every row first. A shop with more than 100 open rows still sees correct dashboard totals.
+- No bugs found. Quiet run (2 in a row: 142–143).
