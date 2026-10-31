@@ -1491,3 +1491,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - The challan is saved as `Challan-<D.C.>-<date>-<vehicle>.pdf`, with the vehicle number as typed (upper-cased, up to 30 characters).
 - Printed with "TN 58/AB 1234" and "KA:01\X?Y*" through the app's Print button. Chromium named the downloads "Challan-1-2026-10-31-TN 58_AB 1234.pdf" and "Challan-2-2026-10-31-KA_01X_Y_.pdf": characters that aren't allowed in file names are replaced, and the file saves. The other prints (`Invoice-…`, `Bill-…`) build their names the same way.
 - No bugs found. Quiet run (2 in a row: 145–146).
+
+## Run 147: 2026-10-31 (area e, run 144's empty-picker dead end elsewhere)
+- Inventory (tyre and automobile):
+  - with an empty catalog, the header's Add stock button is disabled and the page says "No tyres yet. Add tyres in Settings → Tyre catalog…";
+  - Add stock on a stock row is disabled for items no longer in the catalog ("Not in the … catalog"), so the dialog's picker never opens empty.
+- Automobile bill parts are typed freely, with the catalog offered as suggestions (`<datalist>`), so an empty catalog doesn't block a bill.
+- Engineering's item picker already explains an empty list ("No items offered for this BS model").
+- No bugs found. Quiet run (3 in a row: 145–147).
