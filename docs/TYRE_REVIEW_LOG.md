@@ -1486,3 +1486,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - **Inventory:** "No tyres yet. Add tyres in Settings → Tyre catalog…".
 - The charts say "No data for this period. Try a wider date range." (shared ChartCard). The dashboard's default period is the financial year to date, so that's accurate, and the KPI row above shows "Challans 0". Not changed.
 - No bugs found. Quiet run (1 in a row).
+
+## Run 146: 2026-10-31 (area d, PDF file names with unusual vehicle numbers)
+- The challan is saved as `Challan-<D.C.>-<date>-<vehicle>.pdf`, with the vehicle number as typed (upper-cased, up to 30 characters).
+- Printed with "TN 58/AB 1234" and "KA:01\X?Y*" through the app's Print button. Chromium named the downloads "Challan-1-2026-10-31-TN 58_AB 1234.pdf" and "Challan-2-2026-10-31-KA_01X_Y_.pdf": characters that aren't allowed in file names are replaced, and the file saves. The other prints (`Invoice-…`, `Bill-…`) build their names the same way.
+- No bugs found. Quiet run (2 in a row: 145–146).
