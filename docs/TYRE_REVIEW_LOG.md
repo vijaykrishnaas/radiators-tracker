@@ -1434,3 +1434,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - The sticky footer appears mid-page only because the screenshots are full-page.
 - No layout regressions from runs 89/92 (card key width) or 125 (dialog errors).
 - No bugs found. Quiet run (2 in a row: 137–138).
+
+## Run 139: 2026-10-31 (area c, Excel export vs the list's columns)
+- Compared the challan list's columns with its Excel export (Billing/Index.tsx `exportExcel`). The export has all of them and more:
+  - **challans sheet:** D.C. No, date, vehicle / customer (under the user's own labels), phone, tyres, payment type, tyre amount, interest, discount, to collect, received, pending, overdue, status;
+  - **tyres sheet:** a line per tyre;
+  - **installments sheet:** each row's due date, so the table's "Next due" can be found there.
+- The export uses the list's own filters and sort (`buildParams()` + `sortParams`); run 95 checked filter/export agreement across 480 combinations, overdue included.
+- No bugs found. Quiet run (3 in a row: 137–139).
