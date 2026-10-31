@@ -1424,3 +1424,13 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - 31 Jan 2028 → 29 Feb (leap year); 31 Dec + 2 → 28 Feb.
 - Overdue at the day boundary follows the server's calendar day. That's known and logged in runs 6 and 43 (on a UTC server, a row due yesterday in India turns overdue at 05:30 IST).
 - No bugs found. Quiet run (1 in a row).
+
+## Run 138: 2026-10-31 (area b, form screenshots after the recent shared-CSS and dialog changes)
+- Re-shot the run 2 set (new form empty and with errors; edit with a part-paid row; view; payment dialog) at 1300px and 390px, light and dark, against the real DAO. No page errors.
+- Looked closely at 390px:
+  - edit: an unpaid overdue row can still be removed, and the part-paid row is locked with "₹5,000.00 paid";
+  - view: Print, Record Payment and Edit sit in the header; the plan check reads "₹67,500 of ₹67,500 · Matches";
+  - errors: the toast and each field's message are shown.
+- The sticky footer appears mid-page only because the screenshots are full-page.
+- No layout regressions from runs 89/92 (card key width) or 125 (dialog errors).
+- No bugs found. Quiet run (2 in a row: 137–138).
