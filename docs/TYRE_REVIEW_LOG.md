@@ -1442,3 +1442,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - **installments sheet:** each row's due date, so the table's "Next due" can be found there.
 - The export uses the list's own filters and sort (`buildParams()` + `sortParams`); run 95 checked filter/export agreement across 480 combinations, overdue included.
 - No bugs found. Quiet run (3 in a row: 137–139).
+
+## Run 140: 2026-10-31 (area d, Print from the list menu vs Print from the challan View)
+- The list's ⋮ › Print uses the list row, and View › Print uses the challan as loaded on its own. Both come from the same `enrich()` with no projection.
+- Printed both ways for run 121's two challans:
+  - the installment challan edited after part-payment;
+  - the full-payment challan with a discount.
+  `pdftotext -layout` of each pair is identical (51 and 34 lines, 0 differences).
+- Tamil text on prints is a closed decision (run 10: "No Tamil, leave it"), so it wasn't re-tested.
+- No bugs found. Quiet run (4 in a row: 137–140).
