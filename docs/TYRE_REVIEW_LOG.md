@@ -1478,3 +1478,11 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Fix (Tyre/Dashboard/Create.tsx): the model picker's empty message is "No models for this brand yet. Add them in Settings › Tyre Catalog." When the brand has models but the typed text matches none, it says "No match".
 - Test: e2e/tyre.e2e.mjs "a brand with no models points to the Tyre Catalog" (read "No options" before the fix).
 - Gate: backend 121/121; tsc and build OK; e2e tyre 77, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.
+
+## Run 145: 2026-10-31 (area c, a brand-new tyre shop with no challans)
+- Dashboard, Challans and Inventory with no data, at 390px light and 1300px dark: no page errors and no broken layouts. Each has its own empty state:
+  - **Challans:** "No challans yet. Create your first delivery challan…" with a New Challan button;
+  - **Dashboard:** the follow-up panel says "Nothing overdue or due this month"; the KPIs show 0;
+  - **Inventory:** "No tyres yet. Add tyres in Settings → Tyre catalog…".
+- The charts say "No data for this period. Try a wider date range." (shared ChartCard). The dashboard's default period is the financial year to date, so that's accurate, and the KPI row above shows "Challans 0". Not changed.
+- No bugs found. Quiet run (1 in a row).
