@@ -1415,3 +1415,12 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
   - Test: e2e/radiator.e2e.mjs "phone bill cards show the transport name" (failed before the fix).
 - Left as is: the radiator Phone column is sortable but isn't on the card, which is just a number with nothing to act on. The tyre and automobile cards don't show the phone either.
 - Gate: backend 121/121; tsc and build OK; e2e tyre 75, automobile 48, engineering 166, radiator 20, salary 7, all 0 FAIL.
+
+## Run 137: 2026-10-31 (area a, a plan started on the 31st)
+- Today is a month end, so re-checked the form's due-date fill from a challan dated 31 Oct:
+  - dates: 31 Oct → 30 Nov → 31 Dec → 31 Jan → 28 Feb → 31 Mar;
+  - the date goes back to the 31st after a short month instead of drifting to the 28th or 30th;
+  - `monthsBetween` gives 0–5 for those rows, so a paid row on 30 Nov keeps slot 1 and its neighbours keep distinct names;
+  - 31 Jan 2028 → 29 Feb (leap year); 31 Dec + 2 → 28 Feb.
+- Overdue at the day boundary follows the server's calendar day. That's known and logged in runs 6 and 43 (on a UTC server, a row due yesterday in India turns overdue at 05:30 IST).
+- No bugs found. Quiet run (1 in a row).
