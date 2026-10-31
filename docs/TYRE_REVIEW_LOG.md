@@ -1507,3 +1507,8 @@ Gate: backend 120/120; tsc + build OK; e2e tyre 72, automobile 48, engineering 1
 - Test: e2e/radiator.e2e.mjs "issuing a ₹0 bonus is refused instead of paying the full amount" (1 payout with no amount before the fix, none after). The test's mock now records /bonus/payout.
 - Checked, not changed: Labour review always sends the typed amount, and its button is disabled while the box is empty, so a typed 0 is an explicit ₹0 payout.
 - Gate: backend 121/121; tsc and build OK; e2e tyre 77, automobile 48, engineering 166, radiator 21, salary 7, all 0 FAIL.
+
+## Run 149: 2026-10-31 (area a, run 148's "0 read as no amount" pattern elsewhere)
+- Searched the frontend for money values put through `x && …` / `x || undefined` before posting. The only hits are `aria-invalid` / `aria-disabled` flags and a layout prop; the payment dialog sends what is typed, and its run-125 checks decide what's allowed.
+- Searched the backend DAOs and routes for an amount, discount or rate where `||` or a truthiness check could turn a real 0 into "use the stored value". Every hit is `Number(x || 0)`, which defaults a *missing* value to 0. The tyre DAO already checks discounts with `!= null` and `> 0`, and payouts with `amount != null && !isNaN(...)`.
+- No bugs found. Quiet run (1 in a row).
