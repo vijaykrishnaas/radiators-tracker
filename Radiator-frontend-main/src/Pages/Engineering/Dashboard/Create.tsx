@@ -40,7 +40,6 @@ const EngCreate = () => {
     const [filledNote, setFilledNote] = useState(false);
     const [discardOpen, setDiscardOpen] = useState(false);
     const noteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    const [billNo, setBillNo] = useState<number | null>(null);
     const [billDate, setBillDate] = useState(today());
     const [vehicleNo, setVehicleNo] = useState("");
     const [lorryAddress, setLorryAddress] = useState("");
@@ -63,7 +62,6 @@ const EngCreate = () => {
             setLoadingRecord(true);
             try {
                 const { bill } = (await getData(`engbills/${id}`)) as { bill: EngBill };
-                setBillNo(bill.billNo);
                 setBillDate(String(bill.billDate).slice(0, 10));
                 setVehicleNo(bill.vehicleNo || "");
                 setLorryAddress(bill.lorryAddress || "");
@@ -302,7 +300,6 @@ const EngCreate = () => {
     const subtitle = (
         <>
             {bsModels.map((b) => b.label).join(" / ") || "BS"} service work record
-            {billNo != null && <> · Bill no. {billNo}</>}
         </>
     );
 

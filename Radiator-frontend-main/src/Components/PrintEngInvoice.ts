@@ -9,6 +9,9 @@ import { bsLabel, itemText, typeLabel } from "../Pages/Engineering/types";
 
 type RGB = [number, number, number];
 
+// Company-name size on the bill, chosen in Settings › Invoice options.
+const NAME_SIZE: Record<string, number> = { small: 14, medium: 17, large: 21 };
+
 const hexToRgb = (hex: string): RGB => {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
     return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [18, 70, 130];
@@ -25,7 +28,8 @@ const spacedPlate = (v: string) => {
 
 /**
  * Engineering Works bill (A5), laid out like the radiator / automobile invoices: masthead (company left, bill
- * title + date + bill no. right), Billed to / Details, plain particulars table, totals, QR + signature, footer.
+ * title + date right), Billed to / Details, particulars table with S.No, totals, QR + signature, footer. The bill
+ * number and the mechanic are not printed; the company's GST No (Settings) is.
  * Standalone — it shares no drawing code with those invoices, so they stay byte-identical. Identity, colour and
  * options all come from settings; nothing is hardcoded.
  */
@@ -52,7 +56,7 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     const billDateObj = bill.billDate ? new Date(bill.billDate) : new Date();
     const billDate = billDateObj.toLocaleDateString("en-IN");
 
-    /* ---- Masthead: company (left) · title + date + bill no. (right) ---- */
+    /* ---- Masthead: company (left) · title + date (right) ---- */
     const titleText = (inv?.billTitle || "Invoice").toUpperCase();
     doc.setFont("helvetica", "bold"); doc.setFontSize(12);
     const titleW = doc.getTextWidth(titleText);
@@ -62,15 +66,15 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
 
     const coName = (co.name || "").trim().toUpperCase();
     const nameY = 15.5;
-    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(17);
+    const nameSize = NAME_SIZE[inv?.titleSize || "medium"] || NAME_SIZE.medium;
+    setRGB(ink); doc.setFont("times", "bold"); doc.setFontSize(nameSize);
     doc.text(coName, M, nameY, { maxWidth: nameMaxW });
-    const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: 17 }).h : 6;
+    const nameH = coName ? doc.getTextDimensions(coName, { maxWidth: nameMaxW, fontSize: nameSize }).h : 6;
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(12); setRGB(accent);
     doc.text(titleText, W - M, nameY - 0.5, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
     doc.text(billDate, W - M, nameY + 5, { align: "right" });
-    if (bill.billNo != null) doc.text(`Bill No: ${bill.billNo}`, W - M, nameY + 9.5, { align: "right" });
 
     doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
     let cy = nameY + Math.max(nameH, 6) + 2.5;
@@ -79,7 +83,10 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
         cy += doc.getTextDimensions(co.address, { maxWidth: 84, fontSize: 7 }).h + 1;
     }
     const phone = `${co.phone1 || ""}${co.phone2 ? "  ·  " + co.phone2 : ""}`;
-    if (phone.trim()) doc.text(phone, M, cy);
+    const gst = (inv?.gstNo || "").trim();
+    const contact = [phone.trim(), gst ? `GST No: ${gst}` : ""].filter(Boolean);
+    contact.forEach((t, i) => doc.text(t, M, cy + i * 3.6));
+    if (contact.length) cy += (contact.length - 1) * 3.6;
 
     /* ---- Billed to / Details ---- */
     let y = Math.max(36, cy + 7);
@@ -89,7 +96,6 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     const colR = W / 2 + 6;
     doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub);
     doc.text("BILLED TO", M, y);
-    doc.text("DETAILS", colR, y);
 
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); setRGB(ink);
     doc.text(spacedPlate(bill.vehicleNo), M, y + 5);
@@ -103,8 +109,8 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
 
     const bsSet = [...new Set((bill.services || []).map((s) => bsLabel(settings, s.bsModel)).filter(Boolean))];
     const details: [string, string][] = [];
-    if (bill.mechanic) details.push(["Mechanic", bill.mechanic]);
     if (bsSet.length) details.push(["BS model", bsSet.join(", ")]);
+    if (details.length) { doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); setRGB(sub); doc.text("DETAILS", colR, y); }
     doc.setFontSize(7.5);
     let dy = y + 5;
     details.forEach(([k, v]) => {
@@ -119,29 +125,33 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
 
     /* ---- Particulars: a quiet group row per service, then its items ---- */
     const body: any[] = [];
+    let sno = 0;
     (bill.services || []).forEach((s) => {
         const tag = [s.typeLabel || typeLabel(settings, s.type), bsLabel(settings, s.bsModel)].filter(Boolean).join(" · ");
-        body.push([{ content: tag.toUpperCase(), colSpan: 4, styles: { fontSize: 6.5, fontStyle: "bold", textColor: sub, cellPadding: { top: 2.4, bottom: 0.6 } } }]);
-        s.items.forEach((i) => body.push([itemText(i), String(i.qty), rs(Number(i.rate || 0)), rs(Number(i.amount || 0))]));
+        body.push([{ content: tag.toUpperCase(), colSpan: 5, styles: { halign: "left", fontSize: 6.5, fontStyle: "bold", textColor: sub, cellPadding: { top: 2.4, bottom: 0.6 } } }]);
+        // An "Others" line is a described job with one amount: no quantity or rate to print.
+        s.items.forEach((i) => body.push([String(++sno), itemText(i), i.requiresComment ? "" : String(i.qty), i.requiresComment ? "" : rs(Number(i.rate || 0)), rs(Number(i.amount || 0))]));
     });
 
     autoTable(doc, {
         startY: y,
         margin: { left: M, right: M },
-        head: [["Particulars", "Qty", "Rate", "Amount"]],
+        head: [["S.No", "Particulars", "Qty", "Rate", "Amount"]],
         body,
         theme: "plain",
         headStyles: { fontSize: 7, fontStyle: "bold", textColor: sub, cellPadding: { top: 1, bottom: 2.5 } },
         bodyStyles: { fontSize: 8, textColor: ink, cellPadding: { top: 2.6, bottom: 2.6 } },
         columnStyles: {
-            0: { halign: "left" },
-            1: { halign: "center", cellWidth: 16 },
-            2: { halign: "right", cellWidth: 28 },
-            3: { halign: "right", cellWidth: 30 },
+            0: { halign: "center", cellWidth: 11 },
+            1: { halign: "left" },
+            2: { halign: "center", cellWidth: 14 },
+            3: { halign: "right", cellWidth: 26 },
+            4: { halign: "right", cellWidth: 28 },
         },
         didParseCell: (data: any) => {
             if (data.cell.colSpan > 1) return;
-            data.cell.styles.halign = data.column.index === 0 ? "left" : data.column.index === 1 ? "center" : "right";
+            const c = data.column.index;
+            data.cell.styles.halign = c === 1 ? "left" : c === 0 || c === 2 ? "center" : "right";
         },
         didDrawCell: (data: any) => {
             if (data.section === "head" || (data.section === "body" && data.cell.colSpan === 1)) {
@@ -225,5 +235,5 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     doc.text(footer, W / 2, H - 5, { align: "center" });
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
-    doc.save(`Bill-${bill.billNo ?? ""}-${fileDate}-${bill.vehicleNo || ""}.pdf`);
+    doc.save(`Bill-${fileDate}-${bill.vehicleNo || ""}.pdf`);
 };

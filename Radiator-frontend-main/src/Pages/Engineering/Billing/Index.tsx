@@ -136,7 +136,6 @@ const EngBilling = () => {
             const all = await fetchAllForExport();
             const exportData = all.map((x) => ({
                 "Date": x.billDate ? new Date(x.billDate).toLocaleDateString("en-IN") : "—",
-                "Bill No": x.billNo,
                 "Truck Number": x.vehicleNo,
                 "Lorry Address": x.lorryAddress || "",
                 "Mechanic": x.mechanic,
@@ -174,7 +173,6 @@ const EngBilling = () => {
     const columns: Column<EngBill>[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_o, i) => (currentPage - 1) * limit + i + 1 },
         { key: "date", sortKey: "date", header: "Date", className: "nowrap tabular", cell: (o) => fmtDate(o.billDate) },
-        { key: "bill", sortKey: "bill", header: "Bill No", className: "nowrap tabular", cell: (o) => o.billNo },
         { key: "truck", sortKey: "truck", header: labels.vehicleNo, className: "key nowrap", cell: (o) => o.vehicleNo },
         { key: "mech", sortKey: "mech", header: labels.agent, className: "text", cell: (o) => o.mechanic },
         { key: "types", header: "Types", cell: (o) => (
@@ -249,7 +247,7 @@ const EngBilling = () => {
                         to={`/engineering/dashboard/view/${o._id}`}
                         badge={<PaymentBadge status={o.paymentStatus} />}
                         menu={rowMenu(o)}
-                        meta={[fmtDate(o.billDate), `Bill ${o.billNo}`, o.mechanic]}
+                        meta={[fmtDate(o.billDate), o.mechanic]}
                         meta2={typeNames(o).join(", ")}
                         amounts={[
                             { label: "Total", value: money(o.netTotal) },
@@ -266,7 +264,7 @@ const EngBilling = () => {
 
             <RecordPaymentModal
                 open={!!paymentItem}
-                title={`Record Payment — ${paymentItem?.vehicleNo ?? ""} (Bill ${paymentItem?.billNo ?? ""})`}
+                title={`Record Payment — ${paymentItem?.vehicleNo ?? ""}`}
                 totalLabel="Net total"
                 total={paymentItem?.netTotal || 0}
                 received={paymentItem?.amountReceived || 0}
@@ -281,7 +279,7 @@ const EngBilling = () => {
             <ConfirmDialog
                 open={!!deleteItem}
                 title="Delete Record"
-                message={deleteItem && <>Delete bill for <span className="t-strong t-semibold">{deleteItem.vehicleNo} (Bill {deleteItem.billNo})</span>{deleteItem.billDate ? ` dated ${fmtDate(deleteItem.billDate)}` : ""}? This cannot be undone.</>}
+                message={deleteItem && <>Delete bill for <span className="t-strong t-semibold">{deleteItem.vehicleNo}</span>{deleteItem.billDate ? ` dated ${fmtDate(deleteItem.billDate)}` : ""}? This cannot be undone.</>}
                 confirmLabel="Delete"
                 busyLabel="Deleting..."
                 busy={saving}

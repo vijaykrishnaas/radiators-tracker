@@ -204,6 +204,8 @@ export const defaultSettings = {
       footerNote: "Thank you for your business",
       showQr: false,
       showSignature: false,
+      gstNo: "", // printed under the company address
+      titleSize: "medium", // company-name size on the bill: small | medium | large
     },
   },
 

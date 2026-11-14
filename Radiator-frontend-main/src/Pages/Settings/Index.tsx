@@ -893,6 +893,15 @@ const SettingsPage = () => {
                         <div className="form-grid">
                             {textField("Bill title", "engineering.invoice.billTitle", draft.engineering.invoice.billTitle, "CASH / CREDIT BILL")}
                             {textField("Footer note", "engineering.invoice.footerNote", draft.engineering.invoice.footerNote)}
+                            {textField("GST No (printed under your address)", "engineering.invoice.gstNo", draft.engineering.invoice.gstNo || "", "e.g. 33ABCDE1234F1Z5")}
+                            <Field label="Company name size on the bill" htmlFor="eng-title-size">
+                                <select id="eng-title-size" className="form-select" value={draft.engineering.invoice.titleSize || "medium"}
+                                    onChange={(e) => set("engineering.invoice.titleSize", e.target.value)}>
+                                    <option value="small">Small</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="large">Large</option>
+                                </select>
+                            </Field>
                         </div>
                         <div className="mt-3">{invoiceSwitches("eng-", "engineering.invoice", draft.engineering.invoice)}</div>
                     </SectionCard>

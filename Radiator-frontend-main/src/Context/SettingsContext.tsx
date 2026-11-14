@@ -152,6 +152,10 @@ export type AppSettings = {
             footerNote: string;
             showQr: boolean;
             showSignature: boolean;
+            /** Company GST number, printed under the address. */
+            gstNo?: string;
+            /** Company-name size on the printed bill. */
+            titleSize?: "small" | "medium" | "large";
         };
     };
     tyre: TyreSettings;
@@ -207,7 +211,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         billStartNumber: 1,
         fyStartMonth: 4,
         bonus: { mechanicAmount: 0 },
-        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false },
+        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false, gstNo: "", titleSize: "medium" },
     },
     tyre: {
         brands: [],

@@ -424,9 +424,9 @@ async function run(type) {
   const savedHold = cp ? cp.postDataJSON()?.engineering?.serviceTypes?.find((t) => t.value === "turbo")?.items?.find((i) => i.value === "hold-set") : null;
   ok("eng: saving settings sends the item cost per BS model", savedHold?.costs?.bs3 === 320, JSON.stringify(savedHold ?? (cp ? Object.keys(cp.postDataJSON()?.engineering || {}) : "no PUT")));
   await page.screenshot({ path: `${S}/eng-catalog-costs.png` });
-  // Bill numbering input and Financial year select should look like one control family (44px, 8px, white, same type).
-  const numCtl = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => { const c = getComputedStyle(e); return { tag: e.tagName, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor, fs: c.fontSize, fw: c.fontWeight }; }));
-  ok("eng: bill-numbering input and financial-year select match (44px, 8px, white, same type)", numCtl.length === 2 && numCtl.every((c) => c.h === 44 && c.r === "8px" && c.bg === "rgb(255, 255, 255)") && numCtl[0].fs === numCtl[1].fs && numCtl[0].fw === numCtl[1].fw, JSON.stringify(numCtl));
+  // Bills carry no visible number any more, so Settings has no bill-numbering box; the financial-year select keeps the control style.
+  const numCtl = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => { const c = getComputedStyle(e); return { id: e.id, h: Math.round(e.getBoundingClientRect().height), r: c.borderTopLeftRadius, bg: c.backgroundColor }; }));
+  ok("eng: no bill-numbering box; financial-year select is 44px, 8px, white", numCtl.length === 1 && numCtl[0].id === "cat-fy-month" && numCtl[0].h === 44 && numCtl[0].r === "8px" && numCtl[0].bg === "rgb(255, 255, 255)", JSON.stringify(numCtl));
   const fySel = page.getByLabel("Financial year starts in");
   ok("eng: Settings has a financial-year start month (default April)", (await fySel.count()) === 1 && (await fySel.inputValue()) === "4", String(await fySel.count() && await fySel.inputValue()));
   await fySel.selectOption("10");
@@ -554,7 +554,7 @@ async function run(type) {
   await page.locator(".ui-modal input.form-control").first().waitFor({ timeout: 10000 });
   const dlg = page.getByRole("dialog", { name: /Record Payment/ });
   ok("eng: payment dialog is a named modal dialog (role + aria-modal + accessible name)", (await dlg.count()) === 1 && (await dlg.getAttribute("aria-modal")) === "true", `named dialogs=${await dlg.count()}`);
-  ok("eng: payment dialog title carries vehicle and bill no", /TN52J2622 \(Bill 802\)/.test(await dlg.innerText()) && /Net total/.test(await dlg.innerText()));
+  ok("eng: payment dialog title carries the vehicle, not the hidden bill no", /Record Payment — TN52J2622/.test(await dlg.innerText()) && !/Bill 802/.test(await dlg.innerText()) && /Net total/.test(await dlg.innerText()));
   ok("eng: payment dialog offers a payment mode choice", (await dlg.getByRole("radio").count()) === 5);
   const pm = await page.evaluate(() => {
     const g = (el) => { const c = getComputedStyle(el); return { h: Math.round(el.getBoundingClientRect().height), r: c.borderTopLeftRadius }; };
@@ -587,9 +587,9 @@ async function run(type) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/settings");
   await page.locator("#settings-section").selectOption({ label: "Service Catalog" });
-  await page.locator("#cat-bill-start").waitFor({ timeout: 10000 });
-  const phoneFs = await page.evaluate(() => [...document.querySelectorAll("#cat-bill-start, #cat-fy-month")].map((e) => getComputedStyle(e).fontSize));
-  ok("eng: phone numbering/financial-year controls use 16px text", phoneFs.length === 2 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
+  await page.locator("#cat-fy-month").waitFor({ timeout: 10000 });
+  const phoneFs = await page.evaluate(() => [...document.querySelectorAll("#cat-fy-month")].map((e) => getComputedStyle(e).fontSize));
+  ok("eng: phone financial-year control uses 16px text", phoneFs.length === 1 && phoneFs.every((f) => f === "16px"), JSON.stringify(phoneFs));
   await page.setViewportSize({ width: 1300, height: 1000 });
 
   // Accessibility: the service form's text fields are programmatically labelled (visible label <-> input), not placeholder-only.
@@ -794,10 +794,28 @@ async function run(type) {
     const { readFileSync } = await import("node:fs");
     const pdfPath = await download.path();
     const raw = readFileSync(pdfPath).toString("latin1");
-    ok("eng: bill PDF is a real PDF named with the bill no.", raw.startsWith("%PDF") && /Bill-802-/.test(download.suggestedFilename()), download.suggestedFilename());
-    ok("eng: bill PDF uses the radiator layout (masthead with bill no., Billed to / Details, plain table, signatory)", /\(Bill No: 802\)/.test(raw) && /\(BILLED TO\)/.test(raw) && /\(DETAILS\)/.test(raw) && /\(Particulars\)/.test(raw) && /\(Authorised signatory\)/.test(raw), "layout markers");
-    ok("eng: bill PDF carries plate, mechanic, service group tag and totals", /TN 52 J 2622/.test(raw) && /\(Ramesh\)/.test(raw) && /\(TURBO · BS-3\)/.test(raw) && /\(Subtotal\)/.test(raw) && /\(Total\)/.test(raw) && /\(Discount\)/.test(raw), "content");
+    // The bill number and the mechanic are not printed (user request); each item line has an S.No.
+    ok("eng: bill PDF is a real PDF named by date and plate, without the bill no.", raw.startsWith("%PDF") && /^Bill-\d{4}-\d{2}-\d{2}-/.test(download.suggestedFilename()) && !/802/.test(download.suggestedFilename()), download.suggestedFilename());
+    ok("eng: bill PDF layout: Billed to, Details, S.No + Particulars table, signatory; no Bill No", !/Bill No/.test(raw) && /\(BILLED TO\)/.test(raw) && /\(DETAILS\)/.test(raw) && /\(S.No\)/.test(raw) && /\(Particulars\)/.test(raw) && /\(Authorised signatory\)/.test(raw), "layout markers");
+    ok("eng: bill PDF carries plate, group tag and totals, but not the mechanic", /TN 52 J 2622/.test(raw) && !/\(Ramesh\)/.test(raw) && !/\(Mechanic\)/.test(raw) && /\(TURBO · BS-3\)/.test(raw) && /\(Subtotal\)/.test(raw) && /\(Total\)/.test(raw) && /\(Discount\)/.test(raw), "content");
     ok("eng: bill PDF no longer prints the old mockup extras (amount in words, PHONE / WHATSAPP band label)", !/Rupees Four Thousand/.test(raw) && !/PHONE \/ WHATSAPP/.test(raw), "legacy markers absent");
+  }
+  // Print options from Settings: GST No under the address, the company-name size, and "Others" lines with an amount only.
+  {
+    const { readFileSync } = await import("node:fs");
+    const [gdl] = await Promise.all([page.waitForEvent("download", { timeout: 15000 }), page.evaluate(async () => {
+      const m = await import("/src/Components/PrintEngInvoice.ts");
+      const st = { branding: { primaryColor: "#124682" }, company: { name: "Sri Murugan Engineering Works", address: "Madurai", phone1: "98430 55555" },
+        engineering: { bsModels: [], serviceTypes: [], quickAdd: [], billStartNumber: 1, invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "", showQr: false, showSignature: false, gstNo: "33ABCDE1234F1Z5", titleSize: "large" } } };
+      await m.printEngInvoice({ billNo: 812, billDate: "2026-11-13", vehicleNo: "TN52J2622", mechanic: "Ramesh",
+        services: [{ type: "pump", typeLabel: "Fuel pump", subtotal: 1800, items: [{ item: "cal", label: "Calibration", qty: 2, rate: 900, amount: 1800 }] },
+          { type: "others", typeLabel: "Others", subtotal: 650, items: [{ item: "other", label: "Others", requiresComment: true, comment: "Welding of bracket", qty: 1, rate: 650, amount: 650 }] }],
+        total: 2450, discount: 0, netTotal: 2450, amountReceived: 0, balance: 2450 }, st);
+    })]);
+    const g = readFileSync(await gdl.path()).toString("latin1");
+    ok("eng: bill PDF prints the GST No from Settings", /\(GST No: 33ABCDE1234F1Z5\)/.test(g), "GST line");
+    ok("eng: 'Large' company-name size prints the name at 21pt (17pt is medium)", / 21 Tf/.test(g) && !/ 17 Tf/.test(g), (g.match(/\/F\d+ (17|21) Tf/g) || []).join(","));
+    ok("eng: an Others line prints its amount only (no qty or rate)", (g.match(/\(Rs 650\)/g) || []).length === 1 && /\(Welding of bracket\)/.test(g), String((g.match(/\(Rs 650\)/g) || []).length));
   }
   // A new tenant has not filled in Company settings yet: the bill must not print a "?" logo or a dangling "For".
   const noNameHandler = async (route) => {
