@@ -1,6 +1,7 @@
 // Shared types for the automobile-vertical billing screens. Parallel of the
 // RadiatorRecord/ServiceItem types in ../IssueCounter/Dashboard/Index.tsx —
 // kept separate so radiator pages are never coupled to this module.
+import type { WaSummary } from "../../Services/WhatsAppApi";
 
 export type AutoBillItem = {
     particulars: string;
@@ -29,6 +30,7 @@ export type AutoBillRecord = {
     receivedAmount: number;
     pendingAmount: number;
     status: "Not Received" | "Partial" | "Received";
+    whatsapp?: WaSummary;
 };
 
 export const itemsText = (record: AutoBillRecord) =>

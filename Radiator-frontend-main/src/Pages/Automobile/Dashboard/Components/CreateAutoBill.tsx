@@ -12,6 +12,9 @@ import { useAlertMsg } from "../../../../Services/AllServices";
 import { useSettings } from "../../../../Context/SettingsContext";
 import { PageHeader, Field, FormFooter, SkeletonRows } from "../../../../Components/ui/Basics";
 import { money } from "../../../../Utils/format";
+import { WaStatusLine, WaTick } from "../../../../Components/WhatsAppStatus";
+import { useWaTick, useWhatsAppSend } from "../../../../Utils/whatsapp";
+import type { WaSummary } from "../../../../Services/WhatsAppApi";
 import { ConfirmDialog } from "../../../../Components/ui/Modal";
 
 type ItemRow = {
@@ -96,6 +99,10 @@ const CreateAutoBill = () => {
 
     const { fields, append, remove, replace } = useFieldArray({ control, name: "autoBill.items" });
     const items = watch("autoBill.items") || [];
+    const [savedWa, setSavedWa] = useState<WaSummary | undefined>();
+    const [savedBill, setSavedBill] = useState<any>(null);
+    const wa = useWaTick({ isEdit, phone: watch("autoBill.phoneNumber") || "", saved: savedWa });
+    const { enabled: waEnabled, sendBill: waSendBill } = useWhatsAppSend();
 
     useEffect(() => {
         if (isView) return;
@@ -117,6 +124,8 @@ const CreateAutoBill = () => {
         setLoadingRecord(true);
         try {
             const data = await getData(`autobills/${id}`);
+            setSavedWa(data.whatsapp);
+            setSavedBill(data);
             const loadedItems: ItemRow[] = (data.items || []).map((i: any) => ({
                 particulars: i.particulars || "",
                 partRef: i.partRef || null,
@@ -265,6 +274,7 @@ const CreateAutoBill = () => {
                 : await postData("autobills/add", payload);
 
             callAlertMsg(res.message || (isEdit ? "Updated successfully" : "Saved successfully"), "success");
+            wa.afterSave("automobile", isEdit ? id : res.id);
             navigate("/automobile/billing");
         } catch (err: any) {
             callAlertMsg(err?.message || "Error saving data. Please try again.", "error");
@@ -285,6 +295,9 @@ const CreateAutoBill = () => {
     return (
         <>
             <PageHeader title={pageTitle} back={{ onClick: () => navigate(-1), label: "Bills" }} />
+            {isView && waEnabled && savedWa && (
+                <WaStatusLine wa={savedWa} onResend={async () => { if (savedBill && await waSendBill("automobile", savedBill)) await loadRecord(); }} />
+            )}
             <motion.form
                 key={pageTitle}
                 onSubmit={handleSubmit(onSubmit)}
@@ -563,6 +576,7 @@ const CreateAutoBill = () => {
                 </section>
 
                 <FormFooter totalLabel="Bill total" total={money(total)} totalNote={breakdown}>
+                    {!isView && wa.enabled && <WaTick checked={wa.checked} onChange={wa.setChecked} phoneOk={wa.phoneOk} sentAt={wa.sentAt} />}
                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
                         {isView ? "Back" : "Cancel"}
                     </button>

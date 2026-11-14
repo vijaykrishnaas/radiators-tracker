@@ -33,7 +33,7 @@ const spacedPlate = (v: string) => {
  * Standalone — it shares no drawing code with those invoices, so they stay byte-identical. Identity, colour and
  * options all come from settings; nothing is hardcoded.
  */
-export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
+export const printEngInvoice = async (bill: EngBill, settings: AppSettings, opts?: { output?: "blob" }): Promise<Blob | void> => {
     const accent = hexToRgb(settings.branding.primaryColor);
     const ink: RGB = [29, 29, 31];
     const sub: RGB = [110, 110, 115];
@@ -235,5 +235,6 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings) => {
     doc.text(footer, W / 2, H - 5, { align: "center" });
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    if (opts?.output === "blob") return doc.output("blob");
     doc.save(`Bill-${fileDate}-${bill.vehicleNo || ""}.pdf`);
 };

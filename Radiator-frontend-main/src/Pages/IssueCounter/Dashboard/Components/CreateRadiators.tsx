@@ -13,6 +13,9 @@ import { useSettings, CatalogOption } from "../../../../Context/SettingsContext"
 import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../../Components/ui/Basics";
 import { AffixInput } from "../../../../Components/ui/Inputs";
 import { money } from "../../../../Utils/format";
+import { WaStatusLine, WaTick } from "../../../../Components/WhatsAppStatus";
+import { useWaTick, useWhatsAppSend } from "../../../../Utils/whatsapp";
+import type { WaSummary } from "../../../../Services/WhatsAppApi";
 
 type ServiceGroup = {
     subject: CatalogOption | null;
@@ -87,6 +90,8 @@ const CreateRadiators = () => {
         setLoadingRecord(true);
         try {
             const data = await getData(`radiators/${id}`);
+            setSavedWa(data.whatsapp);
+            setSavedBill(data);
 
             const radiatorGroups: ServiceGroup[] = data.serviceInfo?.map((item: any) => ({
                 subject: findOption(serviceOptions, item.type || ""),
@@ -129,6 +134,10 @@ const CreateRadiators = () => {
         name: "radiatorsManagement.radiatorGroups",
     });
 
+    const [savedWa, setSavedWa] = useState<WaSummary | undefined>();
+    const [savedBill, setSavedBill] = useState<any>(null);
+    const wa = useWaTick({ isEdit, phone: watch("radiatorsManagement.phoneNumber") || "", saved: savedWa });
+    const { enabled: waEnabled, sendBill: waSendBill } = useWhatsAppSend();
     const selectedRadiatorType = watch("radiatorsManagement.radiatorType") as any;
     const groups = watch("radiatorsManagement.radiatorGroups") || [];
 
@@ -179,6 +188,7 @@ const CreateRadiators = () => {
                 : await postData("radiators/add", payload);
 
             callAlertMsg(res.message || (isEdit ? "Updated successfully" : "Saved successfully"), "success");
+            wa.afterSave("radiator", isEdit ? id : res.id);
             navigate("/issueCounter/billing");
         } catch (err: any) {
             callAlertMsg(err?.message || "Error saving data. Please try again.", "error");
@@ -194,6 +204,9 @@ const CreateRadiators = () => {
     return (
         <>
             <PageHeader title={pageTitle} back={{ onClick: () => navigate(-1), label: "Bills" }} />
+            {isView && waEnabled && savedWa && (
+                <WaStatusLine wa={savedWa} onResend={async () => { if (savedBill && await waSendBill("radiator", savedBill)) await loadRecord(); }} />
+            )}
             <motion.form
                 key={pageTitle}
                 onSubmit={handleSubmit(onSubmit)}
@@ -406,6 +419,7 @@ const CreateRadiators = () => {
                 </div>
 
                 <FormFooter totalLabel="Bill total" total={money(billTotal)}>
+                    {!isView && wa.enabled && <WaTick checked={wa.checked} onChange={wa.setChecked} phoneOk={wa.phoneOk} sentAt={wa.sentAt} />}
                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
                         {isView ? "Back" : "Cancel"}
                     </button>

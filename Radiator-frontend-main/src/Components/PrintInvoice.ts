@@ -27,7 +27,7 @@ const particularText = (s: { type: string; comments?: string }) =>
  * Modern A5 invoice. All company identity, branding, and invoice options come
  * from settings — nothing company-specific is hardcoded here.
  */
-export const printInvoice = async (o: any, settings: AppSettings) => {
+export const printInvoice = async (o: any, settings: AppSettings, opts?: { output?: "blob" }): Promise<Blob | void> => {
     const accent = hexToRgb(settings.branding.primaryColor);
     const ink: RGB = [29, 29, 31];      // Apple-ish near-black
     const sub: RGB = [110, 110, 115];   // secondary grey
@@ -234,6 +234,7 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
     doc.text(footer, W / 2, H - 5, { align: "center" });
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    if (opts?.output === "blob") return doc.output("blob");
     doc.save(`Invoice-${fileDate}-${o.truckNumber || ""}.pdf`);
 };
 
@@ -243,7 +244,7 @@ export const printInvoice = async (o: any, settings: AppSettings) => {
  * Qty(fixed "1")/Amount table. Kept as a separate function (not a branch
  * inside printInvoice) so the radiator invoice path is untouched.
  */
-export const printAutoInvoice = async (o: any, settings: AppSettings) => {
+export const printAutoInvoice = async (o: any, settings: AppSettings, opts?: { output?: "blob" }): Promise<Blob | void> => {
     const accent = hexToRgb(settings.branding.primaryColor);
     const ink: RGB = [29, 29, 31];
     const sub: RGB = [110, 110, 115];
@@ -431,6 +432,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings) => {
     doc.text(footer, W / 2, H - 5, { align: "center" });
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    if (opts?.output === "blob") return doc.output("blob");
     doc.save(`Invoice-${fileDate}-${o.vehicleNumber || ""}.pdf`);
 };
 

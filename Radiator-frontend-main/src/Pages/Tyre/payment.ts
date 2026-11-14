@@ -19,6 +19,8 @@ export async function submitTyrePayment(
     b: TyreBill,
     v: { amount: string; discount: string; mode: string; installmentId?: string },
     alert: Alert,
+    // Called with the response so a receipt-with-PDF can be built after the payment.
+    onRecorded?: (res: any) => void,
 ): Promise<boolean> {
     const amount = Number(v.amount) || 0;
     const discount = Number(v.discount) || 0;
@@ -41,6 +43,7 @@ export async function submitTyrePayment(
             // The API sets the challan's total discount, so send the existing discount plus the extra one entered now.
             : { amount, mode: v.mode, discount: (Number(b.discount) || 0) + discount });
         alert(res.message || "Payment recorded", "success");
+        onRecorded?.(res);
         return true;
     } catch (err: any) {
         alert(err?.message || "Failed to record payment", "error");

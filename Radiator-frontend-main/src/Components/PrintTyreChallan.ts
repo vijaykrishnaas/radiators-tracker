@@ -27,7 +27,7 @@ const d = (s?: string | null) => (s ? new Date(s).toLocaleDateString("en-IN") : 
  * installments, then the receiver's and the authorised signatures. Standalone: shares no drawing code with the other
  * invoices. Identity, colour and wording come from settings.
  */
-export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) => {
+export const printTyreChallan = async (bill: TyreBill, settings: AppSettings, opts?: { output?: "blob" }): Promise<Blob | void> => {
     // The brand colour made safe for text on white (≥ 4.5:1), as on screen: a pale brand colour (yellow, gold)
     // would otherwise print a title that is hard to read and fades on a photocopy.
     const accent = hexToRgb(buildBrand(settings.branding.primaryColor, "light").brandText);
@@ -252,5 +252,6 @@ export const printTyreChallan = async (bill: TyreBill, settings: AppSettings) =>
     }
 
     const fileDate = `${billDateObj.getFullYear()}-${String(billDateObj.getMonth() + 1).padStart(2, "0")}-${String(billDateObj.getDate()).padStart(2, "0")}`;
+    if (opts?.output === "blob") return doc.output("blob");
     doc.save(`Challan-${bill.billNo ?? ""}-${fileDate}-${bill.vehicleNumber || ""}.pdf`);
 };

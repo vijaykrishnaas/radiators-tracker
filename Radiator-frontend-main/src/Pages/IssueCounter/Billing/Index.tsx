@@ -18,6 +18,8 @@ import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
 import { DataList, MobileCard, Pagination, emptyCopy, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { Popover } from "../../../Components/ui/Menu";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
+import { WaBadge } from "../../../Components/WhatsAppStatus";
+import { billPhone, useWhatsAppSend, waPhoneOk } from "../../../Utils/whatsapp";
 import { storage } from "../../../Components/ui/hooks";
 
 import * as XLSX from "xlsx";
@@ -56,6 +58,8 @@ const Billing = () => {
     const { settings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const L = settings.labels;
+    const { enabled: waEnabled, sendBill, sendReceiptAfterPayment } = useWhatsAppSend();
+    const [waFailed, setWaFailed] = useState(false);
 
     const [busyLabel, setBusyLabel] = useState("");
     const [saving, setSaving] = useState(false);
@@ -92,18 +96,19 @@ const Billing = () => {
         status,
         radiatorType: product,
         serviceType: service,
+        ...(waEnabled && waFailed ? { waFailed: "1" } : {}),
     });
 
     const list = useRemoteList<RadiatorRecord>(async () => {
         const res = await getData("radiators", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.radiatorData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service, sort], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, product, service, waFailed, sort], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
-    const activeCount = [mechanic, product, service, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
+    const activeCount = [mechanic, product, service, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (waFailed ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setMechanic(""); setStatus(""); setProduct(""); setService("");
+        setSearchText(""); setMechanic(""); setStatus(""); setProduct(""); setService(""); setWaFailed(false);
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
@@ -188,6 +193,7 @@ const Billing = () => {
                 discount: (Number(paymentItem.discount) || 0) + discount,
             });
             callAlertMsg(res.message || "Payment recorded", "success");
+            sendReceiptAfterPayment("radiator", paymentItem._id, res);
             setPaymentItem(null);
             await list.reload();
         } catch (err: any) {
@@ -218,6 +224,7 @@ const Billing = () => {
             { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/issueCounter/dashboard/edit/${o._id}`) },
             { label: "Print", icon: <Icons iconName="print" />, onClick: () => printInvoice(o, settings) },
             { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.pendingAmount <= 0, reason: "Fully paid" },
+            ...(waEnabled ? [{ label: o.whatsapp ? "Resend on WhatsApp" : "Send on WhatsApp", icon: <Icons iconName="send" />, onClick: () => { void sendBill("radiator", o, { updated: false }).then(() => list.reload()); }, disabled: !waPhoneOk(billPhone(o)), reason: "No valid phone" }] : []),
             { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
         ]} />
     );
@@ -248,7 +255,7 @@ const Billing = () => {
         { key: "rec", sortKey: "rec", col: "receivedAmount", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
         { key: "pend", sortKey: "pend", col: "pendingAmount", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
         { key: "phone", sortKey: "phone", col: "phoneNumber", header: "Phone", className: "nowrap tabular", cell: (o) => o.phoneNumber || "—" },
-        { key: "status", sortKey: "status", col: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "status", sortKey: "status", col: "status", header: "Status", className: "nowrap", cell: (o) => <><PaymentBadge status={o.status} />{waEnabled && <WaBadge wa={o.whatsapp} />}</> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
     const columns = allColumns.filter((c) => !c.col || visible[c.col]);
@@ -294,6 +301,15 @@ const Billing = () => {
                 { id: "f-product", label: L.product, node: <Selector inputId="f-product" isClearable options={productOptions} placeholder="-- All --" value={opt(productOptions, product)} onChange={(o: any) => setFilter(setProduct)(o ? o.value : "")} /> },
                 { id: "f-service", label: "Service Type", node: <Selector inputId="f-service" isClearable options={serviceOptions} placeholder="-- All --" value={opt(serviceOptions, service)} onChange={(o: any) => setFilter(setService)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },
+                ...(waEnabled ? [{
+                    id: "f-wa-failed", label: "WhatsApp", node: (
+                        <label className="form-check d-flex align-items-center gap-2 m-0" htmlFor="f-wa-failed">
+                            <input id="f-wa-failed" type="checkbox" className="form-check-input m-0" checked={waFailed}
+                                onChange={(e) => { setWaFailed(e.target.checked); setCurrentPage(1); }} />
+                            WhatsApp failed
+                        </label>
+                    ),
+                }] : []),
                 { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
             ]}
@@ -342,7 +358,7 @@ const Billing = () => {
                     <MobileCard
                         title={o.truckNumber}
                         to={`/issueCounter/dashboard/view/${o._id}`}
-                        badge={<PaymentBadge status={o.status} />}
+                        badge={<><PaymentBadge status={o.status} />{waEnabled && <WaBadge wa={o.whatsapp} />}</>}
                         menu={rowMenu(o)}
                         meta={[fmtDate(o.billDate), o.radiatorType, o.mechanicName]}
                         meta2={[o.transportName, servicesText(o)].filter(Boolean).join(" · ") || undefined}

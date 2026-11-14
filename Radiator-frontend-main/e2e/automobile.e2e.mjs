@@ -9,6 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pwPath = process.env.PLAYWRIGHT_MODULE || join(execSync("npm root -g").toString().trim(), "playwright", "index.mjs");
 const { chromium } = await import(pathToFileURL(pwPath).href);
 const { defaultSettings } = await import(pathToFileURL(join(here, "../../Radiator-backend-main/src/config/defaultSettings.js")).href);
+import { mockWhatsApp, until } from "./wa-helpers.mjs";
 const BASE = process.env.E2E_BASE_URL || "http://localhost:5173";
 const OUT = process.env.E2E_OUT || join(here, ".out");
 mkdirSync(OUT, { recursive: true });
@@ -288,6 +289,203 @@ ok("auto: two parts with the same name are not saved", dupSaves === 0 && /oil fi
 await page.getByLabel("oil filter name").first().fill("");
 const blankSaves = await savePuts();
 ok("auto: a part with no name is not saved", blankSaves === 0, `${blankSaves} saves`);
+
+// ---- WhatsApp: everything hidden unless the company has it; send-on-save, edit-after-sent, row menu, failed filter, receipts ----
+{
+  const wbill = (id, no, vehicle, phone, whatsapp) => ({
+    _id: id, billNo: no, billDate: "2026-09-20T00:00:00.000Z", vehicleNumber: vehicle, customerName: "Velu", phoneNumber: phone, mechanicName: "Ramesh", labourName: [], notes: "",
+    items: [{ particulars: "Engine oil", partRef: null, qty: 2, unit: "L", rate: 450, amount: 900 }],
+    totalAmount: 900, discount: 0, netAmount: 900, receivedAmount: 200, pendingAmount: 700, status: "Partial", ...(whatsapp ? { whatsapp } : {}),
+  });
+  const failedWa = { status: "failed", at: "2026-11-12T10:00:00.000Z", error: "Template awaiting approval", kind: "bill" };
+  const bills = {
+    a11: wbill("a11", 11, "TN11WA0001", "9843012345"),
+    a12: wbill("a12", 12, "TN12WA0002", "9843012345", failedWa),
+    a13: wbill("a13", 13, "TN13WA0003", ""),
+    a15: wbill("a15", 15, "TN15WA0005", "9843012345", { status: "delivered", at: "2026-11-13T09:30:00.000Z", kind: "bill" }),
+    a19: wbill("a19", 19, "TN19WA0009", "9843012345"),
+  };
+  const open = async (enabled, width = 1300) => {
+    const pg = await browser.newPage({ viewport: { width, height: 1000 } });
+    pg.on("pageerror", (e) => errors.push(e.message));
+    const s = structuredClone(settings);
+    s.whatsappEnabled = enabled;
+    s.whatsapp = { ...(s.whatsapp || {}), billDefaultTick: true, receipt: true, receiptPdf: true };
+    const rec = { lists: [], exports: [], created: null, updated: null, payments: [] };
+    await pg.route("http://localhost:5000/**", async (route) => {
+      const req = route.request();
+      const u = new URL(req.url());
+      const p = u.pathname;
+      const m = req.method();
+      const json = (b) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
+      if (p === "/settings") return json({ settings: s });
+      if (p === "/auto-mechanic") return json({ success: true, mechdata: ["Ramesh"] });
+      if (p === "/inventory/levels") return json({ success: true, levels: {} });
+      if (p === "/autobills/add") { rec.created = req.postDataJSON(); return json({ success: true, message: "Bill saved ✅", id: "a19" }); }
+      if (p === "/autobills" || p === "/autobills/export") {
+        const q = Object.fromEntries(u.searchParams);
+        (p === "/autobills" ? rec.lists : rec.exports).push(q);
+        const rows = Object.values(bills).filter((b) => b._id !== "a19" && b._id !== "a15" && (q.waFailed !== "1" || b.whatsapp?.status === "failed"));
+        return json({ success: true, currentPage: 1, totalPages: 1, totalRecords: rows.length, autoBillData: rows });
+      }
+      const mm = p.match(/^\/autobills\/(a\d+)(\/payment)?$/);
+      if (mm && mm[2]) { rec.payments.push(req.postDataJSON()); return json({ success: true, message: "ok", autoBill: bills[mm[1]], whatsappReceiptId: "rc1" }); }
+      if (mm && m === "PUT") { rec.updated = req.postDataJSON(); return json({ success: true, message: "Updated" }); }
+      if (mm) return json(bills[mm[1]]);
+      return json({ success: true, data: [], mechdata: [], records: [] });
+    });
+    const wa = await mockWhatsApp(pg);
+    await pg.goto(BASE + "/issueCounter/login");
+    await pg.evaluate(() => {
+      localStorage.setItem("svr_token", "x");
+      localStorage.setItem("svr_user", JSON.stringify({ userId: "admin", name: "Admin", role: "admin", clientId: "c1" }));
+    });
+    return { pg, wa, rec };
+  };
+  const fillBill = async (pg, phone) => {
+    await pg.locator("#vehicle-number").waitFor({ timeout: 10000 });
+    await pg.locator("#vehicle-number").fill("TN19WA0009");
+    await pg.locator("#agent").click({ force: true });
+    await pg.getByText("Ramesh", { exact: true }).last().click();
+    await pg.locator("#particulars-0").fill("Brake pads");
+    await pg.locator("#qty-0").fill("2");
+    await pg.locator("#rate-0").fill("750");
+    await pg.locator("#phone").fill(phone);
+    await pg.locator('input[name="day"]').fill("20");
+    await pg.locator('input[name="month"]').fill("09");
+    await pg.locator('input[name="year"]').fill("2026");
+  };
+
+  // Disabled: nothing about WhatsApp on screen.
+  {
+    const { pg } = await open(false);
+    await pg.goto(BASE + "/automobile/dashboard/create");
+    await pg.locator("#vehicle-number").waitFor({ timeout: 10000 });
+    ok("auto wa: no tick on the bill form when WhatsApp is off", (await pg.locator("#wa-send").count()) === 0 && !/WhatsApp/.test(await pg.locator(".form-footer").innerText()));
+    await pg.goto(BASE + "/automobile/billing");
+    await pg.getByText("TN11WA0001").first().waitFor({ timeout: 10000 });
+    await pg.getByRole("button", { name: "Actions for TN11WA0001" }).click();
+    ok("auto wa: no row-menu item when WhatsApp is off", (await pg.getByRole("menuitem", { name: /on WhatsApp/ }).count()) === 0);
+    await pg.keyboard.press("Escape");
+    ok("auto wa: no WhatsApp failed filter or badge when WhatsApp is off", (await pg.locator("#f-wa-failed").count()) === 0 && (await pg.getByText("Failed", { exact: true }).count()) === 0);
+    await pg.close();
+  }
+
+  // Enabled: create with the tick.
+  {
+    const { pg, wa, rec } = await open(true);
+    await pg.goto(BASE + "/automobile/dashboard/create");
+    await pg.locator("#vehicle-number").waitFor({ timeout: 10000 });
+    ok("auto wa: no phone → tick is disabled with a hint", await pg.locator("#wa-send").isDisabled() && /Add a valid 10-digit phone to send/.test(await pg.locator(".form-footer").innerText()));
+    await fillBill(pg, "12345");
+    ok("auto wa: an invalid phone keeps the tick disabled", await pg.locator("#wa-send").isDisabled() && !(await pg.locator("#wa-send").isChecked()));
+    await pg.locator("#phone").fill("9843012345");
+    ok("auto wa: a valid phone enables the tick, ticked by the company default", !(await pg.locator("#wa-send").isDisabled()) && (await pg.locator("#wa-send").isChecked()));
+    await pg.getByRole("button", { name: "Create bill", exact: true }).click();
+    await until(pg, () => wa.some((w) => w.path.startsWith("/whatsapp/send/bill/")));
+    await pg.waitForTimeout(800);
+    const sends = wa.filter((w) => w.path.startsWith("/whatsapp/send/bill/"));
+    ok("auto wa: saving posts exactly once to /whatsapp/send/bill/automobile/<id> with a PDF", sends.length === 1 && sends[0].path === "/whatsapp/send/bill/automobile/a19" && sends[0].pdf && /multipart\/form-data/.test(sends[0].type) && !("updated" in sends[0].query), JSON.stringify(sends));
+    ok("auto wa: the bill save itself is unchanged (no whatsapp fields in the payload)", rec.created && !("whatsapp" in rec.created));
+    ok("auto wa: success toast", (await pg.getByText("Sent to WhatsApp").count()) > 0);
+
+    // Untick → nothing is sent.
+    wa.length = 0; rec.created = null;
+    await pg.goto(BASE + "/automobile/dashboard/create");
+    await fillBill(pg, "9843012345");
+    await pg.locator("#wa-send").uncheck();
+    await pg.getByRole("button", { name: "Create bill", exact: true }).click();
+    await until(pg, () => rec.created);
+    await pg.waitForTimeout(1200);
+    ok("auto wa: an unticked save sends nothing", wa.length === 0);
+
+    // Edit a delivered bill.
+    await pg.goto(BASE + "/automobile/dashboard/edit/a15");
+    await pg.locator("#wa-send").waitFor({ timeout: 10000 });
+    await pg.locator("#particulars-0").waitFor();
+    ok("auto wa: editing a sent bill shows 'Already sent on' and an unticked box", /Already sent on 13\/11\/2026/.test(await pg.locator(".form-footer").innerText()) && !(await pg.locator("#wa-send").isChecked()));
+    await pg.getByRole("button", { name: "Update bill", exact: true }).click();
+    await until(pg, () => rec.updated);
+    await pg.waitForTimeout(800);
+    ok("auto wa: updating without the tick sends nothing", wa.length === 0);
+    await pg.goto(BASE + "/automobile/dashboard/edit/a15");
+    await pg.locator("#particulars-0").waitFor({ timeout: 10000 });
+    await pg.locator("#wa-send").check();
+    rec.updated = null;
+    await pg.getByRole("button", { name: "Update bill", exact: true }).click();
+    await until(pg, () => wa.length);
+    await pg.waitForTimeout(500);
+    ok("auto wa: ticking an already-sent bill sends the updated bill (updated=1)", wa.length === 1 && wa[0].path === "/whatsapp/send/bill/automobile/a15" && wa[0].query.updated === "1" && wa[0].pdf, JSON.stringify(wa));
+
+    // View page: status line + Resend.
+    wa.length = 0;
+    await pg.goto(BASE + "/automobile/dashboard/view/a15");
+    await pg.getByTestId("wa-status-line").waitFor({ timeout: 10000 });
+    ok("auto wa: the view page shows 'WhatsApp: Delivered · 13/11/2026'", /WhatsApp: Delivered · 13\/11\/2026/.test(await pg.getByTestId("wa-status-line").innerText()));
+    await pg.getByTestId("wa-status-line").getByRole("button", { name: "Resend" }).click();
+    await until(pg, () => wa.length);
+    ok("auto wa: Resend on the view page posts the PDF with updated=0", wa.length === 1 && wa[0].path === "/whatsapp/send/bill/automobile/a15" && !("updated" in wa[0].query) && wa[0].pdf, JSON.stringify(wa));
+    await pg.close();
+  }
+
+  // Enabled: list.
+  {
+    const { pg, wa, rec } = await open(true);
+    await pg.goto(BASE + "/automobile/billing");
+    await pg.getByText("TN12WA0002").first().waitFor({ timeout: 10000 });
+    const failBadge = pg.getByTestId("wa-badge").first();
+    ok("auto wa: a failed bill shows a Failed badge with the reason as its tooltip", (await failBadge.innerText()).trim() === "Failed" && (await failBadge.getAttribute("title")) === "Template awaiting approval");
+    ok("auto wa: only the bill that has a WhatsApp status gets a badge", (await pg.getByTestId("wa-badge").count()) === 1);
+    await pg.getByRole("button", { name: "Actions for TN13WA0003" }).click();
+    const noPhone = pg.getByRole("menuitem", { name: "Send on WhatsApp" });
+    ok("auto wa: a bill with no phone has the item disabled with a reason", await noPhone.isDisabled() && /No valid phone/.test(await pg.locator("[role=menu]").innerText()));
+    await pg.keyboard.press("Escape");
+    await pg.getByRole("button", { name: "Actions for TN11WA0001" }).click();
+    ok("auto wa: an unsent bill offers 'Send on WhatsApp'", (await pg.getByRole("menuitem", { name: "Send on WhatsApp" }).count()) === 1);
+    await pg.keyboard.press("Escape");
+    await pg.getByRole("button", { name: "Actions for TN12WA0002" }).click();
+    await pg.getByRole("menuitem", { name: "Resend on WhatsApp" }).click();
+    await until(pg, () => wa.length);
+    ok("auto wa: 'Resend on WhatsApp' posts the PDF", wa.length === 1 && wa[0].path === "/whatsapp/send/bill/automobile/a12" && wa[0].pdf, JSON.stringify(wa));
+
+    // Failed filter.
+    await pg.locator("#f-wa-failed").check();
+    await pg.waitForTimeout(600);
+    ok("auto wa: the 'WhatsApp failed' filter adds waFailed=1 to the list", rec.lists[rec.lists.length - 1].waFailed === "1", JSON.stringify(rec.lists[rec.lists.length - 1]));
+    ok("auto wa: and only failed bills remain", (await pg.getByText("TN11WA0001").count()) === 0 && (await pg.getByText("TN12WA0002").count()) > 0);
+    await pg.getByRole("button", { name: "Excel" }).first().click();
+    await until(pg, () => rec.exports.length);
+    ok("auto wa: the export carries waFailed=1 too", rec.exports[0]?.waFailed === "1", JSON.stringify(rec.exports));
+
+    // Receipt with PDF.
+    await pg.locator("#f-wa-failed").uncheck();
+    await pg.getByText("TN11WA0001").first().waitFor();
+    wa.length = 0;
+    await pg.getByRole("button", { name: "Actions for TN11WA0001" }).click();
+    await pg.getByRole("menuitem", { name: "Record Payment" }).click();
+    await pg.locator("#payment-amount").fill("100");
+    await pg.locator(".ui-modal-foot").getByRole("button", { name: "Record Payment" }).click();
+    await until(pg, () => wa.some((w) => w.path.startsWith("/whatsapp/receipts/")));
+    await pg.waitForTimeout(600);
+    const rc = wa.filter((w) => w.path.startsWith("/whatsapp/receipts/"));
+    ok("auto wa: a payment with whatsappReceiptId posts one receipt PDF", rec.payments.length === 1 && rc.length === 1 && rc[0].path === "/whatsapp/receipts/rc1/pdf" && rc[0].pdf, JSON.stringify(rc));
+    await pg.close();
+  }
+
+  // Phone: the form footer with the tick fits.
+  {
+    const { pg } = await open(true, 390);
+    await pg.goto(BASE + "/automobile/dashboard/edit/a15");
+    await pg.locator("#wa-send").waitFor({ timeout: 10000 });
+    const ov = () => pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    let o = await ov();
+    for (let i = 0; i < 30 && o > 0; i++) { await pg.waitForTimeout(100); o = await ov(); }
+    const box = await pg.locator(".wa-tick").boundingBox();
+    ok("auto wa: the form footer with the tick has no horizontal scroll at 390px", o <= 0 && box && box.x >= 0 && box.x + box.width <= 390, `overflow=${o} box=${JSON.stringify(box)}`);
+    await pg.screenshot({ path: `${OUT}/auto-wa-390.png`, fullPage: true });
+    await pg.close();
+  }
+}
 
 ok("auto: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

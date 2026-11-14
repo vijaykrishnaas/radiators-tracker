@@ -16,6 +16,8 @@ import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
 import { DataList, MobileCard, Pagination, emptyCopy, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
+import { WaBadge } from "../../../Components/WhatsAppStatus";
+import { billPhone, useWhatsAppSend, waPhoneOk } from "../../../Utils/whatsapp";
 
 import * as XLSX from "xlsx";
 
@@ -33,6 +35,8 @@ const AutoBilling = () => {
     const { settings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const labels = settings.automobile.labels;
+    const { enabled: waEnabled, sendBill, sendReceiptAfterPayment } = useWhatsAppSend();
+    const [waFailed, setWaFailed] = useState(false);
 
     const [busyLabel, setBusyLabel] = useState("");
     const [saving, setSaving] = useState(false);
@@ -58,18 +62,19 @@ const AutoBilling = () => {
         fromDate,
         toDate,
         status,
+        ...(waEnabled && waFailed ? { waFailed: "1" } : {}),
     });
 
     const list = useRemoteList<AutoBillRecord>(async () => {
         const res = await getData("autobills", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.autoBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, sort], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, mechanic, fromDate, toDate, status, waFailed, sort], { page: currentPage, setPage: setCurrentPage });
 
     useEffect(() => { getData("auto-mechanic").then((r) => setMechanics(r.mechdata || [])).catch(() => {}); }, []);
 
-    const activeCount = [mechanic, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0);
+    const activeCount = [mechanic, status, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (waFailed ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setMechanic(""); setStatus("");
+        setSearchText(""); setMechanic(""); setStatus(""); setWaFailed(false);
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
@@ -130,6 +135,7 @@ const AutoBilling = () => {
                 discount: (Number(paymentItem.discount) || 0) + discount,
             });
             callAlertMsg(res.message || "Payment recorded", "success");
+            sendReceiptAfterPayment("automobile", paymentItem._id, res);
             setPaymentItem(null);
             await list.reload();
         } catch (err: any) {
@@ -160,6 +166,7 @@ const AutoBilling = () => {
             { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/automobile/dashboard/edit/${o._id}`) },
             { label: "Print", icon: <Icons iconName="print" />, onClick: () => printAutoInvoice(o, settings) },
             { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.pendingAmount <= 0, reason: "Fully paid" },
+            ...(waEnabled ? [{ label: o.whatsapp ? "Resend on WhatsApp" : "Send on WhatsApp", icon: <Icons iconName="send" />, onClick: () => { void sendBill("automobile", o, { updated: false }).then(() => list.reload()); }, disabled: !waPhoneOk(billPhone(o)), reason: "No valid phone" }] : []),
             { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
         ]} />
     );
@@ -174,7 +181,7 @@ const AutoBilling = () => {
         { key: "total", sortKey: "total", header: "Total", className: "num", cell: (o) => money(o.totalAmount) },
         { key: "rec", sortKey: "rec", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
         { key: "pend", sortKey: "pend", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
-        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <><PaymentBadge status={o.status} />{waEnabled && <WaBadge wa={o.whatsapp} />}</> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
 
@@ -188,6 +195,15 @@ const AutoBilling = () => {
             filters={[
                 { id: "f-mech", label: labels.agent, primary: true, node: <Selector inputId="f-mech" isClearable options={mechanicOptions} placeholder="-- All --" value={opt(mechanicOptions, mechanic)} onChange={(o: any) => setFilter(setMechanic)(o ? o.value : "")} /> },
                 { id: "f-status", label: "Status", primary: true, node: <Selector inputId="f-status" isClearable options={STATUS_OPTIONS} placeholder="-- All Status --" value={opt(STATUS_OPTIONS, status)} onChange={(o: any) => setFilter(setStatus)(o ? o.value : "")} /> },
+                ...(waEnabled ? [{
+                    id: "f-wa-failed", label: "WhatsApp", node: (
+                        <label className="form-check d-flex align-items-center gap-2 m-0" htmlFor="f-wa-failed">
+                            <input id="f-wa-failed" type="checkbox" className="form-check-input m-0" checked={waFailed}
+                                onChange={(e) => { setWaFailed(e.target.checked); setCurrentPage(1); }} />
+                            WhatsApp failed
+                        </label>
+                    ),
+                }] : []),
                 { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
             ]}
@@ -234,7 +250,7 @@ const AutoBilling = () => {
                     <MobileCard
                         title={o.vehicleNumber}
                         to={`/automobile/dashboard/view/${o._id}`}
-                        badge={<PaymentBadge status={o.status} />}
+                        badge={<><PaymentBadge status={o.status} />{waEnabled && <WaBadge wa={o.whatsapp} />}</>}
                         menu={rowMenu(o)}
                         meta={[fmtDate(o.billDate), `Bill ${o.billNo}`, o.mechanicName]}
                         meta2={o.customerName || undefined}

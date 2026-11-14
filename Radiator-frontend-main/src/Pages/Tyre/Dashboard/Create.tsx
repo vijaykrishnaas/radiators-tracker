@@ -15,6 +15,8 @@ import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { addMonths, fmtDate, monthsBetween, round2, rowLabel, rowTone, type RowStatus, type TyreBill } from "../types";
 import { payableRows, submitTyrePayment } from "../payment";
+import { WaStatusLine, WaTick } from "../../../Components/WhatsAppStatus";
+import { useWaTick, useWhatsAppSend } from "../../../Utils/whatsapp";
 
 type ItemRow = {
     key: number;
@@ -129,6 +131,8 @@ const TyreCreate = () => {
     const [savedQty, setSavedQty] = useState<Record<string, number>>({});
     const [payOpen, setPayOpen] = useState(false);
     const [paying, setPaying] = useState(false);
+    const wa = useWaTick({ isEdit, phone, saved: bill?.whatsapp });
+    const { enabled: waEnabled, sendBill: waSendBill, sendReceiptAfterPayment } = useWhatsAppSend();
 
     useEffect(() => {
         if (!isView) getData("inventory/levels").then((r) => setStock(r.levels || {})).catch(() => setStock(null));
@@ -302,6 +306,7 @@ const TyreCreate = () => {
             };
             const res = isEdit ? await putData(`tyrebills/${id}`, payload) : await postData("tyrebills/add", payload);
             callAlertMsg(res.message || "Saved", "success");
+            wa.afterSave("tyre", isEdit ? id : res.id);
             navigate("/tyre/billing");
         } catch (e: any) {
             callAlertMsg(e?.message || "Error saving. Please try again.", "error");
@@ -313,7 +318,7 @@ const TyreCreate = () => {
     const onPay = async (v: { amount: string; discount: string; mode: string; installmentId?: string }) => {
         if (!bill) return;
         setPaying(true);
-        const ok = await submitTyrePayment(bill, v, callAlertMsg);
+        const ok = await submitTyrePayment(bill, v, callAlertMsg, (res) => sendReceiptAfterPayment("tyre", bill._id, res));
         setPaying(false);
         if (ok) { setPayOpen(false); await loadBill(); }
     };
@@ -346,6 +351,9 @@ const TyreCreate = () => {
                                 D.C. No. {billNo != null ? billNo : id ? "…" : "[AUTO]"}
                             </span>
                         </div>
+                        {isView && waEnabled && (
+                            <WaStatusLine wa={bill?.whatsapp} onResend={async () => { if (bill && await waSendBill("tyre", bill)) await loadBill(); }} />
+                        )}
                         <div className="tyre-to"><CardHead title="Delivered to" /></div>
                         {loadingRecord ? <SkeletonRows rows={3} /> : (
                             <div className="form-grid mt-4">
@@ -557,6 +565,7 @@ const TyreCreate = () => {
                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Back</button>
                 ) : (
                     <>
+                        {wa.enabled && <WaTick checked={wa.checked} onChange={wa.setChecked} phoneOk={wa.phoneOk} sentAt={wa.sentAt} />}
                         <button type="button" className="btn btn-secondary" onClick={cancel}>Cancel</button>
                         <button type="button" className="btn btn-primary" disabled={loading || loadingRecord} onClick={save}>
                             {loading && <span className="spinner" aria-hidden="true" />}

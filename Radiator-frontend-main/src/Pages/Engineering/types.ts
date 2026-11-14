@@ -42,6 +42,7 @@ export type EngBill = {
     balance: number;
     paymentMode?: string;
     paymentStatus: EngPaymentStatus;
+    whatsapp?: import("../../Services/WhatsAppApi").WaSummary;
 };
 
 export const STATUS_OPTIONS = [

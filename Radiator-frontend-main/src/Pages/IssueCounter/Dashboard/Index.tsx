@@ -33,6 +33,7 @@ export type RadiatorRecord = {
     labourName?: string[];
     serviceInfo: ServiceItem[];
     status: "Not Received" | "Partial" | "Received";
+    whatsapp?: import("../../../Services/WhatsAppApi").WaSummary;
     totalAmount: number;
     discount?: number;
     receivedAmount: number;

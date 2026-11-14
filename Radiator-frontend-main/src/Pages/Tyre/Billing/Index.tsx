@@ -17,6 +17,8 @@ import { ConfirmDialog } from "../../../Components/ui/Modal";
 import { FilterBar, SearchInput } from "../../../Components/ui/Filters";
 import { DataList, MobileCard, Pagination, emptyCopy, sortParams, type Column, type SortState } from "../../../Components/ui/DataList";
 import { useRemoteList } from "../../../Components/ui/useRemoteList";
+import { WaBadge } from "../../../Components/WhatsAppStatus";
+import { billPhone, useWhatsAppSend, waPhoneOk } from "../../../Utils/whatsapp";
 
 import * as XLSX from "xlsx";
 
@@ -50,6 +52,8 @@ const TyreBilling = () => {
     const { settings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
     const labels = settings.tyre.labels;
+    const { enabled: waEnabled, sendBill, sendReceiptAfterPayment } = useWhatsAppSend();
+    const [waFailed, setWaFailed] = useState(false);
 
     const [busyLabel, setBusyLabel] = useState("");
     const [saving, setSaving] = useState(false);
@@ -83,16 +87,17 @@ const TyreBilling = () => {
         status,
         paymentType,
         overdue: overdue ? "1" : "",
+        ...(waEnabled && waFailed ? { waFailed: "1" } : {}),
     });
 
     const list = useRemoteList<TyreBill>(async () => {
         const res = await getData("tyrebills", { params: { page: currentPage, limit, ...buildParams(), ...sortParams(sort) } });
         return { rows: res.tyreBillData || [], total: res.totalRecords || 0, totalPages: res.totalPages || 1 };
-    }, [limit, currentPage, searchText, fromDate, toDate, status, paymentType, overdue, sort], { page: currentPage, setPage: setCurrentPage });
+    }, [limit, currentPage, searchText, fromDate, toDate, status, paymentType, overdue, waFailed, sort], { page: currentPage, setPage: setCurrentPage });
 
-    const activeCount = [status, paymentType, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (overdue ? 1 : 0);
+    const activeCount = [status, paymentType, fromDate, toDate].filter(Boolean).length + (searchText ? 1 : 0) + (overdue ? 1 : 0) + (waFailed ? 1 : 0);
     const clearFilters = () => {
-        setSearchText(""); setStatus(""); setPaymentType(""); setOverdue(false);
+        setSearchText(""); setStatus(""); setPaymentType(""); setOverdue(false); setWaFailed(false);
         setFromDate(""); setToDate(""); setCurrentPage(1);
         setFiltersKey((k) => k + 1);
     };
@@ -160,7 +165,7 @@ const TyreBilling = () => {
     const handleRecordPayment = async (v: { amount: string; discount: string; mode: string; installmentId?: string }) => {
         if (!paymentItem) return;
         setSaving(true);
-        const ok = await submitTyrePayment(paymentItem, v, callAlertMsg);
+        const ok = await submitTyrePayment(paymentItem, v, callAlertMsg, (res) => sendReceiptAfterPayment("tyre", paymentItem._id, res));
         setSaving(false);
         if (ok) { setPaymentItem(null); await list.reload(); }
     };
@@ -186,6 +191,7 @@ const TyreBilling = () => {
             { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => navigate(`/tyre/dashboard/edit/${o._id}`) },
             { label: "Print", icon: <Icons iconName="print" />, onClick: () => printTyreChallan(o, settings) },
             { label: "Record Payment", icon: <Icons iconName="currencyrupee" />, onClick: () => setPaymentItem(o), disabled: o.pendingAmount <= 0, reason: "Fully paid" },
+            ...(waEnabled ? [{ label: o.whatsapp ? "Resend on WhatsApp" : "Send on WhatsApp", icon: <Icons iconName="send" />, onClick: () => { void sendBill("tyre", o, { updated: false }).then(() => list.reload()); }, disabled: !waPhoneOk(billPhone(o)), reason: "No valid phone" }] : []),
             { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => setDeleteItem(o) },
         ]} />
     );
@@ -200,7 +206,7 @@ const TyreBilling = () => {
         { key: "total", sortKey: "total", header: "To collect", className: "num", cell: (o) => money(o.payableTotal) },
         { key: "rec", sortKey: "rec", header: "Received", className: "num", cell: (o) => money(o.receivedAmount) },
         { key: "pend", sortKey: "pend", header: "Pending", className: "num", cell: (o) => <span className={o.pendingAmount > 0 ? "t-error t-semibold" : undefined}>{money(o.pendingAmount)}</span> },
-        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <PaymentBadge status={o.status} /> },
+        { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <><PaymentBadge status={o.status} />{waEnabled && <WaBadge wa={o.whatsapp} />}</> },
         { key: "act", header: <span className="visually-hidden">Action</span>, className: "cell-actions num", cell: (o) => rowMenu(o) },
     ];
 
@@ -221,6 +227,15 @@ const TyreBilling = () => {
                         </label>
                     ),
                 },
+                ...(waEnabled ? [{
+                    id: "f-wa-failed", label: "WhatsApp", node: (
+                        <label className="form-check d-flex align-items-center gap-2 m-0" htmlFor="f-wa-failed">
+                            <input id="f-wa-failed" type="checkbox" className="form-check-input m-0" checked={waFailed}
+                                onChange={(e) => { setWaFailed(e.target.checked); setCurrentPage(1); }} />
+                            WhatsApp failed
+                        </label>
+                    ),
+                }] : []),
                 { id: "from-date", label: "From", node: <input id="from-date" type="date" className="form-control" value={fromDate} max={toDate || undefined} onChange={(e) => setFilter(setFromDate)(e.target.value)} /> },
                 { id: "to-date", label: "To", node: <input id="to-date" type="date" className="form-control" min={fromDate || undefined} value={toDate} onChange={(e) => setFilter(setToDate)(e.target.value)} /> },
             ]}
@@ -265,7 +280,7 @@ const TyreBilling = () => {
                     <MobileCard
                         title={o.vehicleNumber}
                         to={`/tyre/dashboard/view/${o._id}`}
-                        badge={o.overdueCount > 0 ? <Badge tone="error" dot>Overdue</Badge> : <PaymentBadge status={o.status} />}
+                        badge={<>{o.overdueCount > 0 ? <Badge tone="error" dot>Overdue</Badge> : <PaymentBadge status={o.status} />}{waEnabled && <WaBadge wa={o.whatsapp} />}</>}
                         menu={rowMenu(o)}
                         meta={[fmtDate(o.billDate), `D.C. ${o.billNo}`, o.paymentType === "installment" ? "Installments" : "Full payment"]}
                         meta2={[o.customerName, itemsText(o)].filter(Boolean).join(" · ") || undefined}

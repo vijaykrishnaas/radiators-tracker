@@ -15,6 +15,7 @@ const pwPath = process.env.PLAYWRIGHT_MODULE || join(execSync("npm root -g").toS
 const { chromium } = await import(pathToFileURL(pwPath).href);
 const { defaultSettings } = await import(backend("src/config/defaultSettings.js"));
 const { FakeDb } = await import(backend("test/helpers/fakeDb.js"));
+import { mockWhatsApp, until } from "./wa-helpers.mjs";
 const BASE = process.env.E2E_BASE_URL || "http://localhost:5173";
 const OUT = process.env.E2E_OUT || join(here, ".out");
 mkdirSync(OUT, { recursive: true });
@@ -737,6 +738,165 @@ const capText = await collectCard.locator(".kpi-caption").innerText();
 const parts = rupees(capText);
 const sum = /discount/i.test(capText) ? parts[0] + parts[1] - parts[2] : parts[0] + parts[1];
 ok("tyre: dashboard 'To collect' breakdown adds up when a challan has a discount", Math.abs(sum - shown) < 0.01, `${shown} vs "${capText}"`);
+
+// ---- WhatsApp: hidden unless the company has it; send-on-save, edit-after-sent, row menu, failed filter, receipts ----
+{
+  const mk = async (vehicle, phone, whatsapp) => {
+    const b = await dao.createTyreBill(CLIENT, { billDate: "2026-11-10", vehicleNumber: vehicle, customerName: "Velu", phoneNumber: phone, mechanicName: "Ramesh",
+      items: [{ brandRef: "apollo", modelRef: "9-00-20-xt-7", qty: 1, rate: 19000 }], paymentType: "full" });
+    if (whatsapp) fakeDb.collection("tyrebills").docs.find((d) => String(d._id) === String(b._id)).whatsapp = whatsapp;
+    return String(b._id);
+  };
+  const idUnsent = await mk("TN77WA0001", "9843012345");
+  const idFailed = await mk("TN77WA0002", "9843012345", { status: "failed", at: "2026-11-12T10:00:00.000Z", error: "Template awaiting approval", kind: "bill" });
+  const idNoPhone = await mk("TN77WA0003", "");
+  const idSent = await mk("TN77WA0004", "9843012345", { status: "delivered", at: "2026-11-13T09:30:00.000Z", kind: "bill" });
+  const listQ = [];
+  const exportQ = [];
+  const payments = [];
+  const isWa = (b) => /^TN77WA000[1-4]$/.test(b.vehicleNumber);
+  // The list is answered from the fake DB, filtered the way the backend will (waFailed=1 → failed sends only).
+  const listRoute = (target) => async (route) => {
+    const req = route.request();
+    const url = new URL(req.url());
+    if (req.method() !== "GET" || url.pathname !== target) return route.fallback();
+    const q = Object.fromEntries(url.searchParams);
+    (target === "/tyrebills" ? listQ : exportQ).push(q);
+    const d = await dao.getAllTyreBills(CLIENT, { search: "TN77WA" }, 1, 50, {});
+    const rows = d.tyreBillData.filter(isWa).filter((b) => q.waFailed !== "1" || b.whatsapp?.status === "failed");
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, currentPage: 1, totalPages: 1, totalRecords: rows.length, tyreBillData: rows }) });
+  };
+  await page.route(/localhost:5000\/tyrebills(\?.*)?$/, listRoute("/tyrebills"));
+  await page.route(/localhost:5000\/tyrebills\/export(\?.*)?$/, listRoute("/tyrebills/export"));
+  await page.route(/localhost:5000\/tyrebills\/[a-f0-9]{24}\/payment$/, async (route) => {
+    const req = route.request();
+    const id = new URL(req.url()).pathname.split("/")[2];
+    payments.push(req.postDataJSON());
+    const tyreBill = await dao.recordTyrePayment(CLIENT, id, req.postDataJSON());
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, message: "Payment recorded ✅", tyreBill, whatsappReceiptId: "rc1" }) });
+  });
+  const wa = await mockWhatsApp(page);
+  const gotoFresh = async (path) => { await page.goto(BASE + path); };
+  const fillChallan = async (phone) => {
+    await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+    await page.locator("#ty-vehicle").fill("TN77WA0009");
+    await page.locator("#ty-phone").fill(phone);
+    await pick("[id^=ty-brand-]", "Apollo");
+    await pick("[id^=ty-model-]", "9.00-20");
+    await page.getByRole("radio", { name: "Full payment" }).click();
+  };
+
+  await page.setViewportSize({ width: 1300, height: 1000 });
+  // Disabled (the company has no WhatsApp): no tick, no menu item, no filter, no badge.
+  await gotoFresh("/tyre/dashboard/create");
+  await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+  ok("tyre wa: no tick on the challan form when WhatsApp is off", (await page.locator("#wa-send").count()) === 0 && !/WhatsApp/.test(await page.locator(".form-footer").innerText()));
+  await gotoFresh("/tyre/billing");
+  await page.getByText("TN77WA0001").first().waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: /Actions for D\.C\. \d+/ }).first().click();
+  ok("tyre wa: no row-menu item when WhatsApp is off", (await page.getByRole("menuitem", { name: /on WhatsApp/ }).count()) === 0);
+  await page.keyboard.press("Escape");
+  ok("tyre wa: no WhatsApp failed filter or badge when WhatsApp is off", (await page.locator("#f-wa-failed").count()) === 0 && (await page.getByTestId("wa-badge").count()) === 0);
+
+  // Turn it on for the company (+ company default tick, receipts with PDF).
+  settings.whatsappEnabled = true;
+  settings.whatsapp = { ...(settings.whatsapp || {}), billDefaultTick: true, receipt: true, receiptPdf: true };
+
+  await gotoFresh("/tyre/dashboard/create");
+  await page.locator("#ty-vehicle").waitFor({ timeout: 10000 });
+  ok("tyre wa: no phone → tick is disabled with a hint", await page.locator("#wa-send").isDisabled() && /Add a valid 10-digit phone to send/.test(await page.locator(".form-footer").innerText()));
+  await fillChallan("12345");
+  ok("tyre wa: an invalid phone keeps the tick disabled", await page.locator("#wa-send").isDisabled() && !(await page.locator("#wa-send").isChecked()));
+  await page.locator("#ty-phone").fill("9843012345");
+  ok("tyre wa: a valid phone enables the tick, ticked by the company default", !(await page.locator("#wa-send").isDisabled()) && (await page.locator("#wa-send").isChecked()));
+  await page.locator(".form-footer").getByRole("button", { name: "Save challan" }).click();
+  await until(page, () => wa.some((w) => w.path.startsWith("/whatsapp/send/bill/")));
+  await page.waitForTimeout(800);
+  const newId = String(fakeDb.collection("tyrebills").docs.find((d) => d.vehicleNumber === "TN77WA0009")?._id);
+  const sends = wa.filter((w) => w.path.startsWith("/whatsapp/send/bill/"));
+  ok("tyre wa: saving posts exactly once to /whatsapp/send/bill/tyre/<id> with a PDF", sends.length === 1 && sends[0].path === `/whatsapp/send/bill/tyre/${newId}` && sends[0].pdf && /multipart\/form-data/.test(sends[0].type) && !("updated" in sends[0].query), JSON.stringify(sends));
+  ok("tyre wa: success toast", (await page.getByText("Sent to WhatsApp").count()) > 0);
+
+  // Edit a delivered challan.
+  wa.length = 0;
+  await gotoFresh(`/tyre/dashboard/edit/${idSent}`);
+  await page.locator("#wa-send").waitFor({ timeout: 10000 });
+  await page.locator("[id^=ty-brand-]").first().waitFor();
+  ok("tyre wa: editing a sent challan shows 'Already sent on' and an unticked box", /Already sent on 13\/11\/2026/.test(await page.locator(".form-footer").innerText()) && !(await page.locator("#wa-send").isChecked()));
+  await page.locator(".form-footer").getByRole("button", { name: "Update challan" }).click();
+  await page.waitForURL(/\/tyre\/billing/, { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  ok("tyre wa: updating without the tick sends nothing", wa.length === 0);
+  await gotoFresh(`/tyre/dashboard/edit/${idSent}`);
+  await page.locator("[id^=ty-brand-]").first().waitFor({ timeout: 10000 });
+  await page.locator("#wa-send").check();
+  await page.locator(".form-footer").getByRole("button", { name: "Update challan" }).click();
+  await until(page, () => wa.length);
+  await page.waitForTimeout(500);
+  ok("tyre wa: ticking an already-sent challan sends the updated one (updated=1)", wa.length === 1 && wa[0].path === `/whatsapp/send/bill/tyre/${idSent}` && wa[0].query.updated === "1" && wa[0].pdf, JSON.stringify(wa));
+
+  // View page: status line + Resend.
+  wa.length = 0;
+  await gotoFresh(`/tyre/dashboard/view/${idSent}`);
+  await page.getByTestId("wa-status-line").waitFor({ timeout: 10000 });
+  ok("tyre wa: the view page shows 'WhatsApp: Delivered · 13/11/2026'", /WhatsApp: Delivered · 13\/11\/2026/.test(await page.getByTestId("wa-status-line").innerText()));
+  await page.getByTestId("wa-status-line").getByRole("button", { name: "Resend" }).click();
+  await until(page, () => wa.length);
+  ok("tyre wa: Resend on the view page posts the PDF with updated=0", wa.length === 1 && wa[0].path === `/whatsapp/send/bill/tyre/${idSent}` && !("updated" in wa[0].query) && wa[0].pdf, JSON.stringify(wa));
+
+  // List.
+  wa.length = 0;
+  await gotoFresh("/tyre/billing");
+  await page.getByText("TN77WA0002").first().waitFor({ timeout: 10000 });
+  const failBadge = page.locator("tbody").getByTestId("wa-badge").filter({ hasText: "Failed" }).first();
+  ok("tyre wa: a failed challan shows a Failed badge with the reason as its tooltip", (await failBadge.count()) === 1 && (await failBadge.getAttribute("title")) === "Template awaiting approval");
+  const rowOf = (v) => page.locator("tbody tr").filter({ hasText: v });
+  const menuOf = async (v) => { await rowOf(v).getByRole("button", { name: /Actions for/ }).click(); };
+  await menuOf("TN77WA0003");
+  ok("tyre wa: a challan with no phone has the item disabled with a reason", await page.getByRole("menuitem", { name: "Send on WhatsApp" }).isDisabled() && /No valid phone/.test(await page.locator("[role=menu]").innerText()));
+  await page.keyboard.press("Escape");
+  await menuOf("TN77WA0001");
+  ok("tyre wa: an unsent challan offers 'Send on WhatsApp'", (await page.getByRole("menuitem", { name: "Send on WhatsApp" }).count()) === 1);
+  await page.keyboard.press("Escape");
+  await menuOf("TN77WA0002");
+  await page.getByRole("menuitem", { name: "Resend on WhatsApp" }).click();
+  await until(page, () => wa.length);
+  ok("tyre wa: 'Resend on WhatsApp' posts the PDF", wa.length === 1 && wa[0].path === `/whatsapp/send/bill/tyre/${idFailed}` && wa[0].pdf, JSON.stringify(wa));
+
+  // Failed filter, in the list and in the export.
+  await page.locator("#f-wa-failed").check();
+  await page.waitForTimeout(600);
+  ok("tyre wa: the 'WhatsApp failed' filter adds waFailed=1 to the list", listQ[listQ.length - 1].waFailed === "1", JSON.stringify(listQ[listQ.length - 1]));
+  ok("tyre wa: and only failed challans remain", (await page.getByText("TN77WA0001").count()) === 0 && (await page.getByText("TN77WA0002").count()) > 0);
+  await page.getByRole("button", { name: "Excel" }).first().click();
+  await until(page, () => exportQ.length);
+  ok("tyre wa: the export carries waFailed=1 too", exportQ[0]?.waFailed === "1", JSON.stringify(exportQ));
+
+  // Receipt with PDF.
+  await page.locator("#f-wa-failed").uncheck();
+  await page.getByText("TN77WA0001").first().waitFor();
+  wa.length = 0;
+  await menuOf("TN77WA0001");
+  await page.getByRole("menuitem", { name: "Record Payment" }).click();
+  await page.locator("#payment-amount").fill("1000");
+  await page.locator(".ui-modal-foot").getByRole("button", { name: "Record Payment" }).click();
+  await until(page, () => wa.some((w) => w.path.startsWith("/whatsapp/receipts/")));
+  await page.waitForTimeout(600);
+  const rc = wa.filter((w) => w.path.startsWith("/whatsapp/receipts/"));
+  ok("tyre wa: a payment with whatsappReceiptId posts one receipt PDF", payments.length === 1 && rc.length === 1 && rc[0].path === "/whatsapp/receipts/rc1/pdf" && rc[0].pdf, JSON.stringify(rc));
+
+  // Phone: the footer with the tick fits.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoFresh(`/tyre/dashboard/edit/${idSent}`);
+  await page.locator("#wa-send").waitFor({ timeout: 10000 });
+  const ov = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  let o = await ov();
+  for (let i = 0; i < 30 && o > 0; i++) { await page.waitForTimeout(100); o = await ov(); }
+  const box = await page.locator(".wa-tick").boundingBox();
+  ok("tyre wa: the form footer with the tick has no horizontal scroll at 390px", o <= 0 && box && box.x >= 0 && box.x + box.width <= 390, `overflow=${o} box=${JSON.stringify(box)}`);
+  await page.screenshot({ path: join(OUT, "tyre-wa-390.png"), fullPage: true });
+  await page.setViewportSize({ width: 1300, height: 1000 });
+}
 
 ok("tyre: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

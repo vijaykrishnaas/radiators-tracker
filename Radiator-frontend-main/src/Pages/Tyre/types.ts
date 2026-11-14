@@ -1,5 +1,7 @@
 // Shared types and helpers for the tyre-vertical delivery-challan screens. Shapes mirror dao/tyrebill.dao.js.
 
+import type { WaSummary } from "../../Services/WhatsAppApi";
+
 export type TyreItem = {
     brandRef: string | null;
     brandLabel: string;
@@ -58,6 +60,7 @@ export type TyreBill = {
     nextDue: { id: string; label: string; dueDate: string; amount: number } | null;
     overdueAmount: number;
     overdueCount: number;
+    whatsapp?: WaSummary;
 };
 
 export type FollowUpRow = {

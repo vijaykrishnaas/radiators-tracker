@@ -12,6 +12,8 @@ import { money, today } from "../../../Utils/format";
 import { PageHeader, Field, FormFooter, CardHead, SkeletonRows } from "../../../Components/ui/Basics";
 import { AffixInput } from "../../../Components/ui/Inputs";
 import { ConfirmDialog } from "../../../Components/ui/Modal";
+import { WaStatusLine, WaTick } from "../../../Components/WhatsAppStatus";
+import { fetchBill, useWaTick, useWhatsAppSend } from "../../../Utils/whatsapp";
 import { defaultRate, isOffered, round2, type EngBill } from "../types";
 
 // Cost prices never appear on the bill form: catalog items take their cost from Settings on save, "Other" has none.
@@ -51,6 +53,9 @@ const EngCreate = () => {
     const [discount, setDiscount] = useState("");
     const [mechanics, setMechanics] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [savedBill, setSavedBill] = useState<EngBill | null>(null);
+    const wa = useWaTick({ isEdit, phone, saved: savedBill?.whatsapp });
+    const { enabled: waEnabled, sendBill: waSendBill } = useWhatsAppSend();
 
     useEffect(() => {
         getData("engbills/mechanics").then((r) => setMechanics(r.mechanics || [])).catch(() => {});
@@ -62,6 +67,7 @@ const EngCreate = () => {
             setLoadingRecord(true);
             try {
                 const { bill } = (await getData(`engbills/${id}`)) as { bill: EngBill };
+                setSavedBill(bill);
                 setBillDate(String(bill.billDate).slice(0, 10));
                 setVehicleNo(bill.vehicleNo || "");
                 setLorryAddress(bill.lorryAddress || "");
@@ -277,6 +283,7 @@ const EngCreate = () => {
             };
             const res = isEdit ? await putData(`engbills/${id}`, payload) : await postData("engbills", payload);
             callAlertMsg(res.message || "Saved", "success");
+            wa.afterSave("engineering", isEdit ? id : res.bill?._id ?? res.id);
             navigate("/engineering/billing");
         } catch (e: any) {
             callAlertMsg(e?.message || "Error saving. Please try again.", "error");
@@ -306,6 +313,9 @@ const EngCreate = () => {
     return (
         <>
             <PageHeader title={title} subtitle={subtitle} back={{ to: "/engineering/billing", label: "Bills" }} />
+            {isView && waEnabled && savedBill?.whatsapp && (
+                <WaStatusLine wa={savedBill.whatsapp} onResend={async () => { if (await waSendBill("engineering", savedBill)) setSavedBill(await fetchBill("engineering", savedBill._id)); }} />
+            )}
             <div className="card-stack">
                 <section className="card">
                     <div className="card-body">
@@ -484,6 +494,7 @@ const EngCreate = () => {
                     <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Back</button>
                 ) : (
                     <>
+                        {wa.enabled && <WaTick checked={wa.checked} onChange={wa.setChecked} phoneOk={wa.phoneOk} sentAt={wa.sentAt} />}
                         <button type="button" className="btn btn-secondary" onClick={cancel}>Cancel</button>
                         <button type="button" className="btn btn-primary" disabled={loading || loadingRecord} onClick={save}>
                             {loading && <span className="spinner" aria-hidden="true" />}

@@ -582,6 +582,17 @@ body.is-scroll-locked { overflow: hidden; }
 }
 html:has(.form-footer) { scroll-padding-bottom: 120px; }
 
+/* WhatsApp tick beside Save (only rendered when the company has WhatsApp). */
+.wa-tick { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; min-width: 0; }
+.wa-tick .form-check-input { flex: none; }
+.wa-tick-text { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-sm); line-height: var(--lh-xs); }
+.wa-tick-text small { font-size: var(--text-xs); color: var(--text-muted); }
+.form-footer-actions:has(.wa-tick) { align-items: center; flex-wrap: wrap; }
+@media (max-width: 767.98px) {
+  .form-footer-actions:has(.wa-tick) .wa-tick { flex: 1 1 100%; }
+}
+.wa-badge { display: inline-flex; margin-left: 6px; vertical-align: middle; }
+
 /* ---------- Bulk selection bar (bonus) ---------- */
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 24px 0; padding: 12px 16px; background: var(--brand-50); border-radius: var(--radius-lg); font-size: var(--text-sm); color: var(--text-strong); }
 .bulk-bar .bulk-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
