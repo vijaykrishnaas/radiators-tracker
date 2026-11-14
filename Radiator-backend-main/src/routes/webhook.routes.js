@@ -32,7 +32,7 @@ router.post("/whatsapp/:provider", async (req, res, next) => {
     if (!provider.verifyWebhook(ctx, raw, req.get("X-Hub-Signature-256"))) return res.sendStatus(401);
 
     const { statuses, inbound } = provider.parseWebhook(json);
-    await applyStatuses(statuses);
+    await applyStatuses(statuses, account.clientId);
     res.sendStatus(200);
     // Replies go out after the provider has its answer.
     for (const from of new Set(inbound.map((i) => i.from))) {

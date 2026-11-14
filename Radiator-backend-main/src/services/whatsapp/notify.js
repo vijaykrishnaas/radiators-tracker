@@ -318,9 +318,10 @@ export async function autoReply(account, from) {
 
 const RANK = { pending: 0, awaiting_pdf: 0, sent: 1, delivered: 2, read: 3 };
 
-export async function applyStatuses(statuses) {
+// Statuses from a webhook already verified with this company's app secret; only that company's messages change.
+export async function applyStatuses(statuses, clientId) {
   for (const s of statuses) {
-    const m = await findByProviderId(s.id);
+    const m = await findByProviderId(s.id, clientId);
     if (!m) continue;
     let set;
     if (s.status === "failed") set = { status: "failed", error: s.errorText || "Delivery failed", statusAt: s.timestamp || new Date() };

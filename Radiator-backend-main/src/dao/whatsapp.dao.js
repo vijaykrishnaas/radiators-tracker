@@ -130,10 +130,11 @@ export async function findMessage(query) {
   return db.collection(MESSAGES).findOne(query);
 }
 
-export async function findByProviderId(providerMessageId) {
-  if (!providerMessageId) return null;
+// Scoped to the company whose signed webhook reported it, so one shop's webhook can never change another's messages.
+export async function findByProviderId(providerMessageId, clientId) {
+  if (!providerMessageId || !clientId) return null;
   const db = await connectDB();
-  return db.collection(MESSAGES).findOne({ providerMessageId });
+  return db.collection(MESSAGES).findOne({ providerMessageId, clientId: toClientId(clientId) });
 }
 
 export async function messagesForRef(clientId, refId, limit = 50) {

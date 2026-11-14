@@ -302,12 +302,14 @@ test("webhook statuses move the log and the bill's summary forward, never backwa
   const bill = await createTyreBill(CLIENT, tyreInput());
   await notify.sendBill(CLIENT, "tyre", bill._id, PDF);
   const id = log()[0].providerMessageId;
-  await notify.applyStatuses([{ id, status: "delivered", timestamp: new Date("2026-11-14T10:00:00Z") }]);
+  await notify.applyStatuses([{ id, status: "failed", errorText: "forged" }], new ObjectId()); // another company's webhook
+  assert.equal(log()[0].status, "sent", "a webhook verified for another company can't touch this company's messages");
+  await notify.applyStatuses([{ id, status: "delivered", timestamp: new Date("2026-11-14T10:00:00Z") }], CLIENT);
   assert.equal(log()[0].status, "delivered");
   assert.equal((await fakeDb.collection("tyrebills").findOne({ _id: bill._id })).whatsapp.status, "delivered");
-  await notify.applyStatuses([{ id, status: "read", timestamp: new Date() }, { id, status: "sent", timestamp: new Date() }, { id: "unknown", status: "read" }]);
+  await notify.applyStatuses([{ id, status: "read", timestamp: new Date() }, { id, status: "sent", timestamp: new Date() }, { id: "unknown", status: "read" }], CLIENT);
   assert.equal(log()[0].status, "read");
-  await notify.applyStatuses([{ id, status: "failed", errorText: "Message undeliverable" }]);
+  await notify.applyStatuses([{ id, status: "failed", errorText: "Message undeliverable" }], CLIENT);
   assert.equal(log()[0].status, "failed");
   assert.equal(log()[0].error, "Message undeliverable");
   const stored = await fakeDb.collection("tyrebills").findOne({ _id: bill._id });
