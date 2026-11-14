@@ -533,7 +533,8 @@ function searchClause(search) {
   const or = [
     { vehicleNumber: vehicleRx(text) }, { customerName: rx }, { phoneNumber: rx }, { "items.particulars": rx }, { "items.tyreNumber": rx },
   ];
-  if (/^\d+$/.test(text)) or.push({ billNo: Number(text) });
+  // A challan moved in from another company (Backup & Restore) is also found by the number it had there.
+  if (/^\d+$/.test(text)) or.push({ billNo: Number(text) }, { importedBillNo: Number(text) });
   return { $or: or };
 }
 

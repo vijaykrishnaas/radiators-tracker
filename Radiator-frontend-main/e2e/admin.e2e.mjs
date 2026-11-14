@@ -100,7 +100,7 @@ await page.getByText("smew-backup").first().waitFor({ timeout: 10000 });
 await page.getByRole("button", { name: "Import", exact: true }).click();
 await page.getByText(/added/).last().waitFor({ timeout: 10000 });
 const after = await dialogText();
-ok("admin: import adds only the missing bill and reports what was already there", /Bills and challans: 1 added, 1 already here/.test(after) && /Expenses: 0 added, 1 already here/.test(after), after.slice(-260));
+ok("admin: import adds only the missing bill and reports what was already there", /Bills and challans: 1 added, 1 already here Stock/.test(after) && /Expenses: 0 added, 1 already here/.test(after), after.slice(-260));
 ok("admin: the restored bill is back in the company", (await fakeDb.collection("engbills").find({ clientId: A }).toArray()).length === 2);
 await page.keyboard.press("Escape");
 
@@ -112,6 +112,21 @@ await page.getByRole("radio", { name: "Import" }).click();
 await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(junk);
 await page.waitForTimeout(400);
 ok("admin: a file that isn't a backup shows an error and Import stays off", /not a company backup/.test(await dialogText()) && await page.getByRole("button", { name: "Import", exact: true }).isDisabled());
+await page.keyboard.press("Escape");
+
+// ---- Staging → production: the file goes into another company that already has its own bill 1 ----
+// (Production is a separate database: the staging company's records aren't in it.)
+for (const c of ["engbills", "expenses", "employees"]) await fakeDb.collection(c).deleteMany({ clientId: A });
+await fakeDb.collection("engbills").insertOne({ clientId: B, billNo: 1, billDate: new Date("2026-11-10T00:00:00Z"), vehicleNo: "PROD1", netTotal: 50 });
+await openBackup("Velu Engineering");
+await page.getByRole("radio", { name: "Import" }).click();
+await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(file);
+await page.getByText("smew-backup").first().waitFor({ timeout: 10000 });
+await page.getByRole("button", { name: "Import", exact: true }).click();
+await page.getByText(/Bills and challans: 2 added/).waitFor({ timeout: 10000 });
+const moved = (await fakeDb.collection("engbills").find({ clientId: B }).toArray()).map((b) => [b.billNo, b.vehicleNo, b.importedBillNo ?? null]).sort((x, y) => x[0] - y[0]);
+ok("admin: staging bills moved into production get numbers after production's own", JSON.stringify(moved) === JSON.stringify([[1, "PROD1", null], [2, "TN52J2622", 1], [3, "TN01AB1234", 2]]), JSON.stringify(moved));
+ok("admin: … and the dialog says they were renumbered", /given new numbers after this company's last bill/.test(await dialogText()));
 await page.keyboard.press("Escape");
 
 // ---- Another company type: warned, and bills are refused by the server ----

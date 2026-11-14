@@ -223,7 +223,8 @@ function searchClause(search) {
     { vehicleNumber: rx }, { customerName: rx }, { phoneNumber: rx }, { mechanicName: rx },
     { labourName: rx }, { "items.particulars": rx }, { notes: rx },
   ];
-  if (/^\d+$/.test(text)) or.push({ billNo: Number(text) });
+  // A bill moved in from another company (Backup & Restore) is also found by the number it had there.
+  if (/^\d+$/.test(text)) or.push({ billNo: Number(text) }, { importedBillNo: Number(text) });
   return { $or: or };
 }
 

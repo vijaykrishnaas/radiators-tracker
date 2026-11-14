@@ -90,10 +90,34 @@ export function describeBackup(backup) {
   return { company: backup.company || {}, exportedAt: backup.exportedAt, sections };
 }
 
+// Bill collections that carry a running number, and the counter each draws from.
+const NUMBERED = { autobills: "autobill", engbills: "engbill", tyrebills: "tyrebill" };
+
+const nameKey = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+// The company the file was exported from: any record's clientId (or the settings / counters id).
+const sourceCompanyId = (data) => {
+  for (const [coll, docs] of Object.entries(data || {})) {
+    const d = Array.isArray(docs) ? docs[0] : null;
+    if (!d) continue;
+    const id = KEYED_BY_ID.has(coll) ? d._id : d.clientId;
+    if (id) return String(id.$oid || id);
+  }
+  return "";
+};
+
 /**
  * Adds the backup's records to a company and never overwrites: a record whose id is already in the database is
- * left as it is. Everything imported is re-tagged with the target company. Bill numbering only ever moves up, so
- * imported bill numbers are never handed out again.
+ * left as it is. Everything imported is re-tagged with the target company.
+ *
+ * Restoring into the SAME company keeps every number as it was. Moving into ANOTHER company (e.g. a company's
+ * staging data into its production company, which already has bills of its own):
+ *  - imported bills are renumbered after the company's last number, in their original order, and keep their old
+ *    number as `importedBillNo` (searchable); the company's own bills and numbering are untouched;
+ *  - an imported employee whose name matches one of the company's employees is the same person: their
+ *    attendance, advances and settled periods are attached to that employee (a day or period the employee already
+ *    has is left as it is);
+ *  - the company's settings and numbering are never replaced.
  */
 export async function importBackup(clientId, client, backup, sections) {
   assertClientId(clientId);
@@ -112,17 +136,29 @@ export async function importBackup(clientId, client, backup, sections) {
       `The backup is from ${/^[aeiou]/.test(fromType) ? "an" : "a"} ${fromType} company and this one is ${toType}: ${typeBound.map((s) => BACKUP_SECTIONS[s].label).join(", ")} can't be imported into it`
     ), { statusCode: 400 });
   }
+  const sameCompany = sourceCompanyId(backup.data) === String(cid);
 
   const db = await connectDB();
   const results = {};
+  const employeeMap = new Map(); // backup employee id -> this company's employee id (matched by name)
+  const insert = async (c, doc, r) => {
+    try {
+      await c.insertOne(doc);
+      r.added += 1;
+    } catch (e) {
+      if (e?.code === 11000) r.alreadyThere += 1; // a unique index already holds this record
+      else throw e;
+    }
+  };
   for (const key of chosen) {
-    const r = { added: 0, alreadyThere: 0, otherCompany: 0 };
+    const r = { added: 0, alreadyThere: 0, otherCompany: 0, renumbered: 0, matched: 0 };
     for (const coll of BACKUP_SECTIONS[key].collections) {
       const docs = EJSON.deserialize(Array.isArray(backup.data?.[coll]) ? backup.data[coll] : [], { relaxed: true });
       const c = db.collection(coll);
       if (coll === "counters") {
-        // Keep the higher of each number, so neither existing nor imported bill numbers are reused.
-        if (!docs.length) continue;
+        // A restore keeps the higher of each number. Another company's numbering never comes across: imported bills
+        // are renumbered into this company's own sequence instead.
+        if (!docs.length || !sameCompany) continue;
         const cur = (await c.findOne({ _id: cid })) || {};
         const next = {};
         for (const [k, v] of Object.entries(docs[0])) {
@@ -138,16 +174,50 @@ export async function importBackup(clientId, client, backup, sections) {
         r.added += 1;
         continue;
       }
+
+      // Records not yet in the database (by id); the rest are counted and left alone.
+      const fresh = [];
       for (const doc of docs) {
         if (!doc || !doc._id) continue;
         const existing = await c.findOne({ _id: doc._id });
-        if (existing) {
-          if (String(existing.clientId) === String(cid)) r.alreadyThere += 1;
-          else r.otherCompany += 1;
-          continue;
+        if (!existing) { fresh.push(doc); continue; }
+        if (String(existing.clientId) === String(cid)) r.alreadyThere += 1;
+        else r.otherCompany += 1;
+      }
+
+      if (NUMBERED[coll] && !sameCompany && fresh.length) {
+        const counterKey = NUMBERED[coll];
+        const counter = (await db.collection("counters").findOne({ _id: cid })) || {};
+        const own = await c.find({ clientId: cid }).toArray();
+        let next = Math.max(Number(counter[counterKey]) || 0, ...own.map((b) => Number(b.billNo) || 0));
+        fresh.sort((a, b) => (Number(a.billNo) || 0) - (Number(b.billNo) || 0) || new Date(a.billDate) - new Date(b.billDate));
+        for (const doc of fresh) {
+          next += 1;
+          await insert(c, { ...doc, clientId: cid, billNo: next, ...(doc.billNo != null ? { importedBillNo: doc.billNo } : {}) }, r);
+          r.renumbered += 1;
         }
-        await c.insertOne({ ...doc, clientId: cid });
-        r.added += 1;
+        await db.collection("counters").updateOne({ _id: cid }, { $set: { [counterKey]: next } }, { upsert: true });
+        continue;
+      }
+
+      if (coll === "employees" && !sameCompany) {
+        const own = await c.find({ clientId: cid }).toArray();
+        const byName = new Map(own.map((e) => [nameKey(e.name), e._id]));
+        for (const doc of fresh) {
+          const match = byName.get(nameKey(doc.name));
+          if (match) { employeeMap.set(String(doc._id), match); r.matched += 1; continue; }
+          await insert(c, { ...doc, clientId: cid }, r);
+        }
+        continue;
+      }
+
+      for (const doc of fresh) {
+        const row = { ...doc, clientId: cid };
+        if (row.employeeId && employeeMap.has(String(row.employeeId))) row.employeeId = employeeMap.get(String(row.employeeId));
+        // One attendance mark per person per day, one settled period per person per month: the company's own wins.
+        if (coll === "attendance" && await c.findOne({ clientId: cid, employeeId: row.employeeId, date: row.date })) { r.alreadyThere += 1; continue; }
+        if (coll === "salaryPeriods" && await c.findOne({ clientId: cid, employeeId: row.employeeId, periodKey: row.periodKey })) { r.alreadyThere += 1; continue; }
+        await insert(c, row, r);
       }
     }
     results[key] = { label: BACKUP_SECTIONS[key].label, ...r };

@@ -182,7 +182,8 @@ export default function BackupModal({ client, onClose }: { client: ClientRow; on
                     <>
                         <p className="t-sm t-muted m-0">
                             Adds the records from a backup file to <strong className="t-strong">{client.name}</strong>. Records already here are
-                            left as they are; nothing is overwritten or deleted.
+                            left as they are; nothing is overwritten or deleted. From another company (e.g. staging), bills are numbered after this
+                            company's last bill, employees with the same name are treated as the same person, and this company's settings are kept.
                         </p>
                         <input ref={fileRef} type="file" accept="application/json,.json" className="d-none" tabIndex={-1} aria-hidden="true" onChange={onFile} />
                         <button type="button" className="btn btn-secondary justify-self-start" onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -210,6 +211,8 @@ export default function BackupModal({ client, onClose }: { client: ClientRow; on
                                     <p key={k} className="t-sm m-0">
                                         <strong className="t-strong">{r.label}:</strong> {r.added} added
                                         {r.alreadyThere ? `, ${r.alreadyThere} already here` : ""}
+                                        {r.renumbered ? ` (given new numbers after this company's last bill; the old number still finds them)` : ""}
+                                        {r.matched ? `, ${r.matched} employee${r.matched === 1 ? "" : "s"} matched by name (their records added to the existing employee)` : ""}
                                         {r.otherCompany ? `, ${r.otherCompany} skipped (still in another company)` : ""}
                                     </p>
                                 ))}

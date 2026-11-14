@@ -299,7 +299,8 @@ function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", to
       { "services.typeLabel": rx }, { "services.type": rx }, { "services.bsModel": rx },
       { "services.items.label": rx }, { "services.items.comment": rx },
     ];
-    if (/^\d+$/.test(text)) query.$or.push({ billNo: Number(text) });
+    // A bill moved in from another company (Backup & Restore) is also found by the number it had there.
+    if (/^\d+$/.test(text)) query.$or.push({ billNo: Number(text) }, { importedBillNo: Number(text) });
   }
   if (vehicleNo) query.vehicleNo = { $regex: escapeRegex(String(vehicleNo).toUpperCase()), $options: "i" };
   if (mechanic) query.mechanic = String(mechanic);

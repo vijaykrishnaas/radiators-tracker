@@ -89,7 +89,7 @@ export const changePassword = (currentPassword: string, newPassword: string) =>
 // Backup & restore: one file holding the chosen sections; import only adds records that are not already there.
 export type BackupSection = "bills" | "inventory" | "bonuses" | "expenses" | "salary" | "settings";
 export type BackupCounts = Record<BackupSection, { label: string; count: number }>;
-export type BackupResult = Record<string, { label: string; added: number; alreadyThere: number; otherCompany: number }>;
+export type BackupResult = Record<string, { label: string; added: number; alreadyThere: number; otherCompany: number; renumbered?: number; matched?: number }>;
 export const getBackupSummary = (id: string) => getData(`admin/clients/${id}/backup/summary`);
 export const getBackup = (id: string, sections: BackupSection[]) => getData(`admin/clients/${id}/backup`, { params: { sections: sections.join(",") } });
 export const importBackupFile = (id: string, backup: unknown, sections: BackupSection[]) => postData(`admin/clients/${id}/backup/import`, { backup, sections });
