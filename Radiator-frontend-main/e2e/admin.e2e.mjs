@@ -30,6 +30,8 @@ const clients = [
   { _id: String(B), name: "Velu Engineering", code: "velu", businessType: "engineering", status: "active", adminUserId: "velu", lastLoginAt: now, createdAt: now },
   { _id: String(T), name: "Kannan Tyres", code: "kannan", businessType: "tyre", status: "active", adminUserId: "kannan", lastLoginAt: now, createdAt: now },
 ];
+const waStore = {};
+const waPuts = [];
 const byId = (id) => clients.find((c) => c._id === id);
 await fakeDb.collection("engbills").insertOne({ clientId: A, billNo: 1, billDate: new Date("2026-11-01T00:00:00Z"), vehicleNo: "TN52J2622", netTotal: 3350 });
 await fakeDb.collection("engbills").insertOne({ clientId: A, billNo: 2, billDate: new Date("2026-11-02T00:00:00Z"), vehicleNo: "TN01AB1234", netTotal: 900 });
@@ -60,6 +62,27 @@ await page.route("http://localhost:5000/**", async (route) => {
     const added = Object.values(r).reduce((n, x) => n + x.added, 0);
     return { success: true, message: `${added} records added`, results: r };
   });
+  m = /^\/admin\/clients\/([a-f0-9]{24})\/whatsapp(\/test|\/templates|\/usage)?$/.exec(p);
+  if (m) {
+    const id = m[1], sub = m[2], acc = waStore[id];
+    const view = (a) => a && ({ enabled: a.enabled, provider: "meta", numberType: a.numberType, phoneNumberId: a.phoneNumberId, wabaId: a.wabaId, displayPhone: "+91 98765 43210", verifiedName: "Velu Engineering",
+      hasToken: true, hasAppSecret: true, tokenMasked: "EAAB••••" + a.token.slice(-4), templates: a.templates, enabledAt: a.enabledAt });
+    if (sub === "/usage") return json({ success: true, month: url.searchParams.get("month"), byKind: { bill: { sent: 12, failed: 1 }, receipt: { sent: 7, failed: 0 }, summary: { sent: 3, failed: 2 } }, total: { sent: 22, failed: 3 } });
+    if (sub === "/test") return acc ? json({ success: true, displayPhone: "+91 98765 43210", verifiedName: "Velu Engineering" }) : json({ success: false, message: "No details saved" }, 400);
+    if (sub === "/templates") { if (acc) acc.templates.payment_receipt_document = { status: "PENDING" }; return json({ success: true, templates: acc?.templates || {} }); }
+    if (req.method() === "GET") return json({ success: true, account: view(acc) || null });
+    if (req.method() === "DELETE") { delete waStore[id]; byId(id).whatsappEnabled = false; return json({ success: true, message: "Removed" }); }
+    if (req.method() === "PUT") {
+      const b = req.postDataJSON();
+      waPuts.push(b);
+      if (b.enabled && b.phoneNumberId === "BAD") return json({ success: false, message: "Invalid OAuth access token (code 190)" }, 400);
+      const prev = waStore[id];
+      waStore[id] = { ...(prev || {}), enabled: b.enabled, numberType: b.numberType, phoneNumberId: b.phoneNumberId, wabaId: b.wabaId, token: b.accessToken || prev?.token || "", enabledAt: prev?.enabledAt || (b.enabled ? now : null),
+        templates: prev?.templates || { bill_document: { status: "APPROVED" }, payment_receipt: { status: "PENDING" }, owner_daily_summary: { status: "REJECTED", reason: "Variable at the start" }, payment_receipt_document: { status: "MISSING" } } };
+      byId(id).whatsappEnabled = !!b.enabled;
+      return json({ success: true, message: "Saved", account: view(waStore[id]) });
+    }
+  }
   return json({ success: true, data: [], rows: [] });
 });
 
@@ -141,6 +164,90 @@ await page.getByRole("button", { name: "Import", exact: true }).click();
 await page.getByText(/Expenses: 0 added/).waitFor({ timeout: 10000 });
 ok("admin: … the import runs for Expenses only, and no bill reaches the tyre company", /Expenses: 0 added, 1 skipped \(still in another company\)/.test(await dialogText()) && !/Bills and challans:/.test(await dialogText())
   && (await fakeDb.collection("engbills").find({ clientId: T }).toArray()).length === 0, (await dialogText()).slice(-200));
+
+
+// ---- WhatsApp: Super admin › Clients › ⋮ › WhatsApp (admin endpoints mocked, in-memory account) ----
+const SECRET_TOKEN = "EAABsecretTOKEN123456789";
+const openWa = async (name) => {
+  await page.goto(BASE + "/admin/clients");
+  await page.getByText(name).first().waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: `Actions for ${name}` }).first().click();
+  await page.getByRole("menuitem", { name: "WhatsApp" }).click();
+  await page.getByRole("dialog").waitFor();
+  await page.getByLabel("Enable WhatsApp").waitFor();
+};
+await openWa("Velu Engineering");
+ok("admin: the row menu opens the WhatsApp dialog with the client's name", /WhatsApp: Velu Engineering/.test(await dialogText()));
+ok("admin: WhatsApp starts off with no form", !(await page.getByLabel("Enable WhatsApp").isChecked()) && (await page.locator("#wa-phone-id").count()) === 0);
+await page.getByLabel("Enable WhatsApp").check();
+ok("admin: Enable reveals provider, number type and the four detail fields", await page.locator("#wa-phone-id").isVisible() && await page.locator("#wa-waba-id").isVisible()
+  && await page.locator("#wa-token").isVisible() && await page.locator("#wa-secret").isVisible() && /Meta WhatsApp Cloud API/.test(await dialogText()) && /Existing number \(coexistence\)/.test(await dialogText()));
+await page.getByRole("button", { name: "Enable", exact: true }).click();
+ok("admin: submitting empty shows field errors and sends nothing", /Enter the Phone number ID/.test(await dialogText()) && /Enter the WhatsApp Business Account ID/.test(await dialogText())
+  && /Enter the access token/.test(await dialogText()) && /Enter the app secret/.test(await dialogText()) && waPuts.length === 0);
+
+// Meta rejects the details: the message shows inline and the client stays disabled.
+await page.locator("#wa-phone-id").fill("BAD");
+await page.locator("#wa-waba-id").fill("2222");
+await page.locator("#wa-token").fill(SECRET_TOKEN);
+await page.locator("#wa-secret").fill("appsecret999");
+await page.getByRole("button", { name: "Enable", exact: true }).click();
+await page.getByText("Invalid OAuth access token (code 190)").waitFor({ timeout: 10000 });
+ok("admin: a 400 from Meta shows its message inline in the dialog", /Invalid OAuth access token \(code 190\)/.test(await dialogText()) && waPuts.length === 1);
+ok("admin: … and the client is still disabled", !waStore[String(B)] && !byId(String(B)).whatsappEnabled);
+await page.keyboard.press("Escape");
+await page.getByText("Velu Engineering").first().waitFor();
+ok("admin: … with no WhatsApp badge in the list", (await page.locator(".badge", { hasText: "WhatsApp" }).count()) === 0);
+
+// A good enable.
+await openWa("Velu Engineering");
+await page.getByLabel("Enable WhatsApp").check();
+await page.locator("#wa-phone-id").fill("1111");
+await page.locator("#wa-waba-id").fill("2222");
+await page.locator("#wa-token").fill(SECRET_TOKEN);
+await page.locator("#wa-secret").fill("appsecret999");
+await page.getByRole("button", { name: "Enable", exact: true }).click();
+await page.getByText("Verified name").first().waitFor({ timeout: 10000 });
+const putBody = waPuts[waPuts.length - 1];
+ok("admin: Enable sends all details once", putBody.enabled === true && putBody.phoneNumberId === "1111" && putBody.wabaId === "2222" && putBody.accessToken === SECRET_TOKEN && putBody.numberType === "new");
+ok("admin: status shows number, verified name and per-template badges", /\+91 98765 43210/.test(await dialogText()) && /Velu Engineering/.test(await dialogText())
+  && /Bill \/ challan APPROVED/.test(await dialogText()) && /Payment receipt PENDING/.test(await dialogText()) && /MISSING/.test(await dialogText()) && /REJECTED/.test(await dialogText()) && /Variable at the start/.test(await dialogText())
+  && /A message type sends only after its template is approved/.test(await dialogText()));
+ok("admin: usage counts render by kind with a total", /Bills\s*12 sent, 1 failed/.test(await dialogText()) && /Receipts\s*7 sent, 0 failed/.test(await dialogText()) && /Total\s*22 sent, 3 failed/.test(await dialogText()), (await dialogText()).slice(-300));
+const html = await page.getByRole("dialog").innerHTML();
+ok("admin: the token is never in the DOM, only the masked form", !html.includes(SECRET_TOKEN) && (await page.locator("#wa-token").inputValue()) === "" && (await page.locator("#wa-token").getAttribute("placeholder")) === "EAAB••••6789"
+  && /Leave blank to keep the saved token/.test(await dialogText()));
+await page.getByRole("button", { name: "Test connection" }).click();
+await page.getByText(/Connected: \+91 98765 43210/).waitFor({ timeout: 10000 });
+await page.getByRole("button", { name: "Create / sync templates" }).click();
+await page.getByText("Templates synced").waitFor({ timeout: 10000 });
+await page.keyboard.press("Escape");
+await page.getByText("Velu Engineering").first().waitFor();
+ok("admin: the client list shows a WhatsApp badge once enabled", (await page.locator(".badge", { hasText: "WhatsApp" }).count()) >= 1);
+
+// Disable keeps the details.
+await openWa("Velu Engineering");
+await page.getByRole("button", { name: "Disable", exact: true }).click();
+await page.getByText("Disabled", { exact: true }).first().waitFor({ timeout: 10000 });
+ok("admin: Disable turns it off but keeps the saved details", waStore[String(B)] && waStore[String(B)].enabled === false && waStore[String(B)].phoneNumberId === "1111" && waStore[String(B)].token === SECRET_TOKEN
+  && !(await page.getByLabel("Enable WhatsApp").isChecked()));
+await page.keyboard.press("Escape");
+await page.getByText("Velu Engineering").first().waitFor();
+ok("admin: … and the badge is gone", (await page.locator(".badge", { hasText: "WhatsApp" }).count()) === 0);
+
+// Phone width: no horizontal scroll in the dialog.
+await page.setViewportSize({ width: 390, height: 844 });
+await openWa("Velu Engineering");
+await page.getByLabel("Enable WhatsApp").check();
+const overflow = await page.evaluate(() => {
+  const d = document.querySelector('[role="dialog"]');
+  const els = [d, ...d.querySelectorAll("*")];
+  return { page: document.documentElement.scrollWidth - document.documentElement.clientWidth, dialog: Math.max(...els.map((e) => e.scrollWidth - e.clientWidth)) };
+});
+ok("admin: the WhatsApp dialog has no horizontal scroll at 390px", overflow.page <= 0 && overflow.dialog <= 0, JSON.stringify(overflow));
+await page.screenshot({ path: join(tmpdir(), "wa-modal-390.png") });
+await page.keyboard.press("Escape");
+await page.setViewportSize({ width: 1300, height: 1000 });
 
 ok("admin: no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();

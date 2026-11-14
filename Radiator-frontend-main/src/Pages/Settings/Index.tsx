@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import Icons from "../../Components/Icons";
 import InputText from "../../Components/InputText";
-import { putData, postData, deleteData } from "../../Services/ApiServices";
+import { getData, putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
 import { TyreCatalogTab, TyreInvoiceTab, catalogDuplicate } from "../Tyre/Settings/TyreSettingsTabs";
@@ -41,7 +41,17 @@ const IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp";
 const DEFAULT_LOGIN_TEXT = toHex([255, 255, 255]);
 
 type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice"
-    | "tyreCatalog" | "tyreInvoice";
+    | "tyreCatalog" | "tyreInvoice" | "whatsapp";
+
+const WA_TEMPLATE_LABELS: Record<string, string> = {
+    bill_document: "Bill / challan",
+    payment_receipt: "Payment receipt",
+    payment_receipt_document: "Payment receipt with bill PDF",
+    owner_daily_summary: "Owner's daily summary",
+    connection_test: "Connection test",
+};
+const WA_TONE: Record<string, "success" | "warning" | "error" | "neutral"> = { APPROVED: "success", PENDING: "warning", REJECTED: "error", MISSING: "neutral" };
+type WaStatus = { displayPhone?: string; verifiedName?: string; templates?: Record<string, { status: string; reason?: string }> };
 
 /** One card per sub-section: title + one-line description, then the body. */
 const SectionCard = ({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) => (
@@ -92,6 +102,11 @@ const SettingsPage = () => {
     const [newProduct, setNewProduct] = useState("");
     const [newService, setNewService] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("company");
+    const [waStatus, setWaStatus] = useState<WaStatus | null>(null);
+    const [waState, setWaState] = useState<"idle" | "loading" | "error">("idle");
+    const [waTesting, setWaTesting] = useState(false);
+    const [ownerPhoneError, setOwnerPhoneError] = useState("");
+    const waEnabled = !!settings.whatsappEnabled;
     const serverProblem = serverAddressProblem();
     const anyUploading = Object.values(uploading).some(Boolean);
     const brokenHint = serverProblem || `Check that ${BACKEND} is reachable from this device.`;
@@ -141,6 +156,29 @@ const SettingsPage = () => {
             document.removeEventListener("click", onLinkClick, true);
         };
     }, [dirty]);
+
+    const loadWaStatus = () => {
+        setWaState("loading");
+        getData("whatsapp/status")
+            .then((r: any) => { setWaStatus(r); setWaState("idle"); })
+            .catch(() => setWaState("error"));
+    };
+    useEffect(() => {
+        if (activeTab === "whatsapp" && waEnabled) loadWaStatus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, waEnabled]);
+
+    const sendWaTest = async () => {
+        setWaTesting(true);
+        try {
+            const res = await postData("whatsapp/test", {});
+            callAlertMsg(res?.message || "Test message sent", "success");
+        } catch (err: any) {
+            callAlertMsg(err?.message || "Couldn't send the test message", "error");
+        } finally {
+            setWaTesting(false);
+        }
+    };
 
     const set = (path: string, value: unknown) => {
         setDraft((prev) => {
@@ -211,6 +249,15 @@ const SettingsPage = () => {
                 return;
             }
         }
+        const wa = draft.whatsapp;
+        const ownerDigits = String(wa?.ownerPhone || "").replace(/\D/g, "");
+        if (waEnabled && wa && ((wa.ownerSummary && !ownerDigits) || (ownerDigits && ownerDigits.length !== 10))) {
+            setOwnerPhoneError(wa.ownerSummary && !ownerDigits ? "Enter the owner's WhatsApp number for the daily summary" : "Enter a 10-digit mobile number");
+            setActiveTab("whatsapp");
+            callAlertMsg("Fix the owner's WhatsApp number (WhatsApp tab), then save.", "error");
+            return;
+        }
+        setOwnerPhoneError("");
         const duplicate = isTyre ? catalogDuplicate(draft.tyre?.brands || []) : null;
         if (duplicate) {
             callAlertMsg(duplicate, "error");
@@ -218,7 +265,9 @@ const SettingsPage = () => {
         }
         try {
             setSaving(true);
-            const res = await putData("settings", draft);
+            // whatsappEnabled is set by the super admin and is not part of what a company saves.
+            const { whatsappEnabled: _omit, ...body } = draft;
+            const res = await putData("settings", body);
             savedSnap.current = snap(draft);
             callAlertMsg(res.message || "Settings saved", "success");
             await refreshSettings();
@@ -416,6 +465,9 @@ const SettingsPage = () => {
         ["salary", "Salary"],
     ];
 
+    const waTab: ReadonlyArray<readonly [TabId, string]> = waEnabled ? [["whatsapp", "WhatsApp"]] : [];
+    const allTabs = [...tabs, ...waTab];
+
     // ---- Branding preview (rendered from the same buildBrand() the app uses) ----
     const primary = draft.branding.primaryColor;
     const [themePref] = useThemePref();
@@ -457,7 +509,7 @@ const SettingsPage = () => {
                 {phone ? (
                     <Field label="Section" htmlFor="settings-section">
                         <select id="settings-section" className="form-select" value={activeTab} onChange={(e) => setActiveTab(e.target.value as TabId)}>
-                            {tabs.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                            {allTabs.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                         </select>
                     </Field>
                 ) : (
@@ -466,7 +518,7 @@ const SettingsPage = () => {
                             label="Settings sections"
                             value={activeTab}
                             onChange={setActiveTab}
-                            options={tabs.map(([value, label]) => ({ value, label }))}
+                            options={allTabs.map(([value, label]) => ({ value, label }))}
                         />
                     </TabsScroll>
                 )}
@@ -852,6 +904,73 @@ const SettingsPage = () => {
                             <div className="form-grid">
                                 {textField("Payslip title", "salary.payslip.title", draft.salary.payslip.title, "SALARY SLIP")}
                                 {textField("Payslip footer note", "salary.payslip.footerNote", draft.salary.payslip.footerNote)}
+                            </div>
+                        </SectionCard>
+                    </>
+                )}
+
+                {/* ---- WhatsApp (only when the super admin has enabled it) ---- */}
+                {waEnabled && activeTab === "whatsapp" && (
+                    <>
+                        <SectionCard title="WhatsApp connection" subtitle="Set up by your administrator. Bills and receipts go from this number.">
+                            {waState === "loading" && !waStatus && <p className="t-muted m-0">Loading…</p>}
+                            {waState === "error" && (
+                                <Callout tone="error" title="Couldn't load WhatsApp status">
+                                    <button type="button" className="btn btn-link p-0 align-baseline" onClick={loadWaStatus}>Try again</button>
+                                </Callout>
+                            )}
+                            {waStatus && (
+                                <div className="d-grid gap-2">
+                                    <dl className="kv-list">
+                                        <div><dt>Number</dt><dd>{waStatus.displayPhone || "—"}</dd></div>
+                                        <div><dt>Verified name</dt><dd>{waStatus.verifiedName || "—"}</dd></div>
+                                    </dl>
+                                    <ul className="list-unstyled d-grid gap-2 m-0">
+                                        {Object.entries(waStatus.templates || {}).map(([name, t]) => (
+                                            <li key={name} className="d-flex flex-wrap align-items-center gap-2">
+                                                <span className="flex-grow-1">{WA_TEMPLATE_LABELS[name] || name}</span>
+                                                <Badge tone={WA_TONE[t.status] || "neutral"} dot>{t.status}</Badge>
+                                                {t.status === "REJECTED" && t.reason && <span className="t-sm t-muted w-100">{t.reason}</span>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <span className="field-help">A message type sends only after its template is approved.</span>
+                                </div>
+                            )}
+                        </SectionCard>
+                        <SectionCard title="What to send" subtitle="Each message type is yours to switch on or off. Save All Settings to apply.">
+                            <div className="form-grid">
+                                <Switch id="wa-bill-tick" label="Tick 'Send on WhatsApp' by default when saving a bill" checked={!!draft.whatsapp.billDefaultTick}
+                                    onChange={(v) => set("whatsapp.billDefaultTick", v)} />
+                                <Switch id="wa-receipt" label="Send a payment receipt" checked={!!draft.whatsapp.receipt}
+                                    onChange={(v) => set("whatsapp.receipt", v)} />
+                                <Switch id="wa-receipt-pdf" label="Attach the updated bill PDF to receipts" checked={!!draft.whatsapp.receiptPdf}
+                                    disabled={!draft.whatsapp.receipt} onChange={(v) => set("whatsapp.receiptPdf", v)} />
+                                <Switch id="wa-summary" label="Daily summary to owner" checked={!!draft.whatsapp.ownerSummary}
+                                    onChange={(v) => set("whatsapp.ownerSummary", v)} />
+                            </div>
+                            <div className="form-grid mt-3">
+                                <Field label="Owner's WhatsApp number" htmlFor="wa-owner-phone" required={!!draft.whatsapp.ownerSummary} error={ownerPhoneError}
+                                    help="10-digit mobile number">
+                                    <input id="wa-owner-phone" className={`form-control${ownerPhoneError ? " is-invalid" : ""}`} inputMode="numeric" maxLength={10}
+                                        value={draft.whatsapp.ownerPhone || ""}
+                                        onChange={(e) => { setOwnerPhoneError(""); set("whatsapp.ownerPhone", e.target.value.replace(/\D/g, "").slice(0, 10)); }} />
+                                </Field>
+                                <Field label="Summary time" htmlFor="wa-summary-time">
+                                    <input id="wa-summary-time" type="time" className="form-control" value={draft.whatsapp.summaryTime || "20:00"}
+                                        onChange={(e) => set("whatsapp.summaryTime", e.target.value)} />
+                                </Field>
+                            </div>
+                            <p className="t-sm t-muted mt-3 mb-0">
+                                {draft.company.phone1?.trim()
+                                    ? <>When a customer replies, they get an automatic answer asking them to call <strong className="t-strong">{draft.company.phone1}</strong>.</>
+                                    : <>When a customer replies, they get an automatic answer with your Company phone 1. Set Company › Phone 1 first.</>}
+                            </p>
+                            <div className="mt-3">
+                                <button type="button" className="btn btn-secondary" onClick={sendWaTest} disabled={waTesting || dirty}>
+                                    <BtnSpinner show={waTesting} />Send test message to owner
+                                </button>
+                                {dirty && <span className="field-help d-block">Save your changes first. The test uses the saved number.</span>}
                             </div>
                         </SectionCard>
                     </>

@@ -159,6 +159,16 @@ export type AppSettings = {
         };
     };
     tyre: TyreSettings;
+    whatsapp: {
+        billDefaultTick: boolean;
+        receipt: boolean;
+        receiptPdf: boolean;
+        ownerSummary: boolean;
+        ownerPhone: string;
+        summaryTime: string;
+    };
+    /** Read-only: set by the super admin, never saved from here. */
+    whatsappEnabled?: boolean;
     // Salary Management — applies to every tenant regardless of businessType.
     salary: {
         payCycle: string;
@@ -213,6 +223,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         bonus: { mechanicAmount: 0 },
         invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false, gstNo: "", titleSize: "medium" },
     },
+    whatsapp: { billDefaultTick: false, receipt: false, receiptPdf: false, ownerSummary: false, ownerPhone: "", summaryTime: "20:00" },
     tyre: {
         brands: [],
         defaultTubeType: "tube",
@@ -303,6 +314,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 merged.labels = labelsOr(FALLBACK_SETTINGS.labels, res.settings.labels);
                 const fa = FALLBACK_SETTINGS.automobile;
                 merged.automobile = { ...fa, ...(res.settings.automobile || {}), labels: labelsOr(fa.labels, res.settings.automobile?.labels) };
+                merged.whatsapp = { ...FALLBACK_SETTINGS.whatsapp, ...(res.settings.whatsapp || {}) };
                 setSettings(merged);
                 setLoaded(true);
                 applyBranding(merged);

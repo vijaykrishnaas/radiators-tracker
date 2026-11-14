@@ -59,6 +59,12 @@ const LABELS: Record<string, string> = {
     "salary.adjust": "Added salary adjustment",
     // Auth
     "auth.login": "Logged in",
+    // WhatsApp
+    "whatsapp.enable": "Enabled WhatsApp",
+    "whatsapp.disable": "Disabled WhatsApp",
+    "whatsapp.account": "Changed WhatsApp details",
+    "whatsapp.templates": "Synced WhatsApp templates",
+    "whatsapp.send": "Sent WhatsApp message",
     // Super-admin
     "client.create": "Created client",
     "client.rename": "Renamed client",
@@ -149,6 +155,8 @@ export const detailText = (e: AuditEntry): string => {
             return join(d.periodKey, d.netAmount != null ? rs(d.netAmount) : "");
         case "salary.adjust":
             return join(d.amount ? rs(d.amount) : "", d.reason);
+        case "whatsapp.send":
+            return join(d.kind, d.vertical, d.status);
         default:
             // Super-admin client actions and anything new: name + record counts when present.
             return [

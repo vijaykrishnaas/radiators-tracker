@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Modal from "../../../Components/ui/Modal";
 import { Badge, SkeletonRows } from "../../../Components/ui/Basics";
-import { getClientSettings, type ClientMeta } from "../../../Services/AdminApi";
+import { getClientSettings, getClientWhatsApp, type ClientMeta, type WhatsAppAccount } from "../../../Services/AdminApi";
 
 type Props = { clientId: string; clientName: string; onClose: () => void };
 
@@ -80,6 +80,7 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
     const [error, setError] = useState("");
     const [meta, setMeta] = useState<ClientMeta | null>(null);
     const [s, setS] = useState<any>(null);
+    const [wa, setWa] = useState<WhatsAppAccount | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -88,6 +89,12 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
             .then((res) => { if (active) { setMeta(res.client); setS(res.settings || {}); } })
             .catch((e) => { if (active) setError(e?.message || "Failed to load settings"); })
             .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [clientId]);
+
+    useEffect(() => {
+        let active = true;
+        getClientWhatsApp(clientId).then((r) => { if (active) setWa(r.account); }).catch(() => {});
         return () => { active = false; };
     }, [clientId]);
 
@@ -180,6 +187,14 @@ const ClientSettingsModal: React.FC<Props> = ({ clientId, clientName, onClose })
                                         <KV label="Bill Title" value={invoice.billTitle} />
                                         <KV label="Footer Note" value={invoice.footerNote} />
                                         <KV label="Show QR on Invoice" value={invoice.showQr ? "Yes" : "No"} />
+                                    </dl>
+                                </Section>
+
+                                <Section title="WhatsApp">
+                                    <dl className="kv-list">
+                                        <KV label="Enabled" value={wa?.enabled ? "Yes" : "No"} />
+                                        <KV label="Number" value={wa?.displayPhone} />
+                                        <KV label="Verified name" value={wa?.verifiedName} />
                                     </dl>
                                 </Section>
 

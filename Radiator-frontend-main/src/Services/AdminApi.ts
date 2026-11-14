@@ -1,6 +1,6 @@
 // Super-admin portal API calls. Uses the shared axios instance, so the stored
 // JWT (a super-admin token) is attached automatically by the request interceptor.
-import { getData, postData, patchData, deleteData } from "./ApiServices";
+import { getData, postData, putData, patchData, deleteData } from "./ApiServices";
 
 export type BusinessType = "radiator" | "automobile" | "engineering" | "tyre";
 
@@ -13,6 +13,7 @@ export type ClientRow = {
     adminUserId: string;
     lastLoginAt: string | null;
     createdAt: string;
+    whatsappEnabled?: boolean;
 };
 
 export type HandoverInfo = {
@@ -93,3 +94,32 @@ export type BackupResult = Record<string, { label: string; added: number; alread
 export const getBackupSummary = (id: string) => getData(`admin/clients/${id}/backup/summary`);
 export const getBackup = (id: string, sections: BackupSection[]) => getData(`admin/clients/${id}/backup`, { params: { sections: sections.join(",") } });
 export const importBackupFile = (id: string, backup: unknown, sections: BackupSection[]) => postData(`admin/clients/${id}/backup/import`, { backup, sections });
+
+// WhatsApp Business API, per client. Secrets are write-only: the server returns only a masked token.
+export type WhatsAppTemplateStatus = { status: "APPROVED" | "PENDING" | "REJECTED" | "MISSING"; reason?: string };
+export type WhatsAppTemplates = Record<string, WhatsAppTemplateStatus>;
+export type WhatsAppAccount = {
+    enabled: boolean;
+    provider: "meta";
+    numberType: "new" | "existing";
+    phoneNumberId: string;
+    wabaId: string;
+    displayPhone: string;
+    verifiedName: string;
+    hasToken: boolean;
+    hasAppSecret: boolean;
+    tokenMasked: string;
+    templates: WhatsAppTemplates;
+    enabledAt: string | null;
+};
+export type WhatsAppUsage = { month: string; byKind: Record<string, { sent: number; failed: number }>; total: { sent: number; failed: number } | number };
+export type WhatsAppSaveBody = {
+    enabled: boolean; provider: string; numberType: "new" | "existing"; phoneNumberId: string; wabaId: string; accessToken?: string; appSecret?: string;
+};
+export const getClientWhatsApp = (id: string): Promise<{ account: WhatsAppAccount | null }> => getData(`admin/clients/${id}/whatsapp`);
+export const saveClientWhatsApp = (id: string, body: WhatsAppSaveBody): Promise<{ message?: string; account: WhatsAppAccount }> => putData(`admin/clients/${id}/whatsapp`, body);
+export const removeClientWhatsApp = (id: string) => deleteData(`admin/clients/${id}/whatsapp`);
+export const testClientWhatsApp = (id: string): Promise<{ displayPhone: string; verifiedName: string }> => postData(`admin/clients/${id}/whatsapp/test`, {});
+export const syncClientWhatsAppTemplates = (id: string): Promise<{ templates: WhatsAppTemplates }> => postData(`admin/clients/${id}/whatsapp/templates`, {});
+export const getClientWhatsAppUsage = (id: string, month?: string): Promise<WhatsAppUsage> =>
+    getData(`admin/clients/${id}/whatsapp/usage`, month ? { params: { month } } : {});

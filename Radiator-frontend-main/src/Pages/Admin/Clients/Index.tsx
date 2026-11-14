@@ -22,6 +22,7 @@ import {
 } from "../../../Services/AdminApi";
 import ClientSettingsModal from "./ClientSettingsModal";
 import BackupModal from "./BackupModal";
+import WhatsAppModal from "./WhatsAppModal";
 
 const slugify = (s: string) =>
     s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -84,6 +85,7 @@ const Clients: React.FC = () => {
     // View-settings modal + table search/filter
     const [viewSettingsTarget, setViewSettingsTarget] = useState<ClientRow | null>(null);
     const [backupTarget, setBackupTarget] = useState<ClientRow | null>(null);
+    const [whatsAppTarget, setWhatsAppTarget] = useState<ClientRow | null>(null);
     const [search, setSearch] = useState("");
     const [clearKey, setClearKey] = useState(0);
     const [statusFilter, setStatusFilter] = useState("");
@@ -320,6 +322,7 @@ const Clients: React.FC = () => {
     const suspendedCount = clients.length - activeCount;
 
     const statusBadge = (c: ClientRow) => <Badge tone={c.status === "active" ? "success" : "neutral"} dot>{c.status === "active" ? "Active" : "Suspended"}</Badge>;
+    const waBadge = (c: ClientRow) => c.whatsappEnabled ? <span className="ms-2"><Badge tone="success">WhatsApp</Badge></span> : null;
     const rowMenu = (c: ClientRow) => (
         <RowActions ariaLabel={`Actions for ${c.name}`} items={[
             { label: "View Settings", icon: <Icons iconName="settings" />, onClick: () => setViewSettingsTarget(c) },
@@ -328,6 +331,7 @@ const Clients: React.FC = () => {
             { label: "Reset Password", icon: <Icons iconName="key" />, onClick: () => { setResetTarget(c); setResetPwd(""); } },
             { label: "Excel Report", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
             { label: "Backup & Restore", icon: <Icons iconName="history" />, onClick: () => setBackupTarget(c) },
+            { label: "WhatsApp", icon: <Icons iconName="qr" />, onClick: () => setWhatsAppTarget(c) },
             { label: c.status === "active" ? "Suspend" : "Reactivate", icon: <Icons iconName={c.status === "active" ? "pause" : "play"} />, onClick: () => toggleStatus(c) },
             { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); } },
         ]} />
@@ -335,7 +339,7 @@ const Clients: React.FC = () => {
 
     const columns: Column<ClientRow>[] = [
         { key: "si", header: "SI No", className: "nowrap tabular", cell: (_c, i) => i + 1 },
-        { key: "name", sortValue: (c) => c.name, header: "Business Name", className: "key text", cell: (c) => c.name },
+        { key: "name", sortValue: (c) => c.name, header: "Business Name", className: "key text", cell: (c) => <>{c.name}{waBadge(c)}</> },
         { key: "code", sortValue: (c) => c.code, header: "Code", className: "nowrap", cell: (c) => <span className="t-mono">{c.code}</span> },
         { key: "type", sortValue: (c) => typeName(c.businessType), header: "Type", className: "nowrap", cell: (c) => <Badge>{typeName(c.businessType)}</Badge> },
         { key: "admin", sortValue: (c) => c.adminUserId, header: "Admin Login", cell: (c) => c.adminUserId },
@@ -402,7 +406,7 @@ const Clients: React.FC = () => {
                     : { icon: "users", title: "No clients yet", text: "Add your first client and their login details will be shown for handover.", action: <button type="button" className="btn btn-primary" onClick={() => { resetAdd(); setShowAdd(true); }}><Icons iconName="add" />Add Client</button> }}
                 mobileCard={(c) => (
                     <MobileCard
-                        title={c.name}
+                        title={<>{c.name}{waBadge(c)}</>}
                         onOpen={() => setViewSettingsTarget(c)}
                         badge={statusBadge(c)}
                         menu={rowMenu(c)}
@@ -515,6 +519,8 @@ const Clients: React.FC = () => {
                     <input id="reset-pwd" className="form-control" type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min 6 characters" />
                 </Field>
             </Modal>
+
+            {whatsAppTarget && <WhatsAppModal client={whatsAppTarget} onClose={() => setWhatsAppTarget(null)} onChanged={load} />}
 
             {backupTarget && <BackupModal client={backupTarget} onClose={() => setBackupTarget(null)} />}
 
