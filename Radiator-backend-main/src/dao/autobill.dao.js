@@ -195,8 +195,16 @@ export async function recordPayment(clientId, id, amount, discount = null) {
   );
 
   await syncAutoBonusesForRecord(clientId, { ...existing, receivedAmount, status, discount: appliedDiscount });
-  return enrich({ ...existing, receivedAmount, status, discount: appliedDiscount });
+  return withLastPayment(enrich({ ...existing, receivedAmount, status, discount: appliedDiscount }), round2(receivedAmount - current), "");
 }
+
+// What the last payment actually applied (after capping), for the WhatsApp receipt. Not enumerable, so it never
+// reaches API responses or stored documents.
+function withLastPayment(doc, amount, mode) {
+  Object.defineProperty(doc, "lastPayment", { value: { amount, mode }, enumerable: false });
+  return doc;
+}
+
 
 // Sortable list columns: stored fields, plus the bill total / pending worked out from the items.
 const AUTO_TOTAL = { $sum: "$items.amount" };
@@ -228,7 +236,7 @@ function searchClause(search) {
   return { $or: or };
 }
 
-function buildAutoBillQuery(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = {}) {
+function buildAutoBillQuery(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "", waFailed = false } = {}) {
   const query = { clientId: toClientId(clientId) };
   const s = searchClause(search);
   if (s) Object.assign(query, s);
@@ -242,6 +250,8 @@ function buildAutoBillQuery(clientId, { vehicleNumber = "", customerName = "", m
   }
   if (status) query.status = status;
   if (partRef) query["items.partRef"] = partRef;
+  // Bills whose last WhatsApp send failed.
+  if (waFailed) query["whatsapp.status"] = "failed";
   return query;
 }
 
@@ -256,12 +266,12 @@ export async function getAllAutoBills(
   status = "",
   customerName = "",
   partRef = "",
-  { search = "", sortQuery = {} } = {}
+  { search = "", sortQuery = {}, waFailed = false } = {}
 ) {
   const db = await connectDB();
   const collection = db.collection("autobills");
   const skip = (page - 1) * limit;
-  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
+  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search, waFailed });
   const total = await countMatching(collection, query);
   // Latest bill date first (a back-dated bill sits under its own date, not on top); same-day bills newest entered first.
   const bills = await findSortedPage(collection, query, parseSort(sortQuery, AUTO_SORT, { billDate: -1, createdAt: -1 }), skip, limit);
@@ -273,9 +283,9 @@ export async function getAllAutoBills(
   };
 }
 
-export async function getAllAutoBillsForExport(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = {}, sortQuery = {}) {
+export async function getAllAutoBillsForExport(clientId, { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "", waFailed = false } = {}, sortQuery = {}) {
   const db = await connectDB();
-  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search });
+  const query = buildAutoBillQuery(clientId, { vehicleNumber, customerName, mechName, fromDate, toDate, status, partRef, search, waFailed });
   // The export follows the order chosen on screen (newest first by default).
   const order = parseSort(sortQuery, AUTO_SORT, { billDate: -1, createdAt: -1 });
   const bills = order.computed

@@ -20,6 +20,11 @@ import { backupSummary, exportBackup, importBackup } from "../dao/backup.dao.js"
 import { logAudit, listAudit } from "../dao/audit.dao.js";
 import { loginLimiter, accountLockout, recordFailure, recordSuccess } from "../middleware/rateLimit.js";
 import { parsePaging } from "../utils/sanitize.js";
+import {
+  getAccount, saveAccount, removeAccount, maskedAccount, accountContext, listEnabledAccounts, usage as whatsappUsage, istMonthOf,
+} from "../dao/whatsapp.dao.js";
+import { getProvider } from "../services/whatsapp/providers/index.js";
+import { DOC_TEMPLATES, TEMPLATE_NAMES, samplePdf, templateDefs } from "../services/whatsapp/templates.js";
 
 const router = Router();
 
@@ -57,7 +62,9 @@ router.use(authenticate, requireSuperAdmin);
 
 router.get("/clients", async (req, res, next) => {
   try {
-    const clients = await listClients();
+    const [rows, enabled] = await Promise.all([listClients(), listEnabledAccounts()]);
+    const on = new Set(enabled.map((a) => String(a.clientId)));
+    const clients = rows.map((c) => ({ ...c, whatsappEnabled: on.has(String(c._id)) }));
     res.json({ success: true, clients });
   } catch (error) {
     next(error);
@@ -315,6 +322,158 @@ router.delete("/clients/:id", async (req, res, next) => {
       details: { name: client.name, counts },
     });
     res.json({ success: true, message: "Client and all data deleted ✅", counts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// --- WhatsApp (per-client account; secrets are write-only) --------------------
+
+const waAudit = (req, client, action, details = {}) =>
+  logAudit({ action, clientId: client._id, clientCode: client.code, actorUserId: req.user.userId, actorRole: req.user.role, details });
+
+async function waClient(req, res) {
+  const client = await getClientById(req.params.id);
+  if (!client) res.status(404).json({ success: false, message: "Client not found" });
+  return client;
+}
+
+router.get("/clients/:id/whatsapp", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    res.json({ success: true, account: maskedAccount(await getAccount(client._id)) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/clients/:id/whatsapp", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    const b = req.body || {};
+    const provider = String(b.provider || "meta");
+    getProvider(provider); // unknown provider -> 400
+    const numberType = b.numberType === "existing" ? "existing" : "new";
+    const enabled = b.enabled === true;
+    const existing = await getAccount(client._id);
+    const phoneNumberId = String(b.phoneNumberId ?? existing?.phoneNumberId ?? "").trim();
+    const wabaId = String(b.wabaId ?? existing?.wabaId ?? "").trim();
+    // Optional: the Meta app's id, needed only to upload the sample PDF that document templates are approved with.
+    const appId = String(b.appId ?? existing?.appId ?? "").trim();
+    const accessToken = String(b.accessToken || "").trim();
+    const appSecret = String(b.appSecret || "").trim();
+    if (b.enabled !== undefined && typeof b.enabled !== "boolean") throw vErr("enabled must be true or false");
+    if ((phoneNumberId && !/^\d{5,30}$/.test(phoneNumberId)) || (wabaId && !/^\d{5,30}$/.test(wabaId)) || (appId && !/^\d{5,30}$/.test(appId))) {
+      throw vErr("Phone number ID, WhatsApp business account ID and App ID are numbers");
+    }
+    const hasToken = !!(accessToken || existing?.secretsEnc?.token);
+    const hasSecret = !!(appSecret || existing?.secretsEnc?.appSecret);
+    if (enabled) {
+      const missing = [!phoneNumberId && "Phone number ID", !wabaId && "WhatsApp business account ID", !hasToken && "Access token", !hasSecret && "App secret"].filter(Boolean);
+      if (missing.length) throw vErr(`${missing.join(", ")} ${missing.length > 1 ? "are" : "is"} required to enable WhatsApp`);
+    }
+    const changed = !existing || phoneNumberId !== existing.phoneNumberId || wabaId !== existing.wabaId || !!accessToken || !!appSecret;
+
+    // A live check against the provider first: nothing is saved unless it passes.
+    let identity = {};
+    if ((enabled || changed) && phoneNumberId && hasToken) {
+      const probe = await saveProbeContext(existing, { phoneNumberId, wabaId, accessToken, appSecret });
+      identity = await getProvider(provider).testConnection(probe);
+    }
+
+    const wasEnabled = !!existing?.enabled;
+    const wabaChanged = existing && existing.wabaId !== wabaId;
+    const account = await saveAccount(client._id, {
+      enabled, provider, numberType, phoneNumberId, wabaId, appId, accessToken, appSecret,
+      ...(identity.displayPhone !== undefined ? { displayPhone: identity.displayPhone, verifiedName: identity.verifiedName } : {}),
+      ...(enabled && !wasEnabled ? { enabledAt: new Date(), enabledBy: req.user.userId } : {}),
+      ...(wabaChanged ? { templates: {} } : {}),
+    });
+    const action = enabled && !wasEnabled ? "whatsapp.enable" : !enabled && wasEnabled ? "whatsapp.disable" : "whatsapp.account";
+    await waAudit(req, client, action, { provider, numberType, phoneNumberId, wabaId });
+    res.json({ success: true, message: enabled ? "WhatsApp enabled ✅" : "WhatsApp details saved", account: maskedAccount(account) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Context for a live test: what was just typed, falling back to what is stored.
+async function saveProbeContext(existing, { phoneNumberId, wabaId, accessToken, appSecret }) {
+  const stored = existing?.secretsEnc ? accountContext(existing) : {};
+  return { phoneNumberId, wabaId, token: accessToken || stored.token, appSecret: appSecret || stored.appSecret };
+}
+
+router.delete("/clients/:id/whatsapp", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    await removeAccount(client._id);
+    await waAudit(req, client, "whatsapp.account", { removed: true });
+    res.json({ success: true, message: "WhatsApp details removed" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/clients/:id/whatsapp/test", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    const account = await getAccount(client._id);
+    if (!account?.phoneNumberId || !account.secretsEnc?.token) throw vErr("Save the WhatsApp details first");
+    const { displayPhone, verifiedName } = await getProvider(account.provider || "meta").testConnection(accountContext(account));
+    await saveAccount(client._id, { displayPhone, verifiedName });
+    res.json({ success: true, displayPhone, verifiedName });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Creates the templates the provider doesn't have yet, then syncs every template's approval status.
+router.post("/clients/:id/whatsapp/templates", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    const account = await getAccount(client._id);
+    if (!account?.wabaId || !account.secretsEnc?.token) throw vErr("Save the WhatsApp details first");
+    const p = getProvider(account.provider || "meta");
+    const ctx = accountContext(account);
+    const have = new Set((await p.listTemplates(ctx)).map((t) => t.name));
+    const problems = {};
+    // Document templates are approved against a sample PDF: upload one through the app when they still need creating.
+    let sampleHandle = process.env.WHATSAPP_SAMPLE_DOC_HANDLE || "";
+    if (!sampleHandle && DOC_TEMPLATES.some((n) => !have.has(n))) {
+      if (!ctx.appId) {
+        for (const n of DOC_TEMPLATES) if (!have.has(n)) problems[n] = "Add the App ID (Meta app › App settings › Basic) so a sample PDF can be uploaded for approval";
+      } else {
+        try { sampleHandle = await p.uploadSampleHandle(ctx, samplePdf()); } catch (e) { for (const n of DOC_TEMPLATES) if (!have.has(n)) problems[n] = e.message; }
+      }
+    }
+    const defs = templateDefs(sampleHandle);
+    for (const name of TEMPLATE_NAMES) {
+      if (have.has(name) || problems[name]) continue;
+      try { await p.createTemplate(ctx, defs[name]); } catch (e) { problems[name] = e.message; }
+    }
+    const templates = {};
+    for (const t of await p.listTemplates(ctx)) if (TEMPLATE_NAMES.includes(t.name)) templates[t.name] = { status: t.status, reason: t.reason || "" };
+    for (const [name, reason] of Object.entries(problems)) if (!templates[name]) templates[name] = { status: "MISSING", reason };
+    const saved = await saveAccount(client._id, { templates });
+    await waAudit(req, client, "whatsapp.templates", { created: TEMPLATE_NAMES.filter((n) => !have.has(n) && !problems[n]) });
+    res.json({ success: true, templates: maskedAccount(saved).templates });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/clients/:id/whatsapp/usage", async (req, res, next) => {
+  try {
+    const client = await waClient(req, res);
+    if (!client) return;
+    const month = String(req.query.month || istMonthOf());
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw vErr("month must be YYYY-MM");
+    res.json({ success: true, ...(await whatsappUsage(client._id, month)) });
   } catch (error) {
     next(error);
   }

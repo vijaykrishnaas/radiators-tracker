@@ -24,6 +24,13 @@ export async function ensureIndexes() {
   await db.collection("tyrebills").createIndex({ clientId: 1, billDate: -1 }, { name: "clientId_1_billDate_-1" });
   await db.collection("tyrebills").createIndex({ clientId: 1, "installments.dueDate": 1 }, { name: "clientId_1_installments.dueDate_1" });
 
+  // WhatsApp: one account per client; the message log doubles as the retry queue.
+  await db.collection("whatsapp_accounts").createIndex({ clientId: 1 }, { unique: true, name: "uniq_clientId" });
+  await db.collection("whatsapp_accounts").createIndex({ phoneNumberId: 1 }, { name: "phoneNumberId_1" });
+  await db.collection("whatsapp_messages").createIndex({ clientId: 1, refId: 1 }, { name: "clientId_1_refId_1" });
+  await db.collection("whatsapp_messages").createIndex({ providerMessageId: 1 }, { name: "providerMessageId_1" });
+  await db.collection("whatsapp_messages").createIndex({ status: 1, nextAttemptAt: 1 }, { name: "status_1_nextAttemptAt_1" });
+
   // Audit log (Stage 2) — harmless to ensure early.
   await db.collection("audit_log").createIndex({ at: -1 }, { name: "at_-1" });
 

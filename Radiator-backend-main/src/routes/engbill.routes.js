@@ -5,6 +5,7 @@ import { getClientById } from "../dao/client.dao.js";
 import { getSettings } from "../dao/settings.dao.js";
 import { parsePaging } from "../utils/sanitize.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { queueReceipt } from "../services/whatsapp/notify.js";
 import {
   createEngBill,
   updateEngBill,
@@ -43,7 +44,7 @@ function validId(req, res, next) {
 
 function filtersFrom(q) {
   const { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "" } = q;
-  return { vehicleNo, mechanic, fromDate, toDate, status, serviceType, bsModel, search: String(search) };
+  return { vehicleNo, mechanic, fromDate, toDate, status, serviceType, bsModel, search: String(search), waFailed: q.waFailed === "1" };
 }
 
 router.get("/analytics", async (req, res, next) => {
@@ -148,7 +149,8 @@ router.post("/:id/payment", validId, async (req, res, next) => {
     }
     const bill = await recordEngPayment(req.user.clientId, req.params.id, { amount, discount, mode: req.body?.mode });
     await auditClient(req, "engbill.payment", { billNo: bill.billNo, amount, discount });
-    res.json({ success: true, message: "Payment recorded ✅", bill });
+    const wa = await queueReceipt(req.user.clientId, "engineering", bill, bill.lastPayment);
+    res.json({ success: true, message: "Payment recorded ✅", bill, ...(wa.receiptId ? { whatsappReceiptId: wa.receiptId } : {}) });
   } catch (error) {
     next(error);
   }

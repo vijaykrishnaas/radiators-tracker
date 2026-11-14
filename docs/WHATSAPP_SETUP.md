@@ -30,7 +30,7 @@ Done once per shop, by the shop owner or by you on their behalf.
    the WhatsApp account (full control) → *Generate token* for the app with permissions `whatsapp_business_messaging` and
    `whatsapp_business_management`, expiry *Never*. Copy it.
 5. **Copy the IDs** from *WhatsApp › API Setup*: **Phone number ID** and **WhatsApp Business Account ID**. Copy the
-   **App secret** from *App settings › Basic*.
+   **App ID** and **App secret** from *App settings › Basic*.
 6. **Webhook**: *WhatsApp › Configuration › Webhook* → Callback URL `https://<API_DOMAIN>/webhooks/whatsapp/meta`,
    Verify token = `WHATSAPP_VERIFY_TOKEN` → Verify and save → *Manage* → subscribe to **messages**.
 7. **Payment method**: add one in the WhatsApp account (Meta charges per message; see Meta's current pricing for India).
@@ -38,7 +38,8 @@ Done once per shop, by the shop owner or by you on their behalf.
 ## 3. Enable it for the company (super admin)
 Admin › Clients › ⋮ › **WhatsApp**:
 1. Turn on **Enable WhatsApp**, choose the provider and number type, and paste Phone number ID, WhatsApp Business Account
-   ID, Access token and App secret.
+   ID, App ID, Access token and App secret. (App ID is optional for sending, but the bill and receipt-with-PDF templates
+   can only be approved with it: the app uploads a sample PDF to Meta through it.)
 2. Press **Enable**. The connection is tested live first; if Meta refuses (wrong ID or token), its message is shown and
    nothing is enabled.
 3. Press **Create / sync templates**. Meta reviews each message template (usually minutes, sometimes up to a day). A message
@@ -70,5 +71,6 @@ For any query please call <Company phone 1>."
 |---|---|
 | "Template … is not approved yet" | Wait for Meta's review, then *Create / sync templates* to refresh. |
 | "No valid WhatsApp number" | The bill's phone must be a 10-digit Indian mobile number. |
+| Bill template shows "Add the App ID…" | Enter the App ID (step 2.5) in the WhatsApp dialog, save, then *Create / sync templates* again. |
 | Enabling fails with an auth error | Token expired or missing permissions: generate a new permanent system-user token (step 2.4). |
 | Statuses stay "Sent" | Webhook not set or not subscribed to *messages* (step 2.6). |

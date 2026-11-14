@@ -258,4 +258,15 @@ export const defaultSettings = {
     showQr: false,
     showSignature: false,
   },
+
+  // WhatsApp (tenant switches only; the account and its secrets live in whatsapp_accounts, super-admin owned).
+  // Only used once the super admin has enabled WhatsApp for the company.
+  whatsapp: {
+    billDefaultTick: false,
+    receipt: false,
+    receiptPdf: false,
+    ownerSummary: false,
+    ownerPhone: "",
+    summaryTime: "20:00",
+  },
 };

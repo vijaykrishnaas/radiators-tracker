@@ -25,7 +25,7 @@ const STATUS_TONE: Record<string, Tone> = { APPROVED: "success", PENDING: "warni
 const currentMonth = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).slice(0, 7);
 const fmtDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("en-IN") : "—");
 
-type Errors = Partial<Record<"phoneNumberId" | "wabaId" | "accessToken" | "appSecret", string>>;
+type Errors = Partial<Record<"phoneNumberId" | "wabaId" | "appId" | "accessToken" | "appSecret", string>>;
 
 const TemplateList: React.FC<{ templates: WhatsAppTemplates }> = ({ templates }) => (
     <ul className="list-unstyled d-grid gap-2 m-0">
@@ -49,6 +49,7 @@ export default function WhatsAppModal({ client, onClose, onChanged }: { client: 
     const [numberType, setNumberType] = useState<"new" | "existing">("new");
     const [phoneNumberId, setPhoneNumberId] = useState("");
     const [wabaId, setWabaId] = useState("");
+    const [appId, setAppId] = useState("");
     const [accessToken, setAccessToken] = useState("");
     const [appSecret, setAppSecret] = useState("");
     const [errors, setErrors] = useState<Errors>({});
@@ -62,7 +63,7 @@ export default function WhatsAppModal({ client, onClose, onChanged }: { client: 
     const applyAccount = useCallback((a: WhatsAppAccount | null) => {
         setAccount(a);
         setOn(!!a?.enabled);
-        if (a) { setNumberType(a.numberType || "new"); setPhoneNumberId(a.phoneNumberId || ""); setWabaId(a.wabaId || ""); }
+        if (a) { setNumberType(a.numberType || "new"); setPhoneNumberId(a.phoneNumberId || ""); setWabaId(a.wabaId || ""); setAppId(a.appId || ""); }
         setAccessToken(""); setAppSecret("");
     }, []);
 
@@ -87,6 +88,7 @@ export default function WhatsAppModal({ client, onClose, onChanged }: { client: 
         const e: Errors = {};
         if (!phoneNumberId.trim()) e.phoneNumberId = "Enter the Phone number ID";
         if (!wabaId.trim()) e.wabaId = "Enter the WhatsApp Business Account ID";
+        if (appId.trim() && !/^\d+$/.test(appId.trim())) e.appId = "The App ID is a number";
         if (!accessToken.trim() && !account?.hasToken) e.accessToken = "Enter the access token";
         if (!appSecret.trim() && !account?.hasAppSecret) e.appSecret = "Enter the app secret";
         setErrors(e);
@@ -103,7 +105,7 @@ export default function WhatsAppModal({ client, onClose, onChanged }: { client: 
         const wasEnabled = !!account?.enabled;
         run("save", async () => {
             const res = await saveClientWhatsApp(client._id, {
-                enabled: true, provider: "meta", numberType, phoneNumberId: phoneNumberId.trim(), wabaId: wabaId.trim(),
+                enabled: true, provider: "meta", numberType, phoneNumberId: phoneNumberId.trim(), wabaId: wabaId.trim(), appId: appId.trim(),
                 ...(accessToken.trim() ? { accessToken: accessToken.trim() } : {}),
                 ...(appSecret.trim() ? { appSecret: appSecret.trim() } : {}),
             });
@@ -200,6 +202,11 @@ export default function WhatsAppModal({ client, onClose, onChanged }: { client: 
                                 <Field label="WhatsApp Business Account ID" htmlFor="wa-waba-id" required error={errors.wabaId}>
                                     <input id="wa-waba-id" className={`form-control${errors.wabaId ? " is-invalid" : ""}`} value={wabaId}
                                         onChange={(e) => setWabaId(e.target.value)} autoComplete="off" inputMode="numeric" />
+                                </Field>
+                                <Field label="App ID (optional)" htmlFor="wa-app-id" error={errors.appId}
+                                    help="Meta app › App settings › Basic. Needed so the bill and receipt-with-PDF templates can be approved.">
+                                    <input id="wa-app-id" className={`form-control${errors.appId ? " is-invalid" : ""}`} value={appId}
+                                        onChange={(e) => setAppId(e.target.value)} autoComplete="off" inputMode="numeric" />
                                 </Field>
                                 <Field label="Access token" htmlFor="wa-token" required={!account?.hasToken} error={errors.accessToken}
                                     help={account?.hasToken ? "Leave blank to keep the saved token" : undefined}>

@@ -104,7 +104,15 @@ export async function exportClientData(clientId) {
   const engbills = await db.collection("engbills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
   const stockEntries = await db.collection("stockentries").find({ clientId: cid }).sort({ date: 1 }).toArray();
   const tyrebills = await db.collection("tyrebills").find({ clientId: cid }).sort({ billDate: 1 }).toArray();
-  return { client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills, stockEntries, tyrebills };
+  // Secrets never leave the server: the encrypted token / app secret and any stored PDFs are left out.
+  const whatsappAccount = await db.collection("whatsapp_accounts").findOne({ clientId: cid });
+  const { secretsEnc, ...whatsappAccountSafe } = whatsappAccount || {};
+  const whatsappMessages = (await db.collection("whatsapp_messages").find({ clientId: cid }).sort({ at: 1 }).toArray()).map(({ pdfB64, ...m }) => m);
+  return {
+    client, settings, radiators, autobills, bonuses, expenses, employees, attendance, advances, salaryPeriods, engbills, stockEntries, tyrebills,
+    whatsappAccount: whatsappAccount ? { ...whatsappAccountSafe, hasToken: !!secretsEnc?.token, hasAppSecret: !!secretsEnc?.appSecret } : null,
+    whatsappMessages,
+  };
 }
 
 // Cascade-deletes a client and ALL of its data. assertClientId + ObjectId
@@ -127,6 +135,8 @@ export async function offboardClient(clientId) {
   counts.attendance = (await db.collection("attendance").deleteMany({ clientId: cid })).deletedCount;
   counts.advances = (await db.collection("advances").deleteMany({ clientId: cid })).deletedCount;
   counts.salaryPeriods = (await db.collection("salaryPeriods").deleteMany({ clientId: cid })).deletedCount;
+  counts.whatsappAccounts = (await db.collection("whatsapp_accounts").deleteMany({ clientId: cid })).deletedCount;
+  counts.whatsappMessages = (await db.collection("whatsapp_messages").deleteMany({ clientId: cid })).deletedCount;
   counts.settings = (await db.collection("settings").deleteOne({ _id: cid })).deletedCount;
   counts.users = (await db.collection("users").deleteMany({ clientId: cid })).deletedCount;
   await db.collection("counters").deleteOne({ _id: cid });

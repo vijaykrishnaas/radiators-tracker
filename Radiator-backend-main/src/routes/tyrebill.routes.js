@@ -4,6 +4,7 @@ import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { getClientById } from "../dao/client.dao.js";
 import { parsePaging } from "../utils/sanitize.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { queueReceipt } from "../services/whatsapp/notify.js";
 import {
   createTyreBill,
   updateTyreBill,
@@ -66,6 +67,7 @@ function filtersFrom(q) {
     brandRef: String(q.brandRef || ""),
     overdue: q.overdue === "1" || q.overdue === "true",
     search: String(q.search || ""),
+    waFailed: q.waFailed === "1",
   };
 }
 
@@ -163,7 +165,8 @@ router.post("/:id/payment", validId, async (req, res, next) => {
       : Number(discount) > 0
         ? `Recorded ${amt} paid + ₹${Number(discount).toLocaleString("en-IN")} discount ✅`
         : `Payment of ${amt} recorded ✅`;
-    res.json({ success: true, message: msg, tyreBill: updated });
+    const wa = await queueReceipt(req.user.clientId, "tyre", updated, { ...updated.lastPayment, installmentId });
+    res.json({ success: true, message: msg, tyreBill: updated, ...(wa.receiptId ? { whatsappReceiptId: wa.receiptId } : {}) });
   } catch (error) {
     next(error);
   }

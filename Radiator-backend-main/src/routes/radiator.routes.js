@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { parsePaging } from "../utils/sanitize.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { queueReceipt } from "../services/whatsapp/notify.js";
 import { getClientById } from "../dao/client.dao.js";
 import { listMechanicNames } from "../dao/mechanics.dao.js";
 import {
@@ -58,7 +59,7 @@ router.get("/analytics", async (req, res, next) => {
 router.get("/export", async (req, res, next) => {
   try {
     const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = req.query;
-    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType, search: String(search) }, req.query);
+    const radiatorData = await getAllRadiatorsForExport(req.user.clientId, { truckNumber, mechName: mechanicName, fromDate, toDate, status, radiatorType, serviceType, search: String(search), waFailed: req.query.waFailed === "1" }, req.query);
     res.json({ success: true, radiatorData });
   } catch (error) {
     next(error);
@@ -71,7 +72,7 @@ router.get("/", async (req, res, next) => {
     const { truckNumber = "", mechanicName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = req.query;
 
     const data = await getAllRadiators(req.user.clientId, page, limit, truckNumber, mechanicName, fromDate, toDate, status, radiatorType, serviceType,
-      { search: String(search), sortQuery: req.query });
+      { search: String(search), sortQuery: req.query, waFailed: req.query.waFailed === "1" });
 
     res.json({
       success: true,
@@ -144,7 +145,8 @@ router.post("/:id/payment", validId, async (req, res, next) => {
     const msg = discount > 0
       ? `Recorded ₹${amount} paid + ₹${discount} discount ✅`
       : `Payment of ₹${amount} recorded ✅`;
-    res.json({ success: true, message: msg, radiator: updated });
+    const wa = await queueReceipt(req.user.clientId, "radiator", updated, updated.lastPayment);
+    res.json({ success: true, message: msg, radiator: updated, ...(wa.receiptId ? { whatsappReceiptId: wa.receiptId } : {}) });
   } catch (error) {
     next(error);
   }

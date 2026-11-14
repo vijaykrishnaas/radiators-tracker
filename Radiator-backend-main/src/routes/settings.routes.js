@@ -4,6 +4,7 @@ import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { getSettings, updateSettings, setCompanyLogoUrl, setCompanyQrUrl, setCompanyLoginBgUrl, setCompanySignatureUrl, clearCompanyAssetUrl } from "../dao/settings.dao.js";
 import { saveLogo, saveQr, saveLoginBg, saveSignature, deleteLogo, deleteQr, deleteLoginBg, deleteSignature } from "../dao/logo.dao.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { isWhatsAppEnabled } from "../dao/whatsapp.dao.js";
 
 const router = Router();
 
@@ -52,10 +53,28 @@ function uploadBg(req, res, next) {
 
 router.use(authenticate, loadActiveTenant);
 
+// whatsappEnabled is computed from the super-admin-owned account and never stored, so a tenant can't switch it on.
+async function withWhatsappFlag(clientId, settings) {
+  return { ...settings, whatsappEnabled: await isWhatsAppEnabled(clientId) };
+}
+
+// The company's WhatsApp switches, held to their known shape.
+export function cleanWhatsappSettings(w) {
+  const t = String(w?.summaryTime ?? "");
+  return {
+    billDefaultTick: !!w?.billDefaultTick,
+    receipt: !!w?.receipt,
+    receiptPdf: !!w?.receiptPdf,
+    ownerSummary: !!w?.ownerSummary,
+    ownerPhone: String(w?.ownerPhone ?? "").trim().slice(0, 20),
+    summaryTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : "20:00",
+  };
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const settings = await getSettings(req.user.clientId);
-    res.json({ success: true, settings });
+    res.json({ success: true, settings: await withWhatsappFlag(req.user.clientId, settings) });
   } catch (error) {
     next(error);
   }
@@ -91,6 +110,9 @@ router.put("/", async (req, res, next) => {
     // Image links are owned by the upload / remove endpoints. A Save from a stale tab (or one racing an upload)
     // must not put back an old link or blank a new one, so the stored values always win here.
     const body = { ...req.body };
+    delete body.whatsappEnabled;
+    if (body.whatsapp && typeof body.whatsapp === "object") body.whatsapp = cleanWhatsappSettings(body.whatsapp);
+    else delete body.whatsapp;
     if (body.company && typeof body.company === "object") {
       const current = await getSettings(req.user.clientId);
       body.company = { ...body.company };
@@ -98,7 +120,7 @@ router.put("/", async (req, res, next) => {
     }
     const settings = await updateSettings(req.user.clientId, body);
     await auditClient(req, "settings.update", {});
-    res.json({ success: true, settings, message: "Settings updated ✅" });
+    res.json({ success: true, settings: await withWhatsappFlag(req.user.clientId, settings), message: "Settings updated ✅" });
   } catch (error) {
     next(error);
   }

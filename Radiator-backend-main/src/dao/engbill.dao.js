@@ -274,7 +274,9 @@ export async function recordEngPayment(clientId, id, { amount = 0, discount = nu
   const set = { ...totals, payments, updatedAt: new Date() };
   await db.collection(COLLECTION).updateOne({ _id: existing._id, clientId: cid }, { $set: set });
   await syncBonus(clientId, { ...existing, ...set });
-  return { ...existing, ...set };
+  const saved = { ...existing, ...set };
+  Object.defineProperty(saved, "lastPayment", { value: { amount: applied, mode: paymentMode }, enumerable: false });
+  return saved;
 }
 
 export async function getEngBillById(clientId, id) {
@@ -288,7 +290,7 @@ const ENG_SORT = {
   total: "netTotal", rec: "amountReceived", bal: "balance", status: "paymentStatus",
 };
 
-function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "" } = {}) {
+function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "", waFailed = false } = {}) {
   const query = { clientId: toClientId(clientId) };
   // One search box over every text field on the bill (and the bill number when the text is a number).
   const text = String(search || "").trim();
@@ -312,6 +314,8 @@ function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", to
   if (status) query.paymentStatus = String(status);
   if (serviceType) query["services.type"] = String(serviceType);
   if (bsModel) query["services.bsModel"] = String(bsModel);
+  // Bills whose last WhatsApp send failed.
+  if (waFailed) query["whatsapp.status"] = "failed";
   return query;
 }
 

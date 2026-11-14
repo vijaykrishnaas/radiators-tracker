@@ -432,6 +432,7 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
   const now = new Date();
   const log = Array.isArray(existing.payments) ? [...existing.payments] : [];
   let base;
+  let lastApplied = pay;
 
   if (existing.paymentType === "installment") {
     if (discount != null && Number(discount) > 0) {
@@ -467,6 +468,7 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
       throw httpError(prev.pendingAmount <= 0 ? "This challan is already fully paid" : "Enter a payment amount and/or a discount");
     }
     if (applied > 0) log.push({ date: now, amount: applied, mode: paymentMode });
+    lastApplied = Math.max(applied, 0);
     base = { ...existing, discount: next.discount, receivedAmount: next.receivedAmount };
   }
 
@@ -487,7 +489,10 @@ export async function recordTyrePayment(clientId, id, { amount = 0, discount = n
   await saveIfUnchanged(db, existing, set);
   const saved = { ...existing, ...set };
   await syncBonus(clientId, saved);
-  return enrich(saved);
+  const result = enrich(saved);
+  // What this payment actually applied (after capping), for the WhatsApp receipt; not enumerable, so never serialized.
+  Object.defineProperty(result, "lastPayment", { value: { amount: lastApplied, mode: paymentMode }, enumerable: false });
+  return result;
 }
 
 export async function getTyreBillById(clientId, id) {
@@ -540,7 +545,7 @@ function searchClause(search) {
 
 export function buildTyreQuery(
   clientId,
-  { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", paymentType = "", brandRef = "", overdue = false, search = "" } = {},
+  { vehicleNumber = "", customerName = "", mechName = "", fromDate = "", toDate = "", status = "", paymentType = "", brandRef = "", overdue = false, search = "", waFailed = false } = {},
   now = new Date()
 ) {
   const query = { clientId: toClientId(clientId) };
@@ -557,6 +562,8 @@ export function buildTyreQuery(
   if (status) query.status = String(status);
   if (paymentType === "full" || paymentType === "installment") query.paymentType = paymentType;
   if (brandRef) query["items.brandRef"] = String(brandRef);
+  // Challans whose last WhatsApp send failed.
+  if (waFailed) query["whatsapp.status"] = "failed";
   // Overdue: the earliest unpaid installment was due before today.
   if (overdue) query.nextDueDate = { $lte: new Date(startOfDayUtc(todayOf(now)).getTime() - 1) };
   return query;

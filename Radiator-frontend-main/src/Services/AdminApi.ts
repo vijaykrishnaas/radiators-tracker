@@ -104,6 +104,8 @@ export type WhatsAppAccount = {
     numberType: "new" | "existing";
     phoneNumberId: string;
     wabaId: string;
+    /** Meta app id: only needed to upload the sample PDF the document templates are approved with. */
+    appId?: string;
     displayPhone: string;
     verifiedName: string;
     hasToken: boolean;
@@ -114,7 +116,7 @@ export type WhatsAppAccount = {
 };
 export type WhatsAppUsage = { month: string; byKind: Record<string, { sent: number; failed: number }>; total: { sent: number; failed: number } | number };
 export type WhatsAppSaveBody = {
-    enabled: boolean; provider: string; numberType: "new" | "existing"; phoneNumberId: string; wabaId: string; accessToken?: string; appSecret?: string;
+    enabled: boolean; provider: string; numberType: "new" | "existing"; phoneNumberId: string; wabaId: string; appId?: string; accessToken?: string; appSecret?: string;
 };
 export const getClientWhatsApp = (id: string): Promise<{ account: WhatsAppAccount | null }> => getData(`admin/clients/${id}/whatsapp`);
 export const saveClientWhatsApp = (id: string, body: WhatsAppSaveBody): Promise<{ message?: string; account: WhatsAppAccount }> => putData(`admin/clients/${id}/whatsapp`, body);

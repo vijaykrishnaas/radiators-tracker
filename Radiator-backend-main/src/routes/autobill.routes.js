@@ -4,6 +4,7 @@ import { authenticate, loadActiveTenant } from "../middleware/auth.js";
 import { getClientById } from "../dao/client.dao.js";
 import { parsePaging } from "../utils/sanitize.js";
 import { auditClient } from "../utils/clientAudit.js";
+import { queueReceipt } from "../services/whatsapp/notify.js";
 import {
   createAutoBill,
   getAllAutoBills,
@@ -72,7 +73,7 @@ router.get("/analytics", async (req, res, next) => {
 router.get("/export", async (req, res, next) => {
   try {
     const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = req.query;
-    const autoBillData = await getAllAutoBillsForExport(req.user.clientId, { vehicleNumber, customerName, mechName: mechanicName, fromDate, toDate, status, partRef, search: String(search) }, req.query);
+    const autoBillData = await getAllAutoBillsForExport(req.user.clientId, { vehicleNumber, customerName, mechName: mechanicName, fromDate, toDate, status, partRef, search: String(search), waFailed: req.query.waFailed === "1" }, req.query);
     res.json({ success: true, autoBillData });
   } catch (error) {
     next(error);
@@ -85,7 +86,7 @@ router.get("/", async (req, res, next) => {
     const { vehicleNumber = "", customerName = "", mechanicName = "", fromDate = "", toDate = "", status = "", partRef = "", search = "" } = req.query;
 
     const data = await getAllAutoBills(req.user.clientId, page, limit, vehicleNumber, mechanicName, fromDate, toDate, status, customerName, partRef,
-      { search: String(search), sortQuery: req.query });
+      { search: String(search), sortQuery: req.query, waFailed: req.query.waFailed === "1" });
 
     res.json({
       success: true,
@@ -157,7 +158,8 @@ router.post("/:id/payment", validId, async (req, res, next) => {
     const msg = discount > 0
       ? `Recorded ₹${amount} paid + ₹${discount} discount ✅`
       : `Payment of ₹${amount} recorded ✅`;
-    res.json({ success: true, message: msg, autoBill: updated });
+    const wa = await queueReceipt(req.user.clientId, "automobile", updated, updated.lastPayment);
+    res.json({ success: true, message: msg, autoBill: updated, ...(wa.receiptId ? { whatsappReceiptId: wa.receiptId } : {}) });
   } catch (error) {
     next(error);
   }

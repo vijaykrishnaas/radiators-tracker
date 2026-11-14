@@ -25,6 +25,9 @@ import employeeRoutes from "./routes/employee.routes.js";
 import salaryRoutes from "./routes/salary.routes.js";
 import engbillRoutes from "./routes/engbill.routes.js";
 import tyrebillRoutes, { tyreMechanicRouter } from "./routes/tyrebill.routes.js";
+import whatsappRoutes from "./routes/whatsapp.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
+import { startScheduler } from "./jobs/scheduler.js";
 import { backfillSettingsShape } from "./migrations/backfillSettingsShape.js";
 
 const app = express();
@@ -61,7 +64,17 @@ app.use(
 // A company backup being restored can be far larger than any normal request; only that super-admin route gets the room.
 const jsonBody = express.json({ limit: "2mb" });
 const backupBody = express.json({ limit: "50mb" });
-app.use((req, res, next) => (/^\/admin\/clients\/[^/]+\/backup\/import$/.test(req.path) ? backupBody : jsonBody)(req, res, next));
+// Provider webhooks are signed over the exact bytes sent, so they stay raw (kept on req.rawBody) and are parsed by the route.
+const webhookBody = express.raw({ type: "*/*", limit: "2mb" });
+app.use((req, res, next) => {
+  if (/^\/webhooks\/whatsapp\//.test(req.path)) {
+    return webhookBody(req, res, (err) => {
+      if (!err) req.rawBody = req.body;
+      next(err);
+    });
+  }
+  return (/^\/admin\/clients\/[^/]+\/backup\/import$/.test(req.path) ? backupBody : jsonBody)(req, res, next);
+});
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Welcome to Radiator API 🚗🔥" });
@@ -84,6 +97,8 @@ app.use("/salary", salaryRoutes);
 app.use("/engbills", engbillRoutes);
 app.use("/tyrebills", tyrebillRoutes);
 app.use("/tyre-mechanic", tyreMechanicRouter);
+app.use("/whatsapp", whatsappRoutes);
+app.use("/webhooks", webhookRoutes);
 
 // 404 for unknown routes
 app.use((req, res) => {
@@ -123,6 +138,8 @@ app.listen(PORT, async () => {
     } catch (e) {
       console.warn("Settings-shape backfill failed (will retry next boot):", e.message);
     }
+    // Retries, receipt fallbacks and owner summaries (one API instance is assumed, see DEPLOYMENT.md).
+    if (process.env.NODE_ENV !== "test") startScheduler();
   } catch (err) {
     console.error("Startup error (DB/seed):", err.message);
   }

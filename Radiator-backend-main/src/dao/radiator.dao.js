@@ -161,8 +161,16 @@ export async function recordPayment(clientId, id, amount, discount = null) {
 
   // Payable bonus follows collections (and the net/discounted total).
   await syncBonusesForRecord(clientId, { ...existing, receivedAmount, status, discount: appliedDiscount });
-  return enrich({ ...existing, receivedAmount, status, discount: appliedDiscount });
+  return withLastPayment(enrich({ ...existing, receivedAmount, status, discount: appliedDiscount }), round2(receivedAmount - current), "");
 }
+
+// What the last payment actually applied (after capping), for the WhatsApp receipt. Not enumerable, so it never
+// reaches API responses or stored documents.
+function withLastPayment(doc, amount, mode) {
+  Object.defineProperty(doc, "lastPayment", { value: { amount, mode }, enumerable: false });
+  return doc;
+}
+
 
 // Sortable list columns: stored fields, plus the total / received / pending the list shows (worked out like enrich()).
 const RAD_TOTAL = { $sum: "$serviceInfo.price" };
@@ -195,7 +203,7 @@ function radiatorSearch(search) {
   };
 }
 
-function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = {}) {
+function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "", waFailed = false } = {}) {
   const query = { clientId: toClientId(clientId) };
   const s = radiatorSearch(search);
   if (s) Object.assign(query, s);
@@ -210,6 +218,8 @@ function buildRadiatorQuery(clientId, { truckNumber = "", mechName = "", fromDat
   if (radiatorType) query.radiatorType = radiatorType;
   // Matches bills that include at least one service line of this type.
   if (serviceType) query["serviceInfo.type"] = serviceType;
+  // Bills whose last WhatsApp send failed.
+  if (waFailed) query["whatsapp.status"] = "failed";
   return query;
 }
 
@@ -224,12 +234,12 @@ export async function getAllRadiators(
   status = "",
   radiatorType = "",
   serviceType = "",
-  { search = "", sortQuery = {} } = {}
+  { search = "", sortQuery = {}, waFailed = false } = {}
 ) {
   const db = await connectDB();
   const collection = db.collection("radiators");
   const skip = (page - 1) * limit;
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search, waFailed });
   const total = await countMatching(collection, query);
   // Latest bill date first (a back-dated bill sits under its own date, not on top); same-day bills newest entered first.
   const radiators = await findSortedPage(collection, query, parseSort(sortQuery, RAD_SORT, { billDate: -1, createdAt: -1 }), skip, limit);
@@ -241,9 +251,9 @@ export async function getAllRadiators(
   };
 }
 
-export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "" } = {}, sortQuery = {}) {
+export async function getAllRadiatorsForExport(clientId, { truckNumber = "", mechName = "", fromDate = "", toDate = "", status = "", radiatorType = "", serviceType = "", search = "", waFailed = false } = {}, sortQuery = {}) {
   const db = await connectDB();
-  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search });
+  const query = buildRadiatorQuery(clientId, { truckNumber, mechName, fromDate, toDate, status, radiatorType, serviceType, search, waFailed });
   const order = parseSort(sortQuery, RAD_SORT, { billDate: -1, createdAt: -1 });
   const radiators = order.computed
     ? await findSortedPage(db.collection("radiators"), query, order, 0, 1_000_000)
