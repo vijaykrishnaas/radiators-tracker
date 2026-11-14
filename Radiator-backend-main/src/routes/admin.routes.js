@@ -16,6 +16,7 @@ import {
   CODE_REGEX,
 } from "../dao/client.dao.js";
 import { seedSettingsForClient, peekSettings } from "../dao/settings.dao.js";
+import { backupSummary, exportBackup, importBackup } from "../dao/backup.dao.js";
 import { logAudit, listAudit } from "../dao/audit.dao.js";
 import { loginLimiter, accountLockout, recordFailure, recordSuccess } from "../middleware/rateLimit.js";
 import { parsePaging } from "../utils/sanitize.js";
@@ -223,6 +224,53 @@ router.get("/clients/:id/export", async (req, res, next) => {
     if (!client) return res.status(404).json({ success: false, message: "Client not found" });
     const data = await exportClientData(client._id);
     res.json({ success: true, ...data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Backup & restore: record counts per section, a backup file of the chosen sections, and an add-only import.
+router.get("/clients/:id/backup/summary", async (req, res, next) => {
+  try {
+    const client = await getClientById(req.params.id);
+    if (!client) return res.status(404).json({ success: false, message: "Client not found" });
+    res.json({ success: true, sections: await backupSummary(client._id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/clients/:id/backup", async (req, res, next) => {
+  try {
+    const client = await getClientById(req.params.id);
+    if (!client) return res.status(404).json({ success: false, message: "Client not found" });
+    const backup = await exportBackup(client._id, client, req.query.sections);
+    await logAudit({
+      action: "client.backup.export",
+      clientId: client._id, clientCode: client.code,
+      actorUserId: req.user.userId, actorRole: req.user.role,
+      details: { sections: backup.sections },
+    });
+    res.json({ success: true, backup });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/clients/:id/backup/import", async (req, res, next) => {
+  try {
+    const client = await getClientById(req.params.id);
+    if (!client) return res.status(404).json({ success: false, message: "Client not found" });
+    const { backup, sections } = req.body || {};
+    const results = await importBackup(client._id, client, backup, sections);
+    await logAudit({
+      action: "client.backup.import",
+      clientId: client._id, clientCode: client.code,
+      actorUserId: req.user.userId, actorRole: req.user.role,
+      details: { from: backup?.company?.code || "", sections: Object.keys(results), results },
+    });
+    const added = Object.values(results).reduce((n, r) => n + r.added, 0);
+    res.json({ success: true, message: `${added} record${added === 1 ? "" : "s"} added ✅`, results });
   } catch (error) {
     next(error);
   }

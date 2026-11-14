@@ -21,6 +21,7 @@ import {
     type BusinessType,
 } from "../../../Services/AdminApi";
 import ClientSettingsModal from "./ClientSettingsModal";
+import BackupModal from "./BackupModal";
 
 const slugify = (s: string) =>
     s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -82,6 +83,7 @@ const Clients: React.FC = () => {
 
     // View-settings modal + table search/filter
     const [viewSettingsTarget, setViewSettingsTarget] = useState<ClientRow | null>(null);
+    const [backupTarget, setBackupTarget] = useState<ClientRow | null>(null);
     const [search, setSearch] = useState("");
     const [clearKey, setClearKey] = useState(0);
     const [statusFilter, setStatusFilter] = useState("");
@@ -324,7 +326,8 @@ const Clients: React.FC = () => {
             { label: "Open Login Page", icon: <Icons iconName="external-link" />, onClick: () => window.open(`/t/${c.code}/login`, "_blank", "noopener") },
             { label: "Edit", icon: <Icons iconName="edit" />, onClick: () => openEdit(c) },
             { label: "Reset Password", icon: <Icons iconName="key" />, onClick: () => { setResetTarget(c); setResetPwd(""); } },
-            { label: "Export Data", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
+            { label: "Excel Report", icon: <Icons iconName="entrolment_download" />, onClick: () => downloadExport(c) },
+            { label: "Backup & Restore", icon: <Icons iconName="history" />, onClick: () => setBackupTarget(c) },
             { label: c.status === "active" ? "Suspend" : "Reactivate", icon: <Icons iconName={c.status === "active" ? "pause" : "play"} />, onClick: () => toggleStatus(c) },
             { label: "Delete", icon: <Icons iconName="delete" />, danger: true, onClick: () => { setDeleteTarget(c); setDeleteConfirmCode(""); setExported(false); } },
         ]} />
@@ -512,6 +515,8 @@ const Clients: React.FC = () => {
                     <input id="reset-pwd" className="form-control" type="text" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="min 6 characters" />
                 </Field>
             </Modal>
+
+            {backupTarget && <BackupModal client={backupTarget} onClose={() => setBackupTarget(null)} />}
 
             {viewSettingsTarget && (
                 <ClientSettingsModal

@@ -58,7 +58,10 @@ app.use(
       : undefined
   )
 );
-app.use(express.json({ limit: "2mb" }));
+// A company backup being restored can be far larger than any normal request; only that super-admin route gets the room.
+const jsonBody = express.json({ limit: "2mb" });
+const backupBody = express.json({ limit: "50mb" });
+app.use((req, res, next) => (/^\/admin\/clients\/[^/]+\/backup\/import$/.test(req.path) ? backupBody : jsonBody)(req, res, next));
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Welcome to Radiator API 🚗🔥" });
