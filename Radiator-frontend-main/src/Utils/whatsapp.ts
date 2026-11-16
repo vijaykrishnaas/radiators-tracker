@@ -44,6 +44,9 @@ export const buildBillPdf = async (vertical: WaVertical, bill: any, settings: Ap
     return pdf;
 };
 
+// Bills whose send is still on its way, shared by every screen, so a second click can't send the same bill twice.
+const sending = new Set<string>();
+
 export function useWhatsAppSend() {
     const { settings } = useSettings();
     const { callAlertMsg } = useAlertMsg();
@@ -52,6 +55,9 @@ export function useWhatsAppSend() {
     /** Sends the bill PDF. Resolves true when the server accepted it; failures are toasted, never thrown. */
     const sendBill = useCallback(async (vertical: WaVertical, bill: any, opts: { updated?: boolean } = {}): Promise<boolean> => {
         if (!waPhoneOk(billPhone(bill))) { callAlertMsg("No valid phone on this bill", "error"); return false; }
+        const key = `${vertical}:${bill._id}`;
+        if (sending.has(key)) { callAlertMsg("This bill is already being sent", "info"); return false; }
+        sending.add(key);
         try {
             const pdf = await buildBillPdf(vertical, bill, settings);
             const res = await sendBillOnWhatsApp(vertical, bill._id, pdf, opts.updated);
@@ -59,11 +65,15 @@ export function useWhatsAppSend() {
                 callAlertMsg(res.whatsapp?.error || res.message || "WhatsApp message failed", "error");
                 return false;
             }
-            callAlertMsg("Sent to WhatsApp", "success");
+            // "pending": WhatsApp didn't answer, and the server retries on its own.
+            if (res.whatsapp?.status === "pending") callAlertMsg("WhatsApp is slow right now. The bill will be sent shortly.", "info");
+            else callAlertMsg("Sent to WhatsApp", "success");
             return true;
         } catch (e: any) {
             callAlertMsg(e?.message || "Could not send on WhatsApp", "error");
             return false;
+        } finally {
+            sending.delete(key);
         }
     }, [settings, callAlertMsg]);
 

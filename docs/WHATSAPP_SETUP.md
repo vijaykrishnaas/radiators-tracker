@@ -64,6 +64,7 @@ For any query please call <Company phone 1>."
 ## 5. Day to day
 - The bill's view shows the WhatsApp status (Sent / Delivered / Read / Failed with the reason) and **Resend**.
 - Bill lists have a **WhatsApp failed** filter. Network or Meta outages are retried automatically (after 30 s, 2 min and 10 min).
+- A company can send at most 30 WhatsApp messages a minute from the app; beyond that it is asked to wait a minute.
 - An edited bill that was already sent shows "Already sent on <date>"; tick *Send on WhatsApp* to send the updated bill.
 
 ## Troubleshooting
@@ -73,4 +74,5 @@ For any query please call <Company phone 1>."
 | "No valid WhatsApp number" | The bill's phone must be a 10-digit Indian mobile number. |
 | Bill template shows "Add the App ID…" | Enter the App ID (step 2.5) in the WhatsApp dialog, save, then *Create / sync templates* again. |
 | Enabling fails with an auth error | Token expired or missing permissions: generate a new permanent system-user token (step 2.4). |
+| Old challans can't be sent ("No valid WhatsApp number") | Run `npm run check:tyre-phones` on the server for a list of challans whose phone needs correcting. |
 | Statuses stay "Sent" | Webhook not set or not subscribed to *messages* (step 2.6). |

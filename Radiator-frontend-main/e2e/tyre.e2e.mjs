@@ -863,6 +863,28 @@ ok("tyre: dashboard 'To collect' breakdown adds up when a challan has a discount
   await until(page, () => wa.length);
   ok("tyre wa: 'Resend on WhatsApp' posts the PDF", wa.length === 1 && wa[0].path === `/whatsapp/send/bill/tyre/${idFailed}` && wa[0].pdf, JSON.stringify(wa));
 
+  // The same challan chosen again while its send is still in flight goes out once.
+  wa.length = 0;
+  wa.reply = async () => { await new Promise((r) => setTimeout(r, 1200)); return null; };
+  await menuOf("TN77WA0002");
+  await page.getByRole("menuitem", { name: "Resend on WhatsApp" }).click();
+  await until(page, () => wa.length);
+  await menuOf("TN77WA0002");
+  await page.getByRole("menuitem", { name: "Resend on WhatsApp" }).click();
+  await page.waitForTimeout(1800);
+  ok("tyre wa: choosing Resend again while the first is still sending posts once", wa.length === 1, `posts=${wa.length}`);
+  // A send the server queued for a retry isn't announced as sent.
+  wa.length = 0;
+  wa.reply = () => ({ body: { success: true, message: "Sending… will retry shortly", whatsapp: { status: "pending", at: new Date().toISOString() } } });
+  await page.locator(".toast-region button[aria-label='Dismiss notification']").evaluateAll((bs) => bs.forEach((b) => b.click()));
+  await menuOf("TN77WA0002");
+  await page.getByRole("menuitem", { name: "Resend on WhatsApp" }).click();
+  await until(page, () => wa.length);
+  await page.waitForTimeout(400);
+  const toastText = await page.locator(".toast-region").innerText();
+  ok("tyre wa: a queued send says it will be sent shortly, not 'Sent'", /will be sent shortly/i.test(toastText) && !/Sent to WhatsApp/.test(toastText), toastText.replace(/\n/g, " | "));
+  wa.reply = null;
+
   // Failed filter, in the list and in the export.
   await page.locator("#f-wa-failed").check();
   await page.waitForTimeout(600);

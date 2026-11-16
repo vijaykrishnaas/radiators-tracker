@@ -1,4 +1,5 @@
 // Shared by the tyre / automobile suites: records every /whatsapp/* request (with its raw body) and answers it.
+// Set `wa.reply` on the returned list to change the answer mid-test (it may be async, to keep a send in flight).
 // Register it AFTER the page's catch-all route (Playwright tries the latest route first).
 export async function mockWhatsApp(page, { reply } = {}) {
   const wa = [];
@@ -8,7 +9,7 @@ export async function mockWhatsApp(page, { reply } = {}) {
     const buf = req.postDataBuffer();
     const entry = { method: req.method(), path: u.pathname, query: Object.fromEntries(u.searchParams), pdf: !!buf && buf.includes("%PDF"), type: req.headers()["content-type"] || "" };
     wa.push(entry);
-    const r = reply?.(entry);
+    const r = await (wa.reply || reply)?.(entry);
     await route.fulfill({ status: r?.status || 200, contentType: "application/json", body: JSON.stringify(r?.body || { success: true, message: "Sent", whatsapp: { status: "sent", at: new Date().toISOString() } }) });
   });
   return wa;
