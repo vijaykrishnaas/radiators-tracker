@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
+import { whatsappSendLimiter } from "../middleware/rateLimit.js";
 import { auditClient } from "../utils/clientAudit.js";
 import { getAccount, isWhatsAppEnabled, messagesForRef } from "../dao/whatsapp.dao.js";
 import { templateStatuses } from "../services/whatsapp/templates.js";
@@ -49,7 +50,7 @@ router.get("/status", async (req, res, next) => {
   }
 });
 
-router.post("/test", async (req, res, next) => {
+router.post("/test", whatsappSendLimiter, async (req, res, next) => {
   try {
     const r = await sendTest(req.user.clientId);
     await auditClient(req, "whatsapp.send", { kind: "test", vertical: "", refId: "", status: r.status });
@@ -60,7 +61,7 @@ router.post("/test", async (req, res, next) => {
   }
 });
 
-router.post("/send/bill/:vertical/:id", uploadPdf, async (req, res, next) => {
+router.post("/send/bill/:vertical/:id", whatsappSendLimiter, uploadPdf, async (req, res, next) => {
   try {
     const { vertical, id } = req.params;
     const updated = req.query.updated === "1" || req.query.updated === "true";
@@ -77,7 +78,7 @@ router.post("/send/bill/:vertical/:id", uploadPdf, async (req, res, next) => {
   }
 });
 
-router.post("/receipts/:receiptId/pdf", uploadPdf, async (req, res, next) => {
+router.post("/receipts/:receiptId/pdf", whatsappSendLimiter, uploadPdf, async (req, res, next) => {
   try {
     const w = await attachReceiptPdf(req.user.clientId, req.params.receiptId, req.file.buffer);
     await auditClient(req, "whatsapp.send", { kind: "receipt", vertical: "", refId: req.params.receiptId, status: w.status });

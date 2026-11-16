@@ -49,6 +49,7 @@ function matches(doc, query) {
     if (val instanceof ObjectId || docVal instanceof ObjectId) {
       return String(docVal) === String(val);
     }
+    if (val === null) return docVal === null || docVal === undefined; // like MongoDB: null also matches a missing field
     return docVal === val;
   });
 }

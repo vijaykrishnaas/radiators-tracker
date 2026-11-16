@@ -316,6 +316,58 @@ test("webhook statuses move the log and the bill's summary forward, never backwa
   assert.deepEqual([stored.whatsapp.status, stored.whatsapp.error], ["failed", "Message undeliverable"]);
 });
 
+test("a delivery failure is final: a late 'sent' or 'delivered' status can't hide it", async () => {
+  await setup();
+  const bill = await createTyreBill(CLIENT, tyreInput());
+  await notify.sendBill(CLIENT, "tyre", bill._id, PDF);
+  const id = log()[0].providerMessageId;
+  await notify.applyStatuses([{ id, status: "failed", errorText: "Message undeliverable" }], CLIENT);
+  await notify.applyStatuses([{ id, status: "sent" }, { id, status: "delivered" }], CLIENT); // arrived out of order
+  assert.deepEqual([log()[0].status, log()[0].error], ["failed", "Message undeliverable"]);
+  assert.equal((await fakeDb.collection("tyrebills").findOne({ _id: bill._id })).whatsapp.status, "failed");
+});
+
+test("receipt PDF uploaded twice at the same moment sends one receipt; the other upload is refused", async () => {
+  await setup({ wa: { receiptPdf: true, ownerSummary: false } });
+  const bill = await createTyreBill(CLIENT, tyreInput());
+  const paid = await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: bill.installments[0].id });
+  const q = await notify.queueReceipt(CLIENT, "tyre", paid, paid.lastPayment);
+  const results = await Promise.allSettled([notify.attachReceiptPdf(CLIENT, q.receiptId, PDF), notify.attachReceiptPdf(CLIENT, q.receiptId, PDF)]);
+  assert.equal(sentMessages().length, 1, "one receipt on WhatsApp");
+  assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected"]);
+  assert.equal(results.find((r) => r.status === "rejected").reason.statusCode, 409);
+});
+
+test("receipt PDF arriving while the text fallback runs: the customer still gets one receipt", async () => {
+  await setup({ wa: { receiptPdf: true, ownerSummary: false } });
+  const bill = await createTyreBill(CLIENT, tyreInput());
+  const paid = await recordTyrePayment(CLIENT, bill._id, { amount: 28500, installmentId: bill.installments[0].id });
+  const q = await notify.queueReceipt(CLIENT, "tyre", paid, paid.lastPayment);
+  await Promise.allSettled([tick(new Date(log()[0].at.getTime() + 3 * 60_000)), notify.attachReceiptPdf(CLIENT, q.receiptId, PDF)]);
+  assert.equal(sentMessages().length, 1);
+});
+
+test("a send interrupted by a restart is picked up again after 5 minutes instead of staying pending forever", async () => {
+  await setup({ wa: { ownerSummary: false } });
+  const at = new Date("2026-11-14T10:00:00Z");
+  await dao.logMessage({ clientId: CLIENT, kind: "receipt", refType: "tyre", refId: String(new ObjectId()), template: "payment_receipt", to: "919876543210", status: "pending", at,
+    payload: { amount: 100, mode: "Cash", ref: "Challan 1", balance: 0, extra: "-", company: "Sri Murugan Tyres" } });
+  await tick(new Date(at.getTime() + 4 * 60_000));
+  assert.equal(sentMessages().length, 0, "a send that may still be running is left alone");
+  await tick(new Date(at.getTime() + 6 * 60_000));
+  assert.equal(sentMessages().length, 1);
+  assert.equal(log()[0].status, "sent");
+});
+
+test("a message that fails for good no longer keeps its PDF in the database", async () => {
+  await setup({ wa: { ownerSummary: false } });
+  const bill = await createTyreBill(CLIENT, tyreInput());
+  graph.handler = (call, defaults) => (call.url.endsWith("/messages") ? { status: 400, body: { error: { message: "Rejected" } } } : defaults(call));
+  await notify.sendBill(CLIENT, "tyre", bill._id, PDF);
+  assert.equal(log()[0].status, "failed");
+  assert.equal(log()[0].pdfB64, null);
+});
+
 test("auto-reply: one text per sender per IST day, naming the company and its phone", async () => {
   await setup();
   const account = await dao.getAccount(CLIENT);

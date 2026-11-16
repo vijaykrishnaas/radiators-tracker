@@ -9,6 +9,16 @@ export const loginLimiter = rateLimit({
   message: { success: false, message: "Too many attempts. Please try again later." },
 });
 
+// Per-company cap on WhatsApp sends (every message costs the shop money). Runs after authenticate, so the key is the company.
+export const whatsappSendLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `wa:${req.user?.clientId || "none"}`,
+  message: { success: false, message: "Too many WhatsApp messages. Please wait a minute." },
+});
+
 // Per-account lockout: after several consecutive failures for the same
 // (code,userId) — or (userId) for the super-admin — block that account briefly.
 // In-memory store is fine for a single-instance deployment; swap for Redis if scaled.

@@ -22,21 +22,33 @@ router.post("/whatsapp/:provider", async (req, res, next) => {
     let json;
     try { json = JSON.parse(raw.toString("utf8") || "{}"); } catch { return res.sendStatus(400); }
 
-    // Which company this is for comes from the number it was sent to; unknown numbers are ignored.
-    const [phoneNumberId] = phoneNumberIds(json);
-    const account = await getAccountByPhoneNumberId(phoneNumberId);
-    if (!account) return res.sendStatus(200);
-
-    let ctx;
-    try { ctx = accountContext(account); } catch { return res.sendStatus(200); }
-    if (!provider.verifyWebhook(ctx, raw, req.get("X-Hub-Signature-256"))) return res.sendStatus(401);
+    // Which company each part is for comes from the number it was sent to; unknown numbers are ignored. One delivery
+    // can cover several numbers of the same Meta app, so each number is checked with its own company's app secret
+    // and only changes that company's messages.
+    const signature = req.get("X-Hub-Signature-256");
+    const verified = [];
+    let known = 0;
+    for (const phoneNumberId of phoneNumberIds(json)) {
+      const account = await getAccountByPhoneNumberId(phoneNumberId);
+      if (!account) continue;
+      known++;
+      let ctx;
+      try { ctx = accountContext(account); } catch { continue; }
+      if (provider.verifyWebhook(ctx, raw, signature)) verified.push({ phoneNumberId, account });
+    }
+    if (!known) return res.sendStatus(200);
+    if (!verified.length) return res.sendStatus(401);
 
     const { statuses, inbound } = provider.parseWebhook(json);
-    await applyStatuses(statuses, account.clientId);
+    for (const { phoneNumberId, account } of verified) {
+      await applyStatuses(statuses.filter((s) => s.phoneNumberId === phoneNumberId), account.clientId);
+    }
     res.sendStatus(200);
     // Replies go out after the provider has its answer.
-    for (const from of new Set(inbound.map((i) => i.from))) {
-      autoReply(account, from).catch((e) => console.error("WhatsApp auto-reply failed:", e.message));
+    for (const { phoneNumberId, account } of verified) {
+      for (const from of new Set(inbound.filter((i) => i.phoneNumberId === phoneNumberId).map((i) => i.from))) {
+        autoReply(account, from).catch((e) => console.error("WhatsApp auto-reply failed:", e.message));
+      }
     }
   } catch (error) {
     next(error);

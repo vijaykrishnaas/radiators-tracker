@@ -467,3 +467,41 @@ test("webhook: a customer's message gets one auto-reply per day, even when the s
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(graph.messages().length, 2);
 });
+
+test("webhook: one delivery covering two numbers of the same Meta app updates both companies", async () => {
+  await fresh();
+  const OTHER = new ObjectId();
+  await fakeDb.collection("settings").insertOne({ _id: OTHER, businessType: "tyre", company: { name: "Second Shop", phone1: "9000000002" }, whatsapp: {} });
+  await dao.saveAccount(OTHER, { enabled: true, provider: "meta", numberType: "new", phoneNumberId: "3333333333", wabaId: "2222222222", accessToken: "EAAB-other-token", appSecret: "app-secret", templates: ALL });
+  await dao.logMessage({ clientId: CLIENT, kind: "bill", refType: "x", refId: "a", to: "919876543210", status: "sent", providerMessageId: "wamid.A" });
+  await dao.logMessage({ clientId: OTHER, kind: "bill", refType: "x", refId: "b", to: "919876543211", status: "sent", providerMessageId: "wamid.B" });
+  const change = (num, id) => ({ value: { metadata: { phone_number_id: num }, statuses: [{ id, status: "delivered", timestamp: "1760000000" }] } });
+  // each number only moves its own company's messages, even when the payload names the other's message id
+  const r = await hook({ entry: [{ changes: [change("1111111111", "wamid.A"), change("3333333333", "wamid.B"), change("3333333333", "wamid.A")] }] });
+  assert.equal(r.status, 200);
+  assert.deepEqual(fakeDb.collection("whatsapp_messages").docs.map((m) => m.status), ["delivered", "delivered"]);
+  // a number whose company has a different app secret is skipped; the rest still apply
+  await dao.saveAccount(OTHER, { appSecret: "another-secret" });
+  const read = (num, id) => ({ value: { metadata: { phone_number_id: num }, statuses: [{ id, status: "read", timestamp: "1760000001" }] } });
+  await hook({ entry: [{ changes: [read("1111111111", "wamid.A"), read("3333333333", "wamid.B")] }] });
+  assert.deepEqual(fakeDb.collection("whatsapp_messages").docs.map((m) => m.status), ["read", "delivered"]);
+});
+
+// Keep this test last: it uses up the company's send allowance for the minute.
+test("send limit: more than 30 sends a minute from one company are refused with 429; reading status is not limited", async () => {
+  await fresh();
+  const codes = [];
+  for (let i = 0; i < 45; i++) codes.push((await api("POST", "/whatsapp/test", { token: userToken })).status);
+  assert.ok(codes.filter((c) => c === 200).length <= 30, `sent ${codes.filter((c) => c === 200).length}`);
+  assert.equal(codes.at(-1), 429);
+  const last = await api("POST", "/whatsapp/test", { token: userToken });
+  assert.equal(last.json.message, "Too many WhatsApp messages. Please wait a minute.");
+  assert.equal((await api("GET", "/whatsapp/status", { token: userToken })).status, 200);
+  // another company is not affected
+  const OTHER = new ObjectId();
+  await fakeDb.collection("clients").insertOne({ _id: OTHER, name: "Second", code: "two", status: "active", businessType: "tyre" });
+  await fakeDb.collection("settings").insertOne({ _id: OTHER, businessType: "tyre", company: { name: "Second" }, whatsapp: { ownerPhone: "9876500001" } });
+  await dao.saveAccount(OTHER, { enabled: true, provider: "meta", phoneNumberId: "3333333333", wabaId: "2", accessToken: "EAAB-x", appSecret: "s", templates: ALL });
+  const otherToken = jwt.sign({ sub: "u2", userId: "admin", role: "admin", clientId: String(OTHER), code: "two" }, process.env.JWT_SECRET);
+  assert.equal((await api("POST", "/whatsapp/test", { token: otherToken })).status, 200);
+});

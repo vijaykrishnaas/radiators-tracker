@@ -30,6 +30,10 @@ export async function ensureIndexes() {
   await db.collection("whatsapp_messages").createIndex({ clientId: 1, refId: 1 }, { name: "clientId_1_refId_1" });
   await db.collection("whatsapp_messages").createIndex({ providerMessageId: 1 }, { name: "providerMessageId_1" });
   await db.collection("whatsapp_messages").createIndex({ status: 1, nextAttemptAt: 1 }, { name: "status_1_nextAttemptAt_1" });
+  await db.collection("whatsapp_messages").createIndex({ status: 1, at: 1 }, { name: "status_1_at_1" }); // awaiting-PDF and interrupted scans
+  await db.collection("whatsapp_messages").createIndex({ clientId: 1, at: 1 }, { name: "clientId_1_at_1" }); // monthly usage
+  await db.collection("whatsapp_messages").createIndex({ clientId: 1, receiptKey: 1 }, { name: "clientId_1_receiptKey_1", sparse: true });
+  await db.collection("whatsapp_messages").createIndex({ clientId: 1, kind: 1, to: 1, at: 1 }, { name: "clientId_1_kind_1_to_1_at_1" }); // one auto-reply a day
 
   // Audit log (Stage 2) — harmless to ensure early.
   await db.collection("audit_log").createIndex({ at: -1 }, { name: "at_-1" });

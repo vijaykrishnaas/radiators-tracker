@@ -4,7 +4,7 @@ import { getSettings } from "../../dao/settings.dao.js";
 import { toClientId } from "../../utils/tenant.js";
 import { toWaNumber } from "../../utils/waPhone.js";
 import {
-  BILL_COLLECTIONS, getAccount, accountContext, isWhatsAppEnabled, logMessage, updateMessage, getMessage, findMessage,
+  BILL_COLLECTIONS, getAccount, accountContext, isWhatsAppEnabled, logMessage, updateMessage, getMessage, findMessage, claimMessage,
   findByProviderId, setBillWhatsapp,
 } from "../../dao/whatsapp.dao.js";
 import { getProvider } from "./providers/index.js";
@@ -86,6 +86,7 @@ async function attempt(account, m) {
       nextAttemptAt: retryable ? new Date(now.getTime() + RETRY_DELAYS_MS[attempts - 1]) : null,
       statusAt: now,
     };
+    if (!retryable) set.pdfB64 = null; // nothing will send it again; Resend builds a new PDF
     await updateMessage(m._id, set);
     const done = { ...m, ...set };
     await syncBill(done);
@@ -228,9 +229,10 @@ export async function attachReceiptPdf(clientId, receiptId, pdfBuffer) {
   if (m.status !== "awaiting_pdf") throw httpError("This receipt is no longer waiting for a PDF", 409);
   const account = await enabledAccount(clientId);
   if (!account) throw httpError("WhatsApp is not enabled for this company", 403);
-  const set = { status: "pending", pdfB64: pdfBuffer.length <= MAX_PDF_BYTES ? pdfBuffer.toString("base64") : null };
-  await updateMessage(m._id, set);
-  return attempt(account, { ...m, ...set });
+  // Taken in one step, so a second upload or the scheduler's text fallback can't send the same receipt too.
+  const claimed = await claimMessage(m._id, "awaiting_pdf", { status: "pending", pdfB64: pdfBuffer.length <= MAX_PDF_BYTES ? pdfBuffer.toString("base64") : null });
+  if (!claimed) throw httpError("This receipt is no longer waiting for a PDF", 409);
+  return attempt(account, claimed);
 }
 
 // No PDF came in time: send the text-only receipt instead.
@@ -246,9 +248,8 @@ export async function fallbackReceiptToText(m) {
     await syncBill({ ...m, ...set });
     return;
   }
-  const set = { status: "pending", template: "payment_receipt", pdfB64: null };
-  await updateMessage(m._id, set);
-  await attempt(account, { ...m, ...set });
+  const claimed = await claimMessage(m._id, "awaiting_pdf", { status: "pending", template: "payment_receipt", pdfB64: null });
+  if (claimed) await attempt(account, claimed); // otherwise the browser's PDF arrived just now and is sending it
 }
 
 // Retry of a message the queue holds (scheduler).
@@ -325,7 +326,8 @@ export async function applyStatuses(statuses, clientId) {
     if (!m) continue;
     let set;
     if (s.status === "failed") set = { status: "failed", error: s.errorText || "Delivery failed", statusAt: s.timestamp || new Date() };
-    else if (s.status in RANK && (RANK[s.status] > (RANK[m.status] ?? 0) || m.status === "failed")) set = { status: s.status, error: "", statusAt: s.timestamp || new Date() };
+    else if (m.status === "failed") continue; // a failure is final: a late "sent" must not hide it
+    else if (s.status in RANK && RANK[s.status] > (RANK[m.status] ?? 0)) set = { status: s.status, error: "", statusAt: s.timestamp || new Date() };
     if (!set) continue;
     await updateMessage(m._id, set);
     await syncBill({ ...m, ...set });

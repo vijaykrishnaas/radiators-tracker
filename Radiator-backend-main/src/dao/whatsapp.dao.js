@@ -119,6 +119,15 @@ export async function updateMessage(id, set) {
   await db.collection(MESSAGES).updateOne({ _id: new ObjectId(String(id)) }, { $set: set });
 }
 
+// Moves a message from one status to another in a single step. Returns the updated message, or null when it was no
+// longer in `fromStatus` (someone else took it), so two callers can never both send the same message.
+export async function claimMessage(id, fromStatus, set) {
+  if (!ObjectId.isValid(String(id))) return null;
+  const db = await connectDB();
+  const r = await db.collection(MESSAGES).findOneAndUpdate({ _id: new ObjectId(String(id)), status: fromStatus }, { $set: set }, { returnDocument: "after" });
+  return r && r._id ? r : null;
+}
+
 export async function getMessage(id) {
   if (!ObjectId.isValid(String(id))) return null;
   const db = await connectDB();
@@ -142,9 +151,16 @@ export async function messagesForRef(clientId, refId, limit = 50) {
   return db.collection(MESSAGES).find({ clientId: toClientId(clientId), refId: String(refId) }).sort({ at: -1, _id: -1 }).limit(limit).toArray();
 }
 
+// A first attempt sets no nextAttemptAt; one still pending after this long was cut off (a restart) and is tried again.
+const INTERRUPTED_AFTER_MS = 5 * 60_000;
+
 export async function dueRetries(now = new Date(), limit = 50) {
   const db = await connectDB();
-  return db.collection(MESSAGES).find({ status: "pending", nextAttemptAt: { $lte: now } }).sort({ nextAttemptAt: 1 }).limit(limit).toArray();
+  const interruptedBefore = new Date(now.getTime() - INTERRUPTED_AFTER_MS);
+  return db.collection(MESSAGES).find({
+    status: "pending",
+    $or: [{ nextAttemptAt: { $lte: now } }, { nextAttemptAt: null, at: { $lte: interruptedBefore } }],
+  }).sort({ at: 1 }).limit(limit).toArray();
 }
 
 export async function staleAwaitingPdf(cutoff, limit = 50) {
@@ -175,17 +191,22 @@ export function istMonthOf(date = new Date()) {
   return new Date(date.getTime() + IST_MS).toISOString().slice(0, 7);
 }
 
-// Messages per kind in the IST month: sent counts sent | delivered | read.
+// Messages per kind in the IST month: sent counts sent | delivered | read. Counted in the database.
 export async function usage(clientId, month = istMonthOf()) {
   const db = await connectDB();
   const { from, to } = istMonthRange(month);
-  const rows = await db.collection(MESSAGES).find({ clientId: toClientId(clientId), at: { $gte: from, $lte: new Date(to.getTime() - 1) } }).toArray();
+  const rows = await db.collection(MESSAGES).aggregate([
+    { $match: { clientId: toClientId(clientId), at: { $gte: from, $lt: to } } },
+    { $group: { _id: { kind: "$kind", status: "$status" }, n: { $sum: 1 } } },
+  ]).toArray();
   const byKind = {};
   let total = 0;
-  for (const m of rows) {
-    const k = (byKind[m.kind] ||= { sent: 0, failed: 0 });
-    if (["sent", "delivered", "read"].includes(m.status)) { k.sent++; total++; }
-    else if (m.status === "failed") k.failed++;
+  for (const r of rows) {
+    const { kind, status } = r._id;
+    const sent = ["sent", "delivered", "read"].includes(status);
+    if (!sent && status !== "failed") continue;
+    const k = (byKind[kind] ||= { sent: 0, failed: 0 });
+    if (sent) { k.sent += r.n; total += r.n; } else k.failed += r.n;
   }
   return { month, byKind, total };
 }
