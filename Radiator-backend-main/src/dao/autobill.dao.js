@@ -103,6 +103,7 @@ function buildRecordFields(data) {
         particulars: i.particulars || "",
         partRef: i.partRef || null,
         qty,
+        unit: String(i.unit ?? "").trim().slice(0, 20),
         rate,
         amount,
         ...(i.memo != null ? { memo: toMemoIndex(i.memo) } : {}),

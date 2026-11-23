@@ -205,6 +205,8 @@ export const defaultSettings = {
       showQr: false,
       showSignature: false,
       gstNo: "", // printed under the company address
+      ownerName: "", // printed as "Prop: <name>" under the company name when showOwner is on
+      showOwner: false,
       titleSize: "medium", // company-name size on the bill: small | medium | large
     },
   },

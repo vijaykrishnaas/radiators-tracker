@@ -21,6 +21,7 @@ type ItemRow = {
     particulars: string;
     partRef: string | null;
     qty: number | string;
+    unit: string;
     rate: number | string;
     amount: number | string;
     amountTouched: boolean; // once the user hand-edits amount, qty/rate changes stop overwriting it
@@ -41,7 +42,7 @@ type FormValues = {
     };
 };
 
-const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", rate: "", amount: "", amountTouched: false, memo: 0 };
+const emptyItem: ItemRow = { particulars: "", partRef: null, qty: "", unit: "", rate: "", amount: "", amountTouched: false, memo: 0 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 // The server stores memo indexes 0–49 (shown as Memo 1–50).
@@ -67,6 +68,7 @@ const CreateAutoBill = () => {
     const [savedQty, setSavedQty] = useState<Record<string, number>>({});
 
     const parts = settings.automobile.parts || [];
+    const units = (settings.automobile.units || []).filter(Boolean);
     const labels = settings.automobile.labels;
     const labourOptions = (settings.labour || []).map((name) => ({ label: name, value: name.toLowerCase() }));
 
@@ -130,6 +132,7 @@ const CreateAutoBill = () => {
                 particulars: i.particulars || "",
                 partRef: i.partRef || null,
                 qty: i.qty ?? "",
+                unit: i.unit || "",
                 rate: i.rate ?? "",
                 amount: i.amount ?? "",
                 // A stored amount that differs from qty × rate was typed by hand: keep it. Otherwise let qty/rate edits recompute it.
@@ -175,6 +178,7 @@ const CreateAutoBill = () => {
         const part = parts.find((p) => p.label.toLowerCase() === text.trim().toLowerCase());
         setValue(`autoBill.items.${index}.partRef`, part ? part.value : null);
         if (!part) return;
+        if (part.unit) setValue(`autoBill.items.${index}.unit`, part.unit);
         fill(`autoBill.items.${index}.rate`, part.rate ?? "");
         setValue(`autoBill.items.${index}.amountTouched`, false);
         const qty = items[index]?.qty || 1;
@@ -264,6 +268,7 @@ const CreateAutoBill = () => {
                     particulars: i.particulars,
                     partRef: i.partRef,
                     qty: Number(i.qty || 0),
+                    unit: i.unit || "",
                     rate: Number(i.rate || 0),
                     amount: Number(i.amount || 0),
                 })),
@@ -418,7 +423,7 @@ const CreateAutoBill = () => {
 
                                         {rows.length > 0 && (
                                             <div className="memo-cols" aria-hidden="true">
-                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span className="num">Rate</span><span className="num">Amount</span><span />
+                                                <span>S.No</span><span>Particulars</span><span className="num">Qty</span><span>Unit</span><span className="num">Rate</span><span className="num">Amount</span><span />
                                             </div>
                                         )}
                                         {rows.length > 0 ? (
@@ -471,6 +476,21 @@ const CreateAutoBill = () => {
                                                                             aria-invalid={!!G?.qty || undefined}
                                                                             onChange={(e) => { field.onChange(e); onQtyChange(index, e.target.value); }}
                                                                         />
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="memo-unit">
+                                                                <span className="memo-mlabel" aria-hidden="true">Unit</span>
+                                                                <Controller
+                                                                    name={`autoBill.items.${index}.unit`}
+                                                                    control={control}
+                                                                    render={({ field }) => (
+                                                                        <select {...field} value={field.value || ""} id={`unit-${index}`} className="form-select"
+                                                                            aria-label={`Unit for ${name}`} disabled={isView}>
+                                                                            <option value="">—</option>
+                                                                            {/* A unit no longer in Settings (renamed or removed) still shows on an older bill. */}
+                                                                            {[...units, ...(field.value && !units.includes(field.value) ? [field.value] : [])].map((u) => <option key={u} value={u}>{u}</option>)}
+                                                                        </select>
                                                                     )}
                                                                 />
                                                             </div>

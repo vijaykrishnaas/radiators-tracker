@@ -1,7 +1,7 @@
 // Automobile browser checks: real app on the Vite dev server, API mocked with page.route.
 // Run: (in Radiator-frontend-main) `npx vite --port 5173 &` then `node e2e/automobile.e2e.mjs`
 import { execSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -22,7 +22,7 @@ settings.businessType = "automobile";
 settings.company.name = "Auto Test";
 settings.mechanics = ["Ramesh"];
 settings.labour = ["Kumar"];
-settings.automobile.parts = [{ label: "Oil Filter", value: "oil-filter", rate: 320 }, { label: "Brake Shoe", value: "brake-shoe", rate: 900 }];
+settings.automobile.parts = [{ label: "Oil Filter", value: "oil-filter", unit: "pcs", rate: 320 }, { label: "Brake Shoe", value: "brake-shoe", rate: 900 }];
 
 // Inventory: Oil Filter has been oversold (short by 2), Brake Shoe has 5 left.
 const invRows = [
@@ -60,6 +60,7 @@ const payments = [];
 let created = null;
 let updated = null;
 const settingsPuts = [];
+const renames = [];
 
 await page.route("http://localhost:5000/**", async (route) => {
   const req = route.request();
@@ -67,6 +68,10 @@ await page.route("http://localhost:5000/**", async (route) => {
   const json = (b) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(b) });
   if (p === "/settings" && req.method() === "PUT") { settingsPuts.push(req.postDataJSON()); return json({ success: true, message: "Settings saved" }); }
   if (p === "/settings") return json({ settings });
+  if (p === "/settings/names") return json({ success: true, kinds: [{ kind: "part", label: "Part" }, { kind: "unit", label: "Unit" }, { kind: "mechanic", label: "Mechanic" }] });
+  if (p === "/settings/names/part") return json({ success: true, names: [{ name: "Engin oil", bills: 3 }, { name: "Oil Filter", bills: 1 }] });
+  if (p.startsWith("/settings/names/") && req.method() === "GET") return json({ success: true, names: [] });
+  if (p === "/settings/names/rename") { renames.push(req.postDataJSON()); return json({ success: true, bills: 3, message: "Renamed on 3 bills ✅" }); }
   if (p === "/auto-mechanic") return json({ success: true, mechdata: ["Ramesh"] });
   if (p === "/autobills/a1/payment") { payments.push(req.postDataJSON()); return json({ success: true, message: "ok", autoBill: bill }); }
   if (p === "/autobills/a3" && req.method() === "GET") return json(memoBill);
@@ -164,7 +169,10 @@ ok("auto: Add memo opens memo 2 with one row", (await page.locator(".memo").coun
 await page.locator("#particulars-1").fill("Oil Filter");
 ok("auto: picking a catalog part fills rate and amount", (await page.locator("#rate-1").inputValue()) === "320" && (await page.locator("#amount-1").inputValue()) === "320",
   [await page.locator("#rate-1").inputValue(), await page.locator("#amount-1").inputValue()].join(" / "));
-ok("auto: the bill form has no Unit field or column", (await page.locator('[id^="unit-"]').count()) === 0 && !/Unit/.test(await page.locator(".memo-cols").first().innerText()));
+ok("auto: picking a catalog part fills its unit; the lines have a Unit column", (await page.locator("#unit-1").inputValue()) === "pcs" && /Unit/i.test(await page.locator(".memo-cols").first().innerText()),
+  await page.locator("#unit-1").inputValue());
+const unitOpts = await page.locator("#unit-0 option").allInnerTexts();
+ok("auto: the unit list on a line comes from Settings", JSON.stringify(unitOpts) === JSON.stringify(["—", ...settings.automobile.units]), JSON.stringify(unitOpts));
 const warn = page.locator(".memo").nth(1).locator(".memo-row-warn");
 ok("auto: a catalog part with no stock shows a warning (bill still saves)", (await warn.count()) === 1 && /None in stock/.test(await warn.innerText()), await warn.innerText().catch(() => ""));
 ok("auto: S.No runs on across memos (memo 2 starts at 2)", (await page.locator(".memo").nth(1).locator(".memo-sno").first().innerText()) === "2");
@@ -187,7 +195,7 @@ await page.locator('input[name="month"]').fill("09");
 await page.locator('input[name="year"]').fill("2026");
 await page.getByRole("button", { name: "Create bill", exact: true }).click();
 for (let i = 0; i < 50 && !created; i++) await page.waitForTimeout(100);
-ok("auto: payload vehicle number in capitals, items carry no unit", created?.vehicleNumber === "TN01X9999" && created?.items?.every((i) => !("unit" in i)), JSON.stringify({ v: created?.vehicleNumber, i: created?.items?.[0] }));
+ok("auto: payload vehicle number in capitals; each line carries its unit (blank when none)", created?.vehicleNumber === "TN01X9999" && JSON.stringify(created?.items?.map((i) => i.unit)) === JSON.stringify(["", "pcs", ""]), JSON.stringify({ v: created?.vehicleNumber, i: created?.items }));
 ok("auto: create payload items", created?.items?.[0]?.amount === 1500 && created?.items?.[0]?.particulars === "Brake pads", JSON.stringify(created?.items));
 ok("auto: payload carries memo index per item and the catalog partRef", JSON.stringify(created?.items?.map((i) => i.memo)) === "[0,1,1]" && created?.items?.[1]?.partRef === "oil-filter" && created?.items?.[2]?.amount === 200, JSON.stringify(created?.items));
 
@@ -214,7 +222,8 @@ const measureOverflow = () => page.evaluate(() => document.documentElement.scrol
 let overflow = await measureOverflow();
 for (let i = 0; i < 30 && overflow > 0; i++) { await page.waitForTimeout(100); overflow = await measureOverflow(); }
 ok("auto: bill form has no horizontal overflow at 390px", overflow <= 0, `overflow=${overflow}`);
-ok("auto: phone rows show Qty / Rate / Amount labels", await page.locator(".memo-row").first().locator(".memo-mlabel").evaluateAll((els) => els.length === 3 && els.every((e) => getComputedStyle(e).display !== "none")));
+ok("auto: phone rows show Qty / Unit / Rate / Amount labels", await page.locator(".memo-row").first().locator(".memo-mlabel").evaluateAll((els) => els.length === 4 && els.every((e) => getComputedStyle(e).display !== "none")));
+ok("auto: an edited bill loads each line's saved unit", (await page.locator("#unit-0").inputValue()) === "pcs");
 await page.screenshot({ path: `${OUT}/auto-edit-390.png`, fullPage: true });
 await page.screenshot({ path: `${OUT}/auto-create.png`, fullPage: true });
 
@@ -289,6 +298,45 @@ ok("auto: two parts with the same name are not saved", dupSaves === 0 && /oil fi
 await page.getByLabel("oil filter name").first().fill("");
 const blankSaves = await savePuts();
 ok("auto: a part with no name is not saved", blankSaves === 0, `${blankSaves} saves`);
+
+// ---- Units: a list in Settings, a default unit per catalog part ----
+await page.goto(BASE + "/settings");
+await page.getByRole("tab", { name: "Parts Catalog" }).click();
+ok("auto: Parts Catalog shows each part's unit", (await page.getByLabel("Oil Filter unit").inputValue()) === "pcs");
+await page.getByLabel("Brake Shoe unit").selectOption("set");
+await page.locator("#unit-list").fill("box");
+await page.locator("#unit-list").press("Enter");
+await page.locator("#new-part-label").fill("Grease");
+await page.locator("#new-part-unit").selectOption("box");
+await page.locator("#new-part-rate").fill("60");
+await page.getByRole("button", { name: "Add", exact: true }).click();
+const unitSaves = await savePuts();
+const lastPut = settingsPuts[settingsPuts.length - 1];
+ok("auto: units and part units are saved from Settings", unitSaves === 1 && lastPut.automobile.units.includes("box")
+  && lastPut.automobile.parts.find((x) => x.value === "brake-shoe")?.unit === "set" && lastPut.automobile.parts.find((x) => x.label === "Grease")?.unit === "box",
+  JSON.stringify({ units: lastPut?.automobile?.units, parts: lastPut?.automobile?.parts }));
+
+// The printed bill shows the unit next to the quantity.
+await page.goto(BASE + "/automobile/billing");
+await page.getByText("TN52AB1234").first().waitFor({ timeout: 10000 });
+const dlUnit = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
+await page.getByRole("button", { name: "Actions for TN52AB1234" }).click();
+await page.getByRole("menuitem", { name: "Print" }).click();
+const pdfUnit = await dlUnit;
+const rawUnit = pdfUnit ? readFileSync(await pdfUnit.path()).toString("latin1") : "";
+ok("auto: the printed bill shows '2 L' in the Qty column", /\(2 L\)/.test(rawUnit), pdfUnit ? "no '2 L' in the PDF" : "no download");
+
+// ---- Fix a name on past bills ----
+await page.goto(BASE + "/settings");
+await page.getByRole("tab", { name: "Fix names" }).click();
+await page.locator("#fix-from").waitFor({ timeout: 10000 });
+ok("auto: Fix names offers Part, Unit and Mechanic", JSON.stringify(await page.locator("#fix-kind option").allInnerTexts()) === JSON.stringify(["Part", "Unit", "Mechanic"]));
+await page.locator("#fix-from").selectOption("Engin oil");
+await page.locator("#fix-to").fill("Engine oil");
+await page.getByRole("button", { name: "Rename on 3 bills" }).click();
+await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
+for (let i = 0; i < 30 && !renames.length; i++) await page.waitForTimeout(100);
+ok("auto: renaming posts the kind, the old and the correct name", JSON.stringify(renames[0]) === JSON.stringify({ kind: "part", from: "Engin oil", to: "Engine oil" }), JSON.stringify(renames));
 
 // ---- WhatsApp: everything hidden unless the company has it; send-on-save, edit-after-sent, row menu, failed filter, receipts ----
 {

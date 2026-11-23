@@ -1,3 +1,4 @@
+import { nameKinds, namesInUse, renameName } from "../dao/rename.dao.js";
 import { Router } from "express";
 import multer from "multer";
 import { authenticate, loadActiveTenant } from "../middleware/auth.js";
@@ -97,6 +98,34 @@ router.delete("/asset/:kind", async (req, res, next) => {
     await a.remove(req.user.clientId);
     await auditClient(req, "settings.remove", { asset: req.params.kind });
     res.json({ success: true, message: "Image removed", [a.field]: "" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---- Fix a name on past bills -----------------------------------------------
+router.get("/names", async (req, res, next) => {
+  try {
+    res.json({ success: true, kinds: await nameKinds(req.user.clientId) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/names/:kind", async (req, res, next) => {
+  try {
+    res.json({ success: true, names: await namesInUse(req.user.clientId, req.params.kind) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/names/rename", async (req, res, next) => {
+  try {
+    const { kind, from, to } = req.body || {};
+    const r = await renameName(req.user.clientId, String(kind || ""), from, to);
+    await auditClient(req, "names.rename", { kind: r.kind, from: r.from, to: r.to, bills: r.bills });
+    res.json({ success: true, ...r, message: `Renamed on ${r.bills} bill${r.bills === 1 ? "" : "s"} ✅` });
   } catch (error) {
     next(error);
   }

@@ -44,6 +44,7 @@ const LABELS: Record<string, string> = {
     "settings.update": "Updated settings",
     "settings.upload": "Uploaded asset",
     "settings.remove": "Removed image",
+    "names.rename": "Fixed a name on past bills",
     // Bonus
     "bonus.payout": "Issued bonus",
     "bonus.manual": "Manual bonus",
@@ -155,6 +156,8 @@ export const detailText = (e: AuditEntry): string => {
             return join(d.periodKey, d.netAmount != null ? rs(d.netAmount) : "");
         case "salary.adjust":
             return join(d.amount ? rs(d.amount) : "", d.reason);
+        case "names.rename":
+            return join(d.kind, `"${d.from}" → "${d.to}"`, d.bills != null ? `${d.bills} bill${d.bills === 1 ? "" : "s"}` : "");
         case "whatsapp.send":
             return join(d.kind, d.vertical, d.status);
         default:

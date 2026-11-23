@@ -337,7 +337,7 @@ export const printAutoInvoice = async (o: any, settings: AppSettings, opts?: { o
         head: [["Particulars", "Qty", "Rate", "Amount"]],
         body: (o.items || []).map((i: any) => [
             i.particulars,
-            String(i.qty),
+            i.unit ? `${i.qty} ${i.unit}` : String(i.qty),
             rs(Number(i.rate || 0)),
             rs(Number(i.amount || 0)),
         ]),

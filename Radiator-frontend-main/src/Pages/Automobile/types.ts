@@ -7,7 +7,7 @@ export type AutoBillItem = {
     particulars: string;
     partRef?: string | null;
     qty: number;
-    /** Bills saved before units were dropped may still carry one; it is no longer shown. */
+    /** e.g. "L", "set" (Settings › Parts Catalog › Units). Blank on lines without one. */
     unit?: string;
     rate: number;
     amount: number;
@@ -34,4 +34,4 @@ export type AutoBillRecord = {
 };
 
 export const itemsText = (record: AutoBillRecord) =>
-    (record.items || []).map((i) => `${i.particulars} (${i.qty})`).join(", ") || "—";
+    (record.items || []).map((i) => `${i.particulars} (${i.qty}${i.unit ? ` ${i.unit}` : ""})`).join(", ") || "—";

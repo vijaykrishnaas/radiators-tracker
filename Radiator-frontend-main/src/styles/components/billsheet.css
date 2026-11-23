@@ -20,13 +20,14 @@
 .memo-tag { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-strong); }
 .memo-empty { margin: 12px 0 0; font-size: var(--text-sm); color: var(--text-muted); }
 
-.memo-cols, .memo-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 80px 136px 120px 36px; align-items: center; gap: 10px; }
+.memo-cols, .memo-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 80px 84px 136px 120px 36px; align-items: center; gap: 10px; }
 .memo-cols { display: none; margin-top: 12px; padding: 0 12px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
 .memo-cols .num { text-align: right; }
 .memo-rows { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .memo-row { padding: 6px 12px; background: var(--surface-sunken); border-radius: var(--radius-md); }
 .memo-sno { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
-.memo-part, .memo-qty, .memo-rate, .memo-amt { min-width: 0; }
+.memo-part, .memo-qty, .memo-unit, .memo-rate, .memo-amt { min-width: 0; }
+.memo-row .memo-unit .form-select { height: 42px; min-height: 42px; border-radius: var(--radius-sm); padding-left: 8px; padding-right: 24px; background-position: right 6px center; }
 .memo-row .form-control { height: 42px; min-height: 42px; border-radius: var(--radius-sm); }
 .memo-row .input-group-text { height: 42px; }
 .memo-row-error { grid-column: 2 / -1; margin-top: 0; }
@@ -61,8 +62,8 @@
 @media (max-width: 767.98px) {
   .memo { padding: 12px; }
   .memo-row {
-    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 36px;
-    grid-template-areas: "sno part part x" ". qty rate ." ". amt amt amt" ". err err err";
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 36px;
+    grid-template-areas: "sno part part part x" ". qty unit rate ." ". amt amt amt amt" ". err err err err";
     padding: 10px;
     gap: 8px;
   }
@@ -70,6 +71,7 @@
   .memo-part { grid-area: part; }
   .memo-x { grid-area: x; }
   .memo-qty { grid-area: qty; }
+  .memo-unit { grid-area: unit; }
   .memo-rate { grid-area: rate; }
   .memo-amt { grid-area: amt; }
   .memo-row-error { grid-area: err; }

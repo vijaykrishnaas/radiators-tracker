@@ -27,6 +27,8 @@ function settingsFor(type) {
   turbo.items.find((i) => i.value === "hold-set").prices.bs3 = 500;
   turbo.items.find((i) => i.value === "o-ring-kit-change").prices.bs3 = 2000;
   s.engineering.quickAdd = [{ type: "compressor", item: "piston" }];
+  s.engineering.invoice.ownerName = "R. Kumar";
+  s.engineering.invoice.showOwner = true;
   return s;
 }
 
@@ -247,7 +249,7 @@ async function run(type) {
   await c2.locator('div[class*="__control"]').nth(1).click({ force: true });
   await page.waitForTimeout(300);
   const menu = await page.locator("[class*='menu']").last().innerText();
-  ok("eng: BS-6 compressor hides 'Block bush change', shows 'Sleeve fixing'", !/Block bush change/.test(menu) && /Sleeve fixing/.test(menu), menu.replace(/\s+/g, " "));
+  ok("eng: BS-6 compressor still offers 'Block bush change', marked as having no price; 'Sleeve fixing' is priced", /Block bush change \(no price set\)/.test(menu) && /Sleeve fixing(?! \(no price)/.test(menu), menu.replace(/\s+/g, " "));
   await page.keyboard.press("Escape");
   // Back to BS-3: the change re-applies catalog rates on every card, so retype the manual values afterwards.
   await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
@@ -288,6 +290,9 @@ async function run(type) {
   });
   ok("eng: billing money columns are right-aligned (header + cells) with tabular numerals", tbl.thNet === "right" && tbl.thBal === "right" && tbl.tdNet === "right" && /tabular-nums/.test(tbl.tabular), JSON.stringify(tbl));
   ok("eng: billing table column is labelled Total (not Net)", (await page.locator(".table thead th").allTextContents()).some((t) => t.trim() === "Total") && !(await page.locator(".table thead th").allTextContents()).some((t) => t.trim() === "Net"));
+  const heads = (await page.locator(".table thead th").allTextContents()).map((t) => t.trim());
+  ok("eng: bills table has a Discount column between Total and Received, showing the bill's discount", heads.indexOf("Discount") === heads.indexOf("Total") + 1 && heads.indexOf("Received") === heads.indexOf("Discount") + 1
+    && (await page.locator(".table tbody tr").first().locator("td").nth(heads.indexOf("Discount")).innerText()).includes("50.00"), heads.join(" | "));
   ok("eng: billing truck number is emphasised (semibold)", parseInt(tbl.truckW, 10) >= 500, tbl.truckW);
   const firstTd = page.locator(".table tbody tr").first().locator("td").nth(2);
   const bgBefore = await firstTd.evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -504,13 +509,47 @@ async function run(type) {
   await page.locator(".rs__option").filter({ hasText: /^Hold set$/ }).click();
   await page.keyboard.press("Escape");
   const rate0 = await rc.locator('input[placeholder="Rate"]').first().inputValue();
-  ok("eng: without a BS model the rate is blank (prices differ per model), with a hint to pick one", rate0 === "" && (await page.getByText("Rates are filled from Settings for the chosen BS model.").count()) === 1, JSON.stringify(rate0));
+  ok("eng: without a BS model the rate is blank (prices differ per model), with a hint to pick one", rate0 === "" && (await page.getByText("Rates are filled from Settings for the chosen BS model; items without a price take the rate you type.").count()) === 1, JSON.stringify(rate0));
   await page.getByRole("button", { name: "Save service" }).click();
   ok("eng: saving with a blank rate asks for a BS model or a rate", (await page.getByText("Choose a BS model or enter a rate").count()) === 1);
   await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
   await page.getByText("BS-3", { exact: true }).last().click();
   await page.waitForTimeout(200);
   ok("eng: choosing the BS model fills the rate from Settings (BS-3 Hold set = 500) and clears the error", (await rc.locator('input[placeholder="Rate"]').first().inputValue()) === "500" && (await page.getByText("Choose a BS model or enter a rate").count()) === 0);
+
+  // An item with no Settings price for the bill's BS model can still be picked; its rate is typed and kept.
+  await page.goto(BASE + "/engineering/dashboard/create");
+  await page.locator(".eng-svc").first().waitFor({ timeout: 10000 });
+  await page.locator("#eng-truck-no").fill("TN01NP0001");
+  await page.locator("#eng-mechanic").focus(); await page.keyboard.press("ArrowDown");
+  await page.getByText("Ramesh", { exact: true }).last().click();
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  await page.getByText("BS-6", { exact: true }).last().click();
+  const nc = page.locator(".eng-svc").first();
+  await nc.getByText("Select type", { exact: true }).click({ force: true });
+  await page.getByText("Air Compressor", { exact: true }).last().click();
+  await nc.getByText("Select items").click({ force: true });
+  await page.locator(".rs__option").filter({ hasText: "Block bush change (no price set)" }).click();
+  await page.keyboard.press("Escape");
+  const npRate = nc.locator('input[placeholder="Rate"]').first();
+  ok("eng: an unpriced item is added with a blank rate", (await npRate.inputValue()) === "" && (await nc.locator(".eng-line-name").filter({ hasText: /^Block bush change$/ }).count()) === 1, await npRate.inputValue());
+  posted = null;
+  await page.getByRole("button", { name: "Save service" }).click();
+  ok("eng: saving asks for the unpriced item's rate", (await page.getByText("Enter a rate").count()) === 1 && !posted);
+  await npRate.fill("700");
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  await page.getByText("BS-4", { exact: true }).last().click();
+  await page.waitForTimeout(200);
+  ok("eng: changing the BS model keeps the item; a now-priced item takes the Settings rate (BS-4 = 0)", (await nc.locator(".eng-line-name").filter({ hasText: /^Block bush change$/ }).count()) === 1 && (await npRate.inputValue()) === "0", await npRate.inputValue());
+  await page.locator("#eng-bs").focus(); await page.keyboard.press("ArrowDown");
+  await page.getByText("BS-6", { exact: true }).last().click();
+  await page.waitForTimeout(200);
+  ok("eng: back on a model without a price, the item stays with the rate on the bill", (await nc.locator(".eng-line-name").filter({ hasText: /^Block bush change$/ }).count()) === 1 && (await npRate.inputValue()) === "0");
+  await npRate.fill("700");
+  await page.getByRole("button", { name: "Save service" }).click();
+  for (let i = 0; i < 30 && !posted; i++) await page.waitForTimeout(100);
+  const npItem = posted?.services?.[0]?.items?.[0];
+  ok("eng: the unpriced item saves with the typed rate", npItem?.item === "block-bush-change" && npItem?.rate === 700 && posted?.services?.[0]?.bsModel === "bs6", JSON.stringify(posted?.services));
 
   // Button/input recipe inside the service form: inputs and dropdowns share one 8px radius, footer buttons are r8 and >= 44px.
   await page.goto(BASE + "/engineering/dashboard/create");
@@ -798,6 +837,7 @@ async function run(type) {
     ok("eng: bill PDF is a real PDF named by date and plate, without the bill no.", raw.startsWith("%PDF") && /^Bill-\d{4}-\d{2}-\d{2}-/.test(download.suggestedFilename()) && !/802/.test(download.suggestedFilename()), download.suggestedFilename());
     ok("eng: bill PDF layout: Billed to, Details, S.No + Particulars table, signatory; no Bill No", !/Bill No/.test(raw) && /\(BILLED TO\)/.test(raw) && /\(DETAILS\)/.test(raw) && /\(S.No\)/.test(raw) && /\(Particulars\)/.test(raw) && /\(Authorised signatory\)/.test(raw), "layout markers");
     ok("eng: bill PDF carries plate, group tag and totals, but not the mechanic", /TN 52 J 2622/.test(raw) && !/\(Ramesh\)/.test(raw) && !/\(Mechanic\)/.test(raw) && /\(TURBO · BS-3\)/.test(raw) && /\(Subtotal\)/.test(raw) && /\(Total\)/.test(raw) && /\(Discount\)/.test(raw), "content");
+    ok("eng: bill PDF prints the owner's name under the company name when switched on", /\(Prop: R. Kumar\)/.test(raw), "no 'Prop: R. Kumar'");
     ok("eng: bill PDF no longer prints the old mockup extras (amount in words, PHONE / WHATSAPP band label)", !/Rupees Four Thousand/.test(raw) && !/PHONE \/ WHATSAPP/.test(raw), "legacy markers absent");
   }
   // Print options from Settings: GST No under the address, the company-name size, and "Others" lines with an amount only.
@@ -868,6 +908,11 @@ async function run(type) {
   const imgCount = (raw3.match(/\/Subtype \/Image/g) || []).length;
   ok("eng: bill PDF prints an SVG QR and a WebP signature", imgCount >= 2, `images=${imgCount}`);
   await page.unroute("http://localhost:5000/**", imgHandler);
+  // Settings › Invoice: the owner's name and the switch that prints it.
+  await page.goto(BASE + "/settings");
+  await page.getByRole("tab", { name: "Invoice" }).click();
+  await page.locator("#eng-show-owner").waitFor({ timeout: 10000 });
+  ok("eng: Settings › Invoice has the owner name and a switch to print it", (await page.locator("#setting-engineering-invoice-ownerName").inputValue()) === "R. Kumar" && (await page.locator("#eng-show-owner").isChecked()));
   // Phone layouts: bills become cards, filters collapse into a sheet, Save stays reachable on the form.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(BASE + "/engineering/billing");

@@ -55,7 +55,7 @@ export type EngServiceType = {
 export type AutoPart = {
     label: string;
     value: string;
-    /** No longer shown or edited; older settings may still carry one. */
+    /** Default unit filled on the bill line when this part is picked (one of automobile.units). */
     unit?: string;
     rate: number;
 };
@@ -156,6 +156,9 @@ export type AppSettings = {
             gstNo?: string;
             /** Company-name size on the printed bill. */
             titleSize?: "small" | "medium" | "large";
+            /** Owner's name, printed as "Prop: <name>" under the company name when showOwner is on. */
+            ownerName?: string;
+            showOwner?: boolean;
         };
     };
     tyre: TyreSettings;
@@ -221,7 +224,7 @@ export const FALLBACK_SETTINGS: AppSettings = {
         billStartNumber: 1,
         fyStartMonth: 4,
         bonus: { mechanicAmount: 0 },
-        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false, gstNo: "", titleSize: "medium" },
+        invoice: { billTitle: "CASH / CREDIT BILL", footerNote: "Thank you for your business", showQr: false, showSignature: false, gstNo: "", titleSize: "medium", ownerName: "", showOwner: false },
     },
     whatsapp: { billDefaultTick: false, receipt: false, receiptPdf: false, ownerSummary: false, ownerPhone: "", summaryTime: "20:00" },
     tyre: {

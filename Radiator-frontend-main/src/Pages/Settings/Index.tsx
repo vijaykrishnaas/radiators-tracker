@@ -5,6 +5,7 @@ import InputText from "../../Components/InputText";
 import { getData, putData, postData, deleteData } from "../../Services/ApiServices";
 import { useAlertMsg } from "../../Services/AllServices";
 import EngCatalogTab from "../Engineering/Settings/EngCatalogTab";
+import FixNamesTab from "./FixNamesTab";
 import { TyreCatalogTab, TyreInvoiceTab, catalogDuplicate } from "../Tyre/Settings/TyreSettingsTabs";
 import { useSettings, AppSettings, CatalogOption } from "../../Context/SettingsContext";
 import { Badge, BtnSpinner, Callout, CardHead, Field, FormFooter, PageHeader, SegmentedControl, TabsScroll } from "../../Components/ui/Basics";
@@ -41,7 +42,7 @@ const IMAGE_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp";
 const DEFAULT_LOGIN_TEXT = toHex([255, 255, 255]);
 
 type TabId = "company" | "catalog" | "people" | "bonus" | "invoice" | "salary" | "engCatalog" | "engPeople" | "engBonus" | "engInvoice"
-    | "tyreCatalog" | "tyreInvoice" | "whatsapp";
+    | "tyreCatalog" | "tyreInvoice" | "whatsapp" | "names";
 
 const WA_TEMPLATE_LABELS: Record<string, string> = {
     bill_document: "Bill / challan",
@@ -112,12 +113,14 @@ const SettingsPage = () => {
     const brokenHint = serverProblem || `Check that ${BACKEND} is reachable from this device.`;
     const [newPartLabel, setNewPartLabel] = useState("");
     const [newPartRate, setNewPartRate] = useState("");
+    const [newPartUnit, setNewPartUnit] = useState("");
 
     // Automobile tenants get a parallel set of settings tabs (parts catalog,
     // ₹ per bill bonus, automobile-specific labels/invoice) instead of the
     // radiator catalog/price-matrix/bonus-matrix tabs. Engineering tenants use their own tab ids.
     const isAutomobile = draft.businessType === "automobile";
     const auto = draft.automobile;
+    const autoUnits = (auto?.units || []).filter(Boolean);
     const isEngineering = draft.businessType === "engineering";
     const isTyre = draft.businessType === "tyre";
 
@@ -381,16 +384,16 @@ const SettingsPage = () => {
         for (let n = 2; auto.parts.some((p) => p.value === value); n++) value = `${slugify(newPartLabel)}-${n}`;
         set("automobile.parts", [
             ...auto.parts,
-            { label: newPartLabel.trim(), value, rate: Number(newPartRate || 0) },
+            { label: newPartLabel.trim(), value, rate: Number(newPartRate || 0), ...(newPartUnit ? { unit: newPartUnit } : {}) },
         ]);
-        setNewPartLabel(""); setNewPartRate("");
+        setNewPartLabel(""); setNewPartRate(""); setNewPartUnit("");
     };
 
     const removePart = (value: string) => {
         set("automobile.parts", auto.parts.filter((p) => p.value !== value));
     };
 
-    const updatePartField = (value: string, field: "label" | "rate", fieldValue: string) => {
+    const updatePartField = (value: string, field: "label" | "rate" | "unit", fieldValue: string) => {
         set(
             "automobile.parts",
             auto.parts.map((p) =>
@@ -466,7 +469,9 @@ const SettingsPage = () => {
     ];
 
     const waTab: ReadonlyArray<readonly [TabId, string]> = waEnabled ? [["whatsapp", "WhatsApp"]] : [];
-    const allTabs = [...tabs, ...waTab];
+    // Tyre bills carry no part, unit or mechanic names, so there is nothing to fix there.
+    const namesTab: ReadonlyArray<readonly [TabId, string]> = isTyre ? [] : [["names", "Fix names"]];
+    const allTabs = [...tabs, ...waTab, ...namesTab];
 
     // ---- Branding preview (rendered from the same buildBrand() the app uses) ----
     const primary = draft.branding.primaryColor;
@@ -602,6 +607,12 @@ const SettingsPage = () => {
                                     <InputText id="new-part-label" value={newPartLabel} placeholder="e.g. Engine Oil 15W40"
                                         onChange={(e) => setNewPartLabel(e.target.value)} />
                                 </Field>
+                                <Field label="Unit" htmlFor="new-part-unit">
+                                    <select id="new-part-unit" className="form-select" value={newPartUnit} onChange={(e) => setNewPartUnit(e.target.value)}>
+                                        <option value="">—</option>
+                                        {autoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                                    </select>
+                                </Field>
                                 <Field label="Default rate (₹)" htmlFor="new-part-rate">
                                     <InputText id="new-part-rate" type="number" className="num" value={newPartRate} placeholder="e.g. 450"
                                         onChange={(e) => setNewPartRate(e.target.value)} />
@@ -616,6 +627,7 @@ const SettingsPage = () => {
                                     <thead>
                                         <tr>
                                             <th scope="col">Part name</th>
+                                            <th scope="col">Unit</th>
                                             <th scope="col">Rate (₹)</th>
                                             <th scope="col"><span className="visually-hidden">Actions</span></th>
                                         </tr>
@@ -628,6 +640,13 @@ const SettingsPage = () => {
                                                         onChange={(e) => updatePartField(p.value, "label", e.target.value)} />
                                                 </th>
                                                 <td>
+                                                    <select className="form-select" aria-label={`${p.label} unit`} value={p.unit || ""}
+                                                        onChange={(e) => updatePartField(p.value, "unit", e.target.value)}>
+                                                        <option value="">—</option>
+                                                        {[...autoUnits, ...(p.unit && !autoUnits.includes(p.unit) ? [p.unit] : [])].map((u) => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
                                                     <AffixInput prefix="₹" type="number" className="num" aria-label={`${p.label} rate`} value={p.rate}
                                                         onChange={(e) => updatePartField(p.value, "rate", e.target.value)} />
                                                 </td>
@@ -639,14 +658,17 @@ const SettingsPage = () => {
                                             </tr>
                                         ))}
                                         {!auto.parts.length && (
-                                            <tr><td colSpan={3} className="t-muted text-center py-3">No parts yet</td></tr>
+                                            <tr><td colSpan={4} className="t-muted text-center py-3">No parts yet</td></tr>
                                         )}
                                     </tbody>
                                 </table>
                             </div>
                             <span className="field-help">
-                                Picking a part on the bill form auto-fills its rate; one-off items can still be typed freely.
+                                Picking a part on the bill form auto-fills its unit and rate; one-off items can still be typed freely.
                             </span>
+                        </SectionCard>
+                        <SectionCard title="Units" subtitle="Units to pick on each bill line, e.g. pcs, set, L. Printed next to the quantity.">
+                            <ChipInput id="unit-list" label="Units" values={autoUnits} onChange={(v) => set("automobile.units", v)} />
                         </SectionCard>
                     </>
                 )}
@@ -1021,9 +1043,17 @@ const SettingsPage = () => {
                                     <option value="large">Large</option>
                                 </select>
                             </Field>
+                            {textField("Owner name", "engineering.invoice.ownerName", draft.engineering.invoice.ownerName || "", "e.g. R. Kumar")}
                         </div>
                         <div className="mt-3">{invoiceSwitches("eng-", "engineering.invoice", draft.engineering.invoice)}</div>
+                        <div className="form-grid mt-3">
+                            <Switch id="eng-show-owner" label={'Print owner name on the bill ("Prop: <name>" under the company name)'} checked={!!draft.engineering.invoice.showOwner}
+                                onChange={(v) => set("engineering.invoice.showOwner", v)} />
+                        </div>
                     </SectionCard>
+                )}
+                {activeTab === "names" && !isTyre && (
+                    <FixNamesTab blocked={dirty} onRenamed={async () => { seeded.current = false; await refreshSettings(); }} />
                 )}
             </div>
 

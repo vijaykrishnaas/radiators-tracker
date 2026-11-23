@@ -76,8 +76,15 @@ export const printEngInvoice = async (bill: EngBill, settings: AppSettings, opts
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); setRGB(sub);
     doc.text(billDate, W - M, nameY + 5, { align: "right" });
 
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
     let cy = nameY + Math.max(nameH, 6) + 2.5;
+    const owner = inv?.showOwner ? (inv?.ownerName || "").trim() : "";
+    if (owner) {
+        // "Prop: <name>" on its own line under the company name (Settings › Invoice options).
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); setRGB(ink);
+        doc.text(`Prop: ${owner}`, M, cy, { maxWidth: nameMaxW });
+        cy += doc.getTextDimensions(`Prop: ${owner}`, { maxWidth: nameMaxW, fontSize: 7.5 }).h + 1.2;
+    }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); setRGB(sub);
     if (co.address) {
         doc.text(co.address, M, cy, { maxWidth: 84 });
         cy += doc.getTextDimensions(co.address, { maxWidth: 84, fontSize: 7 }).h + 1;

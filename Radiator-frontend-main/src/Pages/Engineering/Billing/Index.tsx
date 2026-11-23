@@ -186,6 +186,7 @@ const EngBilling = () => {
             <span className="d-inline-flex flex-wrap gap-1">{typeNames(o).map((t) => <Badge key={t} tone="neutral">{t}</Badge>)}</span>
         ) },
         { key: "total", sortKey: "total", header: "Total", className: "num", cell: (o) => money(o.netTotal) },
+        { key: "disc", sortKey: "disc", header: "Discount", className: "num", cell: (o) => money(o.discount || 0) },
         { key: "rec", sortKey: "rec", header: "Received", className: "num", cell: (o) => money(o.amountReceived) },
         { key: "bal", sortKey: "bal", header: "Balance", className: "num", cell: (o) => <span className={o.balance > 0 ? "t-error t-semibold" : undefined}>{money(o.balance)}</span> },
         { key: "status", sortKey: "status", header: "Status", className: "nowrap", cell: (o) => <><PaymentBadge status={o.paymentStatus} />{waEnabled && <WaBadge wa={o.whatsapp} />}</> },
@@ -267,6 +268,7 @@ const EngBilling = () => {
                         meta2={typeNames(o).join(", ")}
                         amounts={[
                             { label: "Total", value: money(o.netTotal) },
+                            ...(o.discount > 0 ? [{ label: "Discount", value: money(o.discount) }] : []),
                             { label: "Received", value: money(o.amountReceived) },
                             { label: "Balance", value: money(o.balance), tone: o.balance > 0 ? "error" : undefined },
                         ]}

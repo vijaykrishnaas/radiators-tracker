@@ -108,25 +108,19 @@ const EngCreate = () => {
 
     const setType = (key: number, type: string) => updateCard(key, (c) => ({ ...c, type, rows: [] }));
 
-    // Changing the bill's BS model re-applies the catalog rate on every card and drops items not offered for that model.
-    // Free-description rows ("Other") keep what was typed (description and rate): they have no catalog price.
+    // Changing the bill's BS model re-applies the catalog rate on every item priced for that model. Items with no price
+    // for it stay on the bill with the rate already typed; free-description rows ("Other") keep what was typed too.
     const setBs = (bsModel: string) => {
         setBillBs(bsModel);
-        let dropped: string[] = [];
         const next = cards.map((c) => {
             const t = findType(c.type);
-            const keep = (r: Row) => {
-                const it = t?.items.find((i) => i.value === r.item);
-                return !it || r.requiresComment || isOffered(it, bsModel);
-            };
-            dropped = dropped.concat(c.rows.filter((r) => !keep(r)).map((r) => r.label));
             return {
                 ...c,
                 bsModel,
-                rows: c.rows.filter(keep).map((r) => {
+                rows: c.rows.map((r) => {
                     const it = t?.items.find((i) => i.value === r.item);
                     // Clearing the BS model keeps the rates already on the bill.
-                    return it && !r.requiresComment && bsModel ? { ...r, rate: defaultRate(it, bsModel) } : r;
+                    return it && !r.requiresComment && bsModel && isOffered(it, bsModel) ? { ...r, rate: defaultRate(it, bsModel) } : r;
                 }),
             };
         });
@@ -134,10 +128,6 @@ const EngCreate = () => {
         // Rates just filled from Settings: drop their "enter a rate" errors.
         const filledKeys = new Set(next.flatMap((c) => c.rows.filter((r) => String(r.rate).trim() !== "").map((r) => `r${c.key}-${r.item}`)));
         setErrors((e) => (Object.keys(e).some((k) => filledKeys.has(k)) ? Object.fromEntries(Object.entries(e).filter(([k]) => !filledKeys.has(k))) : e));
-        if (dropped.length) {
-            const bsName = bsModels.find((b) => b.value === bsModel)?.label || bsModel;
-            callAlertMsg(`Removed ${dropped.join(", ")}: not offered for ${bsName}.`, "warning");
-        }
     };
 
     const setItems = (key: number, values: string[]) =>
@@ -175,12 +165,6 @@ const EngCreate = () => {
 
     const quickAdd = (type: string, item: string) => {
         const it = findType(type)?.items.find((i) => i.value === item);
-        // The card the chip would add to: an existing one of that type, else a blank or new card (bill BS model).
-        const targetBs = (cards.find((c) => c.type === type) || cards.find((c) => !c.type))?.bsModel ?? billBs;
-        if (it && !isOffered(it, targetBs)) {
-            callAlertMsg(`${it.label} isn't offered for ${bsModels.find((b) => b.value === targetBs)?.label || targetBs}.`, "warning");
-            return;
-        }
         clearErr("services");
         setCards((cs) => {
             let list = cs;
@@ -191,7 +175,6 @@ const EngCreate = () => {
                 list = blank ? list.map((c) => (c.key === blank.key ? target! : c)) : [...list, target];
             }
             if (target.rows.some((r) => r.item === item)) return list;
-            if (it && !isOffered(it, target.bsModel)) return list;
             const row: Row = {
                 item, label: it?.label || item, comment: "", requiresComment: !!it?.requiresComment,
                 qty: "1", rate: defaultRate(it, target.bsModel),
@@ -354,7 +337,7 @@ const EngCreate = () => {
                                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} />
                                 </Field>
                                 <Field label="BS model" htmlFor="eng-bs"
-                                    help={!isView && !billBs && !mixedBs ? "Rates are filled from Settings for the chosen BS model." : undefined}>
+                                    help={!isView && !mixedBs ? "Rates are filled from Settings for the chosen BS model; items without a price take the rate you type." : undefined}>
                                     <Selector inputId="eng-bs" options={bsOpts} isDisabled={isView} isClearable
                                         placeholder={mixedBs ? "Mixed" : "Select BS model"}
                                         value={billBs ? bsOpts.find((b) => b.value === billBs) || { label: billBs, value: billBs } : null}
@@ -390,7 +373,11 @@ const EngCreate = () => {
                         <div className="d-grid gap-3 mt-3">
                             {cards.map((c, ci) => {
                                 const t = findType(c.type);
-                                const itemOpts = (t?.items || []).filter((i) => isOffered(i, c.bsModel)).map((i) => ({ label: i.label, value: i.value }));
+                                // Every item of the type can be picked; one with no price for this BS model starts with a blank rate to type.
+                                const itemOpts = (t?.items || []).map((i) => ({
+                                    label: !i.requiresComment && c.bsModel && !isOffered(i, c.bsModel) ? `${i.label} (no price set)` : i.label,
+                                    value: i.value,
+                                }));
                                 return (
                                     <section key={c.key} className="nested-card eng-svc" aria-label={`Service ${ci + 1}`}>
                                         <div className="eng-svc-head">

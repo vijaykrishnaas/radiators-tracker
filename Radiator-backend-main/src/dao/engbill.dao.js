@@ -287,7 +287,7 @@ export async function getEngBillById(clientId, id) {
 // Sortable list columns (all stored on the bill).
 const ENG_SORT = {
   date: "billDate", bill: "billNo", truck: "vehicleNo", mech: "mechanic",
-  total: "netTotal", rec: "amountReceived", bal: "balance", status: "paymentStatus",
+  total: "netTotal", disc: "discount", rec: "amountReceived", bal: "balance", status: "paymentStatus",
 };
 
 function buildQuery(clientId, { vehicleNo = "", mechanic = "", fromDate = "", toDate = "", status = "", serviceType = "", bsModel = "", search = "", waFailed = false } = {}) {

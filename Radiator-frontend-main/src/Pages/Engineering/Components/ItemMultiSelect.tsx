@@ -67,7 +67,7 @@ const ItemMultiSelect = ({ inputId, options, value, onChange, disabled, placehol
             components={{ Option: CheckOption }}
             placeholder={placeholder}
             styles={styles}
-            noOptionsMessage={() => "No items offered for this BS model"}
+            noOptionsMessage={() => "No items in this service type. Add them in Settings."}
         />
     );
 };
